@@ -7,21 +7,24 @@
 
 <section class="wrap filter-panel">
   <div><strong>分类</strong>{maccms:type ids="parent" order="asc" by="sort" id="type"}<a href="{:mac_url_type($type)}">{$type.type_name}</a>{/maccms:type}</div>
-  <div><strong>排序</strong><a href="{:mac_url('vod/show',['by'=>'time'])}">最新</a><a href="{:mac_url('vod/show',['by'=>'hits'])}">最热</a><a href="{:mac_url('vod/show',['by'=>'score'])}">评分</a></div>
+  <div><strong>地区</strong><a href="{:mac_url('vod/show',['year'=>$param['year'],'class'=>$param['class']])}">全部</a><a href="{:mac_url('vod/show',['area'=>'中国大陆','year'=>$param['year'],'class'=>$param['class']])}">中国大陆</a><a href="{:mac_url('vod/show',['area'=>'中国香港','year'=>$param['year'],'class'=>$param['class']])}">中国香港</a><a href="{:mac_url('vod/show',['area'=>'中国台湾','year'=>$param['year'],'class'=>$param['class']])}">中国台湾</a><a href="{:mac_url('vod/show',['area'=>'美国','year'=>$param['year'],'class'=>$param['class']])}">美国</a><a href="{:mac_url('vod/show',['area'=>'韩国','year'=>$param['year'],'class'=>$param['class']])}">韩国</a><a href="{:mac_url('vod/show',['area'=>'日本','year'=>$param['year'],'class'=>$param['class']])}">日本</a></div>
+  <div><strong>年份</strong><a href="{:mac_url('vod/show',['area'=>$param['area'],'class'=>$param['class']])}">全部</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>'2026','class'=>$param['class']])}">2026</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>'2025','class'=>$param['class']])}">2025</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>'2024','class'=>$param['class']])}">2024</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>'2023','class'=>$param['class']])}">2023</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>'2022','class'=>$param['class']])}">2022</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>'2021','class'=>$param['class']])}">2021</a></div>
+  <div><strong>类型</strong><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year']])}">全部</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'剧情'])}">剧情</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'动作'])}">动作</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'喜剧'])}">喜剧</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'爱情'])}">爱情</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'科幻'])}">科幻</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'悬疑'])}">悬疑</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>'纪录'])}">纪录</a></div>
+  <div><strong>排序</strong><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>$param['class'],'by'=>'time'])}">最新</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>$param['class'],'by'=>'hits'])}">最热</a><a href="{:mac_url('vod/show',['area'=>$param['area'],'year'=>$param['year'],'class'=>$param['class'],'by'=>'score'])}">评分</a></div>
 </section>
 
 <section class="wrap content-section">
   <div class="vod-grid">
     {if condition="$param.by eq 'hits'"}
-    {maccms:vod num="24" paging="yes" type="all" order="desc" by="hits" id="vo"}
+    {maccms:vod num="24" paging="yes" type="all" area="'.$param['area'].'" year="'.$param['year'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {elseif condition="$param.by eq 'score'"}
-    {maccms:vod num="24" paging="yes" type="all" order="desc" by="score" id="vo"}
+    {maccms:vod num="24" paging="yes" type="all" area="'.$param['area'].'" year="'.$param['year'].'" class="'.$param['class'].'" order="desc" by="score" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {else}
-    {maccms:vod num="24" paging="yes" type="all" order="desc" by="time" id="vo"}
+    {maccms:vod num="24" paging="yes" type="all" area="'.$param['area'].'" year="'.$param['year'].'" class="'.$param['class'].'" order="desc" by="time" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {/if}

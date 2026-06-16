@@ -211,9 +211,27 @@ function render_page(array $data, string $route, array $query): string
 
     if ($route === 'category') {
         $name = (string) ($query['name'] ?? '');
-        $sort = in_array((string) ($query['sort'] ?? 'latest'), ['latest', 'hot', 'score'], true) ? (string) $query['sort'] : 'latest';
-        $videos = sort_videos(filter_videos($data, $name !== '' ? $name : null), $sort);
-        return render_layout($data, $name !== '' ? $name : '全部影片', '<section class="wrap page-title"><span class="eyebrow">分类浏览</span><h1>' . e($name !== '' ? $name : '全部影片') . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . count($videos) . ' 部内容。</p></section><section class="wrap content-section"><div class="vod-grid">' . render_cards($videos) . '</div></section>');
+        $area = (string) ($query['area'] ?? '');
+        $year = (string) ($query['year'] ?? '');
+        $class = (string) ($query['class'] ?? '');
+        $requestedSort = (string) ($query['sort'] ?? 'latest');
+        $sort = in_array($requestedSort, ['latest', 'hot', 'score'], true) ? $requestedSort : 'latest';
+        $videos = sort_videos(filter_videos($data, $name !== '' ? $name : null, null, $area, $year, $class), $sort);
+        $areas = ['中国大陆', '中国香港', '中国台湾', '美国', '韩国', '日本'];
+        $years = ['2026', '2025', '2024', '2023', '2022', '2021'];
+        $classes = ['剧情', '动作', '喜剧', '爱情', '科幻', '悬疑', '纪录', '综艺'];
+        $filter = '<section class="wrap filter-panel">'
+            . '<div><strong>分类</strong><a href="' . e(path_for('category', ['area' => $area, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">' . e($category) . '</a>', $data['categories'])) . '</div>'
+            . '<div><strong>地区</strong><a href="' . e(path_for('category', ['name' => $name, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $item, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">' . e($item) . '</a>', $areas)) . '</div>'
+            . '<div><strong>年份</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'class' => $class, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $item, 'class' => $class, 'sort' => $sort])) . '">' . e($item) . '</a>', $years)) . '</div>'
+            . '<div><strong>类型</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $item, 'sort' => $sort])) . '">' . e($item) . '</a>', $classes)) . '</div>'
+            . '<div><strong>排序</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => 'latest'])) . '">最新</a><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => 'hot'])) . '">最热</a><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => 'score'])) . '">评分</a></div>'
+            . '</section>';
+        return render_layout($data, $name !== '' ? $name : '全部影片', '<section class="wrap page-title"><span class="eyebrow">分类浏览</span><h1>' . e($name !== '' ? $name : '全部影片') . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . count($videos) . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid">' . render_cards($videos) . '</div></section>');
     }
 
     if ($route === 'search') {

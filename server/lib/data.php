@@ -28,10 +28,29 @@ function find_video(array $data, int $id): array
     return $data['videos'][0];
 }
 
-function filter_videos(array $data, ?string $category = null, ?string $keyword = null): array
+function filter_videos(
+    array $data,
+    ?string $category = null,
+    ?string $keyword = null,
+    ?string $area = null,
+    ?string $year = null,
+    ?string $class = null
+): array
 {
-    return array_values(array_filter($data['videos'], static function (array $video) use ($category, $keyword): bool {
+    return array_values(array_filter($data['videos'], static function (array $video) use ($category, $keyword, $area, $year, $class): bool {
         if ($category !== null && $category !== '' && $video['category'] !== $category) {
+            return false;
+        }
+
+        if ($area !== null && $area !== '' && $video['area'] !== $area) {
+            return false;
+        }
+
+        if ($year !== null && $year !== '' && $video['year'] !== $year) {
+            return false;
+        }
+
+        if ($class !== null && $class !== '' && ($video['class'] ?? '') !== $class) {
             return false;
         }
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -387,6 +388,9 @@ const typePage = readThemeFile("html/vod/type.html");
 assert.match(typePage, /\{include file="public\/head" seo_title=/);
 assert.match(typePage, /\{maccms:vod num="24" paging="yes"/);
 assert.doesNotMatch(typePage, /\$param\['by'\]/);
+assert.match(typePage, /area="'\.\$param\['area'\]\.'"/);
+assert.match(typePage, /year="'\.\$param\['year'\]\.'"/);
+assert.match(typePage, /class="'\.\$param\['class'\]\.'"/);
 assert.match(typePage, /\$param\.by eq 'hits'/);
 assert.match(typePage, /\$param\.by eq 'score'/);
 assert.match(typePage, /by="hits"/);
@@ -395,11 +399,21 @@ assert.match(typePage, /by="time"/);
 assert.match(typePage, /\{include file="public\/paging" \/\}/);
 
 const showPage = readThemeFile("html/vod/show.html");
-assert.match(showPage, /mac_url\('vod\/show',\['by'=>'time'\]\)/);
-assert.match(showPage, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
-assert.match(showPage, /mac_url\('vod\/show',\['by'=>'score'\]\)/);
+assert.match(showPage, /<strong>地区<\/strong>/);
+assert.match(showPage, /<strong>年份<\/strong>/);
+assert.match(showPage, /<strong>类型<\/strong>/);
+assert.match(showPage, /'area'=>\$param\['area'\]/);
+assert.match(showPage, /'year'=>\$param\['year'\]/);
+assert.match(showPage, /'class'=>\$param\['class'\]/);
+assert.doesNotMatch(showPage, /\$param\['by'\]/);
+assert.match(showPage, /'by'=>'time'/);
+assert.match(showPage, /'by'=>'hits'/);
+assert.match(showPage, /'by'=>'score'/);
 assert.match(showPage, /\$param\.by eq 'hits'/);
 assert.match(showPage, /\$param\.by eq 'score'/);
+assert.match(showPage, /area="'\.\$param\['area'\]\.'"/);
+assert.match(showPage, /year="'\.\$param\['year'\]\.'"/);
+assert.match(showPage, /class="'\.\$param\['class'\]\.'"/);
 assert.match(showPage, /by="hits"/);
 assert.match(showPage, /by="score"/);
 assert.match(showPage, /by="time"/);
@@ -584,10 +598,14 @@ assert.match(preview, /aria-label="进入\$\{escapeHtml\(category\)\}"/);
 assert.match(preview, /sortUrl\(category, "latest"\)/);
 assert.match(preview, /sortUrl\(category, "hot"\)/);
 assert.match(preview, /sortUrl\(category, "score"\)/);
+assert.match(preview, /filterVideos\(name, area, year, genre\)/);
+assert.match(preview, /filterUrl\(\{ area: item \}\)/);
+assert.match(preview, /filterUrl\(\{ year: item \}\)/);
+assert.match(preview, /filterUrl\(\{ class: item \}\)/);
 assert.match(preview, /const categoryPageSize = 12/);
 assert.match(preview, /function renderPagination/);
 assert.match(preview, /renderPagination\("categories"/);
-assert.match(preview, /sortVideos\(videosByCategory\(name\), currentSort\)/);
+assert.match(preview, /sortVideos\(filterVideos\(name, area, year, genre\), currentSort\)/);
 assert.match(preview, /history-timeline/);
 assert.match(preview, /timeline-item/);
 assert.doesNotMatch(preview, /renderNav\(\)[\s\S]{0,180}store\.categories\.slice/);
@@ -597,6 +615,7 @@ assert.ok(Array.isArray(previewData.videos), "preview data should include videos
 assert.ok(previewData.videos.length >= 6, "preview data should include enough videos");
 assert.ok(previewData.videos.every((video) => video.id && video.title && video.category && video.episodes?.length), "preview videos should be navigable");
 assert.ok(previewData.videos.every((video) => typeof video.score === "number"), "preview videos should include scores");
+assert.ok(previewData.videos.every((video) => video.area && video.year && video.class), "preview videos should include filter metadata");
 assert.ok(Array.isArray(previewData.history), "preview data should include history");
 assert.ok(previewData.history.length >= 4, "preview history should include timeline entries");
 assert.ok(previewData.history.every((entry) => entry.videoId && entry.watchedAt && entry.progress), "preview history should include usable timeline metadata");
@@ -627,10 +646,16 @@ assert.match(phpRender, /<a class="category-hit" href="/);
 assert.match(phpRender, /aria-label="进入' \. e\(\$category\) \. '"/);
 assert.match(phpRender, /\$categoryPageSize = 12/);
 assert.match(phpRender, /render_pagination\('categories'/);
-assert.match(phpRender, /sort_videos\(filter_videos\(\$data, \$name !== '' \? \$name : null\), \$sort\)/);
+assert.match(phpRender, /\$area = \(string\) \(\$query\['area'\] \?\? ''\)/);
+assert.match(phpRender, /\$year = \(string\) \(\$query\['year'\] \?\? ''\)/);
+assert.match(phpRender, /\$class = \(string\) \(\$query\['class'\] \?\? ''\)/);
+assert.match(phpRender, /sort_videos\(filter_videos\(\$data, \$name !== '' \? \$name : null, null, \$area, \$year, \$class\), \$sort\)/);
 assert.match(phpRender, /'sort' => 'latest'/);
 assert.match(phpRender, /'sort' => 'hot'/);
 assert.match(phpRender, /'sort' => 'score'/);
+assert.match(phpRender, /'area' => \$area/);
+assert.match(phpRender, /'year' => \$year/);
+assert.match(phpRender, /'class' => \$class/);
 assert.match(phpRender, /history-timeline/);
 assert.match(phpRender, /download-list/);
 assert.match(phpRender, /copyright-box/);
@@ -642,3 +667,27 @@ assert.match(appJs, /initHeroCarousel/);
 assert.match(appJs, /data-carousel/);
 assert.match(appJs, /fallbackHistoryUrl/);
 assert.doesNotMatch(appJs, /javascript:;/);
+
+function renderPreview(query) {
+  const code = `
+parse_str(${JSON.stringify(query)}, $_GET);
+require "server/lib/data.php";
+require "server/lib/render.php";
+$data = load_data();
+echo render_page($data, (string)($_GET["route"] ?? "home"), $_GET);
+`;
+
+  return execFileSync("php", ["-r", code], { encoding: "utf8" });
+}
+
+const areaFiltered = renderPreview("route=category&area=中国香港");
+assert.match(areaFiltered, /午夜档案/);
+assert.doesNotMatch(areaFiltered, /云端回声/);
+
+const yearFiltered = renderPreview("route=category&year=2025");
+assert.match(yearFiltered, /南城旧事/);
+assert.doesNotMatch(yearFiltered, /云端回声/);
+
+const classFiltered = renderPreview("route=category&class=悬疑");
+assert.match(classFiltered, /午夜档案/);
+assert.doesNotMatch(classFiltered, /远山计划/);

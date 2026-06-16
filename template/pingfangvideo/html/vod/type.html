@@ -10,9 +10,15 @@
   {maccms:type parent="'.$obj['type_id'].'" order="asc" by="sort" id="type"}
   <a href="{:mac_url_type($type)}">{$type.type_name}</a>
   {/maccms:type}
-  <a href="{:mac_url_type($obj,['by'=>'time'])}">最新</a>
-  <a href="{:mac_url_type($obj,['by'=>'hits'])}">最热</a>
-  <a href="{:mac_url_type($obj,['by'=>'score'])}">评分</a>
+  <a href="{:mac_url_type($obj,['area'=>'中国大陆','year'=>$param['year'],'class'=>$param['class']])}">中国大陆</a>
+  <a href="{:mac_url_type($obj,['area'=>'中国香港','year'=>$param['year'],'class'=>$param['class']])}">中国香港</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>'2026','class'=>$param['class']])}">2026</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>'2025','class'=>$param['class']])}">2025</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>$param['year'],'class'=>'剧情'])}">剧情</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>$param['year'],'class'=>'悬疑'])}">悬疑</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>$param['year'],'class'=>$param['class'],'by'=>'time'])}">最新</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>$param['year'],'class'=>$param['class'],'by'=>'hits'])}">最热</a>
+  <a href="{:mac_url_type($obj,['area'=>$param['area'],'year'=>$param['year'],'class'=>$param['class'],'by'=>'score'])}">评分</a>
 </section>
 
 <section class="wrap content-section">
@@ -22,15 +28,15 @@
   </div>
   <div class="vod-grid">
     {if condition="$param.by eq 'hits'"}
-    {maccms:vod num="24" paging="yes" type="current" order="desc" by="hits" id="vo"}
+    {maccms:vod num="24" paging="yes" type="current" area="'.$param['area'].'" year="'.$param['year'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {elseif condition="$param.by eq 'score'"}
-    {maccms:vod num="24" paging="yes" type="current" order="desc" by="score" id="vo"}
+    {maccms:vod num="24" paging="yes" type="current" area="'.$param['area'].'" year="'.$param['year'].'" class="'.$param['class'].'" order="desc" by="score" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {else}
-    {maccms:vod num="24" paging="yes" type="current" order="desc" by="time" id="vo"}
+    {maccms:vod num="24" paging="yes" type="current" area="'.$param['area'].'" year="'.$param['year'].'" class="'.$param['class'].'" order="desc" by="time" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {/if}

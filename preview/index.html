@@ -88,6 +88,16 @@ function videosByCategory(category) {
   return store.videos.filter((video) => video.category === category);
 }
 
+function filterVideos(category, area, year, genre) {
+  return store.videos.filter((video) => {
+    if (category && video.category !== category) return false;
+    if (area && video.area !== area) return false;
+    if (year && video.year !== year) return false;
+    if (genre && video.class !== genre) return false;
+    return true;
+  });
+}
+
 function card(video) {
   return `
     <a class="vod-card" href="${url("detail", { id: video.id })}" data-route="detail">
@@ -286,16 +296,33 @@ function renderHome() {
     </section>`;
 }
 
-function renderCategory(name, sort = "latest") {
+function renderCategory(name, sort = "latest", area = "", year = "", genre = "") {
   const currentSort = ["latest", "hot", "score"].includes(sort) ? sort : "latest";
-  const list = sortVideos(videosByCategory(name), currentSort);
-  const areas = ["全部", "大陆", "香港", "台湾", "美国", "韩国", "日本", "泰国", "英国", "法国"];
-  const years = ["全部", "2026", "2025", "2024", "2023", "2022", "2021", "2020"];
+  const list = sortVideos(filterVideos(name, area, year, genre), currentSort);
+  const areas = ["中国大陆", "中国香港", "中国台湾", "美国", "韩国", "日本"];
+  const years = ["2026", "2025", "2024", "2023", "2022", "2021"];
+  const genres = ["剧情", "动作", "喜剧", "爱情", "科幻", "悬疑", "纪录", "综艺"];
   const sorts = [
     ["latest", "最新"],
     ["hot", "最热"],
     ["score", "评分"]
   ];
+  function filterUrl(next = {}) {
+    const params = {
+      name,
+      area,
+      year,
+      class: genre,
+      sort: currentSort,
+      ...next,
+    };
+    if (!params.name) delete params.name;
+    if (!params.area) delete params.area;
+    if (!params.year) delete params.year;
+    if (!params.class) delete params.class;
+    if (!params.sort || params.sort === "latest") delete params.sort;
+    return url("category", params);
+  }
   app.innerHTML = `
     <section class="wrap page-title">
       <span class="eyebrow">筛选</span>
@@ -305,20 +332,27 @@ function renderCategory(name, sort = "latest") {
     <section class="wrap filter-panel">
       <div>
         <strong>分类</strong>
-        <a href="${url("category")}">全部</a>
-        ${store.categories.map((category) => `<a href="${url("category", { name: category })}">${escapeHtml(category)}</a>`).join("")}
+        <a href="${filterUrl({ name: "" })}">全部</a>
+        ${store.categories.map((category) => `<a href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
       </div>
       <div>
         <strong>地区</strong>
-        ${areas.map((area) => `<a href="${url("category", { name })}">${escapeHtml(area)}</a>`).join("")}
+        <a href="${filterUrl({ area: "" })}">全部</a>
+        ${areas.map((item) => `<a class="${item === area ? "is-active" : ""}" href="${filterUrl({ area: item })}">${escapeHtml(item)}</a>`).join("")}
       </div>
       <div>
         <strong>年份</strong>
-        ${years.map((year) => `<a href="${url("category", { name })}">${escapeHtml(year)}</a>`).join("")}
+        <a href="${filterUrl({ year: "" })}">全部</a>
+        ${years.map((item) => `<a class="${item === year ? "is-active" : ""}" href="${filterUrl({ year: item })}">${escapeHtml(item)}</a>`).join("")}
+      </div>
+      <div>
+        <strong>类型</strong>
+        <a href="${filterUrl({ class: "" })}">全部</a>
+        ${genres.map((item) => `<a class="${item === genre ? "is-active" : ""}" href="${filterUrl({ class: item })}">${escapeHtml(item)}</a>`).join("")}
       </div>
       <div>
         <strong>排序</strong>
-        ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${url("category", { name, sort: value })}">${escapeHtml(label)}</a>`).join("")}
+        ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${filterUrl({ sort: value })}">${escapeHtml(label)}</a>`).join("")}
       </div>
     </section>
     <section class="wrap content-section">
@@ -431,7 +465,7 @@ function render() {
   if (route === "categories") renderCategoriesPage(params.get("page"));
   else if (route === "history") renderHistoryPage();
   else
-  if (route === "category") renderCategory(params.get("name"), params.get("sort"));
+  if (route === "category") renderCategory(params.get("name"), params.get("sort"), params.get("area"), params.get("year"), params.get("class"));
   else if (route === "search") renderSearch(params.get("wd"));
   else if (route === "detail") renderDetail(params.get("id"));
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));

@@ -19,6 +19,17 @@
     });
   });
 
+  function initRandomAvatars(root) {
+    var colors = ["#ef4444", "#f97316", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];
+    var scope = root || document;
+    scope.querySelectorAll("[data-avatar-random]").forEach(function (avatar) {
+      var index = Math.floor(Math.random() * colors.length);
+      avatar.style.setProperty("--avatar-bg", colors[index]);
+    });
+  }
+
+  initRandomAvatars(document);
+
   var current = window.location.href;
   document.querySelectorAll(".episode-grid a").forEach(function (link) {
     if (link.href === current) {

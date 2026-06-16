@@ -19,6 +19,9 @@
 
   <form id="form1" name="form1" method="post">
     <div class="record-list">
+      {empty name="list"}
+      <div class="record-empty">暂无播放记录</div>
+      {/empty}
       {volist name="list" id="vo"}
       <article class="record-item">
         <label class="record-check" aria-label="选择播放记录 {$vo.ulog_id}">

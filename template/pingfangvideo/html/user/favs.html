@@ -19,6 +19,9 @@
 
   <form id="form1" name="form1" method="post">
     <div class="record-list">
+      {empty name="list"}
+      <div class="record-empty">暂无收藏记录</div>
+      {/empty}
       {volist name="list" id="vo"}
       {if condition="$vo.ulog_mid eq 1"}
       <article class="record-item">

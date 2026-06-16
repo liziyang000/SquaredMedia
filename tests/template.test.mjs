@@ -164,6 +164,7 @@ assert.match(head, /class="user-menu"/);
 assert.match(head, /\$user\.user_id/);
 assert.match(head, /mac_url\('user\/login'\)/);
 assert.match(head, /mac_url\('user\/index'\)/);
+assert.match(head, /mac_url\('user\/logout'\)/);
 assert.match(head, /data-avatar-random/);
 assert.match(head, /class="user-avatar-letter"/);
 assert.match(head, /\$user\.user_name\|mac_substring=1/);
@@ -171,6 +172,7 @@ assert.doesNotMatch(head, /user\.user_portrait/);
 assert.match(head, /class="user-dropdown"/);
 assert.match(head, />收藏</);
 assert.match(head, />播放记录</);
+assert.match(head, />退出登录</);
 assert.doesNotMatch(head, /class="history-link mac_history" href="javascript:;"/);
 assert.doesNotMatch(head, /\{maccms:type ids="parent" order="asc" by="sort" num=/);
 

@@ -1,0 +1,40 @@
+{include file="public/head" seo_title="评论" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap content-section">
+  <div class="page-title">
+    <span class="eyebrow">互动评论</span>
+    <h1>评论</h1>
+    <p>查看用户反馈，或留下你对当前内容的看法。</p>
+  </div>
+  <div class="comment-layout">
+    <div class="comment-list">
+      {maccms:comment num="20" order="desc" by="time" id="vo"}
+      <article class="comment-item">
+        <div>
+          <strong>{$vo.comment_name|mac_default='匿名用户'}</strong>
+          <time>{$vo.comment_time|date='Y-m-d H:i',###}</time>
+        </div>
+        <p>{$vo.comment_content|mac_filter_html}</p>
+      </article>
+      {/maccms:comment}
+    </div>
+    <form class="system-box verify-form" method="post" action="{:mac_url('comment/save')}">
+      <span class="eyebrow">发表评论</span>
+      <h2>说点什么</h2>
+      <label>
+        <span>昵称</span>
+        <input type="text" name="comment_name" autocomplete="name" placeholder="可选">
+      </label>
+      <label>
+        <span>评论内容</span>
+        <textarea name="comment_content" rows="5" required placeholder="请输入评论内容"></textarea>
+      </label>
+      <label>
+        <span>验证码</span>
+        <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+      </label>
+      <div class="verify-code">{$verify}</div>
+      <button class="primary-btn" type="submit">提交评论</button>
+    </form>
+  </div>
+</section>
+{include file="public/foot" /}

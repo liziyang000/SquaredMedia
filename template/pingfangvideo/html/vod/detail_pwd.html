@@ -1,0 +1,19 @@
+{include file="public/head" seo_title="访问验证" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <form class="system-box verify-form" method="post">
+    <span class="eyebrow">访问验证</span>
+    <h1>{$obj.vod_name|mac_default='内容验证'}</h1>
+    <p>请输入访问密码和验证码后继续查看详情。</p>
+    <label>
+      <span>访问密码</span>
+      <input type="password" name="pwd" autocomplete="current-password" placeholder="输入访问密码">
+    </label>
+    <label>
+      <span>验证码</span>
+      <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+    </label>
+    <div class="verify-code">{$verify}</div>
+    <button class="primary-btn" type="submit">提交验证</button>
+  </form>
+</section>
+{include file="public/foot" /}

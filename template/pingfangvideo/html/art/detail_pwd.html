@@ -1,0 +1,22 @@
+{include file="public/head" seo_title="文章访问验证" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <form class="system-box verify-form module-fallback" method="post">
+    <span class="eyebrow">文章</span>
+    <h1>文章访问验证</h1>
+    <p>请输入访问密码和验证码后继续访问。</p>
+    <label>
+      <span>访问密码</span>
+      <input type="password" name="pwd" autocomplete="current-password" placeholder="输入访问密码">
+    </label>
+    <label>
+      <span>验证码</span>
+      <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+    </label>
+    <div class="verify-code">{$verify}</div>
+    <button class="primary-btn" type="submit">提交验证</button>
+    <div class="detail-actions">
+      <a class="ghost-btn" href="{:mac_url('vod/show')}">浏览影片库</a>
+    </div>
+  </form>
+</section>
+{include file="public/foot" /}

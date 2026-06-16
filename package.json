@@ -1,0 +1,14 @@
+{
+  "name": "pingfang-video-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/template.test.mjs",
+    "lint:template": "node scripts/lint-template.mjs",
+    "verify:compat": "node scripts/verify-compat.mjs",
+    "verify:preview": "node scripts/verify-preview.mjs",
+    "package": "node scripts/package-theme.mjs",
+    "verify:release": "node scripts/verify-release.mjs"
+  }
+}

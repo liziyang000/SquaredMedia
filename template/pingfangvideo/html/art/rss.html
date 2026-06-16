@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>{$maccms.site_name} 文章</title>
+    <link>{$maccms.site_url}</link>
+    <description>{$maccms.site_description}</description>
+    {maccms:art type="all" num="50" order="desc" by="time" id="vo"}
+    <item>
+      <title>{$vo.art_name}</title>
+      <link>{$maccms.site_url}{:mac_url_art_detail($vo)}</link>
+      <description>{$vo.art_content|mac_filter_html|mac_substring=160}</description>
+      <pubDate>{$vo.art_time|date='r',###}</pubDate>
+    </item>
+    {/maccms:art}
+  </channel>
+</rss>

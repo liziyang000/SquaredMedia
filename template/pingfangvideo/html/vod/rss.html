@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>{$obj.type_name|mac_default=$maccms.site_name}</title>
+    <link>{$maccms.site_url}{:mac_url_type($obj)}</link>
+    <description>{$obj.type_des|mac_filter_html|mac_default=$maccms.site_description}</description>
+    {maccms:vod type="current" num="50" order="desc" by="time" id="vo"}
+    <item>
+      <title>{$vo.vod_name}</title>
+      <link>{$maccms.site_url}{:mac_url_vod_detail($vo)}</link>
+      <description>{$vo.vod_content|mac_filter_html|mac_substring=160}</description>
+      <pubDate>{$vo.vod_time|date='r',###}</pubDate>
+    </item>
+    {/maccms:vod}
+  </channel>
+</rss>

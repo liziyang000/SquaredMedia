@@ -1,0 +1,18 @@
+{include file="public/head" seo_title="页面跳转" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <div class="system-box">
+    <span class="eyebrow">跳转</span>
+    <h1>{$msg}</h1>
+    <p>页面将在 <strong>{$wait}</strong> 秒后自动跳转。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{$url}">立即跳转</a>
+      <a class="ghost-btn" href="{$maccms.path}">返回首页</a>
+    </div>
+  </div>
+</section>
+<script>
+setTimeout(function () {
+  window.location.href = "{$url}";
+}, Number("{$wait}") * 1000 || 1200);
+</script>
+{include file="public/foot" /}

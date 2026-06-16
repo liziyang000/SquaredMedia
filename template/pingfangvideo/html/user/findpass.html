@@ -1,0 +1,14 @@
+{include file="user/head" /}
+<section class="wrap system-page">
+  <form class="system-box verify-form module-fallback" method="post" action="{:mac_url('user/findpass')}">
+    <span class="eyebrow">会员</span>
+    <h1>找回密码</h1>
+    <p>输入账号或邮箱后按站点配置找回密码。</p>
+    <label>
+      <span>账号或邮箱</span>
+      <input type="text" name="user_name" autocomplete="username" placeholder="用户名或邮箱">
+    </label>
+    <button class="primary-btn" type="submit">找回密码</button>
+  </form>
+</section>
+{include file="user/foot" /}

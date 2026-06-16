@@ -1,0 +1,13 @@
+{include file="public/head" seo_title="演员详情" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <div class="system-box module-fallback">
+    <span class="eyebrow">演员</span>
+    <h1>{$obj.actor_name|mac_default='演员详情'}</h1>
+    <p>{$obj.actor_blurb|mac_default='演员资料正在整理中，请先浏览相关影片。'}</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('vod/show')}">浏览影片库</a>
+      <a class="ghost-btn" href="{$maccms.path}">返回首页</a>
+    </div>
+  </div>
+</section>
+{include file="public/foot" /}

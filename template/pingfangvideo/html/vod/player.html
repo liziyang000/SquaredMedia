@@ -1,0 +1,21 @@
+{include file="public/head" seo_title="$obj.vod_name 试看播放" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
+<section class="player-page">
+  <div class="wrap">
+    <div class="player-head">
+      <div>
+        <span class="eyebrow">试看播放</span>
+        <h1>{$obj.vod_name}</h1>
+      </div>
+      <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">返回详情</a>
+    </div>
+    <div class="player-toolbar">
+      <span>{$obj.vod_name} / {$obj.vod_remarks|mac_default='试看'}</span>
+      <a class="ghost-btn" href="{:mac_url_vod_play($obj)}">完整播放</a>
+    </div>
+    <div class="player-shell">
+      {$player_data}
+      {$player_js}
+    </div>
+  </div>
+</section>
+{include file="public/foot" /}

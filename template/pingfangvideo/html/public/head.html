@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <title>[seo_title] - {$maccms.site_name}</title>
+  {include file="public/include" /}
+  <meta name="keywords" content="[seo_keywords]">
+  <meta name="description" content="[seo_description]">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{$maccms.path}" aria-label="{$maccms.site_name}">
+      <img class="brand-logo" src="{$maccms.path_tpl}images/site-logo.png" alt="{$maccms.site_name} logo">
+    </a>
+    <button class="nav-toggle" type="button" aria-label="展开导航">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="site-nav">
+      <a href="{$maccms.path}">首页</a>
+      <a href="{:mac_url('label/categories')}">分类</a>
+      <a href="{:mac_url('user/favs')}">收藏</a>
+    </nav>
+    <form class="header-search" method="get" action="{:mac_url('vod/search')}">
+      <input type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">
+      <button type="submit">搜索</button>
+    </form>
+    <a class="history-link" href="{:mac_url('user/plays')}">播放记录</a>
+  </div>
+</header>
+<main>

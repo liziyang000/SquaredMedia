@@ -1,0 +1,127 @@
+{
+  "siteName": "平方影视",
+  "todayUpdated": 128,
+  "categories": ["娱乐新闻", "预告片", "短剧", "AI漫剧", "动画片", "电影资讯", "新闻资讯", "演员", "斯诺克", "网球", "篮球", "足球", "体育", "电影解说", "伦理片", "电影", "剧集", "综艺", "动漫", "纪录"],
+  "history": [
+    { "videoId": 2, "episode": 3, "watchedAt": "2026-06-15 21:36", "progress": "已看到 32:18" },
+    { "videoId": 1, "episode": 1, "watchedAt": "2026-06-15 18:20", "progress": "已看到 48:02" },
+    { "videoId": 5, "episode": 2, "watchedAt": "2026-06-14 22:08", "progress": "已看完" },
+    { "videoId": 3, "episode": 1, "watchedAt": "2026-06-13 20:11", "progress": "已看到 12:45" },
+    { "videoId": 6, "episode": 2, "watchedAt": "2026-06-12 19:30", "progress": "已看到 28:09" }
+  ],
+  "videos": [
+    {
+      "id": 1,
+      "title": "云端回声",
+      "category": "电影",
+      "remark": "高清",
+      "actor": "主演 A / 主演 B",
+      "director": "导演 A",
+      "year": "2026",
+      "area": "中国大陆",
+      "hits": 98120,
+      "score": 8.8,
+      "updated": "2026-06-15",
+      "poster": "https://picsum.photos/seed/pfv1/360/540",
+      "summary": "一名工程师在城市云端系统中发现异常回声，由此追踪到一段被隐藏的记忆。",
+      "episodes": [
+        { "no": 1, "name": "正片", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "暮色航线",
+      "category": "剧集",
+      "remark": "更新至12",
+      "actor": "主演 C / 主演 D",
+      "director": "导演 B",
+      "year": "2026",
+      "area": "中国大陆",
+      "hits": 87210,
+      "score": 8.5,
+      "updated": "2026-06-14",
+      "poster": "https://picsum.photos/seed/pfv2/360/540",
+      "summary": "一条跨海航线串起数个家庭的秘密，所有线索都指向十年前的一次失联。",
+      "episodes": [
+        { "no": 1, "name": "第1集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
+        { "no": 2, "name": "第2集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
+        { "no": 3, "name": "第3集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "南城旧事",
+      "category": "剧集",
+      "remark": "全36集",
+      "actor": "主演 E / 主演 F",
+      "director": "导演 C",
+      "year": "2025",
+      "area": "中国大陆",
+      "hits": 76544,
+      "score": 8.2,
+      "updated": "2026-06-13",
+      "poster": "https://picsum.photos/seed/pfv3/360/540",
+      "summary": "老街改造前夕，几代人的关系与选择在南城重新交汇。",
+      "episodes": [
+        { "no": 1, "name": "第1集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
+        { "no": 2, "name": "第2集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "午夜档案",
+      "category": "电影",
+      "remark": "高清",
+      "actor": "主演 G / 主演 H",
+      "director": "导演 D",
+      "year": "2026",
+      "area": "中国香港",
+      "hits": 68910,
+      "score": 7.9,
+      "updated": "2026-06-12",
+      "poster": "https://picsum.photos/seed/pfv4/360/540",
+      "summary": "档案管理员在午夜发现一份不存在的卷宗，卷宗内容正在现实中逐步发生。",
+      "episodes": [
+        { "no": 1, "name": "正片", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "远山计划",
+      "category": "纪录",
+      "remark": "蓝光",
+      "actor": "纪录片团队",
+      "director": "导演 E",
+      "year": "2026",
+      "area": "中国大陆",
+      "hits": 53420,
+      "score": 9.1,
+      "updated": "2026-06-11",
+      "poster": "https://picsum.photos/seed/pfv5/360/540",
+      "summary": "跟拍三组科考队进入远山，记录生态修复和人类迁徙之间的真实关系。",
+      "episodes": [
+        { "no": 1, "name": "上集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
+        { "no": 2, "name": "下集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "第七频道",
+      "category": "综艺",
+      "remark": "更新中",
+      "actor": "主持 K / 嘉宾 L",
+      "director": "制作组 F",
+      "year": "2026",
+      "area": "中国大陆",
+      "hits": 49876,
+      "score": 8.0,
+      "updated": "2026-06-10",
+      "poster": "https://picsum.photos/seed/pfv6/360/540",
+      "summary": "以城市文化为主题的棚内外混合综艺，每期用一个频道探索一座城市。",
+      "episodes": [
+        { "no": 1, "name": "第1期", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
+        { "no": 2, "name": "第2期", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
+      ]
+    }
+  ]
+}

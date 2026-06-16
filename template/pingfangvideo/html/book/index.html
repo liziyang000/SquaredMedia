@@ -1,0 +1,23 @@
+{include file="public/head" seo_title="留言反馈" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <form class="system-box verify-form" method="post" action="{:mac_url('gbook/save')}">
+    <span class="eyebrow">反馈</span>
+    <h1>留言反馈</h1>
+    <p>欢迎提交意见、片源问题或合作信息，我们会尽快处理。</p>
+    <label>
+      <span>称呼</span>
+      <input type="text" name="gbook_name" autocomplete="name" placeholder="请输入称呼">
+    </label>
+    <label>
+      <span>内容</span>
+      <textarea name="gbook_content" rows="5" required placeholder="请输入留言内容"></textarea>
+    </label>
+    <label>
+      <span>验证码</span>
+      <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+    </label>
+    <div class="verify-code">{$verify}</div>
+    <button class="primary-btn" type="submit">提交留言</button>
+  </form>
+</section>
+{include file="public/foot" /}

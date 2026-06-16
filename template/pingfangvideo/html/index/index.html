@@ -1,0 +1,82 @@
+{include file="public/head" seo_title="首页" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="hero">
+  <div class="wrap hero-grid">
+    <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
+      <div class="banner-track">
+        {maccms:vod type="all" num="5" order="desc" by="hits" id="vo" key="key"}
+        <a class='hero-slide{if condition="$key eq 1"} is-active{/if}' href="{:mac_url_vod_detail($vo)}" data-carousel-slide style="--banner-bg: url('{$vo.vod_pic|mac_url_img}');">
+          <span class="banner-bg"></span>
+          <span class="banner-copy">
+            <em class="eyebrow">今日更新 {:mac_data_count(0,'today','vod')} 部</em>
+            <strong>{$vo.vod_name}</strong>
+            <small>{$vo.vod_content|mac_filter_html|mac_substring=86}</small>
+            <span class="banner-meta"><i>{$vo.type.type_name|mac_default='视频'}</i><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_remarks|mac_default='更新中'}</i></span>
+            <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">{$vo.vod_score|mac_default='8.0'} 分</span></span>
+          </span>
+          <img class="banner-poster" src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+        </a>
+        {/maccms:vod}
+      </div>
+      <div class="hero-stats">
+        <div class="stat-card"><strong>{:mac_data_count(0,'today','vod')}</strong><span>今日更新</span></div>
+        <div class="stat-card"><strong>{:mac_data_count(0,'all','vod')}</strong><span>全站片库</span></div>
+        <div class="stat-card"><strong>24h</strong><span>持续维护</span></div>
+      </div>
+      <div class="banner-controls">
+        <button class="banner-arrow" type="button" data-carousel-prev aria-label="上一张">‹</button>
+        <div class="banner-dots" role="tablist" aria-label="轮播分页">
+          {maccms:vod type="all" num="5" order="desc" by="hits" id="vo" key="key"}
+          <button class='banner-dot{if condition="$key eq 1"} is-active{/if}' type="button" data-carousel-dot aria-label="第{$key}张"></button>
+          {/maccms:vod}
+        </div>
+        <button class="banner-arrow" type="button" data-carousel-next aria-label="下一张">›</button>
+      </div>
+    </section>
+    <div class="hero-rank">
+      <div class="section-head compact">
+        <h2>热播榜</h2>
+        <a href="{:mac_url('vod/show')}">更多</a>
+      </div>
+      {maccms:vod type="all" num="6" order="desc" by="hits" id="vo" key="key"}
+      <a class="rank-item" href="{:mac_url_vod_detail($vo)}">
+        <span>{$key}</span>
+        <strong>{$vo.vod_name}</strong>
+        <em>{$vo.vod_remarks|mac_default='更新中'}</em>
+      </a>
+      {/maccms:vod}
+    </div>
+  </div>
+</section>
+
+<section class="wrap quick-types">
+  {maccms:type ids="parent" order="asc" by="sort" num="10" id="type"}
+  <a href="{:mac_url_type($type)}">{$type.type_name}</a>
+  {/maccms:type}
+</section>
+
+<section class="wrap content-section">
+  <div class="section-head">
+    <h2>最新上线</h2>
+    <a href="{:mac_url('vod/show')}">全部影片</a>
+  </div>
+  <div class="vod-grid">
+    {maccms:vod type="all" num="12" order="desc" by="time" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+  </div>
+</section>
+
+{maccms:type ids="parent" order="asc" by="sort" num="4" id="type"}
+<section class="wrap content-section">
+  <div class="section-head">
+    <h2>{$type.type_name}</h2>
+    <a href="{:mac_url_type($type)}">查看更多</a>
+  </div>
+  <div class="vod-grid compact-grid">
+    {maccms:vod type="'.$type['type_id'].'" num="6" order="desc" by="time" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+  </div>
+</section>
+{/maccms:type}
+{include file="public/foot" /}

@@ -1,0 +1,19 @@
+services:
+  php84:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8084:80"
+    volumes:
+      - ./server:/var/www/html:ro
+      - ./template/pingfangvideo:/var/www/html/template/pingfangvideo:ro
+      - ./preview:/var/www/html/preview:ro
+    environment:
+      PHP_VERSION_REQUIREMENT: "8.4"
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

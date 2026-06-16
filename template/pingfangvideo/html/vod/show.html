@@ -1,0 +1,31 @@
+{include file="public/head" seo_title="影片库" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap page-title">
+  <span class="eyebrow">筛选</span>
+  <h1>影片库</h1>
+  <p>按分类、地区、年份和排序方式查找内容。</p>
+</section>
+
+<section class="wrap filter-panel">
+  <div><strong>分类</strong>{maccms:type ids="parent" order="asc" by="sort" id="type"}<a href="{:mac_url_type($type)}">{$type.type_name}</a>{/maccms:type}</div>
+  <div><strong>排序</strong><a href="{:mac_url('vod/show',['by'=>'time'])}">最新</a><a href="{:mac_url('vod/show',['by'=>'hits'])}">最热</a><a href="{:mac_url('vod/show',['by'=>'score'])}">评分</a></div>
+</section>
+
+<section class="wrap content-section">
+  <div class="vod-grid">
+    {if condition="$param.by eq 'hits'"}
+    {maccms:vod num="24" paging="yes" type="all" order="desc" by="hits" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+    {elseif condition="$param.by eq 'score'"}
+    {maccms:vod num="24" paging="yes" type="all" order="desc" by="score" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+    {else}
+    {maccms:vod num="24" paging="yes" type="all" order="desc" by="time" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+    {/if}
+  </div>
+  {include file="public/paging" /}
+</section>
+{include file="public/foot" /}

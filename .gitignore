@@ -1,0 +1,36 @@
+# macOS and editor metadata
+.DS_Store
+._*
+.idea/
+.vscode/
+
+# Dependencies
+node_modules/
+vendor/
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and runtime caches
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+.phpunit.cache/
+coverage/
+
+# Generated release artifacts
+dist/
+*.tar.gz
+*.zip
+
+# Temporary files
+tmp/
+temp/
+*.tmp

@@ -1,0 +1,20 @@
+{include file="public/head" seo_title="$obj.vod_name 分集剧情" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
+<section class="wrap content-section">
+  <div class="page-title">
+    <span class="eyebrow">分集剧情</span>
+    <h1>{$obj.vod_name}</h1>
+    <p>{$obj.vod_blurb|mac_default='查看每一集的剧情概要。'}</p>
+  </div>
+  <div class="plot-list">
+    {maccms:foreach name="obj.vod_plot_list" id="vo"}
+    <article class="plot-item">
+      <strong>{$vo.name|mac_default='剧情'}</strong>
+      <p>{$vo.detail|mac_filter_html|mac_default='剧情待更新'}</p>
+    </article>
+    {/maccms:foreach}
+  </div>
+  <div class="detail-actions">
+    <a class="primary-btn" href="{:mac_url_vod_detail($obj)}">返回详情</a>
+  </div>
+</section>
+{include file="public/foot" /}

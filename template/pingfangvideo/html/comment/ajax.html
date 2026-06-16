@@ -1,0 +1,11 @@
+<div class="comment-list">
+  {maccms:comment num="20" order="desc" by="time" id="vo"}
+  <article class="comment-item">
+    <div>
+      <strong>{$vo.comment_name|mac_default='匿名用户'}</strong>
+      <time>{$vo.comment_time|date='Y-m-d H:i',###}</time>
+    </div>
+    <p>{$vo.comment_content|mac_filter_html}</p>
+  </article>
+  {/maccms:comment}
+</div>

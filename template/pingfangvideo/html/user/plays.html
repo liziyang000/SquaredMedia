@@ -1,0 +1,86 @@
+{include file="user/head" /}
+<section class="wrap page-title">
+  <span class="eyebrow">会员</span>
+  <h1>播放记录</h1>
+  <p>这里展示当前账号的播放记录，可继续观看或删除已看条目。</p>
+</section>
+
+<section class="wrap user-records">
+  <div class="record-toolbar">
+    <div>
+      <strong>我的播放</strong>
+      <span>按最近播放时间由系统排序</span>
+    </div>
+    <div class="record-actions">
+      <button class="ghost-btn" type="button" id="btnDel">删除选中</button>
+      <button class="ghost-btn" type="button" id="btnClear">清空记录</button>
+    </div>
+  </div>
+
+  <form id="form1" name="form1" method="post">
+    <div class="record-list">
+      {volist name="list" id="vo"}
+      <article class="record-item">
+        <label class="record-check" aria-label="选择播放记录 {$vo.ulog_id}">
+          <input name="ids[]" type="checkbox" value="{$vo.ulog_id}">
+        </label>
+        <div class="record-main">
+          <a class="record-title" href="{$vo.data.link}">[{$vo.data.type.type_name}] {$vo.data.name}</a>
+          <span class="record-progress">播放进度：第 {$vo.ulog_sid} 组 / 第 {$vo.ulog_nid} 集</span>
+          <span class="record-meta">记录编号 {$vo.ulog_id} · 消费积分 {$vo.ulog_points}</span>
+        </div>
+        <div class="record-item-actions">
+          <a class="primary-btn" href="{$vo.data.link}">继续观看</a>
+          <button class="ghost-btn" type="button" data-delete-ulog="{$vo.ulog_id}">删除</button>
+        </div>
+      </article>
+      {/volist}
+    </div>
+  </form>
+</section>
+
+<script>
+  (function () {
+    function collectCheckedIds() {
+      if (window.MAC && MAC.CheckBox && typeof MAC.CheckBox.Ids === "function") {
+        return MAC.CheckBox.Ids("ids[]");
+      }
+
+      return Array.prototype.slice.call(document.querySelectorAll('input[name="ids[]"]:checked'))
+        .map(function (input) { return input.value; })
+        .join(",");
+    }
+
+    function delData(ids, all) {
+      var actionName = all === 1 ? "清空" : "删除";
+      if (!ids && all !== 1) {
+        alert("请至少选择一个数据");
+        return;
+      }
+
+      if (confirm("确定要" + actionName + "播放记录吗")) {
+        $.post("{:url('user/ulog_del')}", { ids: ids, type: 4, all: all }, function (data) {
+          if (data.code == "1") {
+            alert(actionName + "成功");
+            location.reload();
+          } else {
+            alert(actionName + "失败：" + data.msg);
+          }
+        }, "json");
+      }
+    }
+
+    $("#btnClear").click(function () {
+      delData("", 1);
+    });
+
+    $("#btnDel").click(function () {
+      delData(collectCheckedIds(), 0);
+    });
+
+    $("[data-delete-ulog]").click(function () {
+      delData($(this).data("delete-ulog"), 0);
+    });
+  })();
+</script>
+{include file="user/foot" /}

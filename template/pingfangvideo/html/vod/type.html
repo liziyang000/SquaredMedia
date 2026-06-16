@@ -1,0 +1,40 @@
+{include file="public/head" seo_title="$obj.type_name" seo_keywords="$obj.type_key" seo_description="$obj.type_des" /}
+<section class="wrap page-title">
+  <span class="eyebrow">分类浏览</span>
+  <h1>{$obj.type_name}</h1>
+  <p>{$obj.type_des|mac_filter_html|mac_default='按最新更新、热度和筛选条件快速浏览当前分类。'}</p>
+</section>
+
+<section class="wrap filter-bar">
+  <a href="{:mac_url_type($obj)}">全部</a>
+  {maccms:type parent="'.$obj['type_id'].'" order="asc" by="sort" id="type"}
+  <a href="{:mac_url_type($type)}">{$type.type_name}</a>
+  {/maccms:type}
+  <a href="{:mac_url_type($obj,['by'=>'time'])}">最新</a>
+  <a href="{:mac_url_type($obj,['by'=>'hits'])}">最热</a>
+  <a href="{:mac_url_type($obj,['by'=>'score'])}">评分</a>
+</section>
+
+<section class="wrap content-section">
+  <div class="section-head">
+    <h2>影片列表</h2>
+    <span>共 {:mac_data_count($obj.type_id,'all')} 部</span>
+  </div>
+  <div class="vod-grid">
+    {if condition="$param.by eq 'hits'"}
+    {maccms:vod num="24" paging="yes" type="current" order="desc" by="hits" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+    {elseif condition="$param.by eq 'score'"}
+    {maccms:vod num="24" paging="yes" type="current" order="desc" by="score" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+    {else}
+    {maccms:vod num="24" paging="yes" type="current" order="desc" by="time" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+    {/if}
+  </div>
+  {include file="public/paging" /}
+</section>
+{include file="public/foot" /}

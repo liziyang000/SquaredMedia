@@ -1,0 +1,19 @@
+{include file="public/head" seo_title="播放验证" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <form class="system-box verify-form" method="post">
+    <span class="eyebrow">播放验证</span>
+    <h1>{$obj.vod_name|mac_default='播放验证'}</h1>
+    <p>请输入播放密码和验证码后继续观看。</p>
+    <label>
+      <span>播放密码</span>
+      <input type="password" name="pwd" autocomplete="current-password" placeholder="输入播放密码">
+    </label>
+    <label>
+      <span>验证码</span>
+      <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+    </label>
+    <div class="verify-code">{$verify}</div>
+    <button class="primary-btn" type="submit">提交验证</button>
+  </form>
+</section>
+{include file="public/foot" /}

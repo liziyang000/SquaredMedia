@@ -1,0 +1,77 @@
+{include file="public/head" seo_title="$obj.vod_name" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
+<section class="detail-hero">
+  <div class="wrap detail-grid">
+    <div class="detail-poster">
+      <img src="{$obj.vod_pic|mac_url_img}" alt="{$obj.vod_name}">
+      <span>{$obj.vod_remarks|mac_default='高清'}</span>
+    </div>
+    <div class="detail-main detail-panel">
+      <span class="eyebrow">{$obj.type.type_name}</span>
+      <div class="detail-title-row">
+        <h1>{$obj.vod_name}</h1>
+        <span class="score-badge">{$obj.vod_score|mac_default='8.0'}</span>
+      </div>
+      <p class="meta">{$obj.vod_year|mac_default='年份未知'} / {$obj.vod_area|mac_default='地区未知'} / {$obj.vod_class|mac_default='类型待更新'}</p>
+      <p class="summary">{$obj.vod_content|mac_filter_html|mac_substring=180}</p>
+      <div class="detail-interactions">
+        {include file="public/score" /}
+        {include file="public/star" /}
+        {include file="public/digg" /}
+      </div>
+      <div class="detail-actions">
+        {maccms:foreach name="obj.vod_play_list" id="vo" key="key"}
+        {if condition="$key eq 1"}
+        {maccms:foreach name="vo.urls" id="vo2" key="key2"}
+        {if condition="$key2 eq 1"}<a class="primary-btn" href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">立即播放</a>{/if}
+        {/maccms:foreach}
+        {/if}
+        {/maccms:foreach}
+        <a class="ghost-btn mac_ulog" href="javascript:;" data-type="2" data-mid="{$maccms.mid}" data-id="{$obj.vod_id}">收藏</a>
+      </div>
+      <dl class="detail-data">
+        <div><dt>导演</dt><dd>{$obj.vod_director|mac_default='待更新'}</dd></div>
+        <div><dt>主演</dt><dd>{$obj.vod_actor|mac_default='待更新'}</dd></div>
+        <div><dt>更新</dt><dd>{$obj.vod_time|mac_day}</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section class="wrap content-section">
+  {maccms:foreach name="obj.vod_play_list" id="vo"}
+  <div class="episode-box">
+    <div class="section-head compact">
+      <h2>{$vo.from}-在线播放</h2>
+      <span>{$vo.player_info.tip}</span>
+    </div>
+    <div class="episode-grid">
+      {maccms:foreach name="vo.urls" id="vo2"}
+      <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{$vo2.name}</a>
+      {/maccms:foreach}
+    </div>
+  </div>
+  {/maccms:foreach}
+</section>
+
+<section class="wrap content-section">
+  <div class="section-head">
+    <h2>猜你喜欢</h2>
+  </div>
+  <div class="vod-grid compact-grid">
+    {maccms:vod type="current" num="6" order="desc" by="rnd" id="vo"}
+    <a class="vod-card" href="{:mac_url_vod_detail($vo)}">
+      <span class="poster">
+        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+        <em class="quality-badge">{$vo.vod_remarks|mac_default='高清'}</em>
+        <span class="score-badge">{$vo.vod_score|mac_default='8.0'}</span>
+      </span>
+      <strong>{$vo.vod_name}</strong>
+      <small>{$vo.vod_actor|mac_default='主演待更新'}</small>
+      <span class="card-meta"><span>{$vo.type.type_name|mac_default='同类'}</span><span>{$vo.vod_year|mac_default='年份未知'}</span></span>
+    </a>
+    {/maccms:vod}
+  </div>
+</section>
+<span style="display:none" class="mac_history_set" alt="设置视频历史记录" data-name="[{$obj.type.type_name}]{$obj.vod_name}" data-pic="{$obj.vod_pic|mac_url_img}"></span>
+<span style="display:none" class="mac_ulog_set" alt="设置内容页浏览记录" data-type="1" data-mid="{$maccms.mid}" data-id="{$obj.vod_id}" data-sid="{$param.sid}" data-nid="{$param.nid}"></span>
+{include file="public/foot" /}

@@ -1,0 +1,15 @@
+{include file="public/head" seo_title="访问验证" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <form class="system-box verify-form" method="post">
+    <span class="eyebrow">安全验证</span>
+    <h1>请输入验证码</h1>
+    <p>完成验证后继续访问当前内容。</p>
+    <label>
+      <span>验证码</span>
+      <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+    </label>
+    <div class="verify-code">{$verify}</div>
+    <button class="primary-btn" type="submit">提交验证</button>
+  </form>
+</section>
+{include file="public/foot" /}

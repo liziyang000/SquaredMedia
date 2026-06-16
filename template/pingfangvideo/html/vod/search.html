@@ -1,0 +1,23 @@
+{include file="public/head" seo_title="$param.wd" seo_keywords="$param.wd" seo_description="$param.wd" /}
+<section class="wrap page-title">
+  <span class="eyebrow">搜索结果</span>
+  <h1>{$param.wd}</h1>
+  <p>以下是与关键词相关的视频内容。</p>
+</section>
+
+<section class="wrap content-section">
+  <div class="vod-list">
+    {maccms:vod num="20" paging="yes" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
+    <a class="list-item" href="{:mac_url_vod_detail($vo)}">
+      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+      <span>
+        <strong>{$vo.vod_name}</strong>
+        <small>{$vo.vod_actor|mac_default='主演待更新'}</small>
+        <em>{$vo.vod_content|mac_filter_html|mac_substring=90}</em>
+      </span>
+    </a>
+    {/maccms:vod}
+  </div>
+  {include file="public/paging" /}
+</section>
+{include file="public/foot" /}

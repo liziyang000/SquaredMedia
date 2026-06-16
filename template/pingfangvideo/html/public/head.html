@@ -24,7 +24,21 @@
       <input type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">
       <button type="submit">搜索</button>
     </form>
-    <a class="history-link" href="{:mac_url('user/plays')}">播放记录</a>
+    <div class="user-menu">
+      {if condition="$user.user_id gt 0"}
+      <a class="user-avatar" href="{:mac_url('user/index')}" aria-label="用户中心">
+        <img src="{$user.user_portrait|mac_url_img}" alt="{$user.user_name}">
+      </a>
+      <div class="user-dropdown">
+        <a href="{:mac_url('user/favs')}">收藏</a>
+        <a href="{:mac_url('user/plays')}">播放记录</a>
+      </div>
+      {else/}
+      <a class="user-avatar user-avatar-guest" href="{:mac_url('user/login')}" aria-label="登录">
+        <span>登录</span>
+      </a>
+      {/if}
+    </div>
   </div>
 </header>
 <main>

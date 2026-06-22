@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PingFang Video Preview</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260615">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260621">
 </head>
 <body>
 <header class="site-header">
@@ -17,6 +17,7 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="site-nav" id="siteNav"></nav>
+    <a class="mobile-category-entry" href="?route=categories" data-route="categories">分类</a>
     <form class="header-search" id="headerSearch">
       <input type="search" name="wd" placeholder="搜索影片、演员、导演">
       <button type="submit">搜索</button>
@@ -50,7 +51,7 @@
     </div>
   </div>
 </footer>
-<script src="../template/pingfangvideo/js/app.js?v=20260615"></script>
+<script src="../template/pingfangvideo/js/app.js?v=20260621"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -58,6 +59,7 @@ const app = document.querySelector("#app");
 const nav = document.querySelector("#siteNav");
 const searchForms = document.querySelectorAll("form");
 const categoryPageSize = 12;
+const videoPageSize = 4;
 
 function url(route, params = {}) {
   const next = new URL(window.location.href);
@@ -88,12 +90,14 @@ function videosByCategory(category) {
   return store.videos.filter((video) => video.category === category);
 }
 
-function filterVideos(category, area, year, genre) {
+function filterVideos(category, area, year, genre, lang = "", letter = "") {
   return store.videos.filter((video) => {
     if (category && video.category !== category) return false;
     if (area && video.area !== area) return false;
     if (year && video.year !== year) return false;
     if (genre && video.class !== genre) return false;
+    if (lang && video.lang !== lang) return false;
+    if (letter && video.letter !== letter) return false;
     return true;
   });
 }
@@ -164,6 +168,10 @@ function renderPagination(route, params, currentPage, totalPages) {
       <span class="page-state">${page} / ${totalPages}</span>
       <a href="${url(route, { ...params, page: next })}" class="page-link">下一页</a>
       <a href="${url(route, { ...params, page: totalPages })}" class="page-link">尾页</a>
+      <form class="page-jump" data-page-jump data-page-template="${url(route, { ...params, page: "__PAGE__" })}">
+        <input class="page-jump-input" type="number" min="1" max="${totalPages}" value="${page}" aria-label="跳转页码">
+        <button class="page-jump-submit" type="submit">跳转</button>
+      </form>
     </nav>`;
 }
 
@@ -296,12 +304,18 @@ function renderHome() {
     </section>`;
 }
 
-function renderCategory(name, sort = "latest", area = "", year = "", genre = "") {
+function renderCategory(name, sort = "latest", area = "", year = "", genre = "", page = 1, lang = "", letter = "") {
   const currentSort = ["latest", "hot", "score"].includes(sort) ? sort : "latest";
-  const list = sortVideos(filterVideos(name, area, year, genre), currentSort);
+  const list = sortVideos(filterVideos(name, area, year, genre, lang, letter), currentSort);
+  const totalPages = Math.max(Math.ceil(list.length / videoPageSize), 1);
+  const currentPage = Math.min(Math.max(Number(page) || 1, 1), totalPages);
+  const start = (currentPage - 1) * videoPageSize;
+  const pagedList = list.slice(start, start + videoPageSize);
   const areas = ["中国大陆", "中国香港", "中国台湾", "美国", "韩国", "日本"];
   const years = ["2026", "2025", "2024", "2023", "2022", "2021"];
   const genres = ["剧情", "动作", "喜剧", "爱情", "科幻", "悬疑", "纪录", "综艺"];
+  const langs = ["国语", "粤语", "英语", "韩语", "日语"];
+  const letters = ["A", "B", "C", "D", "Y", "0~9"];
   const sorts = [
     ["latest", "最新"],
     ["hot", "最热"],
@@ -313,6 +327,8 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "")
       area,
       year,
       class: genre,
+      lang,
+      letter,
       sort: currentSort,
       ...next,
     };
@@ -320,16 +336,26 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "")
     if (!params.area) delete params.area;
     if (!params.year) delete params.year;
     if (!params.class) delete params.class;
+    if (!params.lang) delete params.lang;
+    if (!params.letter) delete params.letter;
     if (!params.sort || params.sort === "latest") delete params.sort;
     return url("category", params);
   }
+  const pageParams = { name, area, year, class: genre, lang, letter, sort: currentSort };
+  if (!pageParams.name) delete pageParams.name;
+  if (!pageParams.area) delete pageParams.area;
+  if (!pageParams.year) delete pageParams.year;
+  if (!pageParams.class) delete pageParams.class;
+  if (!pageParams.lang) delete pageParams.lang;
+  if (!pageParams.letter) delete pageParams.letter;
+  if (!pageParams.sort || pageParams.sort === "latest") delete pageParams.sort;
   app.innerHTML = `
     <section class="wrap page-title">
       <span class="eyebrow">筛选</span>
       <h1>${escapeHtml(name || "影片库")}</h1>
       <p>按分类、地区、年份和排序方式查找内容。</p>
     </section>
-    <section class="wrap filter-panel">
+    <section class="wrap filter-panel category-filter">
       <div>
         <strong>分类</strong>
         <a href="${filterUrl({ name: "" })}">全部</a>
@@ -351,8 +377,21 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "")
         ${genres.map((item) => `<a class="${item === genre ? "is-active" : ""}" href="${filterUrl({ class: item })}">${escapeHtml(item)}</a>`).join("")}
       </div>
       <div>
+        <strong>语言</strong>
+        <a href="${filterUrl({ lang: "" })}">全部</a>
+        ${langs.map((item) => `<a class="${item === lang ? "is-active" : ""}" href="${filterUrl({ lang: item })}">${escapeHtml(item)}</a>`).join("")}
+      </div>
+      <div>
+        <strong>字母</strong>
+        <a href="${filterUrl({ letter: "" })}">全部</a>
+        ${letters.map((item) => `<a class="${item === letter ? "is-active" : ""}" href="${filterUrl({ letter: item })}">${escapeHtml(item)}</a>`).join("")}
+      </div>
+      <div>
         <strong>排序</strong>
         ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${filterUrl({ sort: value })}">${escapeHtml(label)}</a>`).join("")}
+      </div>
+      <div class="filter-actions">
+        <a class="filter-reset" href="${url("category", name ? { name } : {})}">重置筛选</a>
       </div>
     </section>
     <section class="wrap content-section">
@@ -360,7 +399,8 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "")
         <h2>${escapeHtml(sortLabel(currentSort))}影片</h2>
         <span>共 ${list.length} 部</span>
       </div>
-      <div class="vod-grid">${list.map(card).join("")}</div>
+      <div class="vod-grid">${pagedList.map(card).join("")}</div>
+      ${renderPagination("category", pageParams, currentPage, totalPages)}
     </section>`;
 }
 
@@ -448,7 +488,10 @@ function renderPlay(id, episodeNo) {
         </div>
         <div class="player-toolbar">
           <span>${escapeHtml(video.title)} / ${escapeHtml(episode.name)}</span>
-          <a class="ghost-btn" href="${url("detail", { id: video.id })}">选集</a>
+          <div class="player-toolbar-actions">
+            <a class="ghost-btn" href="${url("detail", { id: video.id })}">选集</a>
+            <button class="ghost-btn player-fullscreen" type="button" data-player-fullscreen>横屏全屏</button>
+          </div>
         </div>
         <div class="player-shell">
           <video controls poster="${escapeHtml(video.poster)}">
@@ -465,21 +508,25 @@ function render() {
   if (route === "categories") renderCategoriesPage(params.get("page"));
   else if (route === "history") renderHistoryPage();
   else
-  if (route === "category") renderCategory(params.get("name"), params.get("sort"), params.get("area"), params.get("year"), params.get("class"));
+    if (route === "category") renderCategory(params.get("name"), params.get("sort"), params.get("area"), params.get("year"), params.get("class"), params.get("page"), params.get("lang"), params.get("letter"));
   else if (route === "search") renderSearch(params.get("wd"));
   else if (route === "detail") renderDetail(params.get("id"));
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
   window.PingFangVideo?.initHeroCarousel?.(app);
+  window.PingFangVideo?.initPlayerFullscreen?.(app);
 }
 
 function bindSearchForms() {
   document.querySelectorAll("form").forEach((form) => {
+    if (form.dataset.searchReady === "true" || form.hasAttribute("data-page-jump")) return;
+    const input = form.querySelector('input[name="wd"]');
+    if (!input) return;
+    form.dataset.searchReady = "true";
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const input = form.querySelector('input[name="wd"]');
-      window.history.pushState({}, "", url("search", { wd: input?.value.trim() }));
+      window.history.pushState({}, "", url("search", { wd: input.value.trim() }));
       render();
     });
   });

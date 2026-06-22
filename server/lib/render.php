@@ -31,6 +31,7 @@ function render_layout(array $data, string $title, string $content): string
     <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="' . e($data['siteName']) . ' logo"></a>
     <button class="nav-toggle" type="button" aria-label="展开导航"><span></span><span></span><span></span></button>
     <nav class="site-nav">' . $nav . '</nav>
+    <a class="mobile-category-entry" href="' . e(path_for('categories')) . '">分类</a>
     <form class="header-search" method="get" action="/index.php">
       <input type="hidden" name="route" value="search">
       <input type="search" name="wd" placeholder="搜索影片、演员、导演">
@@ -79,6 +80,10 @@ function render_pagination(string $route, array $params, int $currentPage, int $
         . '<span class="page-state">' . $page . ' / ' . $totalPages . '</span>'
         . '<a href="' . e(path_for($route, $params + ['page' => $next])) . '" class="page-link">下一页</a>'
         . '<a href="' . e(path_for($route, $params + ['page' => $totalPages])) . '" class="page-link">尾页</a>'
+        . '<form class="page-jump" data-page-jump data-page-template="' . e(path_for($route, $params + ['page' => '__PAGE__'])) . '">'
+        . '<input class="page-jump-input" type="number" min="1" max="' . $totalPages . '" value="' . $page . '" aria-label="跳转页码">'
+        . '<button class="page-jump-submit" type="submit">跳转</button>'
+        . '</form>'
         . '</nav>';
 }
 
@@ -159,7 +164,7 @@ function render_feedback_page(array $data, string $title, string $eyebrow, strin
 
 function render_player_preview(array $data, array $video, array $episode, string $eyebrow): string
 {
-    return render_layout($data, $video['title'], '<section class="player-page"><div class="wrap"><div class="player-head"><div><span class="eyebrow">' . e($eyebrow) . '</span><h1>' . e($video['title']) . ' - ' . e($episode['name']) . '</h1></div><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">返回详情</a></div><div class="player-toolbar"><span>' . e($video['title']) . ' / ' . e($episode['name']) . '</span><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">选集</a></div><div class="player-shell"><video controls poster="' . e($video['poster']) . '"><source src="' . e($episode['src']) . '" type="video/mp4"></video></div></div></section>');
+    return render_layout($data, $video['title'], '<section class="player-page"><div class="wrap"><div class="player-head"><div><span class="eyebrow">' . e($eyebrow) . '</span><h1>' . e($video['title']) . ' - ' . e($episode['name']) . '</h1></div><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">返回详情</a></div><div class="player-toolbar"><span>' . e($video['title']) . ' / ' . e($episode['name']) . '</span><div class="player-toolbar-actions"><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">选集</a><button class="ghost-btn player-fullscreen" type="button" data-player-fullscreen>横屏全屏</button></div></div><div class="player-shell"><video controls poster="' . e($video['poster']) . '"><source src="' . e($episode['src']) . '" type="video/mp4"></video></div></div></section>');
 }
 
 function render_page(array $data, string $route, array $query): string
@@ -214,24 +219,39 @@ function render_page(array $data, string $route, array $query): string
         $area = (string) ($query['area'] ?? '');
         $year = (string) ($query['year'] ?? '');
         $class = (string) ($query['class'] ?? '');
+        $lang = (string) ($query['lang'] ?? '');
+        $letter = (string) ($query['letter'] ?? '');
         $requestedSort = (string) ($query['sort'] ?? 'latest');
         $sort = in_array($requestedSort, ['latest', 'hot', 'score'], true) ? $requestedSort : 'latest';
-        $videos = sort_videos(filter_videos($data, $name !== '' ? $name : null, null, $area, $year, $class), $sort);
+        $videos = sort_videos(filter_videos($data, $name !== '' ? $name : null, null, $area, $year, $class, $lang, $letter), $sort);
+        $totalCount = count($videos);
+        $categoryPageSize = 4;
+        $totalPages = (int) ceil($totalCount / $categoryPageSize);
+        $page = min(max((int) ($query['page'] ?? 1), 1), max($totalPages, 1));
+        $pagedVideos = array_slice($videos, ($page - 1) * $categoryPageSize, $categoryPageSize);
         $areas = ['中国大陆', '中国香港', '中国台湾', '美国', '韩国', '日本'];
         $years = ['2026', '2025', '2024', '2023', '2022', '2021'];
         $classes = ['剧情', '动作', '喜剧', '爱情', '科幻', '悬疑', '纪录', '综艺'];
-        $filter = '<section class="wrap filter-panel">'
-            . '<div><strong>分类</strong><a href="' . e(path_for('category', ['area' => $area, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">全部</a>'
-            . implode('', array_map(static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">' . e($category) . '</a>', $data['categories'])) . '</div>'
-            . '<div><strong>地区</strong><a href="' . e(path_for('category', ['name' => $name, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">全部</a>'
-            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $item, 'year' => $year, 'class' => $class, 'sort' => $sort])) . '">' . e($item) . '</a>', $areas)) . '</div>'
-            . '<div><strong>年份</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'class' => $class, 'sort' => $sort])) . '">全部</a>'
-            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $item, 'class' => $class, 'sort' => $sort])) . '">' . e($item) . '</a>', $years)) . '</div>'
-            . '<div><strong>类型</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'sort' => $sort])) . '">全部</a>'
-            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $item, 'sort' => $sort])) . '">' . e($item) . '</a>', $classes)) . '</div>'
-            . '<div><strong>排序</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => 'latest'])) . '">最新</a><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => 'hot'])) . '">最热</a><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'sort' => 'score'])) . '">评分</a></div>'
+        $langs = ['国语', '粤语', '英语', '韩语', '日语'];
+        $letters = ['A', 'B', 'C', 'D', 'Y', '0~9'];
+        $filter = '<section class="wrap filter-panel category-filter">'
+            . '<div><strong>分类</strong><a href="' . e(path_for('category', ['area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($category) . '</a>', $data['categories'])) . '</div>'
+            . '<div><strong>地区</strong><a href="' . e(path_for('category', ['name' => $name, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $item, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $areas)) . '</div>'
+            . '<div><strong>年份</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $item, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $years)) . '</div>'
+            . '<div><strong>类型</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $item, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $classes)) . '</div>'
+            . '<div><strong>语言</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $item, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $langs)) . '</div>'
+            . '<div><strong>字母</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'sort' => $sort])) . '">全部</a>'
+            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $item, 'sort' => $sort])) . '">' . e($item) . '</a>', $letters)) . '</div>'
+            . '<div><strong>排序</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'latest'])) . '">最新</a><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'hot'])) . '">最热</a><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'score'])) . '">评分</a></div>'
+            . '<div class="filter-actions"><a class="filter-reset" href="' . e(path_for('category', $name !== '' ? ['name' => $name] : [])) . '">重置筛选</a></div>'
             . '</section>';
-        return render_layout($data, $name !== '' ? $name : '全部影片', '<section class="wrap page-title"><span class="eyebrow">分类浏览</span><h1>' . e($name !== '' ? $name : '全部影片') . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . count($videos) . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid">' . render_cards($videos) . '</div></section>');
+        $pagination = render_pagination('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort], $page, $totalPages);
+        return render_layout($data, $name !== '' ? $name : '全部影片', '<section class="wrap page-title"><span class="eyebrow">分类浏览</span><h1>' . e($name !== '' ? $name : '全部影片') . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . $totalCount . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid">' . render_cards($pagedVideos) . '</div>' . $pagination . '</section>');
     }
 
     if ($route === 'search') {

@@ -34,10 +34,12 @@ function filter_videos(
     ?string $keyword = null,
     ?string $area = null,
     ?string $year = null,
-    ?string $class = null
+    ?string $class = null,
+    ?string $lang = null,
+    ?string $letter = null
 ): array
 {
-    return array_values(array_filter($data['videos'], static function (array $video) use ($category, $keyword, $area, $year, $class): bool {
+    return array_values(array_filter($data['videos'], static function (array $video) use ($category, $keyword, $area, $year, $class, $lang, $letter): bool {
         if ($category !== null && $category !== '' && $video['category'] !== $category) {
             return false;
         }
@@ -51,6 +53,14 @@ function filter_videos(
         }
 
         if ($class !== null && $class !== '' && ($video['class'] ?? '') !== $class) {
+            return false;
+        }
+
+        if ($lang !== null && $lang !== '' && ($video['lang'] ?? '') !== $lang) {
+            return false;
+        }
+
+        if ($letter !== null && $letter !== '' && ($video['letter'] ?? '') !== $letter) {
             return false;
         }
 

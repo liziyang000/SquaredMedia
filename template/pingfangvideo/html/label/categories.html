@@ -6,7 +6,7 @@
 </section>
 
 <section class="wrap category-index">
-  {maccms:type ids="parent" order="asc" by="sort" num="12" paging="yes" id="type"}
+  {maccms:type ids="parent" order="asc" by="sort" num="100" id="type"}
   <article class="category-tile">
     <a class="category-hit" href="{:mac_url_type($type)}" aria-label="进入{$type.type_name}"></a>
     <div class="category-main">
@@ -21,5 +21,4 @@
   </article>
   {/maccms:type}
 </section>
-{include file="public/paging" /}
 {include file="public/foot" /}

@@ -9,6 +9,7 @@
     "verify:compat": "node scripts/verify-compat.mjs",
     "verify:preview": "node scripts/verify-preview.mjs",
     "package": "node scripts/package-theme.mjs",
-    "verify:release": "node scripts/verify-release.mjs"
+    "verify:release": "node scripts/verify-release.mjs",
+    "deploy": "bash scripts/deploy-theme.sh"
   }
 }

@@ -20,14 +20,15 @@
       <a href="{:mac_url('label/categories')}">分类</a>
       <a href="{:mac_url('user/favs')}">收藏</a>
     </nav>
+    <a class="mobile-category-entry" href="{:mac_url('label/categories')}">分类</a>
     <form class="header-search" method="get" action="{:mac_url('vod/search')}">
       <input type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">
       <button type="submit">搜索</button>
     </form>
     <div class="user-menu">
       {if condition="$user.user_id gt 0"}
-      <a class="user-avatar" href="{:mac_url('user/index')}" aria-label="用户中心" data-avatar-random>
-        <span class="user-avatar-letter">{$user.user_name|mac_substring=1}</span>
+      <a class="user-avatar" href="{:mac_url('user/index')}" aria-label="用户中心" data-avatar-random data-avatar-name="{$user.user_name|mac_default='用户'}">
+        <span class="user-avatar-letter">{if condition="$user.user_name neq ''"}{$user.user_name|mac_substring=1}{else/}用{/if}</span>
       </a>
       <div class="user-dropdown">
         <a href="{:mac_url('user/favs')}">收藏</a>

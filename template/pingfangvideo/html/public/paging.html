@@ -5,5 +5,9 @@
   <span class="page-state">{$__PAGING__.page_current} / {$__PAGING__.page_total}</span>
   <a href="{$__PAGING__.page_url|mac_url_page=$__PAGING__.page_next}" class="page-link">下一页</a>
   <a href="{$__PAGING__.page_url|mac_url_page=$__PAGING__.page_total}" class="page-link">尾页</a>
+  <form class="page-jump" data-page-jump data-page-template="{$__PAGING__.page_url|mac_url_page='__PAGE__'}">
+    <input class="page-jump-input" type="number" min="1" max="{$__PAGING__.page_total}" value="{$__PAGING__.page_current}" aria-label="跳转页码">
+    <button class="page-jump-submit" type="submit">跳转</button>
+  </form>
 </nav>
 {/if}

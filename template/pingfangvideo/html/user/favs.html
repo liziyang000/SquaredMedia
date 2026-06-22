@@ -1,38 +1,47 @@
 {include file="user/head" /}
 <section class="wrap page-title">
   <span class="eyebrow">会员</span>
-  <h1>收藏记录</h1>
-  <p>这里展示当前账号收藏的影片，可快速回到详情页或删除收藏。</p>
+  <h1>我的收藏</h1>
+  <p>把想看的影片放进片单，回到详情页、继续整理都更直接。</p>
 </section>
 
-<section class="wrap user-records">
-  <div class="record-toolbar">
+<section class="wrap user-records favorite-page">
+  <div class="record-toolbar favorite-toolbar">
     <div>
-      <strong>我的收藏</strong>
-      <span>仅展示影片收藏记录</span>
+      <strong>收藏片单</strong>
+      <span>已收藏的视频内容</span>
     </div>
     <div class="record-actions">
+      <a class="ghost-btn" href="{:mac_url('vod/show')}">继续发现</a>
       <button class="ghost-btn" type="button" id="btnDel">删除选中</button>
       <button class="ghost-btn" type="button" id="btnClear">清空收藏</button>
     </div>
   </div>
 
   <form id="form1" name="form1" method="post">
-    <div class="record-list">
+    <div class="record-list favorite-list">
       {empty name="list"}
-      <div class="record-empty">暂无收藏记录</div>
+      <div class="record-empty favorite-empty">
+        <strong>还没有收藏</strong>
+        <span>在影片详情页点击收藏后，内容会显示在这里。</span>
+        <a class="primary-btn" href="{:mac_url('vod/show')}">去发现影片</a>
+      </div>
       {/empty}
       {volist name="list" id="vo"}
       {if condition="$vo.ulog_mid eq 1"}
-      <article class="record-item">
-        <label class="record-check" aria-label="选择收藏记录 {$vo.ulog_id}">
+      <article class="record-item favorite-card">
+        <label class="record-check favorite-check" aria-label="选择收藏记录 {$vo.ulog_id}">
           <input name="ids[]" type="checkbox" value="{$vo.ulog_id}">
         </label>
-        <div class="record-main">
-          <a class="record-title" href="{$vo.data.link}">[{$vo.data.type.type_name}] {$vo.data.name}</a>
-          <span class="record-meta">记录编号 {$vo.ulog_id}</span>
+        <a class="record-poster favorite-cover" href="{$vo.data.link}" aria-label="查看 {$vo.data.name}">
+          <img class="record-poster-img" src="{$vo.data.pic|mac_url_img}" alt="{$vo.data.name}" loading="lazy">
+        </a>
+        <div class="record-main favorite-info">
+          <span class="favorite-status">已收藏</span>
+          <a class="record-title favorite-title-link" href="{$vo.data.link}">{$vo.data.name}</a>
+          <span class="record-meta">{$vo.data.type.type_name|mac_default='影片'} · 收藏编号 {$vo.ulog_id}</span>
         </div>
-        <div class="record-item-actions">
+        <div class="record-item-actions favorite-card-actions">
           <a class="primary-btn" href="{$vo.data.link}">查看详情</a>
           <button class="ghost-btn" type="button" data-delete-ulog="{$vo.ulog_id}">删除</button>
         </div>
@@ -65,6 +74,9 @@
       if (confirm("确定要" + actionName + "收藏记录吗")) {
         $.post("{:url('user/ulog_del')}", { ids: ids, type: 2, all: all }, function (data) {
           if (data.code == "1") {
+            if (window.PingFangVideo && typeof PingFangVideo.clearFavoriteCache === "function") {
+              PingFangVideo.clearFavoriteCache();
+            }
             alert(actionName + "成功");
             location.reload();
           } else {

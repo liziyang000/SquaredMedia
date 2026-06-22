@@ -63,6 +63,24 @@ MacCMS template files must exist, hidden dotfiles must be absent, and developmen
 directories such as `preview`, `server`, `docker`, `tests`, and `scripts` must
 not be included.
 
+Deploy the verified package to a MacCMS server over SSH:
+
+```bash
+DEPLOY_HOST=example.com \
+DEPLOY_USER=root \
+DEPLOY_PORT=22 \
+DEPLOY_PATH=/www/wwwroot/example.com/template \
+npm run deploy
+```
+
+`DEPLOY_PATH` must point to the remote MacCMS `template` directory. The deploy
+script runs the full local verification sequence, uploads `dist/pingfangvideo.tar.gz`,
+backs up any existing remote `pingfangvideo` directory as `pingfangvideo.backup.*`,
+and then replaces it with the verified package. For password authentication, set
+`DEPLOY_PASSWORD` in the shell environment and install `sshpass`; SSH key
+authentication is preferred for routine releases. Clear the MacCMS template cache
+after deployment.
+
 `npm run lint:template` checks local MacCMS template structure before packaging:
 includes must point to existing files, common MacCMS loop tags must be balanced,
 ordinary HTML pages must include the shared head and foot templates, and known

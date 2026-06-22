@@ -6,6 +6,7 @@ const routes = [
   ["route=categories", ["category-index", "全部分类"]],
   ["route=categories&page=2", ["category-index", "page-state"]],
   ["route=category&name=电影&sort=score", ["分类浏览", "vod-grid"]],
+  ["route=category&page=2", ["分类浏览", "page-state", "远山计划"]],
   ["route=category&area=中国香港", ["午夜档案", "共 1 部内容"]],
   ["route=category&year=2025", ["南城旧事", "共 1 部内容"]],
   ["route=category&class=悬疑", ["午夜档案", "共 2 部内容"]],

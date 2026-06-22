@@ -4,13 +4,16 @@
     <div class="player-head">
       <div>
         <span class="eyebrow">正在播放</span>
-        <h1>{$obj.vod_name}</h1>
+        <h1>{$obj.vod_name} - {$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']}</h1>
       </div>
       <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">返回详情</a>
     </div>
     <div class="player-toolbar">
-      <span>{$obj.vod_name} / {$obj.vod_remarks|mac_default='在线播放'}</span>
-      <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">选集</a>
+      <span>{$obj.vod_name} / {$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']}</span>
+      <div class="player-toolbar-actions">
+        <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">选集</a>
+        <button class="ghost-btn player-fullscreen" type="button" data-player-fullscreen>横屏全屏</button>
+      </div>
     </div>
     <div class="player-shell">
       {$player_data}

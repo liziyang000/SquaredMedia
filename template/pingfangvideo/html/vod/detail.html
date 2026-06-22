@@ -26,7 +26,7 @@
         {/maccms:foreach}
         {/if}
         {/maccms:foreach}
-        <a class="ghost-btn mac_ulog" href="javascript:;" data-type="2" data-mid="{$maccms.mid}" data-id="{$obj.vod_id}">收藏</a>
+        <a class="ghost-btn favorite-btn mac_ulog" href="javascript:;" data-type="2" data-mid="{$maccms.mid}" data-id="{$obj.vod_id}" data-favorite-action data-favorite-label="收藏" data-favorite-saved-label="已收藏" aria-pressed="false"><span data-favorite-label>收藏</span></a>
       </div>
       <dl class="detail-data">
         <div><dt>导演</dt><dd>{$obj.vod_director|mac_default='待更新'}</dd></div>

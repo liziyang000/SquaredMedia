@@ -79,6 +79,11 @@ input {
   align-items: center;
 }
 
+.header-search-wrap {
+  position: relative;
+  min-width: 0;
+}
+
 .brand {
   gap: 10px;
   font-weight: 800;
@@ -294,6 +299,63 @@ input {
   background: var(--accent);
   color: #fff;
   padding: 10px 16px;
+}
+
+.hot-search-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  z-index: 1002;
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(25, 27, 31, 0.98);
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+
+.header-search-wrap:hover .hot-search-panel,
+.header-search-wrap:focus-within .hot-search-panel {
+  display: flex;
+}
+
+.hot-search-panel span {
+  flex: 0 0 100%;
+  color: var(--accent-2);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hot-search-panel a {
+  overflow: hidden;
+  max-width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 7px 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hot-search-panel a:hover {
+  border-color: rgba(255, 90, 61, 0.36);
+  color: var(--text);
+}
+
+.search-hot-panel {
+  position: static;
+  display: flex;
+  width: min(760px, 100%);
+  margin-top: 18px;
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .header-search button:disabled,
@@ -1965,6 +2027,16 @@ input {
     width: 100%;
     min-width: 0;
     margin-bottom: 0;
+  }
+
+  .header-search-wrap {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .hot-search-panel {
+    min-width: min(320px, calc(100vw - 24px));
   }
 
   .header-search input {

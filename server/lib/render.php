@@ -12,6 +12,28 @@ function path_for(string $route, array $params = []): string
     return '/index.php?' . $query;
 }
 
+function hot_search_terms(array $data): array
+{
+    if (!empty($data['hotSearch']) && is_array($data['hotSearch'])) {
+        return array_values(array_filter(array_map('strval', $data['hotSearch'])));
+    }
+
+    $videos = $data['videos'];
+    usort($videos, static fn (array $a, array $b): int => ((int) $b['hits']) <=> ((int) $a['hits']));
+
+    return array_map(static fn (array $video): string => (string) $video['title'], array_slice($videos, 0, 6));
+}
+
+function render_hot_search_panel(array $data, string $extraClass = ''): string
+{
+    $links = implode('', array_map(
+        static fn (string $term): string => '<a href="' . e(path_for('search', ['wd' => $term])) . '">' . e($term) . '</a>',
+        hot_search_terms($data),
+    ));
+
+    return '<div class="hot-search-panel' . e($extraClass) . '" aria-label="热搜榜"><span>热搜榜</span>' . $links . '</div>';
+}
+
 function render_layout(array $data, string $title, string $content): string
 {
     $nav = '<a href="' . e(path_for('home')) . '">首页</a>';
@@ -32,11 +54,14 @@ function render_layout(array $data, string $title, string $content): string
     <button class="nav-toggle" type="button" aria-label="展开导航"><span></span><span></span><span></span></button>
     <nav class="site-nav">' . $nav . '</nav>
     <a class="mobile-category-entry" href="' . e(path_for('categories')) . '">分类</a>
-    <form class="header-search" method="get" action="/index.php">
-      <input type="hidden" name="route" value="search">
-      <input type="search" name="wd" placeholder="搜索影片、演员、导演">
-      <button type="submit">搜索</button>
-    </form>
+    <div class="header-search-wrap">
+      <form class="header-search" method="get" action="/index.php">
+        <input type="hidden" name="route" value="search">
+        <input type="search" name="wd" placeholder="搜索影片、演员、导演">
+        <button type="submit">搜索</button>
+      </form>
+      ' . render_hot_search_panel($data) . '
+    </div>
     <a class="history-link" href="' . e(path_for('history')) . '">观看记录</a>
   </div>
 </header>
@@ -233,7 +258,7 @@ function render_page(array $data, string $route, array $query): string
         $years = ['2026', '2025', '2024', '2023', '2022', '2021'];
         $classes = ['剧情', '动作', '喜剧', '爱情', '科幻', '悬疑', '纪录', '综艺'];
         $langs = ['国语', '粤语', '英语', '韩语', '日语'];
-        $letters = ['A', 'B', 'C', 'D', 'Y', '0~9'];
+        $letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0~9'];
         $filter = '<section class="wrap filter-panel category-filter">'
             . '<div><strong>分类</strong><a href="' . e(path_for('category', ['area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
             . implode('', array_map(static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($category) . '</a>', $data['categories'])) . '</div>'
@@ -257,7 +282,7 @@ function render_page(array $data, string $route, array $query): string
     if ($route === 'search') {
         $keyword = trim((string) ($query['wd'] ?? ''));
         $videos = filter_videos($data, null, $keyword);
-        return render_layout($data, '搜索', '<section class="wrap page-title"><span class="eyebrow">搜索结果</span><h1>' . e($keyword !== '' ? $keyword : '全部内容') . '</h1><p>找到 ' . count($videos) . ' 条相关内容。</p></section><section class="wrap content-section"><div class="vod-grid">' . render_cards($videos) . '</div></section>');
+        return render_layout($data, '搜索', '<section class="wrap page-title"><span class="eyebrow">搜索结果</span><h1>' . e($keyword !== '' ? $keyword : '全部内容') . '</h1><p>找到 ' . count($videos) . ' 条相关内容。</p>' . render_hot_search_panel($data, ' search-hot-panel') . '</section><section class="wrap content-section"><div class="vod-grid">' . render_cards($videos) . '</div></section>');
     }
 
     if ($route === 'detail') {
@@ -305,7 +330,7 @@ function render_page(array $data, string $route, array $query): string
         return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><span>' . ($index + 1) . '</span><strong>' . e($video['title']) . '</strong><em>' . e($video['remark']) . '</em></a>';
     }, array_slice($hot, 0, 6), array_keys(array_slice($hot, 0, 6))));
 
-    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热播榜</h2><a href="' . e(path_for('category')) . '">更多</a></div>' . $rank . '</div></div></section><section class="wrap content-section"><div class="section-head"><h2>最新上线</h2><a href="' . e(path_for('category')) . '">全部影片</a></div><div class="vod-grid">' . render_cards($data['videos']) . '</div></section>';
+    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热播榜</h2><a href="' . e(path_for('category', ['sort' => 'hot'])) . '">更多</a></div>' . $rank . '</div></div></section><section class="wrap content-section"><div class="section-head"><h2>最新上线</h2><a href="' . e(path_for('category')) . '">全部影片</a></div><div class="vod-grid">' . render_cards($data['videos']) . '</div></section>';
 
     return render_layout($data, '首页', $content);
 }

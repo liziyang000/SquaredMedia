@@ -3,11 +3,17 @@
   <span class="eyebrow">搜索结果</span>
   <h1>{$param.wd}</h1>
   <p>以下是与关键词相关的视频内容。</p>
+  <div class="hot-search-panel search-hot-panel" aria-label="热搜榜">
+    <span>热搜榜</span>
+    {maccms:foreach name=":explode(',',$maccms.search_hot)" id="vo2" key="key2"}
+    <a href="{:mac_url('vod/search',['wd'=>$vo2])}">{$vo2}</a>
+    {/maccms:foreach}
+  </div>
 </section>
 
 <section class="wrap content-section">
   <div class="vod-list">
-    {maccms:vod num="20" paging="yes" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
       <span>

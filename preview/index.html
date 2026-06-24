@@ -18,10 +18,15 @@
     </button>
     <nav class="site-nav" id="siteNav"></nav>
     <a class="mobile-category-entry" href="?route=categories" data-route="categories">分类</a>
-    <form class="header-search" id="headerSearch">
-      <input type="search" name="wd" placeholder="搜索影片、演员、导演">
-      <button type="submit">搜索</button>
-    </form>
+    <div class="header-search-wrap">
+      <form class="header-search" id="headerSearch">
+        <input type="search" name="wd" placeholder="搜索影片、演员、导演">
+        <button type="submit">搜索</button>
+      </form>
+      <div class="hot-search-panel" id="hotSearchPanel" aria-label="热搜榜">
+        <span>热搜榜</span>
+      </div>
+    </div>
     <a class="history-link" href="?route=history">观看记录</a>
   </div>
 </header>
@@ -71,6 +76,25 @@ function url(route, params = {}) {
     }
   });
   return `${next.pathname}${next.search}`;
+}
+
+function hotSearchTerms() {
+  if (Array.isArray(store.hotSearch) && store.hotSearch.length > 0) return store.hotSearch;
+  return [...store.videos].sort((a, b) => b.hits - a.hits).slice(0, 6).map((video) => video.title);
+}
+
+function hotSearchPanel(extraClass = "") {
+  return `
+    <div class="hot-search-panel${extraClass}" aria-label="热搜榜">
+      <span>热搜榜</span>
+      ${hotSearchTerms().map((term) => `<a href="${url("search", { wd: term })}" data-route="search">${escapeHtml(term)}</a>`).join("")}
+    </div>`;
+}
+
+function renderHeaderHotSearch() {
+  const panel = document.querySelector("#hotSearchPanel");
+  if (!panel) return;
+  panel.innerHTML = `<span>热搜榜</span>${hotSearchTerms().map((term) => `<a href="${url("search", { wd: term })}" data-route="search">${escapeHtml(term)}</a>`).join("")}`;
 }
 
 function escapeHtml(value) {
@@ -286,7 +310,7 @@ function renderHome() {
         <div class="hero-rank">
           <div class="section-head compact">
             <h2>热播榜</h2>
-            <a href="${url("category")}">更多</a>
+            <a href="${url("category", { sort: "hot" })}">更多</a>
           </div>
           ${hot.map(rankItem).join("")}
         </div>
@@ -315,7 +339,7 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
   const years = ["2026", "2025", "2024", "2023", "2022", "2021"];
   const genres = ["剧情", "动作", "喜剧", "爱情", "科幻", "悬疑", "纪录", "综艺"];
   const langs = ["国语", "粤语", "英语", "韩语", "日语"];
-  const letters = ["A", "B", "C", "D", "Y", "0~9"];
+  const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0~9"];
   const sorts = [
     ["latest", "最新"],
     ["hot", "最热"],
@@ -414,6 +438,7 @@ function renderSearch(keyword) {
       <span class="eyebrow">搜索结果</span>
       <h1>${escapeHtml(wd || "全部内容")}</h1>
       <p>找到 ${list.length} 条相关内容。</p>
+      ${hotSearchPanel(" search-hot-panel")}
     </section>
     <section class="wrap content-section">
       <div class="vod-list">
@@ -520,11 +545,12 @@ function render() {
 
 function bindSearchForms() {
   document.querySelectorAll("form").forEach((form) => {
-    if (form.dataset.searchReady === "true" || form.hasAttribute("data-page-jump")) return;
+    if (form.dataset.previewSearchReady === "true" || form.hasAttribute("data-page-jump")) return;
     const input = form.querySelector('input[name="wd"]');
     if (!input) return;
-    form.dataset.searchReady = "true";
+    form.dataset.previewSearchReady = "true";
     form.addEventListener("submit", (event) => {
+      if (event.defaultPrevented) return;
       event.preventDefault();
       window.history.pushState({}, "", url("search", { wd: input.value.trim() }));
       render();
@@ -544,6 +570,7 @@ document.body.addEventListener("click", (event) => {
 
 window.addEventListener("popstate", render);
 renderNav();
+renderHeaderHotSearch();
 render();
 </script>
 </body>

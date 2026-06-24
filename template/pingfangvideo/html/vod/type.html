@@ -87,12 +87,9 @@
     <strong>字母</strong>
     <div class="filter-options letter-options">
       <a {if condition="$param['letter'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'','class'=>$param['class']],'show')}">全部</a>
-      <a {if condition="$param['letter'] eq 'A'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'A','class'=>$param['class']],'show')}">A</a>
-      <a {if condition="$param['letter'] eq 'B'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'B','class'=>$param['class']],'show')}">B</a>
-      <a {if condition="$param['letter'] eq 'C'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'C','class'=>$param['class']],'show')}">C</a>
-      <a {if condition="$param['letter'] eq 'D'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'D','class'=>$param['class']],'show')}">D</a>
-      <a {if condition="$param['letter'] eq 'Y'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'Y','class'=>$param['class']],'show')}">Y</a>
-      <a {if condition="$param['letter'] eq '0~9'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'0~9','class'=>$param['class']],'show')}">0~9</a>
+      {maccms:foreach name=":explode(',','A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9')" id="vo2"}
+      <a {if condition="$param['letter'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$vo2,'class'=>$param['class']],'show')}">{$vo2}</a>
+      {/maccms:foreach}
     </div>
   </div>
   <div class="filter-row">
@@ -115,15 +112,15 @@
   </div>
   <div class="vod-grid">
     {if condition="$param.by eq 'hits'"}
-    {maccms:vod num="24" paging="yes" type="current" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="vod/type" type="current" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {elseif condition="$param.by eq 'score'"}
-    {maccms:vod num="24" paging="yes" type="current" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="score" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="vod/type" type="current" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="score" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {else}
-    {maccms:vod num="24" paging="yes" type="current" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="time" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="vod/type" type="current" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="time" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {/if}

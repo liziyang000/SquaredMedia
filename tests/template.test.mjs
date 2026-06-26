@@ -6,6 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
+const nonAdultVodTypeScope = "42,47,48,57,111";
 
 const requiredFiles = [
   "info.ini",
@@ -31,6 +32,8 @@ const requiredFiles = [
   "html/index/index.html",
   "html/label/categories.html",
   "html/label/history.html",
+  "html/label/hot.html",
+  "html/label/videos.html",
   "html/topic/index.html",
   "html/topic/detail.html",
   "html/art/index.html",
@@ -284,6 +287,21 @@ assert.match(historyPage, /history-timeline/);
 assert.match(historyPage, /timeline-item/);
 assert.match(historyPage, /data-history-source/);
 
+const hotLabelPage = readThemeFile("html/label/hot.html");
+assert.match(hotLabelPage, /seo_title="热播榜"/);
+assert.match(hotLabelPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/hot" type="${nonAdultVodTypeScope}" order="desc" by="hits" id="vo"\\}`));
+assert.doesNotMatch(hotLabelPage, /\{maccms:vod[^}]*type="all"[^}]*by="hits"/);
+assert.match(hotLabelPage, /include file="public\/vod_card"/);
+assert.match(hotLabelPage, /include file="public\/paging"/);
+assert.match(hotLabelPage, /\{include file="public\/foot" \/\}/);
+
+const videosLabelPage = readThemeFile("html/label/videos.html");
+assert.match(videosLabelPage, /seo_title="影片库"/);
+assert.match(videosLabelPage, /\{maccms:vod num="24" paging="yes" pageurl="label\/videos" type="all" order="desc" by="time" id="vo"\}/);
+assert.match(videosLabelPage, /include file="public\/vod_card"/);
+assert.match(videosLabelPage, /include file="public\/paging"/);
+assert.match(videosLabelPage, /\{include file="public\/foot" \/\}/);
+
 const userIndexPage = readThemeFile("html/user/index.html");
 assert.match(userIndexPage, /mac_url\('user\/plays'\)/);
 assert.match(userIndexPage, /mac_url\('user\/favs'\)/);
@@ -390,7 +408,13 @@ assert.match(index, /banner-dots/);
 assert.match(index, /hero-stats/);
 assert.match(index, /include file="public\/vod_card"/);
 assert.match(index, /<h2>热播榜<\/h2>/);
-assert.match(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
+assert.match(index, /mac_url\('label\/hot'\)/);
+assert.match(index, /mac_url\('label\/videos'\)/);
+assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" order="desc" by="hits"`, "g")) || []).length, 2);
+assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" order="desc" by="hits" id="vo" key="key"\\}`));
+assert.doesNotMatch(index, /\{maccms:vod type="all"[^}]*by="hits"/);
+assert.doesNotMatch(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
+assert.doesNotMatch(index, /<a href="\{:mac_url\('vod\/show'\)\}">全部影片<\/a>/);
 
 const detail = readThemeFile("html/vod/detail.html");
 assert.match(detail, /\{include file="public\/head" seo_title=/);
@@ -407,6 +431,7 @@ assert.match(detail, /data-favorite-action/);
 assert.match(detail, /data-favorite-label/);
 assert.match(detail, /data-favorite-saved-label="已收藏"/);
 assert.match(detail, /aria-pressed="false"/);
+assert.match(detail, /<dt>热度<\/dt><dd>\{\$obj\.vod_hits\|mac_default='0'\} 次<\/dd>/);
 
 const play = readThemeFile("html/vod/play.html");
 assert.match(play, /\{include file="public\/head" seo_title=/);

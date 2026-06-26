@@ -1,0 +1,20 @@
+{include file="public/head" seo_title="影片库" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap page-title">
+  <span class="eyebrow">影片</span>
+  <h1>影片库</h1>
+  <p>按更新时间汇总全站影片内容。</p>
+</section>
+
+<section class="wrap content-section">
+  <div class="section-head">
+    <h2>最新影片</h2>
+    <span>按更新时间排序</span>
+  </div>
+  <div class="vod-grid">
+    {maccms:vod num="24" paging="yes" pageurl="label/videos" type="all" order="desc" by="time" id="vo"}
+    {include file="public/vod_card" /}
+    {/maccms:vod}
+  </div>
+  {include file="public/paging" /}
+</section>
+{include file="public/foot" /}

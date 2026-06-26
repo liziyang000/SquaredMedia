@@ -25,6 +25,8 @@ const requiredEntries = [
   "pingfangvideo/html/index/index.html",
   "pingfangvideo/html/label/categories.html",
   "pingfangvideo/html/label/history.html",
+  "pingfangvideo/html/label/hot.html",
+  "pingfangvideo/html/label/videos.html",
   "pingfangvideo/html/topic/index.html",
   "pingfangvideo/html/topic/detail.html",
   "pingfangvideo/html/art/index.html",

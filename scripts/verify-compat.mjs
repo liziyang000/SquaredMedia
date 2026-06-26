@@ -52,6 +52,8 @@ const requiredThemeFiles = [
   "html/index/index.html",
   "html/label/categories.html",
   "html/label/history.html",
+  "html/label/hot.html",
+  "html/label/videos.html",
   "html/topic/index.html",
   "html/topic/detail.html",
   "html/art/index.html",

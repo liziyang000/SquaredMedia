@@ -3,7 +3,7 @@
   <div class="wrap hero-grid">
     <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
       <div class="banner-track">
-        {maccms:vod type="all" num="5" order="desc" by="hits" id="vo" key="key"}
+        {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
         <a class='hero-slide{if condition="$key eq 1"} is-active{/if}' href="{:mac_url_vod_detail($vo)}" data-carousel-slide style="--banner-bg: url('{$vo.vod_pic|mac_url_img}');">
           <span class="banner-bg"></span>
           <span class="banner-copy">
@@ -25,7 +25,7 @@
       <div class="banner-controls">
         <button class="banner-arrow" type="button" data-carousel-prev aria-label="上一张">‹</button>
         <div class="banner-dots" role="tablist" aria-label="轮播分页">
-          {maccms:vod type="all" num="5" order="desc" by="hits" id="vo" key="key"}
+          {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
           <button class='banner-dot{if condition="$key eq 1"} is-active{/if}' type="button" data-carousel-dot aria-label="第{$key}张"></button>
           {/maccms:vod}
         </div>
@@ -35,9 +35,9 @@
     <div class="hero-rank">
       <div class="section-head compact">
         <h2>热播榜</h2>
-        <a href="{:mac_url('vod/show',['by'=>'hits'])}">更多</a>
+        <a href="{:mac_url('label/hot')}">更多</a>
       </div>
-      {maccms:vod type="all" num="6" order="desc" by="hits" id="vo" key="key"}
+      {maccms:vod type="42,47,48,57,111" num="6" order="desc" by="hits" id="vo" key="key"}
       <a class="rank-item" href="{:mac_url_vod_detail($vo)}">
         <span>{$key}</span>
         <strong>{$vo.vod_name}</strong>
@@ -57,7 +57,7 @@
 <section class="wrap content-section">
   <div class="section-head">
     <h2>最新上线</h2>
-    <a href="{:mac_url('vod/show')}">全部影片</a>
+    <a href="{:mac_url('label/videos')}">全部影片</a>
   </div>
   <div class="vod-grid">
     {maccms:vod type="all" num="12" order="desc" by="time" id="vo"}

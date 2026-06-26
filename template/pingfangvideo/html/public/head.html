@@ -26,12 +26,6 @@
         <input type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">
         <button type="submit">搜索</button>
       </form>
-      <div class="hot-search-panel" aria-label="热搜榜">
-        <span>热搜榜</span>
-        {maccms:foreach name=":explode(',',$maccms.search_hot)" id="vo2" key="key2"}
-        <a href="{:mac_url('vod/search',['wd'=>$vo2])}">{$vo2}</a>
-        {/maccms:foreach}
-      </div>
     </div>
     <div class="user-menu">
       {if condition="$user.user_id gt 0"}

@@ -60,7 +60,6 @@ function render_layout(array $data, string $title, string $content): string
         <input type="search" name="wd" placeholder="搜索影片、演员、导演">
         <button type="submit">搜索</button>
       </form>
-      ' . render_hot_search_panel($data) . '
     </div>
     <a class="history-link" href="' . e(path_for('history')) . '">观看记录</a>
   </div>
@@ -256,18 +255,17 @@ function render_page(array $data, string $route, array $query): string
         $pagedVideos = array_slice($videos, ($page - 1) * $categoryPageSize, $categoryPageSize);
         $areas = ['中国大陆', '中国香港', '中国台湾', '美国', '韩国', '日本'];
         $years = ['2026', '2025', '2024', '2023', '2022', '2021'];
-        $classes = ['剧情', '动作', '喜剧', '爱情', '科幻', '悬疑', '纪录', '综艺'];
         $langs = ['国语', '粤语', '英语', '韩语', '日语'];
         $letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0~9'];
-        $filter = '<section class="wrap filter-panel category-filter">'
-            . '<div><strong>分类</strong><a href="' . e(path_for('category', ['area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
+        $channelTitle = $name !== '' ? $name : '影片库';
+        $channelSearch = '<div class="filter-row filter-search-row"><strong>搜索</strong><form class="channel-search" method="get" action="/index.php"><input type="hidden" name="route" value="search"><input type="hidden" name="type" value="' . e($name) . '"><input type="search" name="wd" placeholder="在' . e($channelTitle) . '中搜索"><button type="submit">搜索</button></form></div>';
+        $filter = '<section class="wrap filter-panel category-filter">' . $channelSearch
+            . '<div><strong>类型</strong><a href="' . e(path_for('category', ['area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
             . implode('', array_map(static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($category) . '</a>', $data['categories'])) . '</div>'
             . '<div><strong>地区</strong><a href="' . e(path_for('category', ['name' => $name, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
             . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $item, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $areas)) . '</div>'
             . '<div><strong>年份</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
             . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $item, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $years)) . '</div>'
-            . '<div><strong>类型</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
-            . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $item, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $classes)) . '</div>'
             . '<div><strong>语言</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'letter' => $letter, 'sort' => $sort])) . '">全部</a>'
             . implode('', array_map(static fn (string $item): string => '<a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $item, 'letter' => $letter, 'sort' => $sort])) . '">' . e($item) . '</a>', $langs)) . '</div>'
             . '<div><strong>字母</strong><a href="' . e(path_for('category', ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'sort' => $sort])) . '">全部</a>'
@@ -281,8 +279,43 @@ function render_page(array $data, string $route, array $query): string
 
     if ($route === 'search') {
         $keyword = trim((string) ($query['wd'] ?? ''));
-        $videos = filter_videos($data, null, $keyword);
-        return render_layout($data, '搜索', '<section class="wrap page-title"><span class="eyebrow">搜索结果</span><h1>' . e($keyword !== '' ? $keyword : '全部内容') . '</h1><p>找到 ' . count($videos) . ' 条相关内容。</p>' . render_hot_search_panel($data, ' search-hot-panel') . '</section><section class="wrap content-section"><div class="vod-grid">' . render_cards($videos) . '</div></section>');
+        $type = trim((string) ($query['type'] ?? ''));
+        $class = trim((string) ($query['class'] ?? ''));
+        $baseVideos = filter_videos($data, null, $keyword);
+        $searchClasses = $type !== ''
+            ? array_values(array_unique(array_filter(array_map(static fn (array $video): string => (string) ($video['class'] ?? ''), filter_videos($data, $type)))))
+            : [];
+        $videos = array_values(array_filter($baseVideos, static function (array $video) use ($type, $class): bool {
+            if ($type !== '' && (string) $video['category'] !== $type) {
+                return false;
+            }
+
+            if ($class !== '' && (string) ($video['class'] ?? '') !== $class) {
+                return false;
+            }
+
+            return true;
+        }));
+        $filterLinks = '<a' . ($type === '' ? ' class="is-active"' : '') . ' href="' . e(path_for('search', ['wd' => $keyword])) . '">全部</a>';
+        $filterLinks .= implode('', array_map(static function (string $category) use ($keyword, $type): string {
+            $active = $category === $type ? ' class="is-active"' : '';
+            return '<a' . $active . ' href="' . e(path_for('search', ['wd' => $keyword, 'type' => $category])) . '">' . e($category) . '</a>';
+        }, $data['categories']));
+        $filter = '<section class="wrap filter-panel category-filter search-filter-panel"><div class="filter-row"><strong>频道</strong><div class="filter-options">' . $filterLinks . '</div></div>';
+        if ($type !== '' && $searchClasses !== []) {
+            $classFilterLinks = '<a' . ($class === '' ? ' class="is-active"' : '') . ' href="' . e(path_for('search', ['wd' => $keyword, 'type' => $type])) . '">全部</a>';
+            $classFilterLinks .= implode('', array_map(static function (string $item) use ($keyword, $type, $class): string {
+                $active = $item === $class ? ' class="is-active"' : '';
+                return '<a' . $active . ' href="' . e(path_for('search', ['wd' => $keyword, 'type' => $type, 'class' => $item])) . '">' . e($item) . '</a>';
+            }, $searchClasses));
+            $filter .= '<div class="filter-row"><strong>类型</strong><div class="filter-options">' . $classFilterLinks . '</div></div>';
+        }
+        $filter .= '</section>';
+        $list = implode('', array_map(static function (array $video): string {
+            return '<a class="list-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy"><span><strong>' . e($video['title']) . '</strong><small>' . e($video['actor']) . '</small><span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span><span>' . e($video['score']) . ' 分</span></span><em>' . e($video['summary']) . '</em></span></a>';
+        }, $videos));
+        $sectionHead = $type !== '' ? '<div class="section-head compact"><h2>' . e($type) . '</h2><span>搜索结果</span></div>' : '';
+        return render_layout($data, '搜索', '<section class="wrap page-title"><span class="eyebrow">搜索结果</span><h1>' . e($keyword !== '' ? $keyword : '全部内容') . '</h1><p>找到 ' . count($videos) . ' 条相关内容。</p></section>' . $filter . '<section class="wrap content-section">' . $sectionHead . '<div class="vod-list">' . $list . '</div></section>');
     }
 
     if ($route === 'detail') {

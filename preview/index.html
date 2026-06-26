@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PingFang Video Preview</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260621">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260626">
 </head>
 <body>
 <header class="site-header">
@@ -23,9 +23,6 @@
         <input type="search" name="wd" placeholder="搜索影片、演员、导演">
         <button type="submit">搜索</button>
       </form>
-      <div class="hot-search-panel" id="hotSearchPanel" aria-label="热搜榜">
-        <span>热搜榜</span>
-      </div>
     </div>
     <a class="history-link" href="?route=history">观看记录</a>
   </div>
@@ -89,12 +86,6 @@ function hotSearchPanel(extraClass = "") {
       <span>热搜榜</span>
       ${hotSearchTerms().map((term) => `<a href="${url("search", { wd: term })}" data-route="search">${escapeHtml(term)}</a>`).join("")}
     </div>`;
-}
-
-function renderHeaderHotSearch() {
-  const panel = document.querySelector("#hotSearchPanel");
-  if (!panel) return;
-  panel.innerHTML = `<span>热搜榜</span>${hotSearchTerms().map((term) => `<a href="${url("search", { wd: term })}" data-route="search">${escapeHtml(term)}</a>`).join("")}`;
 }
 
 function escapeHtml(value) {
@@ -337,7 +328,6 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
   const pagedList = list.slice(start, start + videoPageSize);
   const areas = ["中国大陆", "中国香港", "中国台湾", "美国", "韩国", "日本"];
   const years = ["2026", "2025", "2024", "2023", "2022", "2021"];
-  const genres = ["剧情", "动作", "喜剧", "爱情", "科幻", "悬疑", "纪录", "综艺"];
   const langs = ["国语", "粤语", "英语", "韩语", "日语"];
   const letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0~9"];
   const sorts = [
@@ -380,8 +370,16 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
       <p>按分类、地区、年份和排序方式查找内容。</p>
     </section>
     <section class="wrap filter-panel category-filter">
+      <div class="filter-row filter-search-row">
+        <strong>搜索</strong>
+        <form class="channel-search" method="get" action="${url("search")}" role="search">
+          <input type="hidden" name="type" value="${escapeHtml(name || "")}">
+          <input type="search" name="wd" placeholder="在${escapeHtml(name || "影片库")}中搜索">
+          <button type="submit">搜索</button>
+        </form>
+      </div>
       <div>
-        <strong>分类</strong>
+        <strong>类型</strong>
         <a href="${filterUrl({ name: "" })}">全部</a>
         ${store.categories.map((category) => `<a href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
       </div>
@@ -394,11 +392,6 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
         <strong>年份</strong>
         <a href="${filterUrl({ year: "" })}">全部</a>
         ${years.map((item) => `<a class="${item === year ? "is-active" : ""}" href="${filterUrl({ year: item })}">${escapeHtml(item)}</a>`).join("")}
-      </div>
-      <div>
-        <strong>类型</strong>
-        <a href="${filterUrl({ class: "" })}">全部</a>
-        ${genres.map((item) => `<a class="${item === genre ? "is-active" : ""}" href="${filterUrl({ class: item })}">${escapeHtml(item)}</a>`).join("")}
       </div>
       <div>
         <strong>语言</strong>
@@ -428,19 +421,49 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
     </section>`;
 }
 
-function renderSearch(keyword) {
+function searchClassOptions(type) {
+  if (!type) return [];
+  return [...new Set(store.videos.filter((video) => video.category === type).map((video) => video.class).filter(Boolean))];
+}
+
+function renderSearch(keyword, type = "", genre = "") {
   const wd = String(keyword || "").trim();
-  const list = wd
+  const selectedType = String(type || "").trim();
+  const selectedClass = String(genre || "").trim();
+  const baseList = wd
     ? store.videos.filter((video) => `${video.title} ${video.actor} ${video.category}`.includes(wd))
     : store.videos;
+  const searchClasses = searchClassOptions(selectedType);
+  const list = baseList.filter((video) => {
+    if (selectedType && video.category !== selectedType) return false;
+    if (selectedClass && video.class !== selectedClass) return false;
+    return true;
+  });
   app.innerHTML = `
     <section class="wrap page-title">
       <span class="eyebrow">搜索结果</span>
       <h1>${escapeHtml(wd || "全部内容")}</h1>
       <p>找到 ${list.length} 条相关内容。</p>
-      ${hotSearchPanel(" search-hot-panel")}
+    </section>
+    <section class="wrap filter-panel category-filter search-filter-panel">
+      <div class="filter-row">
+        <strong>频道</strong>
+        <div class="filter-options">
+          <a class="${selectedType ? "" : "is-active"}" href="${url("search", { wd })}">全部</a>
+          ${store.categories.map((category) => `<a class="${category === selectedType ? "is-active" : ""}" href="${url("search", { wd, type: category })}">${escapeHtml(category)}</a>`).join("")}
+        </div>
+      </div>
+      ${selectedType && searchClasses.length > 0 ? `
+      <div class="filter-row">
+        <strong>类型</strong>
+        <div class="filter-options">
+          <a class="${selectedClass ? "" : "is-active"}" href="${url("search", { wd, type: selectedType })}">全部</a>
+          ${searchClasses.map((item) => `<a class="${item === selectedClass ? "is-active" : ""}" href="${url("search", { wd, type: selectedType, class: item })}">${escapeHtml(item)}</a>`).join("")}
+        </div>
+      </div>` : ""}
     </section>
     <section class="wrap content-section">
+      ${selectedType ? `<div class="section-head compact"><h2>${escapeHtml(selectedType)}</h2><span>搜索结果</span></div>` : ""}
       <div class="vod-list">
         ${list.map((video) => `
           <a class="list-item" href="${url("detail", { id: video.id })}" data-route="detail">
@@ -534,7 +557,7 @@ function render() {
   else if (route === "history") renderHistoryPage();
   else
     if (route === "category") renderCategory(params.get("name"), params.get("sort"), params.get("area"), params.get("year"), params.get("class"), params.get("page"), params.get("lang"), params.get("letter"));
-  else if (route === "search") renderSearch(params.get("wd"));
+  else if (route === "search") renderSearch(params.get("wd"), params.get("type"), params.get("class"));
   else if (route === "detail") renderDetail(params.get("id"));
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
@@ -552,7 +575,8 @@ function bindSearchForms() {
     form.addEventListener("submit", (event) => {
       if (event.defaultPrevented) return;
       event.preventDefault();
-      window.history.pushState({}, "", url("search", { wd: input.value.trim() }));
+      const typeInput = form.querySelector('input[name="type"]');
+      window.history.pushState({}, "", url("search", { wd: input.value.trim(), type: typeInput?.value || "" }));
       render();
     });
   });
@@ -570,7 +594,6 @@ document.body.addEventListener("click", (event) => {
 
 window.addEventListener("popstate", render);
 renderNav();
-renderHeaderHotSearch();
 render();
 </script>
 </body>

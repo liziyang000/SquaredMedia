@@ -3,15 +3,52 @@
   <span class="eyebrow">搜索结果</span>
   <h1>{$param.wd}</h1>
   <p>以下是与关键词相关的视频内容。</p>
-  <div class="hot-search-panel search-hot-panel" aria-label="热搜榜">
-    <span>热搜榜</span>
-    {maccms:foreach name=":explode(',',$maccms.search_hot)" id="vo2" key="key2"}
-    <a href="{:mac_url('vod/search',['wd'=>$vo2])}">{$vo2}</a>
-    {/maccms:foreach}
+</section>
+
+<section class="wrap filter-panel category-filter search-filter-panel">
+  {if condition="$param['type'] eq ''"}
+  <div class="filter-row">
+    <strong>频道</strong>
+    <div class="filter-options">
+      <a class="is-active" href="{:mac_url('vod/search',['wd'=>$param['wd']])}">全部</a>
+      {maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"}
+      <a href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$type['type_id']])}">{$type.type_name}</a>
+      {/maccms:type}
+    </div>
   </div>
+  {else/}
+  {maccms:type ids="'.$param['type'].'" id="current"}
+  <div class="filter-row">
+    <strong>频道</strong>
+    <div class="filter-options">
+      <a href="{:mac_url('vod/search',['wd'=>$param['wd']])}">全部</a>
+      {maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"}
+      <a {if condition="$current.type_id eq $type.type_id or $current.type_pid eq $type.type_id"} class="is-active" {/if} href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$type['type_id']])}">{$type.type_name}</a>
+      {/maccms:type}
+    </div>
+  </div>
+  <div class="filter-row">
+    <strong>类型</strong>
+    <div class="filter-options">
+      {if condition="$current.type_pid gt 0"}
+      <a href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$current['type_pid']])}">全部</a>
+      {maccms:type parent="'.$current['type_pid'].'" order="asc" by="sort" id="child"}
+      <a {if condition="$current.type_id eq $child.type_id"} class="is-active" {/if} href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$child['type_id']])}">{$child.type_name}</a>
+      {/maccms:type}
+      {else/}
+      <a class="is-active" href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$current['type_id']])}">全部</a>
+      {maccms:type parent="'.$current['type_id'].'" order="asc" by="sort" id="child"}
+      <a href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$child['type_id']])}">{$child.type_name}</a>
+      {/maccms:type}
+      {/if}
+    </div>
+  </div>
+  {/maccms:type}
+  {/if}
 </section>
 
 <section class="wrap content-section">
+  {if condition="$param['type'] eq ''"}
   <div class="vod-list">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
@@ -24,6 +61,26 @@
     </a>
     {/maccms:vod}
   </div>
-  {include file="public/paging" /}
+  {else/}
+  {maccms:type ids="'.$param['type'].'" id="current"}
+  <div class="section-head compact">
+    <h2>{$current.type_name}</h2>
+    <span>搜索结果</span>
+  </div>
+  <div class="vod-list">
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
+    <a class="list-item" href="{:mac_url_vod_detail($vo)}">
+      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+      <span>
+        <strong>{$vo.vod_name}</strong>
+        <small>{$vo.vod_actor|mac_default='主演待更新'}</small>
+        <em>{$vo.vod_content|mac_filter_html|mac_substring=90}</em>
+      </span>
+    </a>
+    {/maccms:vod}
+  </div>
+  {/maccms:type}
+  {/if}
+{include file="public/paging" /}
 </section>
 {include file="public/foot" /}

@@ -6,8 +6,16 @@
 </section>
 
 <section class="wrap filter-panel category-filter">
+  <div class="filter-row filter-search-row">
+    <strong>搜索</strong>
+    <form class="channel-search" method="get" action="{:mac_url('vod/search')}">
+      <input type="hidden" name="type" value="{$obj.type_id}">
+      <input type="search" name="wd" value="{$param.wd}" placeholder="在{$obj.type_name}中搜索">
+      <button type="submit">搜索</button>
+    </form>
+  </div>
   <div class="filter-row">
-    <strong>子类</strong>
+    <strong>类型</strong>
     <div class="filter-options">
       <a {if condition="$param['area'] eq '' && $param['lang'] eq '' && $param['year'] eq '' && $param['letter'] eq '' && $param['class'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,[],'show')}">全部</a>
       {maccms:type parent="'.$obj['type_id'].'" order="asc" by="sort" id="type"}
@@ -44,23 +52,6 @@
       {notempty name="$obj.parent.type_extend.year"}
       {maccms:foreach name=":explode(',',$obj.parent.type_extend.year)" id="vo2"}
       <a {if condition="$param['year'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$vo2,'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
-      {/maccms:foreach}
-      {/notempty}
-      {/notempty}
-    </div>
-  </div>
-  <div class="filter-row">
-    <strong>类型</strong>
-    <div class="filter-options">
-      <a {if condition="$param['class'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>''],'show')}">全部</a>
-      {notempty name="$obj.type_extend.class"}
-      {maccms:foreach name=":explode(',',$obj.type_extend.class)" id="vo2"}
-      <a {if condition="$param['class'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$vo2],'show')}">{$vo2}</a>
-      {/maccms:foreach}
-      {else/}
-      {notempty name="$obj.parent.type_extend.class"}
-      {maccms:foreach name=":explode(',',$obj.parent.type_extend.class)" id="vo2"}
-      <a {if condition="$param['class'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$vo2],'show')}">{$vo2}</a>
       {/maccms:foreach}
       {/notempty}
       {/notempty}

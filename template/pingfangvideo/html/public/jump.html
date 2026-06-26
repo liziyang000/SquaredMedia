@@ -3,7 +3,7 @@
   <div class="system-box">
     <span class="eyebrow">跳转</span>
     <h1>{$msg}</h1>
-    <p>页面将在 <strong>{$wait}</strong> 秒后自动跳转。</p>
+    <p>页面将在 <strong>1</strong> 秒后自动跳转。</p>
     <div class="detail-actions">
       <a class="primary-btn" href="{$url}">立即跳转</a>
       <a class="ghost-btn" href="{$maccms.path}">返回首页</a>
@@ -13,6 +13,6 @@
 <script>
 setTimeout(function () {
   window.location.href = "{$url}";
-}, Number("{$wait}") * 1000 || 1200);
+}, 1000);
 </script>
 {include file="public/foot" /}

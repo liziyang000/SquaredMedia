@@ -28,7 +28,7 @@
           <input name="ids[]" type="checkbox" value="{$vo.ulog_id}">
         </label>
         <a class="record-poster" href="{$vo.data.link}" aria-label="继续观看 {$vo.data.name}">
-          <img class="record-poster-img" src="{$vo.data.pic|mac_url_img}" alt="{$vo.data.name}" loading="lazy">
+          <img class="record-poster-img" src="{$vo.data.pic|mac_url_img}" alt="{$vo.data.name}" loading="lazy" decoding="async" width="160" height="240">
         </a>
         <div class="record-main">
           <a class="record-title" href="{$vo.data.link}">[{$vo.data.type.type_name}] {$vo.data.name}</a>

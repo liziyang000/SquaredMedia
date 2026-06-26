@@ -13,7 +13,7 @@
             <span class="banner-meta"><i>{$vo.type.type_name|mac_default='视频'}</i><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_remarks|mac_default='更新中'}</i></span>
             <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">{$vo.vod_score|mac_default='8.0'} 分</span></span>
           </span>
-          <img class="banner-poster" src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+          <img class="banner-poster" src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="380" height="570" decoding="async" {if condition="$key eq 1"}loading="eager" fetchpriority="high"{else/}loading="lazy" fetchpriority="low"{/if}>
         </a>
         {/maccms:vod}
       </div>

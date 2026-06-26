@@ -431,6 +431,234 @@
     }
   });
 
+  function prefersReducedMotion() {
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function scopedElements(scope, selector) {
+    return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
+  }
+
+  function clearMotionStyles(gsap, targets) {
+    if (targets.length === 0) return;
+    gsap.killTweensOf(targets);
+    gsap.set(targets, { clearProps: "transform,opacity,visibility,zIndex" });
+  }
+
+  function enableGsapCarousel(carousel) {
+    carousel.setAttribute("data-gsap-carousel", "true");
+  }
+
+  function disableGsapCarousel(carousel) {
+    delete carousel.dataset.gsapCarousel;
+  }
+
+  function animateHeroSlide(carousel, previousSlide, activeSlide, direction) {
+    var gsap = window.gsap;
+    if (!gsap || prefersReducedMotion()) {
+      disableGsapCarousel(carousel);
+      return;
+    }
+
+    activeSlide = activeSlide || carousel.querySelector(".hero-slide.is-active");
+    if (!activeSlide) return;
+
+    enableGsapCarousel(carousel);
+
+    var slides = scopedElements(carousel, ".hero-slide");
+    var copyTargets = scopedElements(activeSlide, ".eyebrow, .banner-copy strong, .banner-copy small, .banner-meta, .banner-actions");
+    var poster = activeSlide.querySelector(".banner-poster");
+    var contentTargets = copyTargets.slice();
+    var offset = direction < 0 ? -18 : 18;
+
+    if (poster) {
+      contentTargets.push(poster);
+    }
+    gsap.killTweensOf(slides.concat(contentTargets));
+
+    slides.forEach(function (slide) {
+      if (slide !== previousSlide && slide !== activeSlide) {
+        gsap.set(slide, { autoAlpha: 0, x: 0, zIndex: 0 });
+      }
+    });
+
+    if (previousSlide && previousSlide !== activeSlide) {
+      gsap.set(previousSlide, { autoAlpha: 1, x: 0, zIndex: 1 });
+      gsap.set(activeSlide, { autoAlpha: 0, x: offset, zIndex: 2 });
+      gsap.to(previousSlide, {
+        x: -offset,
+        autoAlpha: 0,
+        duration: 0.3,
+        ease: "power2.out",
+        overwrite: true,
+        clearProps: "transform,opacity,visibility,zIndex"
+      });
+      gsap.to(activeSlide, {
+        x: 0,
+        autoAlpha: 1,
+        duration: 0.34,
+        ease: "power3.out",
+        overwrite: true,
+        clearProps: "transform,opacity,visibility,zIndex"
+      });
+    } else {
+      gsap.set(activeSlide, { autoAlpha: 1, x: 0, zIndex: 2, clearProps: "transform,opacity,visibility,zIndex" });
+      return;
+    }
+
+    gsap.fromTo(copyTargets, {
+      y: 12
+    }, {
+      y: 0,
+      duration: 0.34,
+      ease: "power3.out",
+      stagger: 0.025,
+      overwrite: "auto",
+      clearProps: "transform"
+    });
+
+    if (poster) {
+      gsap.fromTo(poster, {
+        x: offset * 0.55,
+        scale: 0.985
+      }, {
+        x: 0,
+        scale: 1,
+        duration: 0.4,
+        ease: "power3.out",
+        overwrite: "auto",
+        clearProps: "transform"
+      });
+    }
+  }
+
+  function bindGsapHover(scope, selector, enterVars, leaveVars) {
+    var gsap = window.gsap;
+    if (!gsap) return;
+
+    scopedElements(scope, selector).forEach(function (item) {
+      if (item.dataset.gsapHoverReady === "true") return;
+      item.dataset.gsapHoverReady = "true";
+
+      item.addEventListener("mouseenter", function () {
+        gsap.to(item, Object.assign({
+          duration: 0.22,
+          ease: "power2.out",
+          overwrite: "auto"
+        }, enterVars));
+      });
+
+      item.addEventListener("mouseleave", function () {
+        gsap.to(item, Object.assign({
+          duration: 0.24,
+          ease: "power2.out",
+          overwrite: "auto",
+          clearProps: "transform"
+        }, leaveVars));
+      });
+    });
+  }
+
+  function initGsapMotion(root) {
+    var gsap = window.gsap;
+    if (!gsap) return;
+
+    var scope = root && root.querySelectorAll ? root : document;
+    var motionRoot = scope === document ? document.documentElement : scope;
+    var mm = gsap.matchMedia();
+
+    if (motionRoot._pingfangGsapMotion) {
+      motionRoot._pingfangGsapMotion.revert();
+    }
+    motionRoot._pingfangGsapMotion = mm;
+
+    mm.add({
+      reduceMotion: "(prefers-reduced-motion: reduce)",
+      canHover: "(hover: hover) and (pointer: fine)"
+    }, function (context) {
+      var reduceMotion = context.conditions.reduceMotion;
+      var canHover = context.conditions.canHover;
+      var carousels = scopedElements(scope, "[data-carousel]");
+      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .vod-card");
+
+      if (reduceMotion) {
+        carousels.forEach(function (carousel) {
+          disableGsapCarousel(carousel);
+          clearMotionStyles(gsap, scopedElements(carousel, ".hero-slide"));
+        });
+        clearMotionStyles(gsap, entranceTargets);
+        return;
+      }
+
+      carousels.forEach(function (carousel) {
+        enableGsapCarousel(carousel);
+      });
+
+      var timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
+      var heroTargets = scopedElements(scope, ".hero-slide.is-active .eyebrow, .hero-slide.is-active .banner-copy strong, .hero-slide.is-active .banner-copy small, .hero-slide.is-active .banner-meta, .hero-slide.is-active .banner-actions");
+      var posterTargets = scopedElements(scope, ".hero-slide.is-active .banner-poster");
+      var statTargets = scopedElements(scope, ".hero-carousel .stat-card");
+      var rankTargets = scopedElements(scope, ".hero-rank .rank-item");
+      var cards = scopedElements(scope, ".vod-card").slice(0, 12);
+
+      if (heroTargets.length) {
+        timeline.from(heroTargets, {
+          y: 16,
+          autoAlpha: 0,
+          duration: 0.52,
+          stagger: 0.045,
+          clearProps: "transform,opacity,visibility"
+        }, 0.04);
+      }
+
+      if (posterTargets.length) {
+        timeline.from(posterTargets, {
+          x: 24,
+          scale: 0.96,
+          autoAlpha: 0,
+          duration: 0.6,
+          clearProps: "transform,opacity,visibility"
+        }, 0.12);
+      }
+
+      if (statTargets.length) {
+        timeline.from(statTargets, {
+          y: 14,
+          autoAlpha: 0,
+          duration: 0.42,
+          stagger: 0.045,
+          clearProps: "transform,opacity,visibility"
+        }, 0.28);
+      }
+
+      if (rankTargets.length) {
+        timeline.from(rankTargets, {
+          x: 12,
+          autoAlpha: 0,
+          duration: 0.36,
+          stagger: 0.035,
+          clearProps: "transform,opacity,visibility"
+        }, 0.24);
+      }
+
+      if (cards.length) {
+        timeline.from(cards, {
+          y: 14,
+          autoAlpha: 0,
+          duration: 0.38,
+          stagger: 0.025,
+          clearProps: "transform,opacity,visibility"
+        }, 0.42);
+      }
+
+      if (canHover) {
+        bindGsapHover(scope, ".vod-card", { y: -5, scale: 1.012 }, { y: 0, scale: 1 });
+        bindGsapHover(scope, ".rank-item", { x: 4 }, { x: 0 });
+        bindGsapHover(scope, ".stat-card", { y: -3 }, { y: 0 });
+      }
+    });
+  }
+
   function initHeroCarousel(root) {
     var scope = root || document;
     scope.querySelectorAll("[data-carousel]").forEach(function (carousel) {
@@ -445,9 +673,20 @@
 
       if (slides.length === 0) return;
       carousel.dataset.carouselReady = "true";
+      if (window.gsap && !prefersReducedMotion()) {
+        enableGsapCarousel(carousel);
+      } else {
+        disableGsapCarousel(carousel);
+      }
 
-      function activate(nextIndex) {
-        index = (nextIndex + slides.length) % slides.length;
+      function activate(nextIndex, shouldAnimate) {
+        var previousIndex = index;
+        var normalizedIndex = (nextIndex + slides.length) % slides.length;
+        var previousSlide = slides[previousIndex];
+        var activeSlide = slides[normalizedIndex];
+        var direction = nextIndex >= previousIndex ? 1 : -1;
+
+        index = normalizedIndex;
         slides.forEach(function (slide, itemIndex) {
           var isActive = itemIndex === index;
           slide.classList.toggle("is-active", isActive);
@@ -458,6 +697,9 @@
           dot.classList.toggle("is-active", isActive);
           dot.setAttribute("aria-selected", isActive ? "true" : "false");
         });
+        if (shouldAnimate !== false && previousSlide !== activeSlide) {
+          animateHeroSlide(carousel, previousSlide, activeSlide, direction);
+        }
       }
 
       function start() {
@@ -499,14 +741,16 @@
 
       carousel.addEventListener("mouseenter", stop);
       carousel.addEventListener("mouseleave", start);
-      activate(0);
+      activate(0, false);
       start();
     });
   }
 
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initHeroCarousel = initHeroCarousel;
+  window.PingFangVideo.initGsapMotion = initGsapMotion;
   initHeroCarousel(document);
+  initGsapMotion(document);
 
   function escapeHtml(value) {
     return String(value || "")

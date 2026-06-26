@@ -2,7 +2,7 @@
 <section class="detail-hero">
   <div class="wrap detail-grid">
     <div class="detail-poster">
-      <img src="{$obj.vod_pic|mac_url_img}" alt="{$obj.vod_name}">
+      <img src="{$obj.vod_pic|mac_url_img}" alt="{$obj.vod_name}" width="380" height="570" decoding="async" fetchpriority="high">
       <span>{$obj.vod_remarks|mac_default='高清'}</span>
     </div>
     <div class="detail-main detail-panel">
@@ -62,7 +62,7 @@
     {maccms:vod type="current" num="6" order="desc" by="rnd" id="vo"}
     <a class="vod-card" href="{:mac_url_vod_detail($vo)}">
       <span class="poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450">
         <em class="quality-badge">{$vo.vod_remarks|mac_default='高清'}</em>
         <span class="score-badge">{$vo.vod_score|mac_default='8.0'}</span>
       </span>

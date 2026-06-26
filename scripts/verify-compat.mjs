@@ -34,6 +34,7 @@ const requiredThemeDirs = [
 const requiredThemeFiles = [
   "info.ini",
   "css/style.css",
+  "js/gsap.min.js",
   "js/app.js",
   "images/site-logo.png",
   "html/public/include.html",

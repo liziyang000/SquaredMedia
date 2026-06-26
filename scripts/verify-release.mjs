@@ -8,6 +8,7 @@ const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
 const requiredEntries = [
   "pingfangvideo/info.ini",
   "pingfangvideo/css/style.css",
+  "pingfangvideo/js/gsap.min.js",
   "pingfangvideo/js/app.js",
   "pingfangvideo/images/site-logo.png",
   "pingfangvideo/html/public/include.html",

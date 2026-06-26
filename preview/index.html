@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PingFang Video Preview</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260626">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260626a">
 </head>
 <body>
 <header class="site-header">
@@ -53,7 +53,8 @@
     </div>
   </div>
 </footer>
-<script src="../template/pingfangvideo/js/app.js?v=20260621"></script>
+<script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
+<script src="../template/pingfangvideo/js/app.js?v=20260626a"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -563,6 +564,7 @@ function render() {
   else renderHome();
   bindSearchForms();
   window.PingFangVideo?.initHeroCarousel?.(app);
+  window.PingFangVideo?.initGsapMotion?.(app);
   window.PingFangVideo?.initPlayerFullscreen?.(app);
 }
 

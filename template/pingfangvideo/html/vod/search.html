@@ -52,7 +52,7 @@
   <div class="vod-list">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
-      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240">
       <span>
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_actor|mac_default='主演待更新'}</small>
@@ -70,7 +70,7 @@
   <div class="vod-list">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
-      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy">
+      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240">
       <span>
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_actor|mac_default='主演待更新'}</small>

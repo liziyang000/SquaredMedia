@@ -5,6 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
+const addonRoot = path.join(root, "addons", "pingfangdevice");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
@@ -98,6 +99,13 @@ const requiredRootFiles = [
   "docker/php/php.ini",
   "README.md",
   ".github/workflows/ci.yml",
+  "addons/pingfangdevice/Pingfangdevice.php",
+  "addons/pingfangdevice/config.php",
+  "addons/pingfangdevice/controller/Index.php",
+  "addons/pingfangdevice/info.ini",
+  "addons/pingfangdevice/install.sql",
+  "addons/pingfangdevice/service/DeviceSession.php",
+  "addons/pingfangdevice/view/index/index.html",
   "preview/data.json",
   "scripts/lint-template.mjs",
   "scripts/deploy-theme.sh",
@@ -121,6 +129,10 @@ for (const file of requiredFiles) {
 
 function readThemeFile(file) {
   return readFileSync(path.join(themeRoot, file), "utf8");
+}
+
+function readAddonFile(file) {
+  return readFileSync(path.join(addonRoot, file), "utf8");
 }
 
 const info = readThemeFile("info.ini");
@@ -154,6 +166,9 @@ assert.match(readme, /DEPLOY_PATH/);
 assert.match(readme, /DEPLOY_CLEAR_CACHE/);
 assert.match(readme, /ROLLBACK_BACKUP/);
 assert.match(readme, /GitHub Actions/);
+assert.match(readme, /登录设备管理/);
+assert.match(readme, /pingfangdevice/);
+assert.match(readme, /最多 3 台/);
 assert.match(readme, /server\/index\.php/);
 assert.match(readme, /MacCMS/);
 
@@ -193,7 +208,8 @@ assert.match(head, /class="user-menu"/);
 assert.match(head, /\$user\.user_id/);
 assert.match(head, /mac_url\('user\/login'\)/);
 assert.match(head, /mac_url\('user\/index'\)/);
-assert.match(head, /mac_url\('user\/logout'\)/);
+assert.match(head, /addon_url\('pingfangdevice\/index\/index'\)/);
+assert.match(head, /addon_url\('pingfangdevice\/index\/logout'\)/);
 assert.match(head, /data-avatar-random/);
 assert.match(head, /data-avatar-name="\{\$user\.user_name\|mac_default='用户'\}"/);
 assert.match(head, /class="user-avatar-letter"/);
@@ -202,6 +218,7 @@ assert.doesNotMatch(head, /user\.user_portrait/);
 assert.match(head, /class="user-dropdown"/);
 assert.match(head, />收藏</);
 assert.match(head, />播放记录</);
+assert.match(head, />登录设备</);
 assert.match(head, />退出登录</);
 assert.doesNotMatch(head, /class="hot-search-panel"/);
 assert.doesNotMatch(head, /热搜榜/);
@@ -319,10 +336,12 @@ assert.match(videosLabelPage, /\{include file="public\/foot" \/\}/);
 const userIndexPage = readThemeFile("html/user/index.html");
 assert.match(userIndexPage, /mac_url\('user\/plays'\)/);
 assert.match(userIndexPage, /mac_url\('user\/favs'\)/);
+assert.match(userIndexPage, /addon_url\('pingfangdevice\/index\/index'\)/);
+assert.match(userIndexPage, /登录设备管理/);
 assert.doesNotMatch(userIndexPage, /mac_url\('user\/downs'\)/);
 
 const userLoginPage = readThemeFile("html/user/login.html");
-assert.match(userLoginPage, /action="\{:\s*mac_url\('user\/login'\)\}"/);
+assert.match(userLoginPage, /action="\{:\s*addon_url\('pingfangdevice\/index\/login'\)\}"/);
 assert.match(userLoginPage, /data-login-form/);
 assert.match(userLoginPage, /data-success-redirect="\{\$maccms\.path\}"/);
 
@@ -760,6 +779,11 @@ assert.match(style, /\.user-avatar[\s\S]*color: #fff/);
 assert.match(style, /--avatar-bg/);
 assert.match(style, /\.user-avatar-letter/);
 assert.match(style, /\.user-dropdown/);
+assert.match(style, /\.device-panel/);
+assert.match(style, /\.device-card/);
+assert.match(style, /\.device-current/);
+assert.match(style, /\.device-meta/);
+assert.match(style, /\.device-status/);
 assert.match(style, /\.user-menu::after[\s\S]*height: 12px/);
 assert.match(userDropdownRule, /z-index: 1001/);
 assert.match(style, /\.user-menu:hover \.user-dropdown/);
@@ -843,7 +867,9 @@ assert.deepEqual([logo.readUInt32BE(16), logo.readUInt32BE(20)], [1024, 1024]);
 
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
+assert.match(packageScript, /pingfangdevice/);
 assert.match(packageScript, /dist/);
+assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionPlaceholder/);
@@ -878,6 +904,10 @@ assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
+assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
+assert.match(deployScript, /pingfangdevice\.tar\.gz/);
+assert.match(deployScript, /application\/extra\/addons\.php/);
+assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
 assert.match(deployScript, /maccms_root="\$\(dirname "\$DEPLOY_PATH"\)"/);
 assert.match(deployScript, /runtime\/cache/);
@@ -917,6 +947,55 @@ assert.match(ciWorkflow, /npm run verify:preview/);
 assert.match(ciWorkflow, /npm run package/);
 assert.match(ciWorkflow, /npm run verify:release/);
 assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
+
+const deviceAddonInfo = readAddonFile("info.ini");
+assert.match(deviceAddonInfo, /name = pingfangdevice/);
+assert.match(deviceAddonInfo, /state = 1/);
+
+const deviceAddonConfig = readAddonFile("config.php");
+assert.match(deviceAddonConfig, /max_devices/);
+assert.match(deviceAddonConfig, /'value'\s*=>\s*'3'/);
+assert.match(deviceAddonConfig, /pfv_device_token/);
+
+const deviceAddonHook = readAddonFile("Pingfangdevice.php");
+assert.match(deviceAddonHook, /namespace addons\\pingfangdevice/);
+assert.match(deviceAddonHook, /extends Addons/);
+assert.match(deviceAddonHook, /public function appBegin/);
+assert.match(deviceAddonHook, /DeviceSession::syncActiveCookie/);
+
+const deviceAddonController = readAddonFile("controller/Index.php");
+assert.match(deviceAddonController, /model\('User'\)->login\(\$param, \['return_meta' => true\]\)/);
+assert.match(deviceAddonController, /DeviceSession::registerLogin/);
+assert.match(deviceAddonController, /DeviceSession::listSessions/);
+assert.match(deviceAddonController, /DeviceSession::revokeSession/);
+assert.match(deviceAddonController, /DeviceSession::logoutCurrentDevice/);
+assert.match(deviceAddonController, /addon_url\('pingfangdevice\/index\/index'\)/);
+
+const deviceSessionService = readAddonFile("service/DeviceSession.php");
+assert.match(deviceSessionService, /const DEFAULT_MAX_DEVICES = 3/);
+assert.match(deviceSessionService, /const TOKEN_COOKIE = 'pfv_device_token'/);
+assert.match(deviceSessionService, /public static function registerLogin/);
+assert.match(deviceSessionService, /public static function syncActiveCookie/);
+assert.match(deviceSessionService, /public static function enforceDeviceLimit/);
+assert.match(deviceSessionService, /public static function revokeSession/);
+assert.match(deviceSessionService, /hash_equals/);
+assert.match(deviceSessionService, /cookie\('user_check'/);
+assert.match(deviceSessionService, /revoked_reason' => 'device_limit'/);
+assert.match(deviceSessionService, /last_seen_time/);
+
+const deviceAddonSql = readAddonFile("install.sql");
+assert.match(deviceAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);
+assert.match(deviceAddonSql, /`token_hash` char\(64\) NOT NULL/);
+assert.match(deviceAddonSql, /UNIQUE KEY `uniq_token_hash`/);
+assert.match(deviceAddonSql, /KEY `idx_user_active`/);
+assert.doesNotMatch(deviceAddonSql, /DROP\s+TABLE/i);
+
+const deviceAddonView = readAddonFile("view/index/index.html");
+assert.match(deviceAddonView, /登录设备管理/);
+assert.match(deviceAddonView, /当前设备/);
+assert.match(deviceAddonView, /最近登录时间/);
+assert.match(deviceAddonView, /踢下线/);
+assert.match(deviceAddonView, /data-device-revoke/);
 
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);
@@ -977,6 +1056,7 @@ assert.match(previewVerifier, /Preview verification passed/);
 
 const releaseVerifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
 assert.match(releaseVerifier, /pingfangvideo\.tar\.gz/);
+assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -991,6 +1071,8 @@ assert.match(releaseVerifier, /assertSafeAssetReference/);
 assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholder/);
 assert.match(releaseVerifier, /assetVersionPattern/);
+assert.match(releaseVerifier, /requiredAddonEntries/);
+assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");

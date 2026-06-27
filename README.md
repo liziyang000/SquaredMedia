@@ -57,6 +57,17 @@ production site.
 
 The package script filters hidden dotfiles such as `.DS_Store` and `.gitkeep`
 so local metadata and repository placeholders are not shipped with the theme.
+It also builds the companion MacCMS addon archive:
+
+```text
+dist/pingfangdevice.tar.gz
+```
+
+The `pingfangdevice` addon provides 登录设备管理 for member accounts. It records
+each successful login as a device session, shows current devices with recent
+login and activity time, supports manually kicking other devices offline, and
+keeps a maximum of 3 devices online（最多 3 台设备）. When a fourth device logs
+in, the oldest active device is revoked.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
@@ -83,6 +94,12 @@ clearing must be skipped for a controlled maintenance window. For password
 authentication, set `DEPLOY_PASSWORD` in the shell environment and install
 `sshpass`; SSH key authentication is preferred for routine releases.
 
+The deploy script also installs the `pingfangdevice` addon under the remote
+MacCMS `addons` directory, applies `addons/pingfangdevice/install.sql`, and
+adds the addon's `app_begin` hook to `application/extra/addons.php`. This hook
+keeps valid device sessions synchronized with MacCMS `user_check` cookies and
+lets revoked devices fall back to the normal MacCMS logged-out state.
+
 Rollback to the latest remote backup:
 
 ```bash
@@ -106,8 +123,8 @@ directories unless `DEPLOY_CLEAR_CACHE=0` is set.
 GitHub Actions runs the same release gate on pushes and pull requests: `npm test`,
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,
 `npm run package`, and `npm run verify:release`. The CI workflow uploads
-`dist/pingfangvideo.tar.gz` as the `pingfangvideo-theme` artifact after the
-package is verified.
+`dist/pingfangvideo.tar.gz` and `dist/pingfangdevice.tar.gz` as the
+`pingfangvideo-theme` artifact after the package is verified.
 
 `npm run lint:template` checks local MacCMS template structure before packaging:
 includes must point to existing files, common MacCMS loop tags must be balanced,

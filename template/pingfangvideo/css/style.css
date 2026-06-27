@@ -1800,6 +1800,47 @@ input {
   padding-bottom: 70px;
 }
 
+.device-panel {
+  padding-bottom: 64px;
+}
+
+.device-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 18px;
+}
+
+.device-current {
+  margin-left: 8px;
+  color: var(--brand-2);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.device-meta {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.device-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(40, 199, 167, 0.14);
+  color: var(--brand-2);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .record-toolbar,
 .record-item {
   border: 1px solid var(--line);

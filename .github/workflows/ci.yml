@@ -48,4 +48,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pingfangvideo-theme
-          path: dist/pingfangvideo.tar.gz
+          path: |
+            dist/pingfangvideo.tar.gz
+            dist/pingfangdevice.tar.gz

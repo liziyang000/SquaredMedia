@@ -5,6 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
+const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
@@ -93,6 +94,15 @@ const forbiddenProductionPatterns = [
   /npm run/,
   /dist\/pingfangvideo/,
 ];
+const requiredAddonEntries = [
+  "pingfangdevice/Pingfangdevice.php",
+  "pingfangdevice/config.php",
+  "pingfangdevice/controller/Index.php",
+  "pingfangdevice/info.ini",
+  "pingfangdevice/install.sql",
+  "pingfangdevice/service/DeviceSession.php",
+  "pingfangdevice/view/index/index.html",
+];
 
 function assertBalanced(content, openPattern, closePattern, label, file) {
   const opens = content.match(openPattern)?.length || 0;
@@ -113,6 +123,7 @@ function assertSafeAssetReference(value, file, tag) {
 }
 
 assert.ok(existsSync(archive), "dist/pingfangvideo.tar.gz should exist. Run npm run package first.");
+assert.ok(existsSync(addonArchive), "dist/pingfangdevice.tar.gz should exist. Run npm run package first.");
 
 const tarList = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
 assert.equal(tarList.status, 0, tarList.stderr || "Release archive should be readable");
@@ -173,4 +184,22 @@ const appJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/app.js"], 
 assert.match(appJs, /fallbackHistoryUrl/);
 assert.doesNotMatch(appJs, /javascript:;/);
 
+const addonTarList = spawnSync("tar", ["-tzf", addonArchive], { encoding: "utf8" });
+assert.equal(addonTarList.status, 0, addonTarList.stderr || "Addon release archive should be readable");
+assert.doesNotMatch(addonTarList.stderr, /LIBARCHIVE\.xattr/, "Addon release archive should not include macOS extended attribute metadata");
+
+const addonEntries = addonTarList.stdout
+  .trim()
+  .split("\n")
+  .filter(Boolean);
+
+for (const entry of requiredAddonEntries) {
+  assert.ok(addonEntries.includes(entry), `${entry} should be included in the addon archive`);
+}
+
+const addonSql = execFileSync("tar", ["-xOf", addonArchive, "pingfangdevice/install.sql"], { encoding: "utf8" });
+assert.match(addonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);
+assert.doesNotMatch(addonSql, /DROP\s+TABLE/i);
+
 console.log(`Verified ${archive}`);
+console.log(`Verified ${addonArchive}`);

@@ -59,7 +59,7 @@
         </div>
         <div class="device-actions">
           <span class="device-status {if condition='$vo.revoked_time gt 0'}device-status-offline{/if}">{$vo.status_label}</span>
-          {if condition="$vo.revoked_time eq 0 && !$vo.is_current"}
+          {if condition="$vo.revoked_time eq 0 && $vo.is_current neq 1"}
           <button class="device-button" type="button" data-device-revoke data-session-id="{$vo.session_id}">踢下线</button>
           {/if}
         </div>

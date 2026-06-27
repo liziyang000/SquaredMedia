@@ -37,6 +37,7 @@ const requiredFiles = [
   "html/label/history.html",
   "html/label/hot.html",
   "html/label/videos.html",
+  "html/pingfangdevice/index.html",
   "html/topic/index.html",
   "html/topic/detail.html",
   "html/art/index.html",
@@ -100,6 +101,7 @@ const requiredRootFiles = [
   "README.md",
   ".github/workflows/ci.yml",
   "addons/pingfangdevice/Pingfangdevice.php",
+  "addons/pingfangdevice/bridge/Pingfangdevice.php",
   "addons/pingfangdevice/config.php",
   "addons/pingfangdevice/controller/Index.php",
   "addons/pingfangdevice/info.ini",
@@ -208,8 +210,8 @@ assert.match(head, /class="user-menu"/);
 assert.match(head, /\$user\.user_id/);
 assert.match(head, /mac_url\('user\/login'\)/);
 assert.match(head, /mac_url\('user\/index'\)/);
-assert.match(head, /addon_url\('pingfangdevice\/index\/index'\)/);
-assert.match(head, /addon_url\('pingfangdevice\/index\/logout'\)/);
+assert.match(head, /url\('pingfangdevice\/index'\)/);
+assert.match(head, /url\('pingfangdevice\/logout'\)/);
 assert.match(head, /data-avatar-random/);
 assert.match(head, /data-avatar-name="\{\$user\.user_name\|mac_default='用户'\}"/);
 assert.match(head, /class="user-avatar-letter"/);
@@ -336,14 +338,25 @@ assert.match(videosLabelPage, /\{include file="public\/foot" \/\}/);
 const userIndexPage = readThemeFile("html/user/index.html");
 assert.match(userIndexPage, /mac_url\('user\/plays'\)/);
 assert.match(userIndexPage, /mac_url\('user\/favs'\)/);
-assert.match(userIndexPage, /addon_url\('pingfangdevice\/index\/index'\)/);
+assert.match(userIndexPage, /url\('pingfangdevice\/index'\)/);
 assert.match(userIndexPage, /登录设备管理/);
 assert.doesNotMatch(userIndexPage, /mac_url\('user\/downs'\)/);
 
 const userLoginPage = readThemeFile("html/user/login.html");
-assert.match(userLoginPage, /action="\{:\s*addon_url\('pingfangdevice\/index\/login'\)\}"/);
+assert.match(userLoginPage, /action="\{:\s*url\('pingfangdevice\/login'\)\}"/);
 assert.match(userLoginPage, /data-login-form/);
 assert.match(userLoginPage, /data-success-redirect="\{\$maccms\.path\}"/);
+
+const devicePage = readThemeFile("html/pingfangdevice/index.html");
+assert.match(devicePage, /\{include file="public\/head" seo_title="登录设备管理"/);
+assert.match(devicePage, /登录设备管理/);
+assert.match(devicePage, /最多 3 台设备/);
+assert.match(devicePage, /\{volist name="device_list" id="vo"\}/);
+assert.match(devicePage, /当前设备/);
+assert.match(devicePage, /最近登录时间/);
+assert.match(devicePage, /data-device-revoke/);
+assert.match(devicePage, /url\('pingfangdevice\/revoke'\)/);
+assert.match(devicePage, /\{include file="public\/foot" \/\}/);
 
 const userPlaysPage = readThemeFile("html/user/plays.html");
 assert.match(userPlaysPage, /\{include file="user\/head" \/\}/);
@@ -906,6 +919,7 @@ assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
 assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
+assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application\/extra\/addons\.php/);
 assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
@@ -962,6 +976,14 @@ assert.match(deviceAddonHook, /namespace addons\\pingfangdevice/);
 assert.match(deviceAddonHook, /extends Addons/);
 assert.match(deviceAddonHook, /public function appBegin/);
 assert.match(deviceAddonHook, /DeviceSession::syncActiveCookie/);
+
+const deviceBridgeController = readAddonFile("bridge/Pingfangdevice.php");
+assert.match(deviceBridgeController, /namespace app\\index\\controller/);
+assert.match(deviceBridgeController, /class Pingfangdevice extends Base/);
+assert.match(deviceBridgeController, /DeviceSession::registerLogin/);
+assert.match(deviceBridgeController, /DeviceSession::listSessions/);
+assert.match(deviceBridgeController, /DeviceSession::revokeSession/);
+assert.match(deviceBridgeController, /DeviceSession::logoutCurrentDevice/);
 
 const deviceAddonController = readAddonFile("controller/Index.php");
 assert.match(deviceAddonController, /model\('User'\)->login\(\$param, \['return_meta' => true\]\)/);

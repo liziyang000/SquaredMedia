@@ -31,6 +31,7 @@ const requiredEntries = [
   "pingfangvideo/html/label/history.html",
   "pingfangvideo/html/label/hot.html",
   "pingfangvideo/html/label/videos.html",
+  "pingfangvideo/html/pingfangdevice/index.html",
   "pingfangvideo/html/topic/index.html",
   "pingfangvideo/html/topic/detail.html",
   "pingfangvideo/html/art/index.html",
@@ -96,6 +97,7 @@ const forbiddenProductionPatterns = [
 ];
 const requiredAddonEntries = [
   "pingfangdevice/Pingfangdevice.php",
+  "pingfangdevice/bridge/Pingfangdevice.php",
   "pingfangdevice/config.php",
   "pingfangdevice/controller/Index.php",
   "pingfangdevice/info.ini",

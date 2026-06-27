@@ -78,10 +78,11 @@ clear_maccms_cache() {
 }
 
 install_device_addon() {
-  local maccms_root addon_dir backup tmp_dir
+  local maccms_root addon_dir backup tmp_dir bridge_source bridge_target bridge_backup
 
   maccms_root="$(dirname "$DEPLOY_PATH")"
   addon_dir="$maccms_root/addons/$ADDON_NAME"
+  bridge_target="$maccms_root/application/index/controller/Pingfangdevice.php"
   mkdir -p "$maccms_root/addons"
 
   tmp_dir="$deploy_tmp_dir/addon"
@@ -100,6 +101,17 @@ install_device_addon() {
 
   rm -rf "$addon_dir"
   mv "$tmp_dir/$ADDON_NAME" "$addon_dir"
+
+  bridge_source="$addon_dir/bridge/Pingfangdevice.php"
+  if [[ ! -f "$bridge_source" ]]; then
+    echo "Addon archive does not contain bridge/Pingfangdevice.php" >&2
+    exit 1
+  fi
+  if [[ -f "$bridge_target" ]]; then
+    bridge_backup="${bridge_target}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -a "$bridge_target" "$bridge_backup"
+  fi
+  cp -a "$bridge_source" "$bridge_target"
 
   MACCMS_ROOT="$maccms_root" ADDON_NAME="$ADDON_NAME" php <<'PHP_CONFIG'
 <?php

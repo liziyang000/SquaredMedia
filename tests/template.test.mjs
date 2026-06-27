@@ -805,7 +805,7 @@ assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.filter-panel\s*\{[\s\S]
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.filter-options\s*\{[\s\S]*margin-right: -14px/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.list-item\s*\{[\s\S]*grid-template-columns: 86px minmax\(0, 1fr\)/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.page-link,\n  \.page-state\s*\{[\s\S]*flex: 1 1 88px/);
-assert.match(include, /style\.css\?v=20260626/);
+assert.match(include, new RegExp(`style\\.css\\?v=${assetVersionPlaceholder}`));
 assert.match(style, /\.search-filter-panel/);
 assert.doesNotMatch(style, /\.search-type-filter/);
 assert.doesNotMatch(style, /\.search-type-panel/);
@@ -946,7 +946,7 @@ assert.match(releaseVerifier, /assertSafeAssetReference/);
 assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholder/);
 assert.match(releaseVerifier, /assetVersionPattern/);
-assert.match(releaseVerifier, /LIBARCHIVE\.xattr/);
+assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 assert.doesNotMatch(preview, /href="#"/);

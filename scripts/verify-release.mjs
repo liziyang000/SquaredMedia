@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
 const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
+const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
+const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
   "pingfangvideo/info.ini",
   "pingfangvideo/css/style.css",
@@ -112,7 +114,11 @@ function assertSafeAssetReference(value, file, tag) {
 
 assert.ok(existsSync(archive), "dist/pingfangvideo.tar.gz should exist. Run npm run package first.");
 
-const entries = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" })
+const tarList = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
+assert.equal(tarList.status, 0, tarList.stderr || "Release archive should be readable");
+assert.doesNotMatch(tarList.stderr, /LIBARCHIVE\.xattr/, "Release archive should not include macOS extended attribute metadata");
+
+const entries = tarList.stdout
   .trim()
   .split("\n")
   .filter(Boolean);
@@ -138,6 +144,7 @@ for (const entry of htmlEntries) {
     assert.doesNotMatch(content, pattern, `${entry} should not reference local development or preview resources`);
   }
 
+  assert.doesNotMatch(content, new RegExp(assetVersionPlaceholder, "g"), `${entry} should have generated asset version values`);
   assert.doesNotMatch(content, /href="#"/, `${entry} should not contain dead href links`);
   assert.doesNotMatch(content, /href="javascript:history/, `${entry} should not depend on history javascript links`);
   assert.doesNotMatch(content, /action="#"/, `${entry} should not use dead form action links`);
@@ -157,6 +164,10 @@ for (const entry of htmlEntries) {
 const includeHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/include.html"], { encoding: "utf8" });
 assert.match(includeHtml, /"path":"\{:\s*rtrim\(\$maccms\['path'\], '\/'\)\}"/);
 assert.match(includeHtml, /"aid":"\{\$maccms\.aid\}"/);
+assert.match(includeHtml, new RegExp(`css/style\\.css${assetVersionPattern.source}`));
+
+const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/foot.html"], { encoding: "utf8" });
+assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
 
 const appJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/app.js"], { encoding: "utf8" });
 assert.match(appJs, /fallbackHistoryUrl/);

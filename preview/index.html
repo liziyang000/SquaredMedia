@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PingFang Video Preview</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=20260626a">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=__PINGFANG_ASSET_VERSION__">
 </head>
 <body>
 <header class="site-header">
@@ -54,7 +54,7 @@
   </div>
 </footer>
 <script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
-<script src="../template/pingfangvideo/js/app.js?v=20260626a"></script>
+<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -122,7 +122,7 @@ function card(video) {
   return `
     <a class="vod-card" href="${url("detail", { id: video.id })}" data-route="detail">
       <span class="poster">
-        <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy">
+        <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">
         <em class="quality-badge">${escapeHtml(video.remark)}</em>
         <span class="score-badge">${escapeHtml(video.score)}</span>
       </span>
@@ -153,7 +153,7 @@ function bannerSlide(video, index) {
         <span class="banner-meta"><i>${escapeHtml(video.category)}</i><i>${escapeHtml(video.year)}</i><i>${escapeHtml(video.remark)}</i></span>
         <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">${escapeHtml(video.score)} 分</span></span>
       </span>
-      <img class="banner-poster" src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy">
+      <img class="banner-poster" src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="380" height="570" sizes="(max-width: 760px) 34vw, 190px">
     </a>`;
 }
 
@@ -263,7 +263,7 @@ function renderHistoryPage() {
             <span class="timeline-dot"></span>
             <div class="timeline-time">${escapeHtml(item.time)}</div>
             <a class="timeline-card" href="${url("play", { id: item.video.id, episode: item.episode.no })}" data-route="play">
-              <img src="${escapeHtml(item.video.poster)}" alt="${escapeHtml(item.video.title)}" loading="lazy">
+              <img src="${escapeHtml(item.video.poster)}" alt="${escapeHtml(item.video.title)}" loading="lazy" decoding="async" width="76" height="114" sizes="76px">
               <span>
                 <strong>${escapeHtml(item.video.title)} - ${escapeHtml(item.episode.name)}</strong>
                 <small>${escapeHtml(item.video.category)} / ${escapeHtml(item.video.year)}</small>
@@ -468,7 +468,7 @@ function renderSearch(keyword, type = "", genre = "") {
       <div class="vod-list">
         ${list.map((video) => `
           <a class="list-item" href="${url("detail", { id: video.id })}" data-route="detail">
-            <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy">
+            <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="96" height="144" sizes="96px">
             <span>
               <strong>${escapeHtml(video.title)}</strong>
               <small>${escapeHtml(video.actor)}</small>
@@ -486,7 +486,7 @@ function renderDetail(id) {
     <section class="detail-hero">
       <div class="wrap detail-grid">
         <div class="detail-poster">
-          <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}">
+          <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="eager" decoding="async" width="380" height="570" sizes="(max-width: 760px) 44vw, 250px">
           <span>${escapeHtml(video.remark)}</span>
         </div>
         <div class="detail-main detail-panel">

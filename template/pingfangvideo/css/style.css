@@ -434,6 +434,19 @@ input {
   transition: none;
 }
 
+[data-gsap-reveal-ready="true"],
+[data-gsap-revealed="true"] {
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-gsap-carousel="true"] .hero-slide,
+  [data-gsap-reveal-ready="true"],
+  [data-gsap-revealed="true"] {
+    transition: none;
+  }
+}
+
 .hero-slide.is-active {
   opacity: 1;
   pointer-events: auto;

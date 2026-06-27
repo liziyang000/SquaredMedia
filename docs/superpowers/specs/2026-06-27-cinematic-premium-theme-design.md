@@ -1,174 +1,174 @@
-# Cinematic Premium Theme Design
+# 影院级精致版主题设计
 
-Date: 2026-06-27
+日期：2026-06-27
 
-## Goal
+## 目标
 
-Upgrade the `pingfangvideo` MacCMS theme from a competent dark video template to a more premium cinema-style experience while preserving MacCMS V10 compatibility, existing page coverage, and the current release verification flow.
+将 `pingfangvideo` MacCMS 主题从“可用的暗色视频模板”升级为更有质感的影院级体验，同时保持 MacCMS V10 兼容性、现有页面覆盖范围和当前发布验证流程。
 
-The target impression is refined, content-first, and theatrical: a deep OLED-like backdrop, stronger poster hierarchy, restrained high-contrast controls, and mobile navigation that feels deliberate instead of cramped.
+目标观感是精致、内容优先、有影院感：更深的 OLED 风格背景、更强的海报层级、更克制但高对比的操作控件，以及在移动端也显得从容、不拥挤的导航体验。
 
-## Non-Goals
+## 非目标
 
-- Do not redesign the site as a light theme.
-- Do not add production dependencies on localhost, preview files, Docker, npm, or other development-only resources under `template/pingfangvideo/**`.
-- Do not replace MacCMS template tags, URL helpers, player variables, user log hooks, comment hooks, score hooks, digg hooks, or pagination patterns with custom runtime logic.
-- Do not introduce a theme admin backend. Any admin capability remains outside this visual pass.
-- Do not add heavy autoplay video backgrounds or decorative infinite animation.
+- 不把站点改成浅色主题。
+- 不在 `template/pingfangvideo/**` 下引入指向 localhost、预览文件、Docker、npm 或其他开发专用资源的生产引用。
+- 不用自定义运行时逻辑替换 MacCMS 模板标签、URL 帮助函数、播放器变量、用户日志钩子、评论钩子、评分钩子、顶踩钩子或分页模式。
+- 不在主题目录内实现主题后台。任何后台配置能力都不属于本次视觉升级。
+- 不增加沉重的自动播放视频背景或装饰性无限动画。
 
-## Sources And Constraints
+## 来源与约束
 
-All implementation must follow `docs/maccms-theme-development-spec.md`.
+所有实现必须遵守 `docs/maccms-theme-development-spec.md`。
 
-Before implementation touches any template module, read the matching official MacCMS documentation page from `https://www.maccms.la/theme`, especially:
+实现阶段在修改任何模板模块前，必须阅读 `https://www.maccms.la/theme` 下对应的官方 MacCMS 文档页面，尤其是：
 
-- theme structure for shared includes and theme layout
-- video templates and tags for `index`, `vod/detail`, `vod/play`, `vod/type`, and `vod/show`
-- type/category tags for category and filter surfaces
-- global tags and URL helpers for shared header/footer behavior
+- 主题结构：用于共享 include 和主题布局
+- 视频模板与标签：用于 `index`、`vod/detail`、`vod/play`、`vod/type`、`vod/show`
+- 分类标签：用于分类与筛选区域
+- 全局标签和 URL 帮助函数：用于共享头部、底部和内部链接
 
-Production theme files must continue to use MacCMS runtime paths such as `{$maccms.path}`, `{$maccms.path_tpl}`, `mac_url`, `mac_url_type`, `mac_url_vod_detail`, and `mac_url_vod_play`.
+生产主题文件必须继续使用 MacCMS 运行时路径和帮助函数，例如 `{$maccms.path}`、`{$maccms.path_tpl}`、`mac_url`、`mac_url_type`、`mac_url_vod_detail`、`mac_url_vod_play`。
 
-## Design System
+## 设计系统
 
-### Visual Direction
+### 视觉方向
 
-Use a cinema control-room direction:
+采用“影院控制台”方向：
 
-- background: near-black, not flat black, with subtle depth between page, sections, and cards
-- primary action: warm cinematic red/orange, used mainly for play/search/submit
-- secondary accent: teal only for status, active filters, focus, and positive affordances
-- metadata: quieter gray text, but with enough contrast for readability
-- cards: poster-first, minimal chrome, consistent radius and shadow scale
-- motion: short, purposeful entrance and press feedback only; reduced motion must disable decorative movement
+- 背景接近黑色，但不是纯黑；页面、区块和卡片之间要有细微层次。
+- 主操作使用偏暖的电影红/橙色，主要用于播放、搜索、提交等关键动作。
+- 青绿色只用于状态、激活筛选、焦点和正向反馈，避免满屏泛绿。
+- 元信息使用更安静的灰色，但必须保持足够可读性。
+- 卡片以海报为主，减少多余装饰，统一圆角和阴影尺度。
+- 动效只保留短促、有意义的入场和按压反馈；用户开启减少动态效果时必须关闭装饰性运动。
 
-### Token Intent
+### Token 意图
 
-Use semantic CSS custom properties rather than introducing one-off colors:
+使用语义化 CSS 自定义属性，避免继续增加一次性颜色：
 
-- `--bg`: page background
-- `--panel`: primary surface
-- `--panel-soft`: secondary surface
-- `--surface`: translucent card surface
-- `--surface-strong`: elevated/hover surface
-- `--text`: primary text
-- `--muted`: secondary text
-- `--line`: divider and card stroke
-- `--accent`: primary CTA
-- `--accent-2`: status/focus/active accent
-- `--gold`: rating accent
-- `--radius`: default radius
-- `--radius-sm`: compact control radius
-- `--shadow`: elevated panel shadow
-- `--focus-ring`: keyboard focus color
+- `--bg`：页面背景
+- `--panel`：主要表面
+- `--panel-soft`：次级表面
+- `--surface`：半透明卡片表面
+- `--surface-strong`：悬停或提升状态表面
+- `--text`：主要文字
+- `--muted`：次级文字
+- `--line`：分割线和卡片描边
+- `--accent`：主 CTA
+- `--accent-2`：状态、焦点和激活强调色
+- `--gold`：评分强调色
+- `--radius`：默认圆角
+- `--radius-sm`：紧凑控件圆角
+- `--shadow`：提升面板阴影
+- `--focus-ring`：键盘焦点颜色
 
-The existing undefined `--brand-2` usages should be resolved to the token system rather than left as fallbacks.
+现有未定义的 `--brand-2` 使用点应并入这套 token，不要继续依赖隐式 fallback。
 
-### Typography
+### 字体与排版
 
-Keep system fonts for production reliability and Chinese rendering quality. Improve perceived polish through hierarchy, spacing, and weight rather than remote font loading:
+生产环境继续使用系统字体，以保证中文渲染质量和加载可靠性。质感提升主要来自层级、间距和字重，而不是远程字体：
 
-- body text: 16px baseline where possible, with current compact density preserved on card metadata
-- headings: stronger weight, balanced wrapping on modern browsers
-- numeric badges and stats: tabular figures to prevent visual jitter
-- no negative letter spacing
+- 正文尽量以 16px 为基线，卡片元信息可以保持当前较紧凑密度。
+- 标题提高字重，并在现代浏览器中使用更自然的换行。
+- 数字徽章和统计值使用等宽数字，避免视觉抖动。
+- 不使用负字距。
 
-## Scope
+## 范围
 
-### Header And Navigation
+### 头部与导航
 
-Improve the shared header in `template/pingfangvideo/html/public/head.html` and related CSS:
+优化 `template/pingfangvideo/html/public/head.html` 和相关 CSS：
 
-- keep logo, search, primary nav, user menu, and mobile shortcuts compatible with MacCMS runtime paths
-- add a visible or screen-reader accessible search label
-- preserve full navigation access below 520px; do not hide the only expandable menu without replacement
-- ensure touch targets are at least 44px high/wide for header controls, carousel controls, and mobile shortcuts
-- add clear `:focus-visible` styles for links, buttons, inputs, and textareas
-- make active/current navigation state available where route context allows without breaking MacCMS template syntax
+- 保持 logo、搜索、主导航、用户菜单、移动端快捷入口与 MacCMS 运行时路径兼容。
+- 为搜索框增加可见或仅屏幕阅读器可见的标签。
+- 520px 以下也必须保留完整导航能力；不能隐藏唯一的展开菜单却没有等价替代。
+- 头部控件、轮播控件、移动端快捷入口的触控目标至少达到 44px。
+- 为链接、按钮、输入框和文本域增加清晰的 `:focus-visible` 样式。
+- 在不破坏 MacCMS 模板语法的前提下，尽可能提供当前导航状态。
 
-### Home Page
+### 首页
 
-Upgrade `template/pingfangvideo/html/index/index.html` and matching CSS:
+优化 `template/pingfangvideo/html/index/index.html` 和对应 CSS：
 
-- keep the hero carousel, hot ranking, quick category strip, latest videos, and category sections
-- make the hero feel more premium by increasing image presence, improving overlay depth, and tightening metadata hierarchy
-- fix the mobile hero overlap where the primary CTA collides with the stat cards
-- keep first hero image eager/high priority and below-fold images lazy
-- enlarge carousel arrow/dot hit areas while keeping the visual controls refined
-- avoid new undocumented `maccms:vod` parameters
+- 保留 hero 轮播、热播榜、快捷分类、最新上线和分类内容区。
+- 通过更强的图片存在感、更深的遮罩层次和更清晰的元信息层级，让 hero 更有高级感。
+- 修复移动端 hero 中主 CTA 与统计卡片重叠的问题。
+- 保持首张 hero 图片 eager/high priority，非首屏图片继续 lazy。
+- 放大轮播箭头和圆点的可点击区域，同时保持视觉控件克制。
+- 不新增未记录的 `maccms:vod` 参数。
 
-### Video Cards
+### 视频卡片
 
-Refine `template/pingfangvideo/html/public/vod_card.html` through CSS only unless markup changes are necessary:
+优先通过 CSS 优化 `template/pingfangvideo/html/public/vod_card.html`，除非确实需要调整标记：
 
-- preserve `mac_url_vod_detail($vo)` and `mac_url_img`
-- keep poster aspect ratio and explicit image dimensions
-- make title, actor, score, quality, type, and year easier to scan
-- reduce visual noise from borders while keeping separation in dark mode
-- ensure text truncation handles long Chinese and mixed-language names
+- 保留 `mac_url_vod_detail($vo)` 和 `mac_url_img`。
+- 保持海报比例和显式图片尺寸。
+- 让标题、主演、评分、清晰度、分类和年份更易扫读。
+- 减少边框噪音，但在暗色模式中仍保持清楚分隔。
+- 长中文、混合语言片名和演员名必须能正确截断或换行。
 
-### Category And Search Pages
+### 分类与搜索页
 
-Refine `vod/type.html`, `vod/show.html`, and `vod/search.html` mostly through shared CSS:
+主要通过共享 CSS 优化 `vod/type.html`、`vod/show.html`、`vod/search.html`：
 
-- retain documented filter links and fixed sort branches
-- make active filter state more legible
-- keep horizontal filter scrolling on mobile, but improve touch size and spacing
-- make reset/search controls feel aligned with the premium header/search treatment
+- 保留现有文档化筛选链接和固定排序分支。
+- 增强激活筛选状态的可读性。
+- 移动端继续允许筛选项横向滚动，但提高触控尺寸和间距。
+- 重置和搜索控件要与高级化后的头部搜索风格一致。
 
-### Detail And Play Pages
+### 详情页与播放页
 
-Refine `vod/detail.html` and `vod/play.html` mostly through CSS:
+主要通过 CSS 优化 `vod/detail.html` 和 `vod/play.html`：
 
-- preserve player variables `{$player_data}` and `{$player_js}`
-- keep existing history, user log, favorite, score, star, and digg hooks
-- make the detail hero feel more like a title page, with stronger poster framing and cleaner action hierarchy
-- keep play page focused: video surface first, controls close to the player, episode grid readable on mobile
-- do not add autoplay or custom player logic in this pass
+- 保留播放器变量 `{$player_data}` 和 `{$player_js}`。
+- 保留历史记录、用户日志、收藏、评分、星级和顶踩钩子。
+- 详情页 hero 要更像影片标题页：更强的海报框架、更清楚的操作主次。
+- 播放页保持视频优先：播放器区域靠前，控件贴近播放器，移动端选集网格可读。
+- 本次不增加自动播放或自定义播放器逻辑。
 
-### User, Feedback, Device, And Fallback Pages
+### 用户、反馈、设备与兜底页
 
-Apply the same token system and focus/touch improvements to:
+将同一套 token、焦点和触控优化应用到：
 
-- user center, login, register, password recovery
-- favorites and play history
-- comment, gbook/book feedback forms
-- device management addon route styles
-- public message, jump, verification, and fallback module pages
+- 用户中心、登录、注册、找回密码
+- 收藏和播放记录
+- 评论、gbook/book 反馈表单
+- 设备管理插件路由样式
+- 公共消息、跳转、验证和模块兜底页
 
-These pages should look coherent with the premium theme but remain quieter than the content browsing and playback surfaces.
+这些页面应与高级化主题一致，但视觉权重低于内容浏览和播放页面。
 
-## Interaction Requirements
+## 交互要求
 
-- Keyboard focus must be visible without relying only on browser default outlines.
-- Mobile touch targets should meet a practical 44px minimum.
-- Buttons and links should use `touch-action: manipulation` where appropriate.
-- Destructive actions should remain visually distinct from normal secondary actions.
-- Toast/notice behavior should remain `aria-live="polite"`.
-- Reduced-motion users should not receive decorative GSAP entrance or carousel motion.
+- 键盘焦点必须可见，不能只依赖浏览器默认 outline。
+- 移动端触控目标应达到实用的 44px 最小尺寸。
+- 合适的按钮和链接应使用 `touch-action: manipulation`。
+- 危险操作必须与普通次级操作保持视觉区分。
+- Toast/notice 行为继续保持 `aria-live="polite"`。
+- 用户开启减少动态效果时，不应看到装饰性的 GSAP 入场或轮播动画。
 
-## Performance Requirements
+## 性能要求
 
-- Preserve explicit image dimensions and lazy/eager loading behavior.
-- Do not introduce remote font or image dependencies in production theme files.
-- Do not add heavy new JavaScript for visual polish.
-- Keep GSAP behavior interruptible and transform/opacity-based.
-- Avoid layout shifts in the hero and player surfaces.
+- 保留显式图片尺寸和 lazy/eager 加载策略。
+- 不在生产主题文件中引入远程字体或远程图片依赖。
+- 不为视觉质感增加沉重的新 JavaScript。
+- GSAP 行为保持可中断，并只基于 transform/opacity。
+- 避免 hero 和播放器区域产生布局偏移。
 
-## Implementation Boundaries
+## 实现边界
 
-Expected implementation files:
+预期实现文件：
 
 - `template/pingfangvideo/css/style.css`
 - `template/pingfangvideo/html/public/head.html`
 - `template/pingfangvideo/html/index/index.html`
-- `preview/index.html` if local preview markup must mirror production header or home hero changes
+- 如本地预览标记需要同步生产头部或首页 hero 变化，可修改 `preview/index.html`
 
-Only touch additional template files when required to keep shared styles coherent or to fix existing accessibility/interaction gaps discovered during implementation.
+只有当共享样式一致性或实现过程中发现的可访问性/交互缺口需要时，才触碰其他模板文件。
 
-## Verification
+## 验证
 
-After implementation, run:
+实现后运行：
 
 ```bash
 npm test
@@ -177,20 +177,20 @@ npm run verify:compat
 npm run verify:preview
 ```
 
-Also visually check the local preview at desktop and mobile widths:
+同时在本地预览中做桌面和移动端视觉检查：
 
-- 1440px desktop home page
-- 375px mobile home page
-- 375px category page
-- 375px detail page
-- 375px play page
+- 1440px 桌面首页
+- 375px 移动端首页
+- 375px 分类页
+- 375px 详情页
+- 375px 播放页
 
-The mobile home hero must not have CTA/stat overlap, and the site must not produce horizontal page overflow.
+移动端首页 hero 不能再出现 CTA 与统计卡片重叠，页面不能产生横向溢出。
 
-## Success Criteria
+## 成功标准
 
-- The first viewport reads as a premium video site, not a generic dark card grid.
-- Header/navigation remains fully usable on small mobile screens.
-- Hero, cards, filters, detail, and player pages share one coherent visual language.
-- Accessibility improves through focus states, labels, and touch target sizing.
-- MacCMS template compatibility and all existing verification commands continue to pass.
+- 首屏呈现为有质感的视频站，而不是通用暗色卡片网格。
+- 小屏移动端仍能完整使用头部和导航。
+- Hero、卡片、筛选、详情和播放页共享同一套视觉语言。
+- 通过焦点态、标签和触控尺寸改善可访问性。
+- MacCMS 模板兼容性保持不变，全部现有验证命令继续通过。

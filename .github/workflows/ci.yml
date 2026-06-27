@@ -1,0 +1,51 @@
+name: Theme CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, mysqli, pdo_mysql, gd, zip, opcache
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Lint MacCMS templates
+        run: npm run lint:template
+
+      - name: Verify MacCMS compatibility
+        run: npm run verify:compat
+
+      - name: Verify PHP preview
+        run: npm run verify:preview
+
+      - name: Build release package
+        run: npm run package
+
+      - name: Verify release package
+        run: npm run verify:release
+
+      - name: Upload theme package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pingfangvideo-theme
+          path: dist/pingfangvideo.tar.gz

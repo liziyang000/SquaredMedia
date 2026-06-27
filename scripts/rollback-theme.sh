@@ -7,13 +7,11 @@ set -euo pipefail
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
+ROLLBACK_BACKUP="${ROLLBACK_BACKUP:-}"
 THEME_NAME="pingfangvideo"
-ARCHIVE="dist/pingfangvideo.tar.gz"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
-REMOTE_TMP="${DEPLOY_REMOTE_TMP:-/tmp/${THEME_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 
 ssh_options=(-p "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
-scp_options=(-P "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
 
 if [[ -n "${DEPLOY_PASSWORD:-}" ]]; then
   if ! command -v sshpass >/dev/null 2>&1; then
@@ -23,26 +21,15 @@ if [[ -n "${DEPLOY_PASSWORD:-}" ]]; then
 
   export SSHPASS="$DEPLOY_PASSWORD"
   ssh_command=(sshpass -e ssh "${ssh_options[@]}")
-  scp_command=(sshpass -e scp "${scp_options[@]}")
 else
   ssh_command=(ssh "${ssh_options[@]}")
-  scp_command=(scp "${scp_options[@]}")
 fi
-
-npm test
-npm run lint:template
-npm run verify:compat
-npm run verify:preview
-npm run package
-npm run verify:release
-
-"${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
 
 remote_env=(
   "DEPLOY_PATH=$(printf "%q" "$DEPLOY_PATH")"
-  "REMOTE_TMP=$(printf "%q" "$REMOTE_TMP")"
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
   "DEPLOY_CLEAR_CACHE=$(printf "%q" "$DEPLOY_CLEAR_CACHE")"
+  "ROLLBACK_BACKUP=$(printf "%q" "$ROLLBACK_BACKUP")"
 )
 
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_SCRIPT'
@@ -76,27 +63,56 @@ fi
 
 cd "$DEPLOY_PATH"
 
-if [[ -d "$THEME_NAME" ]]; then
-  backup="pingfangvideo.backup.$(date +%Y%m%d%H%M%S)"
-  cp -a "$THEME_NAME" "$backup"
+if [[ -n "$ROLLBACK_BACKUP" ]]; then
+  backup="${ROLLBACK_BACKUP#./}"
+else
+  backup="$(find . -maxdepth 1 -type d -name "${THEME_NAME}.backup.*" -print | sort | tail -n 1)"
+  backup="${backup#./}"
 fi
 
-tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$tmp_dir" "$REMOTE_TMP"' EXIT
-
-tar -xzf "$REMOTE_TMP" -C "$tmp_dir"
-
-if [[ ! -f "$tmp_dir/$THEME_NAME/info.ini" ]]; then
-  echo "Uploaded archive does not contain $THEME_NAME/info.ini" >&2
+if [[ -z "$backup" ]]; then
+  echo "No ${THEME_NAME}.backup.* directory found in $DEPLOY_PATH" >&2
   exit 1
 fi
 
-rm -rf "$THEME_NAME"
-mv "$tmp_dir/$THEME_NAME" "$THEME_NAME"
+if [[ "$backup" == */* ]]; then
+  echo "ROLLBACK_BACKUP must be a backup directory name inside $DEPLOY_PATH" >&2
+  exit 1
+fi
+
+if [[ ! -d "$backup" ]]; then
+  echo "Rollback backup does not exist: $DEPLOY_PATH/$backup" >&2
+  exit 1
+fi
+
+if [[ ! -f "$backup/info.ini" ]]; then
+  echo "Rollback backup is not a valid theme directory: $DEPLOY_PATH/$backup" >&2
+  exit 1
+fi
+
+previous_theme=""
+if [[ -d "$THEME_NAME" ]]; then
+  previous_theme="pingfangvideo.failed.$(date +%Y%m%d%H%M%S)"
+  mv "$THEME_NAME" "$previous_theme"
+fi
+
+if ! cp -a "$backup" "$THEME_NAME"; then
+  rm -rf "$THEME_NAME"
+  if [[ -n "$previous_theme" && -d "$previous_theme" ]]; then
+    mv "$previous_theme" "$THEME_NAME"
+  fi
+  echo "Rollback copy failed; restored previous theme." >&2
+  exit 1
+fi
 
 if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
   clear_maccms_cache
 fi
+
+echo "Rolled back ${THEME_NAME} from ${backup}"
+if [[ -n "$previous_theme" ]]; then
+  echo "Previous live theme moved to ${previous_theme}"
+fi
 REMOTE_SCRIPT
 
-echo "Deployed ${THEME_NAME} to ${REMOTE}:${DEPLOY_PATH}/${THEME_NAME}"
+echo "Rollback completed for ${REMOTE}:${DEPLOY_PATH}/${THEME_NAME}"

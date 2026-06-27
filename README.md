@@ -76,10 +76,38 @@ npm run deploy
 `DEPLOY_PATH` must point to the remote MacCMS `template` directory. The deploy
 script runs the full local verification sequence, uploads `dist/pingfangvideo.tar.gz`,
 backs up any existing remote `pingfangvideo` directory as `pingfangvideo.backup.*`,
-and then replaces it with the verified package. For password authentication, set
-`DEPLOY_PASSWORD` in the shell environment and install `sshpass`; SSH key
-authentication is preferred for routine releases. Clear the MacCMS template cache
-after deployment.
+replaces it with the verified package, and clears common MacCMS cache directories
+under the site root: `runtime/cache`, `runtime/temp`, `application/admin/view/_cache`,
+and `application/index/view/_cache`. Set `DEPLOY_CLEAR_CACHE=0` only when cache
+clearing must be skipped for a controlled maintenance window. For password
+authentication, set `DEPLOY_PASSWORD` in the shell environment and install
+`sshpass`; SSH key authentication is preferred for routine releases.
+
+Rollback to the latest remote backup:
+
+```bash
+DEPLOY_HOST=example.com \
+DEPLOY_USER=root \
+DEPLOY_PORT=22 \
+DEPLOY_PATH=/www/wwwroot/example.com/template \
+npm run rollback
+```
+
+To roll back to a specific backup directory, pass its directory name:
+
+```bash
+ROLLBACK_BACKUP=pingfangvideo.backup.20260627093000 npm run rollback
+```
+
+Rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
+the selected backup to `pingfangvideo`, and clears the same MacCMS cache
+directories unless `DEPLOY_CLEAR_CACHE=0` is set.
+
+GitHub Actions runs the same release gate on pushes and pull requests: `npm test`,
+`npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,
+`npm run package`, and `npm run verify:release`. The CI workflow uploads
+`dist/pingfangvideo.tar.gz` as the `pingfangvideo-theme` artifact after the
+package is verified.
 
 `npm run lint:template` checks local MacCMS template structure before packaging:
 includes must point to existing files, common MacCMS loop tags must be balanced,

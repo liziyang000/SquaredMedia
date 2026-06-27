@@ -97,9 +97,11 @@ const requiredRootFiles = [
   "docker/php/Dockerfile",
   "docker/php/php.ini",
   "README.md",
+  ".github/workflows/ci.yml",
   "preview/data.json",
   "scripts/lint-template.mjs",
   "scripts/deploy-theme.sh",
+  "scripts/rollback-theme.sh",
   "scripts/package-theme.mjs",
   "scripts/verify-compat.mjs",
   "scripts/verify-preview.mjs",
@@ -146,8 +148,12 @@ assert.match(readme, /npm run lint:template/);
 assert.match(readme, /npm run package/);
 assert.match(readme, /npm run verify:release/);
 assert.match(readme, /npm run deploy/);
+assert.match(readme, /npm run rollback/);
 assert.match(readme, /DEPLOY_HOST/);
 assert.match(readme, /DEPLOY_PATH/);
+assert.match(readme, /DEPLOY_CLEAR_CACHE/);
+assert.match(readme, /ROLLBACK_BACKUP/);
+assert.match(readme, /GitHub Actions/);
 assert.match(readme, /server\/index\.php/);
 assert.match(readme, /MacCMS/);
 
@@ -851,6 +857,7 @@ assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.m
 assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
 assert.equal(packageJson.scripts["verify:release"], "node scripts/verify-release.mjs");
 assert.equal(packageJson.scripts.deploy, "bash scripts/deploy-theme.sh");
+assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 
 const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "utf8");
 assert.match(deployScript, /^#!\/usr\/bin\/env bash/);
@@ -871,7 +878,45 @@ assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
+assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
+assert.match(deployScript, /maccms_root="\$\(dirname "\$DEPLOY_PATH"\)"/);
+assert.match(deployScript, /runtime\/cache/);
+assert.match(deployScript, /runtime\/temp/);
+assert.match(deployScript, /view\/_cache/);
+assert.match(deployScript, /find "\$cache_dir" -mindepth 1/);
 assert.doesNotMatch(deployScript, /DEPLOY_PASSWORD=/);
+
+const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
+assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
+assert.match(rollbackScript, /set -euo pipefail/);
+assert.match(rollbackScript, /\$\{DEPLOY_HOST/);
+assert.match(rollbackScript, /\$\{DEPLOY_USER/);
+assert.match(rollbackScript, /\$\{DEPLOY_PORT/);
+assert.match(rollbackScript, /\$\{DEPLOY_PATH/);
+assert.match(rollbackScript, /ROLLBACK_BACKUP/);
+assert.match(rollbackScript, /SSHPASS/);
+assert.match(rollbackScript, /find \. -maxdepth 1 -type d -name "\$\{THEME_NAME\}\.backup\.\*"/);
+assert.match(rollbackScript, /pingfangvideo\.failed/);
+assert.match(rollbackScript, /cp -a "\$backup" "\$THEME_NAME"/);
+assert.match(rollbackScript, /DEPLOY_CLEAR_CACHE/);
+assert.match(rollbackScript, /runtime\/cache/);
+assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
+
+const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
+assert.match(ciWorkflow, /name: Theme CI/);
+assert.match(ciWorkflow, /pull_request:/);
+assert.match(ciWorkflow, /actions\/checkout@v4/);
+assert.match(ciWorkflow, /actions\/setup-node@v4/);
+assert.match(ciWorkflow, /node-version: 22/);
+assert.match(ciWorkflow, /shivammathur\/setup-php@v2/);
+assert.match(ciWorkflow, /php-version: "8\.4"/);
+assert.match(ciWorkflow, /npm test/);
+assert.match(ciWorkflow, /npm run lint:template/);
+assert.match(ciWorkflow, /npm run verify:compat/);
+assert.match(ciWorkflow, /npm run verify:preview/);
+assert.match(ciWorkflow, /npm run package/);
+assert.match(ciWorkflow, /npm run verify:release/);
+assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
 
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);

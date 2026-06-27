@@ -439,10 +439,32 @@
     return Array.prototype.slice.call((scope || document).querySelectorAll(selector));
   }
 
+  var revealBatchSize = 18;
+  var revealSelectors = [
+    ".page-title",
+    ".filter-panel",
+    ".content-section",
+    ".detail-grid",
+    ".episode-box",
+    ".player-shell",
+    ".vod-card",
+    ".category-tile",
+    ".timeline-item",
+    ".record-item",
+    ".list-item",
+    ".module-fallback",
+    ".system-box"
+  ].join(", ");
+
   function clearMotionStyles(gsap, targets) {
     if (targets.length === 0) return;
     gsap.killTweensOf(targets);
-    gsap.set(targets, { clearProps: "transform,opacity,visibility,zIndex" });
+    gsap.set(targets, { clearProps: "transform,opacity,visibility,willChange,zIndex" });
+  }
+
+  function setMotionWillChange(gsap, targets, value) {
+    if (!targets.length) return;
+    gsap.set(targets, { willChange: value || "auto" });
   }
 
   function enableGsapCarousel(carousel) {
@@ -532,6 +554,104 @@
     }
   }
 
+  function revealDirection(target) {
+    if (target.classList.contains("rank-item")) return { x: 12, y: 0 };
+    if (target.classList.contains("detail-grid")) return { x: 0, y: 18 };
+    if (target.classList.contains("player-shell")) return { x: 0, y: 12 };
+    return { x: 0, y: 16 };
+  }
+
+  function revealTargets(gsap, targets) {
+    var visibleTargets = targets.filter(function (target) {
+      return target.getAttribute("data-gsap-revealed") !== "true";
+    });
+    if (!visibleTargets.length) return;
+
+    function animateBatch() {
+      var batch = visibleTargets.splice(0, revealBatchSize);
+      if (!batch.length) return;
+
+      batch.forEach(function (target) {
+        target.setAttribute("data-gsap-revealed", "true");
+      });
+
+      setMotionWillChange(gsap, batch, "transform, opacity");
+      gsap.fromTo(batch, {
+        x: function (index, target) {
+          return revealDirection(target).x;
+        },
+        y: function (index, target) {
+          return revealDirection(target).y;
+        },
+        autoAlpha: 0
+      }, {
+        x: 0,
+        y: 0,
+        autoAlpha: 1,
+        duration: 0.36,
+        ease: "power3.out",
+        stagger: {
+          each: 0.035,
+          from: "start"
+        },
+        overwrite: "auto",
+        onComplete: function () {
+          setMotionWillChange(gsap, batch, "auto");
+          animateBatch();
+        },
+        clearProps: "transform,opacity,visibility,willChange"
+      });
+    }
+
+    animateBatch();
+  }
+
+  function initRevealMotion(scope, gsap) {
+    var root = scope || document;
+    var targets = scopedElements(root, revealSelectors).filter(function (target) {
+      if (target.closest(".hero-carousel")) return false;
+      if (target.getAttribute("data-gsap-reveal-ready") === "true") return false;
+      target.setAttribute("data-gsap-reveal-ready", "true");
+      return true;
+    });
+
+    if (!targets.length) return null;
+
+    if (!("IntersectionObserver" in window)) {
+      revealTargets(gsap, targets);
+      return null;
+    }
+
+    var pending = [];
+    var scheduled = false;
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        pending.push(entry.target);
+        observer.unobserve(entry.target);
+      });
+
+      if (scheduled || !pending.length) return;
+      scheduled = true;
+      window.requestAnimationFrame(function () {
+        scheduled = false;
+        revealTargets(gsap, pending.splice(0, pending.length));
+      });
+    }, {
+      rootMargin: "0px 0px -8% 0px",
+      threshold: 0.12
+    });
+
+    targets.forEach(function (target) {
+      observer.observe(target);
+    });
+
+    return function () {
+      observer.disconnect();
+      pending = [];
+    };
+  }
+
   function bindGsapHover(scope, selector, enterVars, leaveVars) {
     var gsap = window.gsap;
     if (!gsap) return;
@@ -542,7 +662,7 @@
 
       item.addEventListener("mouseenter", function () {
         gsap.to(item, Object.assign({
-          duration: 0.22,
+          duration: 0.18,
           ease: "power2.out",
           overwrite: "auto"
         }, enterVars));
@@ -550,11 +670,50 @@
 
       item.addEventListener("mouseleave", function () {
         gsap.to(item, Object.assign({
-          duration: 0.24,
+          duration: 0.22,
           ease: "power2.out",
           overwrite: "auto",
           clearProps: "transform"
         }, leaveVars));
+      });
+    });
+  }
+
+  function bindGsapPressFeedback(scope, selector) {
+    var gsap = window.gsap;
+    if (!gsap) return;
+
+    scopedElements(scope, selector).forEach(function (item) {
+      if (item.dataset.gsapPressReady === "true") return;
+      item.dataset.gsapPressReady = "true";
+
+      item.addEventListener("pointerdown", function () {
+        gsap.to(item, {
+          scale: 0.985,
+          duration: 0.1,
+          ease: "power2.out",
+          overwrite: "auto"
+        });
+      });
+
+      item.addEventListener("pointerup", function () {
+        gsap.to(item, {
+          scale: 1,
+          duration: 0.14,
+          ease: "power2.out",
+          overwrite: "auto",
+          clearProps: "transform"
+        });
+      });
+
+      item.addEventListener("pointerleave", function () {
+        gsap.to(item, {
+          scale: 1,
+          duration: 0.14,
+          ease: "power2.out",
+          overwrite: "auto",
+          clearProps: "transform"
+        });
       });
     });
   }
@@ -579,7 +738,8 @@
       var reduceMotion = context.conditions.reduceMotion;
       var canHover = context.conditions.canHover;
       var carousels = scopedElements(scope, "[data-carousel]");
-      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .vod-card");
+      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .vod-card, " + revealSelectors);
+      var revealCleanup = null;
 
       if (reduceMotion) {
         carousels.forEach(function (carousel) {
@@ -602,60 +762,75 @@
       var cards = scopedElements(scope, ".vod-card").slice(0, 12);
 
       if (heroTargets.length) {
+        setMotionWillChange(gsap, heroTargets, "transform, opacity");
         timeline.from(heroTargets, {
-          y: 16,
+          y: 18,
           autoAlpha: 0,
-          duration: 0.52,
-          stagger: 0.045,
-          clearProps: "transform,opacity,visibility"
-        }, 0.04);
+          duration: 0.48,
+          stagger: 0.04,
+          clearProps: "transform,opacity,visibility,willChange"
+        }, 0.03);
       }
 
       if (posterTargets.length) {
+        setMotionWillChange(gsap, posterTargets, "transform, opacity");
         timeline.from(posterTargets, {
-          x: 24,
-          scale: 0.96,
+          x: 28,
+          scale: 0.965,
           autoAlpha: 0,
-          duration: 0.6,
-          clearProps: "transform,opacity,visibility"
-        }, 0.12);
+          duration: 0.56,
+          clearProps: "transform,opacity,visibility,willChange"
+        }, 0.1);
       }
 
       if (statTargets.length) {
+        setMotionWillChange(gsap, statTargets, "transform, opacity");
         timeline.from(statTargets, {
           y: 14,
           autoAlpha: 0,
-          duration: 0.42,
-          stagger: 0.045,
-          clearProps: "transform,opacity,visibility"
-        }, 0.28);
-      }
-
-      if (rankTargets.length) {
-        timeline.from(rankTargets, {
-          x: 12,
-          autoAlpha: 0,
-          duration: 0.36,
-          stagger: 0.035,
-          clearProps: "transform,opacity,visibility"
+          duration: 0.34,
+          stagger: 0.04,
+          clearProps: "transform,opacity,visibility,willChange"
         }, 0.24);
       }
 
-      if (cards.length) {
-        timeline.from(cards, {
-          y: 14,
+      if (rankTargets.length) {
+        setMotionWillChange(gsap, rankTargets, "transform, opacity");
+        timeline.from(rankTargets, {
+          x: 12,
           autoAlpha: 0,
-          duration: 0.38,
-          stagger: 0.025,
-          clearProps: "transform,opacity,visibility"
-        }, 0.42);
+          duration: 0.34,
+          stagger: 0.03,
+          clearProps: "transform,opacity,visibility,willChange"
+        }, 0.2);
       }
+
+      if (cards.length) {
+        setMotionWillChange(gsap, cards, "transform, opacity");
+        timeline.from(cards, {
+          y: 16,
+          autoAlpha: 0,
+          duration: 0.34,
+          stagger: 0.02,
+          clearProps: "transform,opacity,visibility,willChange"
+        }, 0.38);
+      }
+
+      revealCleanup = initRevealMotion(scope, gsap);
 
       if (canHover) {
         bindGsapHover(scope, ".vod-card", { y: -5, scale: 1.012 }, { y: 0, scale: 1 });
         bindGsapHover(scope, ".rank-item", { x: 4 }, { x: 0 });
         bindGsapHover(scope, ".stat-card", { y: -3 }, { y: 0 });
+        bindGsapHover(scope, ".category-tile", { y: -4 }, { y: 0 });
+        bindGsapHover(scope, ".timeline-card, .favorite-card, .list-item", { y: -3 }, { y: 0 });
+        bindGsapHover(scope, ".episode-grid a", { y: -2 }, { y: 0 });
+        bindGsapPressFeedback(scope, ".primary-btn, .ghost-btn, .banner-arrow, .page-link, .page-jump-submit");
       }
+
+      return function () {
+        if (revealCleanup) revealCleanup();
+      };
     });
   }
 

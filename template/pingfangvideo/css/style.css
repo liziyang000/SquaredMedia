@@ -1,17 +1,20 @@
 :root {
-  --bg: #101113;
-  --panel: #191b1f;
-  --panel-soft: #22252b;
-  --text: #f7f4ed;
-  --muted: #a9adb7;
-  --line: rgba(255, 255, 255, 0.1);
+  --bg: #080b10;
+  --panel: #141821;
+  --panel-soft: #1b212b;
+  --text: #f4f0e8;
+  --muted: #b5bbc7;
+  --line: rgba(255, 255, 255, 0.14);
   --accent: #ff5a3d;
-  --accent-2: #28c7a7;
+  --accent-2: #26d4af;
   --gold: #f5bf4f;
-  --surface: rgba(255, 255, 255, 0.035);
-  --surface-strong: rgba(255, 255, 255, 0.065);
-  --shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
+  --surface: rgba(255, 255, 255, 0.028);
+  --surface-strong: rgba(255, 255, 255, 0.06);
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
   --radius: 8px;
+  --radius-sm: 6px;
+  --brand-2: var(--accent-2);
+  --focus-ring: 0 0 0 3px rgba(38, 212, 175, 0.38);
   --wrap: min(1180px, calc(100vw - 32px));
 }
 
@@ -27,7 +30,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
 a {
@@ -41,8 +44,26 @@ img {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  clip: rect(0, 0, 0, 0);
+  overflow: hidden;
 }
 
 .wrap {
@@ -124,8 +145,9 @@ input {
 .filter-panel a {
   border-radius: var(--radius);
   color: var(--muted);
-  padding: 8px 12px;
+  padding: 10px 12px;
   white-space: nowrap;
+  min-height: 44px;
 }
 
 .site-nav a {
@@ -158,7 +180,8 @@ input {
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
-  padding: 10px 11px;
+  min-height: 44px;
+  padding: 0 12px;
 }
 
 .site-nav a:hover,
@@ -169,6 +192,45 @@ input {
 .filter-panel a:hover {
   background: var(--panel-soft);
   color: var(--text);
+}
+
+.site-nav a[aria-current="page"],
+.mobile-category-entry.is-active,
+.mobile-game-entry.is-active {
+  color: var(--text);
+  background: var(--panel-soft);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.site-nav a:focus-visible,
+.filter-panel a:focus-visible,
+.quick-types a:focus-visible,
+.history-link:focus-visible,
+.hero-slide:focus-visible,
+.banner-arrow:focus-visible,
+.banner-dot:focus-visible,
+.primary-btn:focus-visible,
+.ghost-btn:focus-visible,
+.page-link:focus-visible,
+.page-state:focus-visible,
+.page-jump-submit:focus-visible,
+.page-jump-input:focus-visible,
+.channel-search button:focus-visible,
+.filter-reset:focus-visible,
+.mobile-category-entry:focus-visible,
+.mobile-game-entry:focus-visible,
+.nav-toggle:focus-visible,
+.user-avatar:focus-visible,
+.user-dropdown a:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.user-dropdown a:focus-visible {
+  background: var(--panel-soft);
 }
 
 .user-menu {
@@ -190,8 +252,8 @@ input {
 
 .user-avatar {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   overflow: hidden;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -290,10 +352,9 @@ input {
   width: 100%;
   min-width: 0;
   border: 0;
-  outline: 0;
   background: transparent;
   color: var(--text);
-  padding: 10px 12px;
+  padding: 12px 12px;
 }
 
 .header-search button,
@@ -305,6 +366,8 @@ input {
   cursor: pointer;
   font-weight: 700;
   white-space: nowrap;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .header-search button,
@@ -312,7 +375,7 @@ input {
 .primary-btn {
   background: var(--accent);
   color: #fff;
-  padding: 10px 16px;
+  padding: 10px 18px;
 }
 
 .hot-search-panel {
@@ -358,6 +421,16 @@ input {
   color: var(--text);
 }
 
+.header-search:focus-within,
+.hero-search:focus-within,
+.channel-search:focus-within,
+.verify-form input:focus-visible,
+.verify-form textarea:focus-visible,
+.page-jump-input:focus-visible {
+  border-color: rgba(38, 212, 175, 0.5);
+  box-shadow: var(--focus-ring);
+}
+
 .header-search button:disabled,
 .hero-search button:disabled,
 .primary-btn:disabled {
@@ -369,7 +442,7 @@ input {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--text);
-  padding: 10px 16px;
+  padding: 10px 18px;
 }
 
 .favorite-btn {
@@ -390,12 +463,14 @@ input {
 
 .nav-toggle {
   display: none;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
   padding: 9px;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 .nav-toggle span {
@@ -407,7 +482,7 @@ input {
 
 .hero {
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #15171b 0%, #111215 100%);
+  background: linear-gradient(180deg, #171a20 0%, #101216 100%);
 }
 
 .hero-grid {
@@ -496,9 +571,10 @@ input {
   color: var(--text);
   font-size: clamp(34px, 4.6vw, 58px);
   font-weight: 900;
+  text-wrap: balance;
   line-height: 1.05;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .banner-copy small {
@@ -538,6 +614,7 @@ input {
 .banner-actions {
   gap: 10px;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 
 .banner-poster {
@@ -581,16 +658,21 @@ input {
   background: rgba(16, 17, 19, 0.62);
   color: var(--text);
   cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  touch-action: manipulation;
 }
 
 .banner-dot {
-  width: 8px;
-  height: 8px;
   padding: 0;
+  width: 44px;
+  height: 44px;
 }
 
 .banner-dot.is-active {
-  width: 26px;
+  width: 44px;
   background: var(--accent-2);
   border-color: transparent;
 }
@@ -598,8 +680,6 @@ input {
 .banner-arrow {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
   font-size: 20px;
   line-height: 1;
 }
@@ -1059,7 +1139,6 @@ input {
   min-width: 0;
   border: 0;
   border-radius: calc(var(--radius) - 2px);
-  outline: 0;
   background: transparent;
   color: var(--text);
   padding: 10px 12px;
@@ -1114,8 +1193,8 @@ input {
 }
 
 .category-hit:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -3px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .category-main {
@@ -1787,7 +1866,6 @@ input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  outline: 0;
   background: var(--bg);
   color: var(--text);
   padding: 11px 12px;
@@ -2091,6 +2169,7 @@ input {
 
   .hero-carousel .hero-stats {
     right: 180px;
+    left: 18px;
   }
 
   .detail-poster {
@@ -2189,7 +2268,7 @@ input {
 
   .site-nav {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 3;
     padding-bottom: 4px;
   }
 
@@ -2213,7 +2292,7 @@ input {
   .banner-copy {
     align-content: end;
     max-width: none;
-    padding: 20px 16px 132px;
+    padding: 20px 16px 176px;
   }
 
   .banner-copy strong {
@@ -2235,7 +2314,7 @@ input {
 
   .hero-carousel .hero-stats {
     right: 14px;
-    bottom: 62px;
+    bottom: 102px;
     left: 14px;
     max-width: none;
   }
@@ -2245,6 +2324,7 @@ input {
     bottom: 16px;
     left: 14px;
     justify-content: space-between;
+    gap: 8px;
   }
 
   .hero-copy h1 {
@@ -2600,23 +2680,34 @@ input {
   }
 
   .nav-toggle {
-    display: none;
-  }
-
-  .mobile-shortcuts {
-    display: flex;
+    display: block;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
     grid-column: 3;
     grid-row: 1;
   }
 
+  .mobile-shortcuts {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    margin-top: 4px;
+  }
+
   .mobile-category-entry {
     display: inline-flex;
-    min-height: 34px;
+    min-height: 44px;
+    padding-right: 12px;
+    padding-left: 12px;
   }
 
   .mobile-game-entry {
     display: inline-flex;
-    min-height: 34px;
+    min-height: 44px;
+    padding-right: 12px;
+    padding-left: 12px;
   }
 
   .user-menu {
@@ -2624,7 +2715,7 @@ input {
   }
 
   .header-search button {
-    min-width: 66px;
+    min-width: 74px;
     padding-right: 10px;
     padding-left: 10px;
   }
@@ -2634,7 +2725,7 @@ input {
   }
 
   .banner-copy {
-    padding: 18px 14px 126px;
+    padding: 18px 14px 152px;
   }
 
   .banner-copy strong {
@@ -2659,6 +2750,7 @@ input {
   .hero-carousel .hero-stats {
     right: 12px;
     left: 12px;
+    bottom: 102px;
   }
 
   .hero-stats {

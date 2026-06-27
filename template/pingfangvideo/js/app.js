@@ -1,13 +1,80 @@
 (function () {
   var toggle = document.querySelector(".nav-toggle");
   var nav = document.querySelector(".site-nav");
+  var navLinkSelector = ".site-nav a";
+
+  function setNavOpen(isOpen) {
+    if (!toggle || !nav) return;
+    nav.classList.toggle("is-open", isOpen);
+    toggle.classList.toggle("is-open", isOpen);
+    toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+
+  function normalizePath(path) {
+    if (!path) return "/";
+    return ("".concat(path).replace(/\/+$/, "") || "/").toLowerCase();
+  }
+
+  function markCurrentNav() {
+    if (!nav) return;
+    var currentPath = normalizePath(window.location.pathname);
+    var links = nav.querySelectorAll("a");
+
+    if (!links.length) return;
+
+    var matched = false;
+    links.forEach(function (link) {
+      var href = link.getAttribute("href");
+      if (!href) return;
+      var targetPath = "";
+      try {
+        targetPath = normalizePath(new URL(href, window.location.origin).pathname);
+      } catch (error) {
+        targetPath = normalizePath(href);
+      }
+      if (!matched && targetPath === currentPath) {
+        link.setAttribute("aria-current", "page");
+        matched = true;
+      } else {
+        link.removeAttribute("aria-current");
+      }
+    });
+    if (!matched && links.length) {
+      var fallback = links[0];
+      if (fallback) {
+        fallback.setAttribute("aria-current", "page");
+      }
+    }
+  }
 
   if (toggle && nav) {
+    if (!toggle.getAttribute("aria-controls")) {
+      toggle.setAttribute("aria-controls", "siteNav");
+    }
+    if (!toggle.hasAttribute("aria-expanded")) {
+      toggle.setAttribute("aria-expanded", "false");
+    }
+
     toggle.addEventListener("click", function () {
-      nav.classList.toggle("is-open");
-      toggle.classList.toggle("is-open");
+      var isOpen = !toggle.classList.contains("is-open");
+      setNavOpen(isOpen);
+      if (isOpen) {
+        var firstLink = nav.querySelector(navLinkSelector);
+        if (firstLink) firstLink.focus();
+      }
     });
   }
+
+  if (toggle && nav) {
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && nav.classList.contains("is-open")) {
+        setNavOpen(false);
+        toggle.focus();
+      }
+    });
+  }
+
+  markCurrentNav();
 
   function initSearchForms(root) {
     var scope = root || document;

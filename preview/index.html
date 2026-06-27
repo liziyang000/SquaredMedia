@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=__PINGFANG_ASSET_VERSION__">
 </head>
 <body>
+<a class="sr-only" href="#app" aria-label="跳转到内容区">跳转到内容</a>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="?route=home" data-route="home" aria-label="平方影视">
@@ -23,7 +24,8 @@
     </div>
     <div class="header-search-wrap">
       <form class="header-search" id="headerSearch">
-        <input type="search" name="wd" placeholder="搜索影片、演员、导演">
+        <label class="sr-only" for="previewSearch">站内搜索</label>
+        <input id="previewSearch" type="search" name="wd" placeholder="搜索影片、演员、导演">
         <button type="submit">搜索</button>
       </form>
     </div>

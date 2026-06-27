@@ -835,7 +835,7 @@ assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.mobile-category-entry\s
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.mobile-shortcuts\s*\{[\s\S]*display: flex/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.mobile-game-entry\s*\{[\s\S]*display: inline-flex/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.user-menu\s*\{[\s\S]*grid-column: 4/);
-assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.nav-toggle\s*\{[\s\S]*display: none/);
+assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.nav-toggle\s*\{[\s\S]*display: block/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.site-header \.brand img\s*\{[\s\S]*width: 52px/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.hero-stats\s*\{[\s\S]*min-width: 0/);
 assert.match(style, /\.site-nav[\s\S]*overflow: hidden/);

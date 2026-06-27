@@ -18,9 +18,13 @@
     <nav class="site-nav">
       <a href="{$maccms.path}">首页</a>
       <a href="{:mac_url('label/categories')}">分类</a>
+      <a href="{:mac_url('website/index')}">游戏</a>
       <a href="{:mac_url('user/favs')}">收藏</a>
     </nav>
-    <a class="mobile-category-entry" href="{:mac_url('label/categories')}">分类</a>
+    <div class="mobile-shortcuts">
+      <a class="mobile-category-entry" href="{:mac_url('label/categories')}">分类</a>
+      <a class="mobile-game-entry" href="{:mac_url('website/index')}">游戏</a>
+    </div>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="{:mac_url('vod/search')}">
         <input type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">

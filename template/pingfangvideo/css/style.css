@@ -132,8 +132,22 @@ input {
   flex: 0 0 auto;
 }
 
+.mobile-shortcuts {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
 .mobile-category-entry {
   display: none;
+}
+
+.mobile-game-entry {
+  display: none;
+}
+
+.mobile-category-entry,
+.mobile-game-entry {
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(40, 199, 167, 0.34);
@@ -2589,10 +2603,19 @@ input {
     display: none;
   }
 
-  .mobile-category-entry {
-    display: inline-flex;
+  .mobile-shortcuts {
+    display: flex;
     grid-column: 3;
     grid-row: 1;
+  }
+
+  .mobile-category-entry {
+    display: inline-flex;
+    min-height: 34px;
+  }
+
+  .mobile-game-entry {
+    display: inline-flex;
     min-height: 34px;
   }
 

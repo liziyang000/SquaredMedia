@@ -17,7 +17,10 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="site-nav" id="siteNav"></nav>
-    <a class="mobile-category-entry" href="?route=categories" data-route="categories">分类</a>
+    <div class="mobile-shortcuts">
+      <a class="mobile-category-entry" href="?route=categories" data-route="categories">分类</a>
+      <a class="mobile-game-entry" href="?route=games" data-route="games">游戏</a>
+    </div>
     <div class="header-search-wrap">
       <form class="header-search" id="headerSearch">
         <input type="search" name="wd" placeholder="搜索影片、演员、导演">
@@ -160,7 +163,8 @@ function bannerSlide(video, index) {
 function renderNav() {
   nav.innerHTML = [
     `<a href="${url("home")}" data-route="home">首页</a>`,
-    `<a href="${url("categories")}" data-route="categories">分类</a>`
+    `<a href="${url("categories")}" data-route="categories">分类</a>`,
+    `<a href="${url("games")}" data-route="games">游戏</a>`
   ].join("");
 }
 
@@ -232,6 +236,21 @@ function renderCategoriesPage(page = 1) {
         </article>`).join("")}
     </section>
     ${renderPagination("categories", {}, currentPage, totalPages)}`;
+}
+
+function renderGamesPage() {
+  app.innerHTML = `
+    <section class="wrap system-page">
+      <div class="system-box module-fallback">
+        <span class="eyebrow">游戏</span>
+        <h1>游戏入口维护中</h1>
+        <p>游戏模块暂未启用，请先浏览影片内容。</p>
+        <div class="detail-actions">
+          <a class="primary-btn" href="${url("categories")}" data-route="categories">浏览影片库</a>
+          <a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a>
+        </div>
+      </div>
+    </section>`;
 }
 
 function historyItems() {
@@ -555,6 +574,7 @@ function render() {
   const params = new URLSearchParams(window.location.search);
   const route = params.get("route") || "home";
   if (route === "categories") renderCategoriesPage(params.get("page"));
+  else if (route === "games") renderGamesPage();
   else if (route === "history") renderHistoryPage();
   else
     if (route === "category") renderCategory(params.get("name"), params.get("sort"), params.get("area"), params.get("year"), params.get("class"), params.get("page"), params.get("lang"), params.get("letter"));

@@ -202,8 +202,12 @@ assert.match(head, /class="brand-logo"[^>]*decoding="async"/);
 assert.doesNotMatch(head, /brand-mark">PF/);
 assert.doesNotMatch(head, /brand-text/);
 assert.match(head, /mac_url\('label\/categories'\)/);
+assert.match(head, /mac_url\('website\/index'\)/);
+assert.match(head, /<a href="\{:mac_url\('website\/index'\)\}">游戏<\/a>/);
 assert.match(head, /class="mobile-category-entry"/);
 assert.match(head, /<a class="mobile-category-entry" href="\{:mac_url\('label\/categories'\)\}">分类<\/a>/);
+assert.match(head, /class="mobile-shortcuts"/);
+assert.match(head, /<a class="mobile-game-entry" href="\{:mac_url\('website\/index'\)\}">游戏<\/a>/);
 assert.match(head, /mac_url\('user\/plays'\)/);
 assert.match(head, /mac_url\('user\/favs'\)/);
 assert.match(head, /class="user-menu"/);
@@ -418,11 +422,11 @@ const fallbackPages = [
   ["html/role/index.html", "角色"],
   ["html/role/detail.html", "角色"],
   ["html/role/show.html", "角色"],
-  ["html/website/index.html", "网址"],
-  ["html/website/detail.html", "网址"],
-  ["html/website/search.html", "网址"],
-  ["html/website/show.html", "网址"],
-  ["html/website/type.html", "网址"],
+  ["html/website/index.html", "游戏"],
+  ["html/website/detail.html", "游戏"],
+  ["html/website/search.html", "游戏"],
+  ["html/website/show.html", "游戏"],
+  ["html/website/type.html", "游戏"],
 ];
 
 for (const [file, label] of fallbackPages) {
@@ -825,7 +829,11 @@ assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.header-search\s*\{[\s\S
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.player-shell\s*\{[\s\S]*aspect-ratio: 16 \/ 9/);
 assert.match(style, /@media \(orientation: landscape\) and \(max-height: 520px\)/);
 assert.match(style, /\.mobile-category-entry\s*\{[\s\S]*display: none/);
+assert.match(style, /\.mobile-shortcuts\s*\{[\s\S]*display: none/);
+assert.match(style, /\.mobile-game-entry/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.mobile-category-entry\s*\{[\s\S]*display: inline-flex/);
+assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.mobile-shortcuts\s*\{[\s\S]*display: flex/);
+assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.mobile-game-entry\s*\{[\s\S]*display: inline-flex/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.user-menu\s*\{[\s\S]*grid-column: 4/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.nav-toggle\s*\{[\s\S]*display: none/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.site-header \.brand img\s*\{[\s\S]*width: 52px/);
@@ -1148,7 +1156,11 @@ assert.match(preview, /detail-panel/);
 assert.match(preview, /site-logo\.png/);
 assert.doesNotMatch(preview, /brand-text/);
 assert.match(preview, /route === "categories"/);
+assert.match(preview, /route === "games"/);
 assert.match(preview, /route === "history"/);
+assert.match(preview, /function renderGamesPage/);
+assert.match(preview, /data-route="games">游戏/);
+assert.match(preview, /<a class="mobile-game-entry" href="\?route=games" data-route="games">游戏<\/a>/);
 assert.match(preview, /category-index/);
 assert.match(preview, /<a class="category-hit" href="\$\{url\("category", \{ name: category \}\)\}" data-route="category"/);
 assert.match(preview, /aria-label="进入\$\{escapeHtml\(category\)\}"/);
@@ -1193,6 +1205,9 @@ assert.match(phpRender, /hero-stats/);
 assert.match(phpRender, /hot-search-panel/);
 assert.match(phpRender, /热搜榜/);
 assert.doesNotMatch(phpRender, /render_hot_search_panel\(\$data\)[\s\S]{0,120}<a class="history-link"/);
+assert.match(phpRender, /path_for\('games'\)/);
+assert.match(phpRender, /\$route === 'games'/);
+assert.match(phpRender, /游戏入口/);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /banner-dots/);

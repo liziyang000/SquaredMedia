@@ -38,6 +38,7 @@ function render_layout(array $data, string $title, string $content): string
 {
     $nav = '<a href="' . e(path_for('home')) . '">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '">分类</a>';
+    $nav .= '<a href="' . e(path_for('games')) . '">游戏</a>';
 
     return '<!doctype html>
 <html lang="zh-CN">
@@ -53,7 +54,10 @@ function render_layout(array $data, string $title, string $content): string
     <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="' . e($data['siteName']) . ' logo"></a>
     <button class="nav-toggle" type="button" aria-label="展开导航"><span></span><span></span><span></span></button>
     <nav class="site-nav">' . $nav . '</nav>
-    <a class="mobile-category-entry" href="' . e(path_for('categories')) . '">分类</a>
+    <div class="mobile-shortcuts">
+      <a class="mobile-category-entry" href="' . e(path_for('categories')) . '">分类</a>
+      <a class="mobile-game-entry" href="' . e(path_for('games')) . '">游戏</a>
+    </div>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="/index.php">
         <input type="hidden" name="route" value="search">
@@ -236,6 +240,10 @@ function render_page(array $data, string $route, array $query): string
         }, $categories));
 
         return render_layout($data, '分类', '<section class="wrap page-title"><span class="eyebrow">分类</span><h1>全部分类</h1><p>从这里进入电影、剧集、综艺、动漫和更多频道。</p></section><section class="wrap category-index">' . $tiles . '</section>' . render_pagination('categories', [], $page, $totalPages));
+    }
+
+    if ($route === 'games') {
+        return render_layout($data, '游戏', '<section class="wrap system-page"><div class="system-box module-fallback"><span class="eyebrow">游戏</span><h1>游戏入口维护中</h1><p>游戏模块暂未启用，请先浏览影片内容。</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('categories')) . '">浏览影片库</a><a class="ghost-btn" href="' . e(path_for('home')) . '">返回首页</a></div></div></section>');
     }
 
     if ($route === 'category') {

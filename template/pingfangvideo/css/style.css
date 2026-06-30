@@ -824,7 +824,14 @@ textarea:focus-visible,
 }
 
 .hero-carousel .hero-stats {
-  display: none;
+  position: absolute;
+  right: 320px;
+  bottom: 34px;
+  left: 42px;
+  z-index: 3;
+  display: grid;
+  max-width: 420px;
+  margin-top: 0;
 }
 
 .banner-controls {
@@ -1875,11 +1882,6 @@ textarea:focus-visible,
   gap: 10px;
 }
 
-.player-fullscreen {
-  border-color: rgba(40, 199, 167, 0.36);
-  color: var(--accent-2);
-}
-
 .player-shell {
   aspect-ratio: 16 / 9;
   min-height: 500px;
@@ -1906,33 +1908,6 @@ textarea:focus-visible,
 .player-shell #MacPlayer > * {
   width: 100%;
   min-height: 500px;
-}
-
-.player-shell:fullscreen,
-.player-shell:-webkit-full-screen {
-  width: 100vw;
-  height: 100vh;
-  min-height: 0;
-  margin: 0;
-  background: #000;
-}
-
-.player-shell:fullscreen #MacPlayer,
-.player-shell:fullscreen iframe,
-.player-shell:fullscreen video,
-.player-shell:fullscreen embed,
-.player-shell:fullscreen object,
-.player-shell:fullscreen #MacPlayer > *,
-.player-shell:-webkit-full-screen #MacPlayer,
-.player-shell:-webkit-full-screen iframe,
-.player-shell:-webkit-full-screen video,
-.player-shell:-webkit-full-screen embed,
-.player-shell:-webkit-full-screen object,
-.player-shell:-webkit-full-screen #MacPlayer > * {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  object-fit: contain;
 }
 
 .download-list {
@@ -2587,9 +2562,9 @@ textarea:focus-visible,
   }
 
   .banner-copy {
-    align-content: center;
+    align-content: end;
     max-width: none;
-    padding: 24px 18px 86px;
+    padding: 24px 18px 152px;
   }
 
   .banner-copy strong {
@@ -2611,13 +2586,20 @@ textarea:focus-visible,
     display: none;
   }
 
+  .hero-carousel .hero-stats {
+    right: 18px;
+    bottom: 72px;
+    left: 18px;
+    max-width: none;
+  }
+
   .banner-controls {
     right: 18px;
     bottom: 18px;
     left: 18px;
-    justify-content: center;
+    justify-content: space-between;
     gap: 8px;
-    min-height: 44px;
+    min-height: 52px;
   }
 
   .hero-copy h1 {
@@ -3060,7 +3042,7 @@ textarea:focus-visible,
   }
 
   .banner-copy {
-    padding: 22px 14px 80px;
+    padding: 20px 14px 148px;
   }
 
   .banner-copy strong {
@@ -3087,9 +3069,15 @@ textarea:focus-visible,
   }
 
   .banner-controls {
-    right: 14px;
-    bottom: 14px;
-    left: 14px;
+    right: 12px;
+    bottom: 6px;
+    left: 12px;
+  }
+
+  .hero-carousel .hero-stats {
+    right: 12px;
+    bottom: 60px;
+    left: 12px;
   }
 
   .hero-stats {

@@ -150,59 +150,6 @@
     }, 2400);
   }
 
-  function lockLandscape() {
-    if (!screen.orientation || !screen.orientation.lock) return;
-    var lock = screen.orientation.lock("landscape");
-    if (lock && lock.catch) lock.catch(function () {});
-  }
-
-  function unlockLandscape() {
-    if (!screen.orientation || !screen.orientation.unlock) return;
-    screen.orientation.unlock();
-  }
-
-  function requestPlayerFullscreen(shell) {
-    var video = shell.querySelector("video");
-    if (video && video.webkitEnterFullscreen && !video.requestFullscreen) {
-      video.webkitEnterFullscreen();
-      lockLandscape();
-      return;
-    }
-
-    var target = shell;
-    var request = target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen;
-    if (!request && video) {
-      target = video;
-      request = target.requestFullscreen || target.webkitRequestFullscreen || target.msRequestFullscreen;
-    }
-    if (!request) return;
-
-    var result = request.call(target);
-    if (result && result.then) {
-      result.then(lockLandscape).catch(function () {});
-    } else {
-      lockLandscape();
-    }
-  }
-
-  function initPlayerFullscreen(root) {
-    var scope = root || document;
-    scope.querySelectorAll("[data-player-fullscreen]").forEach(function (button) {
-      if (button.dataset.playerFullscreenReady === "true") return;
-      button.dataset.playerFullscreenReady = "true";
-      button.addEventListener("click", function () {
-        var page = button.closest(".player-page") || document;
-        var shell = page.querySelector(".player-shell");
-        if (!shell) return;
-        requestPlayerFullscreen(shell);
-      });
-    });
-  }
-
-  document.addEventListener("fullscreenchange", function () {
-    if (!document.fullscreenElement) unlockLandscape();
-  });
-
   function normalizeHomeUrl(url) {
     var target = (url || "").trim();
     if (target) return target;
@@ -493,13 +440,11 @@
 
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initSearchForms = initSearchForms;
-  window.PingFangVideo.initPlayerFullscreen = initPlayerFullscreen;
   window.PingFangVideo.clearFavoriteCache = clearFavoriteCache;
   window.PingFangVideo.initFavoriteButtons = initFavoriteButtons;
   window.PingFangVideo.initPageJumpForms = initPageJumpForms;
 
   initSearchForms(document);
-  initPlayerFullscreen(document);
   showQueuedSiteNotice();
   initLoginForms(document);
   initFavoriteButtons(document);
@@ -942,6 +887,8 @@
       var next = carousel.querySelector("[data-carousel-next]");
       var index = 0;
       var timer = null;
+      var touchStartX = null;
+      var touchStartY = null;
 
       if (slides.length === 0) return;
       carousel.dataset.carouselReady = "true";
@@ -975,7 +922,7 @@
       }
 
       function start() {
-        if (slides.length < 2 || timer) return;
+        if (slides.length < 2 || timer || document.hidden) return;
         timer = window.setInterval(function () {
           activate(index + 1);
         }, 5200);
@@ -1013,6 +960,44 @@
 
       carousel.addEventListener("mouseenter", stop);
       carousel.addEventListener("mouseleave", start);
+      carousel.addEventListener("focusin", stop);
+      carousel.addEventListener("focusout", function (event) {
+        if (!carousel.contains(event.relatedTarget)) {
+          start();
+        }
+      });
+      carousel.addEventListener("touchstart", function (event) {
+        var touch = event.touches && event.touches[0];
+        if (!touch) return;
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        stop();
+      }, { passive: true });
+      carousel.addEventListener("touchend", function (event) {
+        var touch = event.changedTouches && event.changedTouches[0];
+        if (touch && touchStartX !== null && touchStartY !== null) {
+          var deltaX = touch.clientX - touchStartX;
+          var deltaY = touch.clientY - touchStartY;
+          if (Math.abs(deltaX) > 44 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+            activate(deltaX < 0 ? index + 1 : index - 1);
+          }
+        }
+        touchStartX = null;
+        touchStartY = null;
+        start();
+      }, { passive: true });
+      carousel.addEventListener("touchcancel", function () {
+        touchStartX = null;
+        touchStartY = null;
+        start();
+      }, { passive: true });
+      document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+          stop();
+        } else {
+          start();
+        }
+      });
       activate(0, false);
       start();
     });

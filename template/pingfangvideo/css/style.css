@@ -35,6 +35,10 @@ body {
   font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
+body.mobile-nav-open {
+  overflow: hidden;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -186,9 +190,121 @@ textarea {
   padding: 0 12px;
 }
 
+.mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  background: rgba(3, 5, 8, 0.58);
+  opacity: 0;
+  backdrop-filter: blur(5px);
+  transition: opacity 0.22s ease;
+}
+
+.mobile-drawer-backdrop.is-visible {
+  opacity: 1;
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 1002;
+  display: none;
+  width: min(84vw, 340px);
+  height: 100dvh;
+  overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  background: #11161d;
+  box-shadow: -22px 0 54px rgba(0, 0, 0, 0.42);
+  padding: 18px;
+  transform: translateX(100%);
+  transition: transform 0.24s ease;
+  will-change: transform;
+}
+
+.mobile-drawer.is-open {
+  transform: translateX(0);
+}
+
+.mobile-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.mobile-drawer-head strong {
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.mobile-drawer-close {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.mobile-drawer-links,
+.mobile-drawer-cats {
+  display: grid;
+  gap: 10px;
+}
+
+.mobile-drawer-links {
+  margin-bottom: 22px;
+}
+
+.mobile-drawer-links a,
+.mobile-drawer-cats a {
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  font-weight: 800;
+  line-height: 1.28;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.mobile-drawer-links a[aria-current="page"],
+.mobile-drawer-cats a[aria-current="page"] {
+  border-color: rgba(40, 199, 167, 0.38);
+  background: rgba(40, 199, 167, 0.14);
+  color: var(--accent-2);
+}
+
+.mobile-drawer-section > span {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.mobile-drawer-cats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .site-nav a:hover,
 .history-link:hover,
 .mobile-category-entry:hover,
+.mobile-game-entry:hover,
+.mobile-drawer-links a:hover,
+.mobile-drawer-cats a:hover,
 .quick-types a:hover,
 .filter-bar a:hover,
 .filter-panel a:hover {
@@ -229,6 +345,9 @@ textarea:focus-visible,
 .category-children a:focus-visible,
 .mobile-category-entry:focus-visible,
 .mobile-game-entry:focus-visible,
+.mobile-drawer-close:focus-visible,
+.mobile-drawer-links a:focus-visible,
+.mobile-drawer-cats a:focus-visible,
 .nav-toggle:focus-visible,
 .user-avatar:focus-visible,
 .user-dropdown a:focus-visible {
@@ -501,13 +620,14 @@ textarea:focus-visible,
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: stretch;
   gap: 32px;
   padding: 42px 0;
 }
 
 .hero-carousel {
   position: relative;
-  min-height: 430px;
+  min-height: 500px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -524,9 +644,10 @@ textarea:focus-visible,
 
 .hero-slide {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
-  gap: 28px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 278px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 36px;
+  align-items: stretch;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.38s ease;
@@ -555,7 +676,7 @@ textarea:focus-visible,
 }
 
 .banner-bg {
-  background-image: linear-gradient(90deg, rgba(16, 17, 19, 0.94) 0%, rgba(16, 17, 19, 0.78) 42%, rgba(16, 17, 19, 0.42) 100%), var(--banner-bg);
+  background-image: linear-gradient(90deg, rgba(10, 12, 16, 0.96) 0%, rgba(10, 12, 16, 0.84) 44%, rgba(10, 12, 16, 0.5) 100%), var(--banner-bg);
   background-position: center;
   background-size: cover;
   filter: saturate(1.05);
@@ -573,20 +694,25 @@ textarea:focus-visible,
   position: relative;
   z-index: 2;
   display: grid;
+  align-content: center;
   gap: 12px;
-  max-width: 640px;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
   min-width: 0;
-  padding: 38px 0 200px 34px;
+  padding: 44px 0 44px 42px;
 }
 
 .banner-copy strong {
-  overflow: hidden;
+  overflow: visible;
   color: var(--text);
   font-size: clamp(34px, 4.6vw, 58px);
   font-weight: 900;
   text-wrap: balance;
-  line-height: 1.05;
-  text-overflow: ellipsis;
+  line-height: 1.16;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: normal;
 }
 
@@ -631,63 +757,66 @@ textarea:focus-visible,
 }
 
 .banner-poster {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  right: 42px;
   z-index: 2;
-  width: 190px;
+  width: 210px;
   height: auto;
   aspect-ratio: 2 / 3;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius);
   object-fit: cover;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+  transform: translateY(-50%);
 }
 
 .hero-carousel .hero-stats {
-  position: absolute;
-  right: 410px;
-  bottom: 24px;
-  left: 34px;
-  z-index: 3;
-  max-width: 560px;
-  margin-top: 0;
+  display: none;
 }
 
 .banner-controls {
   position: absolute;
-  right: 24px;
-  bottom: 24px;
+  right: 42px;
+  bottom: 34px;
   z-index: 4;
-  gap: 10px;
+  gap: 8px;
 }
 
 .banner-dots {
-  gap: 7px;
+  gap: 8px;
 }
 
-.banner-dot,
 .banner-arrow {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   background: rgba(16, 17, 19, 0.62);
   color: var(--text);
   cursor: pointer;
-  min-width: 44px;
-  min-height: 44px;
-  width: 44px;
-  height: 44px;
+  min-width: 38px;
+  min-height: 38px;
+  width: 38px;
+  height: 38px;
   touch-action: manipulation;
 }
 
 .banner-dot {
+  min-width: 14px;
+  min-height: 5px;
   padding: 0;
-  width: 44px;
-  height: 44px;
+  width: 14px;
+  height: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.26);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: width 0.2s ease, background 0.2s ease, opacity 0.2s ease;
 }
 
 .banner-dot.is-active {
-  width: 44px;
+  width: 26px;
   background: var(--accent-2);
-  border-color: transparent;
 }
 
 .banner-arrow {
@@ -697,8 +826,11 @@ textarea:focus-visible,
   line-height: 1;
 }
 
-.banner-arrow:hover,
 .banner-dot:hover {
+  background: rgba(38, 212, 175, 0.58);
+}
+
+.banner-arrow:hover {
   border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.12);
 }
@@ -708,7 +840,9 @@ textarea:focus-visible,
 .detail-main h1,
 .player-head h1 {
   margin: 10px 0 12px;
-  line-height: 1.12;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .hero-copy h1 {
@@ -777,8 +911,16 @@ textarea:focus-visible,
 }
 
 .hero-rank {
-  padding: 18px;
+  display: grid;
+  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  min-height: 500px;
+  padding: 22px 26px;
   box-shadow: var(--shadow);
+}
+
+.hero-rank .section-head {
+  margin-bottom: 0;
+  padding-bottom: 10px;
 }
 
 .rank-item {
@@ -786,8 +928,9 @@ textarea:focus-visible,
   grid-template-columns: 28px 1fr auto;
   gap: 12px;
   align-items: center;
+  min-height: 0;
   border-top: 1px solid var(--line);
-  padding: 12px 0;
+  padding: 0;
 }
 
 .rank-item span {
@@ -803,8 +946,11 @@ textarea:focus-visible,
 .rank-item strong,
 .list-item strong {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .rank-item em,
@@ -977,18 +1123,18 @@ textarea:focus-visible,
 }
 
 .vod-card strong {
-  display: -webkit-box;
-  overflow: hidden;
+  display: block;
+  overflow: visible;
   min-height: 2.7em;
   margin: 10px 2px 0;
   color: var(--text);
   font-size: 16px;
   font-weight: 800;
   line-height: 1.35;
-  text-overflow: ellipsis;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   white-space: normal;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .vod-card small {
@@ -997,8 +1143,10 @@ textarea:focus-visible,
   margin: 4px 2px 0;
   font-size: 13px;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .card-meta {
@@ -1243,8 +1391,11 @@ textarea:focus-visible,
   color: var(--text);
   font-size: 20px;
   font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .category-main em {
@@ -1391,8 +1542,11 @@ textarea:focus-visible,
 
 .timeline-card strong {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .timeline-card small,
@@ -1613,9 +1767,12 @@ textarea:focus-visible,
   background: var(--panel-soft);
   color: var(--text);
   padding: 10px;
+  line-height: 1.35;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .episode-grid a:focus-visible {
@@ -1651,8 +1808,11 @@ textarea:focus-visible,
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .player-toolbar-actions {
@@ -1746,8 +1906,11 @@ textarea:focus-visible,
 .download-list strong {
   overflow: hidden;
   color: var(--text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .download-list span {
@@ -1896,6 +2059,8 @@ textarea:focus-visible,
   margin: 8px 0 10px;
   font-size: 30px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .system-box p {
@@ -2138,8 +2303,11 @@ textarea:focus-visible,
 
 .record-title {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .favorite-title-link {
@@ -2228,8 +2396,8 @@ textarea:focus-visible,
     padding-bottom: 14px;
   }
 
-  .site-nav.is-open {
-    display: flex;
+  .mobile-drawer {
+    display: block;
   }
 
   .history-link {
@@ -2242,12 +2410,7 @@ textarea:focus-visible,
   }
 
   .hero-carousel {
-    min-height: 400px;
-  }
-
-  .hero-carousel .hero-stats {
-    right: 390px;
-    left: 18px;
+    min-height: 460px;
   }
 
   .detail-poster {
@@ -2271,7 +2434,7 @@ textarea:focus-visible,
   }
 
   .header-inner {
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 8px;
     min-height: 62px;
     padding: 8px 0;
@@ -2304,8 +2467,7 @@ textarea:focus-visible,
   }
 
   .user-menu {
-    grid-column: 4;
-    grid-row: 1;
+    display: none;
   }
 
   .user-avatar {
@@ -2345,9 +2507,14 @@ textarea:focus-visible,
   }
 
   .site-nav {
+    display: none;
     grid-column: 1 / -1;
     grid-row: 3;
     padding-bottom: 4px;
+  }
+
+  .mobile-shortcuts {
+    display: none;
   }
 
   .hero-grid {
@@ -2356,7 +2523,7 @@ textarea:focus-visible,
   }
 
   .hero-carousel {
-    min-height: 372px;
+    min-height: 430px;
   }
 
   .hero-slide {
@@ -2368,17 +2535,18 @@ textarea:focus-visible,
   }
 
   .banner-copy {
-    align-content: end;
+    align-content: center;
     max-width: none;
-    padding: 18px 16px 172px;
+    padding: 24px 18px 86px;
   }
 
   .banner-copy strong {
-    display: -webkit-box;
-    font-size: 29px;
+    display: block;
+    font-size: 30px;
+    line-height: 1.14;
     white-space: normal;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    -webkit-box-orient: initial;
+    -webkit-line-clamp: unset;
   }
 
   .banner-copy small {
@@ -2391,20 +2559,13 @@ textarea:focus-visible,
     display: none;
   }
 
-  .hero-carousel .hero-stats {
-    right: 14px;
-    bottom: 78px;
-    left: 14px;
-    max-width: none;
-  }
-
   .banner-controls {
-    right: 14px;
-    bottom: 14px;
-    left: 14px;
-    justify-content: space-between;
+    right: 18px;
+    bottom: 18px;
+    left: 18px;
+    justify-content: center;
     gap: 8px;
-    min-height: 52px;
+    min-height: 44px;
   }
 
   .hero-copy h1 {
@@ -2428,6 +2589,8 @@ textarea:focus-visible,
   }
 
   .hero-rank {
+    grid-template-rows: auto repeat(3, minmax(54px, 1fr));
+    min-height: 252px;
     margin-top: 4px;
     padding: 16px;
   }
@@ -2479,7 +2642,7 @@ textarea:focus-visible,
   .rank-item {
     grid-template-columns: 28px minmax(0, 1fr) auto;
     gap: 10px;
-    padding: 10px 0;
+    padding: 0;
   }
 
   .vod-grid,
@@ -2799,7 +2962,7 @@ textarea:focus-visible,
 
 @media (max-width: 520px) {
   .header-inner {
-    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 6px;
   }
 
@@ -2823,29 +2986,15 @@ textarea:focus-visible,
   }
 
   .mobile-shortcuts {
-    display: flex;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-    margin-top: 4px;
+    display: none;
   }
 
   .mobile-category-entry {
-    display: inline-flex;
-    min-height: 44px;
-    padding-right: 12px;
-    padding-left: 12px;
+    display: none;
   }
 
   .mobile-game-entry {
-    display: inline-flex;
-    min-height: 44px;
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  .user-menu {
-    grid-column: 4;
+    display: none;
   }
 
   .header-search button {
@@ -2855,15 +3004,15 @@ textarea:focus-visible,
   }
 
   .hero-carousel {
-    min-height: 356px;
+    min-height: 400px;
   }
 
   .banner-copy {
-    padding: 16px 14px 166px;
+    padding: 22px 14px 80px;
   }
 
   .banner-copy strong {
-    font-size: 27px;
+    font-size: 28px;
   }
 
   .banner-copy small {
@@ -2885,16 +3034,10 @@ textarea:focus-visible,
     gap: 12px;
   }
 
-  .hero-carousel .hero-stats {
-    right: 12px;
-    left: 12px;
-    bottom: 60px;
-  }
-
   .banner-controls {
-    right: 12px;
-    bottom: 4px;
-    left: 12px;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
   }
 
   .hero-stats {

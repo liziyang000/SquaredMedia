@@ -39,6 +39,10 @@ function render_layout(array $data, string $title, string $content): string
     $nav = '<a href="' . e(path_for('home')) . '">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '">分类</a>';
     $nav .= '<a href="' . e(path_for('games')) . '">游戏</a>';
+    $drawerCategories = implode('', array_map(
+        static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category])) . '">' . e($category) . '</a>',
+        array_slice($data['categories'], 0, 12),
+    ));
 
     return '<!doctype html>
 <html lang="zh-CN">
@@ -52,12 +56,8 @@ function render_layout(array $data, string $title, string $content): string
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="' . e($data['siteName']) . ' logo"></a>
-    <button class="nav-toggle" type="button" aria-label="展开导航"><span></span><span></span><span></span></button>
+    <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer"><span></span><span></span><span></span></button>
     <nav class="site-nav">' . $nav . '</nav>
-    <div class="mobile-shortcuts">
-      <a class="mobile-category-entry" href="' . e(path_for('categories')) . '">分类</a>
-      <a class="mobile-game-entry" href="' . e(path_for('games')) . '">游戏</a>
-    </div>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="/index.php">
         <input type="hidden" name="route" value="search">
@@ -68,6 +68,17 @@ function render_layout(array $data, string $title, string $content): string
     <a class="history-link" href="' . e(path_for('history')) . '">观看记录</a>
   </div>
 </header>
+<div class="mobile-drawer-backdrop" data-mobile-nav-close hidden></div>
+<aside class="mobile-drawer" id="mobileDrawer" aria-label="移动端分类菜单" aria-hidden="true">
+  <div class="mobile-drawer-head"><strong>分类导航</strong><button class="mobile-drawer-close" type="button" data-mobile-nav-close aria-label="关闭菜单">×</button></div>
+  <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
+    <a href="' . e(path_for('home')) . '">首页</a>
+    <a href="' . e(path_for('categories')) . '">全部分类</a>
+    <a href="' . e(path_for('games')) . '">游戏</a>
+    <a href="' . e(path_for('history')) . '">观看记录</a>
+  </nav>
+  <div class="mobile-drawer-section"><span>影片分类</span><div class="mobile-drawer-cats">' . $drawerCategories . '</div></div>
+</aside>
 <main>' . $content . '</main>
 <footer class="site-footer">
   <div class="wrap footer-grid">

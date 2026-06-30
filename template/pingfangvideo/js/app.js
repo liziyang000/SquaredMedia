@@ -1,13 +1,24 @@
 (function () {
   var toggle = document.querySelector(".nav-toggle");
-  var nav = document.querySelector(".site-nav");
-  var navLinkSelector = ".site-nav a";
+  var drawer = document.querySelector(".mobile-drawer");
+  var backdrop = document.querySelector(".mobile-drawer-backdrop");
+  var navLinkSelector = ".site-nav a, .mobile-drawer a";
+  var desktopNavQuery = window.matchMedia ? window.matchMedia("(min-width: 1021px)") : null;
 
-  function setNavOpen(isOpen) {
-    if (!toggle || !nav) return;
-    nav.classList.toggle("is-open", isOpen);
+  function setNavOpen(isOpen, shouldRestoreFocus) {
+    if (!toggle || !drawer) return;
+    drawer.classList.toggle("is-open", isOpen);
+    drawer.setAttribute("aria-hidden", isOpen ? "false" : "true");
     toggle.classList.toggle("is-open", isOpen);
     toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    document.body.classList.toggle("mobile-nav-open", isOpen);
+    if (backdrop) {
+      backdrop.hidden = !isOpen;
+      backdrop.classList.toggle("is-visible", isOpen);
+    }
+    if (!isOpen && shouldRestoreFocus) {
+      toggle.focus();
+    }
   }
 
   function normalizePath(path) {
@@ -16,9 +27,8 @@
   }
 
   function markCurrentNav() {
-    if (!nav) return;
     var currentPath = normalizePath(window.location.pathname);
-    var links = nav.querySelectorAll("a");
+    var links = document.querySelectorAll(navLinkSelector);
 
     if (!links.length) return;
 
@@ -32,7 +42,7 @@
       } catch (error) {
         targetPath = normalizePath(href);
       }
-      if (!matched && targetPath === currentPath) {
+      if (targetPath === currentPath) {
         link.setAttribute("aria-current", "page");
         matched = true;
       } else {
@@ -47,9 +57,9 @@
     }
   }
 
-  if (toggle && nav) {
+  if (toggle && drawer) {
     if (!toggle.getAttribute("aria-controls")) {
-      toggle.setAttribute("aria-controls", "siteNav");
+      toggle.setAttribute("aria-controls", "mobileDrawer");
     }
     if (!toggle.hasAttribute("aria-expanded")) {
       toggle.setAttribute("aria-expanded", "false");
@@ -59,19 +69,39 @@
       var isOpen = !toggle.classList.contains("is-open");
       setNavOpen(isOpen);
       if (isOpen) {
-        var firstLink = nav.querySelector(navLinkSelector);
+        var firstLink = drawer.querySelector("a, button");
         if (firstLink) firstLink.focus();
+      }
+    });
+
+    document.querySelectorAll("[data-mobile-nav-close]").forEach(function (control) {
+      control.addEventListener("click", function () {
+        setNavOpen(false, true);
+      });
+    });
+
+    drawer.addEventListener("click", function (event) {
+      var link = event.target.closest("a");
+      if (link) {
+        setNavOpen(false);
       }
     });
   }
 
-  if (toggle && nav) {
+  if (toggle && drawer) {
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && nav.classList.contains("is-open")) {
-        setNavOpen(false);
-        toggle.focus();
+      if (event.key === "Escape" && drawer.classList.contains("is-open")) {
+        setNavOpen(false, true);
       }
     });
+
+    if (desktopNavQuery) {
+      desktopNavQuery.addEventListener("change", function (event) {
+        if (event.matches) {
+          setNavOpen(false);
+        }
+      });
+    }
   }
 
   markCurrentNav();

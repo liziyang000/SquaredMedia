@@ -1,4 +1,4 @@
-import { rmSync, mkdirSync, cpSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { rmSync, mkdirSync, cpSync, readFileSync, readdirSync, statSync, writeFileSync, chmodSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -47,6 +47,21 @@ function replaceAssetVersionPlaceholders(directory, version) {
   }
 }
 
+function normalizePackagePermissions(directory) {
+  for (const entry of readdirSync(directory)) {
+    const filePath = path.join(directory, entry);
+    const stats = statSync(filePath);
+    if (stats.isDirectory()) {
+      chmodSync(filePath, 0o755);
+      normalizePackagePermissions(filePath);
+      continue;
+    }
+    if (stats.isFile()) {
+      chmodSync(filePath, 0o644);
+    }
+  }
+}
+
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(source, packageRoot, {
@@ -59,6 +74,8 @@ cpSync(addonSource, addonPackageRoot, {
 });
 const version = assetVersion();
 replaceAssetVersionPlaceholders(packageRoot, version);
+normalizePackagePermissions(packageRoot);
+normalizePackagePermissions(addonPackageRoot);
 execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", dist, themeName], {
   env: {
     ...process.env,

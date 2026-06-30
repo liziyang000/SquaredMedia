@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
@@ -994,6 +994,8 @@ assert.match(style, /\.star-meter/);
 const logo = readFileSync(path.join(themeRoot, "images/site-logo.png"));
 assert.equal(logo.subarray(1, 4).toString("ascii"), "PNG");
 assert.deepEqual([logo.readUInt32BE(16), logo.readUInt32BE(20)], [1024, 1024]);
+const logoMode = statSync(path.join(themeRoot, "images/site-logo.png")).mode & 0o777;
+assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web server after deployment");
 
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
@@ -1004,6 +1006,9 @@ assert.match(packageScript, /startsWith\("\."\)/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionPlaceholder/);
 assert.match(packageScript, /replaceAssetVersionPlaceholders/);
+assert.match(packageScript, /normalizePackagePermissions/);
+assert.match(packageScript, /chmodSync\(filePath, 0o644\)/);
+assert.match(packageScript, /chmodSync\(filePath, 0o755\)/);
 assert.match(packageScript, /COPYFILE_DISABLE/);
 assert.match(packageScript, /--no-xattrs/);
 

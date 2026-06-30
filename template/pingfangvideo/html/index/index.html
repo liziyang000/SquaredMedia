@@ -6,14 +6,18 @@
         {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
         <a class='hero-slide{if condition="$key eq 1"} is-active{/if}' href="{:mac_url_vod_detail($vo)}" data-carousel-slide style="--banner-bg: url('{$vo.vod_pic|mac_url_img}');">
           <span class="banner-bg"></span>
-          <span class="banner-copy">
-            <em class="eyebrow">今日更新 {:mac_data_count(0,'today','vod')} 部</em>
-            <strong>{$vo.vod_name}</strong>
-            <small>{$vo.vod_content|mac_filter_html|mac_substring=86}</small>
-            <span class="banner-meta"><i>{$vo.type.type_name|mac_default='视频'}</i><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_remarks|mac_default='更新中'}</i></span>
+          <span class="banner-content">
+            <span class="banner-copy">
+              <em class="eyebrow">今日更新 {:mac_data_count(0,'today','vod')} 部</em>
+              <strong>{$vo.vod_name}</strong>
+              <small>{$vo.vod_content|mac_filter_html|mac_substring=86}</small>
+              <span class="banner-meta"><i>{$vo.type.type_name|mac_default='视频'}</i><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_remarks|mac_default='更新中'}</i></span>
+            </span>
             <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">{$vo.vod_score|mac_default='8.0'} 分</span></span>
           </span>
-          <img class="banner-poster" src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="380" height="570" decoding="async" sizes="(max-width: 760px) 34vw, 190px" {if condition="$key eq 1"}loading="eager" fetchpriority="high"{else/}loading="lazy" fetchpriority="low"{/if}>
+          <span class="banner-art">
+            <img class="banner-poster" src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="380" height="570" decoding="async" sizes="(max-width: 760px) 34vw, 190px" {if condition="$key eq 1"}loading="eager" fetchpriority="high"{else/}loading="lazy" fetchpriority="low"{/if}>
+          </span>
         </a>
         {/maccms:vod}
       </div>
@@ -34,9 +38,11 @@
       </div>
       {maccms:vod type="42,47,48,57,111" num="6" order="desc" by="hits" id="vo" key="key"}
       <a class="rank-item" href="{:mac_url_vod_detail($vo)}">
-        <span>{$key}</span>
-        <strong>{$vo.vod_name}</strong>
-        <em>{$vo.vod_remarks|mac_default='更新中'}</em>
+        <span class="rank-index">{$key}</span>
+        <span class="rank-body">
+          <strong>{$vo.vod_name}</strong>
+          <em>{$vo.vod_remarks|mac_default='更新中'}</em>
+        </span>
       </a>
       {/maccms:vod}
     </div>

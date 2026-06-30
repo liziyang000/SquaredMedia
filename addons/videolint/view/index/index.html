@@ -1,0 +1,179 @@
+{include file="public/head" seo_title="视频库质量检测" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap user-records device-panel">
+  <div class="record-toolbar">
+    <div>
+      <strong>视频库质量检测</strong>
+      <span>扫描影片数据，快速识别缺失字段、播放源异常和重复影片</span>
+    </div>
+    <form id="runForm" method="post" action="{:addon_url('videolint/index/run')}" class="tool-form">
+      <label>每批条数
+        <input type="number" name="batch_size" value="200" min="50" max="2000">
+      </label>
+      <label>最大扫描数量（0=全部）
+        <input type="number" name="max_items_per_scan" value="0" min="0" step="1">
+      </label>
+      <label>封面可达性检测
+        <select name="check_cover_head">
+          <option value="0">关闭（推荐）</option>
+          <option value="1">开启</option>
+        </select>
+      </label>
+      <label>超时
+        <input type="number" name="cover_head_timeout" value="3" min="1" max="10">
+      </label>
+      <label>重复检测上限
+        <input type="number" name="duplicate_group_limit" value="200" min="1" max="2000">
+      </label>
+      <button class="primary-btn" type="submit">开始扫描</button>
+    </form>
+  </div>
+
+  <div class="favorite-list">
+    <article class="device-card">
+      <h2 class="record-title">扫描历史</h2>
+      <div class="device-meta">
+        <span>最近扫描：{:date('Y-m-d H:i', intval($scan['finished_at'] ?? $scan['started_at'] ?? 0))}</span>
+        <span>总量：{:intval($scan['total_videos'] ?? 0)}</span>
+        <span>已扫：{:intval($scan['scanned_videos'] ?? 0)}</span>
+        <span>问题：{:intval($scan['issue_count'] ?? 0)}</span>
+        <span>状态：{$scan['status']|mac_default='未运行'}</span>
+      </div>
+    </article>
+  </div>
+
+  <div class="device-meta">
+    <span>严重：{:$issue_stats['critical']}</span>
+    <span>警告：{:$issue_stats['warning']}</span>
+    <span>提醒：{:$issue_stats['info']}</span>
+  </div>
+
+  <div class="system-box" style="margin-top: 12px;">
+    <form method="get" action="{:addon_url('videolint/index/index')}">
+      <input type="hidden" name="scan_id" value="{$scan_id}">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select name="level">
+          <option value="" {if condition="$level eq ''"}selected{/if}>全部</option>
+          <option value="critical" {if condition="$level eq 'critical'"}selected{/if}>严重</option>
+          <option value="warning" {if condition="$level eq 'warning'"}selected{/if}>警告</option>
+          <option value="info" {if condition="$level eq 'info'"}selected{/if}>提醒</option>
+        </select>
+        <input type="text" name="q" value="{$q}" placeholder="按影片名搜索">
+        <button class="ghost-btn" type="submit">筛选</button>
+        {if condition="$scan_id gt 0"}
+        <a class="ghost-btn" href="{:addon_url('videolint/index/export', ['scan_id'=>$scan_id,'level'=>$level])}">导出 CSV</a>
+        {/if}
+      </div>
+    </form>
+  </div>
+
+  {if condition="empty($issues)"}
+  <div class="system-box module-fallback">
+    <span class="eyebrow">检测结果</span>
+    <h1>暂无问题数据</h1>
+    <p>请先运行扫描，或切换扫描 ID 后查看。</p>
+  </div>
+  {else/}
+  <table class="user-records" style="margin-top: 12px; width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>影片</th>
+        <th>级别</th>
+        <th>字段</th>
+        <th>问题码</th>
+        <th>描述</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {volist name="issues" id="vo"}
+      <tr>
+        <td>{$vo.vod_id}</td>
+        <td>{$vo.vod_name|mac_default='-'} / {$vo.issue_id}</td>
+        <td>{$vo.issue_level}</td>
+        <td>{$vo.field_name|mac_default='-'}</td>
+        <td>{$vo.issue_code|mac_default='-'}</td>
+        <td>{$vo.message|mac_default='-'}</td>
+        <td>
+          {if condition="$vo.resolved_at eq 0"}
+          <button class="danger-btn resolve-btn" type="button" data-issue-id="{$vo.issue_id}">标记已处理</button>
+          {else/}
+          已处理
+          {/if}
+        </td>
+      </tr>
+      {/volist}
+    </tbody>
+  </table>
+  {/if}
+
+  {if condition="!empty($scan_list)"}
+  <div class="system-box">
+    <span class="eyebrow">扫描切换</span>
+    <div class="device-meta">
+      {volist name="scan_list" id="scanVo"}
+      <a class="ghost-btn" href="{:addon_url('videolint/index/index', ['scan_id'=>$scanVo.scan_id])}">
+     	  #{$scanVo.scan_id} ({$scanVo.status}) {if condition="$scanVo.status eq 'done'"}{if condition="$scanVo.finished_at gt 0"}{:date('m-d H:i', $scanVo.finished_at)}{/if}{/if}
+      </a>
+      {/volist}
+    </div>
+  </div>
+  {/if}
+</section>
+<script>
+  document.addEventListener("submit", function (event) {
+    if (!event.target.closest("#runForm")) {
+      return;
+    }
+
+    event.preventDefault();
+    var form = event.target;
+    var formData = new FormData(form);
+
+    fetch(form.getAttribute("action"), {
+      method: "POST",
+      credentials: "same-origin",
+      body: formData
+    }).then(function (response) {
+      return response.json();
+    }).then(function (data) {
+      if (data && data.code === 1) {
+        window.location.href = "{:addon_url('videolint/index/index')}";
+        return;
+      }
+      alert((data && data.msg) || "扫描失败");
+    }).catch(function () {
+      alert("网络异常，请稍后再试");
+    });
+  });
+
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest(".resolve-btn");
+    if (!button) return;
+    if (button.disabled) return;
+
+    button.disabled = true;
+    var issueId = button.getAttribute("data-issue-id");
+    var formData = new FormData();
+    formData.append("issue_id", issueId);
+
+    fetch("{:addon_url('videolint/index/resolve')}", {
+      method: "POST",
+      credentials: "same-origin",
+      body: formData
+    }).then(function (response) {
+      return response.json();
+    }).then(function (data) {
+      if (data && data.code === 1) {
+        window.location.reload();
+        return;
+      }
+      alert((data && data.msg) || "处理失败");
+      button.disabled = false;
+    }).catch(function () {
+      alert("网络异常，请稍后再试");
+      button.disabled = false;
+    });
+  });
+</script>
+{include file="public/foot" /}

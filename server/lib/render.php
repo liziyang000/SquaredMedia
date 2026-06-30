@@ -152,7 +152,6 @@ function render_hero_carousel(array $data, array $videos): string
   <div class="banner-track">' . $slides . '</div>
   <div class="hero-stats">
     <div class="stat-card"><strong>' . e($data['todayUpdated']) . '</strong><span>今日更新</span></div>
-    <div class="stat-card"><strong>' . count($data['videos']) . '</strong><span>片库内容</span></div>
     <div class="stat-card"><strong>24h</strong><span>持续维护</span></div>
   </div>
   <div class="banner-controls">

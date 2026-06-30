@@ -830,7 +830,7 @@ textarea:focus-visible,
   left: 42px;
   z-index: 3;
   display: grid;
-  max-width: 420px;
+  max-width: 300px;
   margin-top: 0;
 }
 
@@ -926,9 +926,9 @@ textarea:focus-visible,
 
 .hero-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  max-width: 560px;
+  max-width: 380px;
   margin-top: 22px;
 }
 
@@ -2590,7 +2590,7 @@ textarea:focus-visible,
   }
 
   .hero-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stat-card {

@@ -1013,7 +1013,6 @@ textarea:focus-visible,
 }
 
 .rank-item em,
-.vod-card small,
 .list-item small,
 .list-item em,
 .section-head span {
@@ -1081,6 +1080,7 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   height: 100%;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1175,14 +1175,9 @@ textarea:focus-visible,
   transform: translateY(-3px);
 }
 
-.vod-card strong,
-.vod-card small {
-  display: block;
-  min-width: 0;
-}
-
 .vod-card strong {
   display: block;
+  min-width: 0;
   overflow: visible;
   min-height: 2.7em;
   margin: 10px 2px 0;
@@ -1196,24 +1191,12 @@ textarea:focus-visible,
   white-space: normal;
 }
 
-.vod-card small {
-  overflow: hidden;
-  min-height: 1.35em;
-  margin: 4px 2px 0;
-  font-size: 13px;
-  line-height: 1.35;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
-}
-
 .card-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 2px 0;
+  margin: 12px 2px 0;
   color: var(--muted);
   font-size: 12px;
 }
@@ -2712,13 +2695,9 @@ textarea:focus-visible,
     font-size: 15px;
   }
 
-  .vod-card small {
-    font-size: 12px;
-  }
-
   .card-meta {
     gap: 5px;
-    margin-top: 8px;
+    margin-top: 10px;
   }
 
   .card-meta span {

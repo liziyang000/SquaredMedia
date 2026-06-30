@@ -725,6 +725,8 @@ assert.match(vodCardPartial, /class="vod-card"/);
 assert.match(vodCardPartial, /mac_url_vod_detail/);
 assert.match(vodCardPartial, /score-badge/);
 assert.match(vodCardPartial, /card-meta/);
+assert.doesNotMatch(vodCardPartial, /vod_actor/);
+assert.doesNotMatch(vodCardPartial, /主演待更新/);
 
 const diggPartial = readThemeFile("html/public/digg.html");
 assert.match(diggPartial, /digg-panel/);
@@ -757,7 +759,8 @@ const bannerDotActiveRule = style.match(/\.banner-dot\.is-active\s*\{[\s\S]*?\}/
 const pageHeadingRule = style.match(/\.hero-copy h1,[\s\S]*?\.player-head h1\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankListTitleRule = style.match(/\.rank-item strong,[\s\S]*?\.list-item strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardTitleRule = style.match(/\.vod-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
-const vodCardMetaRule = style.match(/\.vod-card small\s*\{\s*overflow: hidden[\s\S]*?\}/)?.[0] || "";
+const vodCardRule = style.match(/\.vod-card\s*\{[\s\S]*?\}/)?.[0] || "";
+const vodCardMetaRule = style.match(/\.card-meta\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryMainTitleRule = style.match(/\.category-main span\s*\{[\s\S]*?\}/)?.[0] || "";
 const timelineTitleRule = style.match(/\.timeline-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const episodeLinkRule = style.match(/\.episode-grid a\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -831,7 +834,6 @@ assert.match(bannerDotRule, /height: 5px/);
 assert.match(bannerDotActiveRule, /width: 26px/);
 for (const titleRule of [
   rankListTitleRule,
-  vodCardMetaRule,
   categoryMainTitleRule,
   timelineTitleRule,
   episodeLinkRule,
@@ -878,9 +880,12 @@ assert.match(style, /\.poster::after/);
 assert.match(style, /\.vod-card[\s\S]*background: var\(--surface\)/);
 assert.match(style, /\.vod-card[\s\S]*box-shadow/);
 assert.match(style, /\.vod-card[\s\S]*display: flex/);
+assert.match(vodCardRule, /min-height: 0/);
+assert.doesNotMatch(style, /\.vod-card small/);
 assert.match(vodCardTitleRule, /overflow: visible/);
 assert.match(vodCardTitleRule, /overflow-wrap: anywhere/);
 assert.doesNotMatch(vodCardTitleRule, /-webkit-line-clamp/);
+assert.match(vodCardMetaRule, /margin: 12px 2px 0/);
 assert.match(style, /\.poster[\s\S]*isolation: isolate/);
 assert.match(style, /\.brand-logo/);
 assert.match(style, /object-fit: contain/);
@@ -1301,6 +1306,8 @@ assert.doesNotMatch(preview, /renderHeaderHotSearch/);
 assert.match(preview, /url\("category", \{ sort: "hot" \}\)/);
 assert.match(preview, /score-badge/);
 assert.match(preview, /card-meta/);
+const previewCardFunction = preview.match(/function card\(video\) \{[\s\S]*?function rankItem/)?.[0] || "";
+assert.doesNotMatch(previewCardFunction, /<small>\$\{escapeHtml\(video\.actor\)\}<\/small>/);
 assert.match(preview, /detail-panel/);
 assert.match(preview, /site-logo\.png/);
 assert.doesNotMatch(preview, /brand-text/);
@@ -1364,6 +1371,8 @@ assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /banner-dots/);
 assert.match(phpRender, /score-badge/);
 assert.match(phpRender, /detail-panel/);
+const phpRenderCardsFunction = phpRender.match(/function render_cards\(array \$videos\): string[\s\S]*?function hero_slides/)?.[0] || "";
+assert.doesNotMatch(phpRenderCardsFunction, /<small>' \. e\(\$video\['actor'\]\) \. '<\/small>/);
 assert.match(phpRender, /site-logo\.png/);
 assert.doesNotMatch(phpRender, /brand-text/);
 assert.match(phpRender, /mobile-drawer/);

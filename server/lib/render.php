@@ -97,7 +97,6 @@ function render_cards(array $videos): string
         return '<a class="vod-card" href="' . e(path_for('detail', ['id' => $video['id']])) . '">
   <span class="poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy"><em class="quality-badge">' . e($video['remark']) . '</em><span class="score-badge">' . e($video['score']) . '</span></span>
   <strong>' . e($video['title']) . '</strong>
-  <small>' . e($video['actor']) . '</small>
   <span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span></span>
 </a>';
     }, $videos));

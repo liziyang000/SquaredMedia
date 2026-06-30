@@ -378,7 +378,7 @@ function render_page(array $data, string $route, array $query): string
         return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><span class="rank-index">' . ($index + 1) . '</span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em>' . e($video['remark']) . '</em></span></a>';
     }, array_slice($hot, 0, 6), array_keys(array_slice($hot, 0, 6))));
 
-    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热播榜</h2><a href="' . e(path_for('category', ['sort' => 'hot'])) . '">更多</a></div>' . $rank . '</div></div></section><section class="wrap content-section"><div class="section-head"><h2>最新上线</h2><a href="' . e(path_for('category')) . '">全部影片</a></div><div class="vod-grid">' . render_cards($data['videos']) . '</div></section>';
+    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热搜榜</h2><a href="' . e(path_for('category', ['sort' => 'hot'])) . '">更多</a></div>' . $rank . '</div></div></section><section class="wrap content-section"><div class="section-head"><h2>最新上线</h2><a href="' . e(path_for('category')) . '">全部影片</a></div><div class="vod-grid">' . render_cards($data['videos']) . '</div></section>';
 
     return render_layout($data, '首页', $content);
 }

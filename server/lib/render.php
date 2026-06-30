@@ -150,10 +150,6 @@ function render_hero_carousel(array $data, array $videos): string
 
     return '<section class="hero-carousel" data-carousel aria-label="首页热播轮播">
   <div class="banner-track">' . $slides . '</div>
-  <div class="hero-stats">
-    <div class="stat-card"><strong>' . e($data['todayUpdated']) . '</strong><span>今日更新</span></div>
-    <div class="stat-card"><strong>24h</strong><span>持续维护</span></div>
-  </div>
   <div class="banner-controls">
     <button class="banner-arrow" type="button" data-carousel-prev aria-label="上一张">‹</button>
     <div class="banner-dots" role="tablist" aria-label="轮播分页">' . $dots . '</div>

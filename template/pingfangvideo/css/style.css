@@ -580,17 +580,19 @@ textarea:focus-visible,
 }
 
 .hot-search-panel a {
-  overflow: hidden;
+  overflow: visible;
   max-width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--muted);
   font-size: 13px;
-  line-height: 1;
+  line-height: 1.25;
   padding: 7px 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .hot-search-panel a:hover {
@@ -679,7 +681,7 @@ textarea:focus-visible,
 
 .hero-carousel {
   position: relative;
-  min-height: 500px;
+  min-height: 580px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -696,7 +698,7 @@ textarea:focus-visible,
 
 .hero-slide {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 278px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 278px);
   grid-template-rows: minmax(0, 1fr);
   gap: 36px;
   align-items: stretch;
@@ -752,7 +754,7 @@ textarea:focus-visible,
   height: 100%;
   min-height: 0;
   min-width: 0;
-  padding: 44px 0 44px 42px;
+  padding: 44px 0 88px 42px;
 }
 
 .banner-copy strong {
@@ -769,14 +771,15 @@ textarea:focus-visible,
 }
 
 .banner-copy small {
-  display: -webkit-box;
-  overflow: hidden;
-  max-width: 560px;
+  display: block;
+  overflow: visible;
+  max-width: min(620px, 100%);
   color: var(--muted);
   font-size: 15px;
   line-height: 1.7;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .banner-meta,
@@ -809,29 +812,18 @@ textarea:focus-visible,
 }
 
 .banner-poster {
-  position: absolute;
-  top: 50%;
-  right: 42px;
+  position: relative;
   z-index: 2;
+  align-self: center;
+  justify-self: end;
   width: 210px;
-  height: auto;
+  height: 315px;
   aspect-ratio: 2 / 3;
+  margin-right: 42px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius);
   object-fit: cover;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
-  transform: translateY(-50%);
-}
-
-.hero-carousel .hero-stats {
-  position: absolute;
-  right: 320px;
-  bottom: 34px;
-  left: 42px;
-  z-index: 3;
-  display: grid;
-  max-width: 300px;
-  margin-top: 0;
 }
 
 .banner-controls {
@@ -915,6 +907,9 @@ textarea:focus-visible,
 .site-footer p {
   color: var(--muted);
   margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .hero-search {
@@ -971,7 +966,8 @@ textarea:focus-visible,
 
 .hero-rank {
   display: grid;
-  grid-template-rows: auto repeat(6, minmax(0, 1fr));
+  grid-template-rows: auto;
+  align-content: start;
   min-height: 500px;
   padding: 22px 26px;
   box-shadow: var(--shadow);
@@ -987,9 +983,9 @@ textarea:focus-visible,
   grid-template-columns: 28px 1fr auto;
   gap: 12px;
   align-items: center;
-  min-height: 0;
+  min-height: 56px;
   border-top: 1px solid var(--line);
-  padding: 0;
+  padding: 8px 0;
 }
 
 .rank-item span {
@@ -1004,7 +1000,7 @@ textarea:focus-visible,
 
 .rank-item strong,
 .list-item strong {
-  overflow: hidden;
+  overflow: visible;
   line-height: 1.35;
   text-overflow: clip;
   overflow-wrap: anywhere;
@@ -1143,9 +1139,12 @@ textarea:focus-visible,
   right: 10px;
   bottom: 10px;
   max-width: calc(100% - 20px);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  line-height: 1.25;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .poster .score-badge {
@@ -1202,14 +1201,17 @@ textarea:focus-visible,
 }
 
 .card-meta span {
-  overflow: hidden;
+  overflow: visible;
   max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.04);
+  line-height: 1.25;
   padding: 3px 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .page-title {
@@ -1429,7 +1431,7 @@ textarea:focus-visible,
 }
 
 .category-main span {
-  overflow: hidden;
+  overflow: visible;
   color: var(--text);
   font-size: 20px;
   font-weight: 800;
@@ -1460,14 +1462,16 @@ textarea:focus-visible,
 
 .category-children a {
   pointer-events: auto;
-  overflow: hidden;
+  overflow: visible;
   max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 999px;
   color: var(--muted);
   padding: 4px 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .category-children a:hover {
@@ -1583,7 +1587,7 @@ textarea:focus-visible,
 }
 
 .timeline-card strong {
-  overflow: hidden;
+  overflow: visible;
   line-height: 1.35;
   text-overflow: clip;
   overflow-wrap: anywhere;
@@ -1792,6 +1796,22 @@ textarea:focus-visible,
   margin: 4px 0 0;
 }
 
+.banner-meta i,
+.system-box p,
+.comment-item p,
+.plot-item p,
+.detail-data dd,
+.list-item small,
+.list-item em,
+.record-progress,
+.record-meta,
+.device-meta,
+.favorite-empty span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
 .episode-box {
   margin-bottom: 18px;
   padding: 16px;
@@ -1804,7 +1824,7 @@ textarea:focus-visible,
 }
 
 .episode-grid a {
-  overflow: hidden;
+  overflow: visible;
   border-radius: var(--radius);
   background: var(--panel-soft);
   color: var(--text);
@@ -1848,7 +1868,7 @@ textarea:focus-visible,
 
 .player-toolbar span {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--muted);
   line-height: 1.35;
   text-overflow: clip;
@@ -1914,7 +1934,7 @@ textarea:focus-visible,
 }
 
 .download-list strong {
-  overflow: hidden;
+  overflow: visible;
   color: var(--text);
   line-height: 1.35;
   text-overflow: clip;
@@ -2312,7 +2332,7 @@ textarea:focus-visible,
 }
 
 .record-title {
-  overflow: hidden;
+  overflow: visible;
   line-height: 1.35;
   text-overflow: clip;
   overflow-wrap: anywhere;
@@ -2533,7 +2553,7 @@ textarea:focus-visible,
   }
 
   .hero-carousel {
-    min-height: 430px;
+    min-height: 500px;
   }
 
   .hero-slide {
@@ -2547,7 +2567,7 @@ textarea:focus-visible,
   .banner-copy {
     align-content: end;
     max-width: none;
-    padding: 24px 18px 152px;
+    padding: 24px 18px 96px;
   }
 
   .banner-copy strong {
@@ -2562,27 +2582,23 @@ textarea:focus-visible,
   .banner-copy small {
     font-size: 14px;
     line-height: 1.5;
-    -webkit-line-clamp: 2;
+    max-width: 100%;
   }
 
   .banner-poster {
     display: none;
   }
 
-  .hero-carousel .hero-stats {
-    right: 18px;
-    bottom: 72px;
-    left: 18px;
-    max-width: none;
-  }
-
   .banner-controls {
-    right: 18px;
+    right: auto;
     bottom: 18px;
-    left: 18px;
-    justify-content: space-between;
+    left: 50%;
+    justify-content: center;
     gap: 8px;
+    width: max-content;
+    max-width: calc(100% - 36px);
     min-height: 52px;
+    transform: translateX(-50%);
   }
 
   .hero-copy h1 {
@@ -2856,14 +2872,6 @@ textarea:focus-visible,
     width: 86px;
   }
 
-  .list-item small {
-    display: -webkit-box;
-    overflow: hidden;
-    white-space: normal;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
   .list-item .card-meta {
     flex-wrap: wrap;
     gap: 6px;
@@ -3017,11 +3025,11 @@ textarea:focus-visible,
   }
 
   .hero-carousel {
-    min-height: 400px;
+    min-height: 500px;
   }
 
   .banner-copy {
-    padding: 20px 14px 148px;
+    padding: 20px 14px 90px;
   }
 
   .banner-copy strong {
@@ -3048,15 +3056,8 @@ textarea:focus-visible,
   }
 
   .banner-controls {
-    right: 12px;
-    bottom: 6px;
-    left: 12px;
-  }
-
-  .hero-carousel .hero-stats {
-    right: 12px;
-    bottom: 60px;
-    left: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
   }
 
   .hero-stats {
@@ -3079,13 +3080,15 @@ textarea:focus-visible,
 
   .stat-card strong,
   .stat-card span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
   }
 
   .card-meta {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 4px;
   }
 

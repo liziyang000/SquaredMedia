@@ -38,8 +38,13 @@
     <a href="?route=home" data-route="home">首页</a>
     <a href="?route=categories" data-route="categories">全部分类</a>
     <a href="?route=games" data-route="games">游戏</a>
-    <a href="?route=history" data-route="history">观看记录</a>
   </nav>
+  <div class="mobile-drawer-section mobile-drawer-account">
+    <span>账号</span>
+    <div class="mobile-drawer-user">
+      <a class="mobile-drawer-login" href="?route=login" data-route="login">登录</a>
+    </div>
+  </div>
   <div class="mobile-drawer-section">
     <span>影片分类</span>
     <div class="mobile-drawer-cats" id="mobileDrawerCats"></div>
@@ -272,6 +277,18 @@ function renderGamesPage() {
           <a class="primary-btn" href="${url("categories")}" data-route="categories">浏览影片库</a>
           <a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a>
         </div>
+      </div>
+    </section>`;
+}
+
+function renderLoginPage() {
+  app.innerHTML = `
+    <section class="wrap system-page">
+      <div class="system-box module-fallback">
+        <span class="eyebrow">账号</span>
+        <h1>登录入口</h1>
+        <p>正式模板会跳转到 MacCMS 登录页，本地预览仅展示入口位置。</p>
+        <div class="detail-actions"><a class="primary-btn" href="${url("history")}" data-route="history">观看记录</a><a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a></div>
       </div>
     </section>`;
 }
@@ -599,6 +616,7 @@ function render() {
   if (route === "categories") renderCategoriesPage(params.get("page"));
   else if (route === "games") renderGamesPage();
   else if (route === "history") renderHistoryPage();
+  else if (route === "login") renderLoginPage();
   else
     if (route === "category") renderCategory(params.get("name"), params.get("sort"), params.get("area"), params.get("year"), params.get("class"), params.get("page"), params.get("lang"), params.get("letter"));
   else if (route === "search") renderSearch(params.get("wd"), params.get("type"), params.get("class"));

@@ -210,13 +210,13 @@ textarea {
   right: 0;
   z-index: 1002;
   display: none;
-  width: min(84vw, 340px);
+  width: min(84vw, 330px);
   height: 100dvh;
   overflow-y: auto;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
-  background: #11161d;
+  background: linear-gradient(180deg, #11161d 0%, #0e131a 100%);
   box-shadow: -22px 0 54px rgba(0, 0, 0, 0.42);
-  padding: 18px;
+  padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
   transform: translateX(100%);
   transition: transform 0.24s ease;
   will-change: transform;
@@ -231,19 +231,19 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .mobile-drawer-head strong {
   color: var(--text);
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1.25;
 }
 
 .mobile-drawer-close {
   display: inline-grid;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   place-items: center;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -259,11 +259,27 @@ textarea {
   gap: 10px;
 }
 
+.mobile-drawer-user {
+  display: grid;
+  gap: 10px;
+}
+
 .mobile-drawer-links {
-  margin-bottom: 22px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mobile-drawer-account {
+  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 12px;
 }
 
 .mobile-drawer-links a,
+.mobile-drawer-user a,
 .mobile-drawer-cats a {
   display: flex;
   min-width: 0;
@@ -280,10 +296,37 @@ textarea {
   word-break: break-word;
 }
 
+.mobile-drawer-links a {
+  min-height: 40px;
+  justify-content: center;
+  font-size: 14px;
+  padding: 8px 6px;
+}
+
+.mobile-drawer-user {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-drawer-user a {
+  min-height: 40px;
+  justify-content: center;
+  font-size: 14px;
+  padding: 8px 10px;
+}
+
 .mobile-drawer-links a[aria-current="page"],
+.mobile-drawer-user a[aria-current="page"],
 .mobile-drawer-cats a[aria-current="page"] {
   border-color: rgba(40, 199, 167, 0.38);
   background: rgba(40, 199, 167, 0.14);
+  color: var(--accent-2);
+}
+
+.mobile-drawer-login {
+  border-color: rgba(40, 199, 167, 0.42);
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, rgba(40, 199, 167, 0.18), rgba(40, 199, 167, 0.08));
   color: var(--accent-2);
 }
 
@@ -297,6 +340,13 @@ textarea {
 
 .mobile-drawer-cats {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mobile-drawer-cats a {
+  min-height: 40px;
+  font-size: 15px;
+  padding: 8px 10px;
 }
 
 .site-nav a:hover,
@@ -304,6 +354,7 @@ textarea {
 .mobile-category-entry:hover,
 .mobile-game-entry:hover,
 .mobile-drawer-links a:hover,
+.mobile-drawer-user a:hover,
 .mobile-drawer-cats a:hover,
 .quick-types a:hover,
 .filter-bar a:hover,
@@ -347,6 +398,7 @@ textarea:focus-visible,
 .mobile-game-entry:focus-visible,
 .mobile-drawer-close:focus-visible,
 .mobile-drawer-links a:focus-visible,
+.mobile-drawer-user a:focus-visible,
 .mobile-drawer-cats a:focus-visible,
 .nav-toggle:focus-visible,
 .user-avatar:focus-visible,

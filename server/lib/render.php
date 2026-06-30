@@ -75,8 +75,8 @@ function render_layout(array $data, string $title, string $content): string
     <a href="' . e(path_for('home')) . '">首页</a>
     <a href="' . e(path_for('categories')) . '">全部分类</a>
     <a href="' . e(path_for('games')) . '">游戏</a>
-    <a href="' . e(path_for('history')) . '">观看记录</a>
   </nav>
+  <div class="mobile-drawer-section mobile-drawer-account"><span>账号</span><div class="mobile-drawer-user"><a class="mobile-drawer-login" href="' . e(path_for('login')) . '">登录</a></div></div>
   <div class="mobile-drawer-section"><span>影片分类</span><div class="mobile-drawer-cats">' . $drawerCategories . '</div></div>
 </aside>
 <main>' . $content . '</main>

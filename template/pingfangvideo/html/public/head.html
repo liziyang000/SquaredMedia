@@ -57,9 +57,23 @@
     <a href="{$maccms.path}">首页</a>
     <a href="{:mac_url('label/categories')}">全部分类</a>
     <a href="{:mac_url('website/index')}">游戏</a>
-    <a href="{:mac_url('user/favs')}">收藏</a>
-    <a href="{:mac_url('user/plays')}">播放记录</a>
   </nav>
+  <div class="mobile-drawer-section mobile-drawer-account">
+    <span>账号</span>
+    {if condition="$user.user_id gt 0"}
+    <div class="mobile-drawer-user">
+      <a href="{:mac_url('user/index')}">用户中心</a>
+      <a href="{:mac_url('user/favs')}">我的收藏</a>
+      <a href="{:mac_url('user/plays')}">播放记录</a>
+      <a href="{:url('pingfangdevice/index')}">登录设备</a>
+      <a href="{:url('pingfangdevice/logout')}">退出登录</a>
+    </div>
+    {else/}
+    <div class="mobile-drawer-user">
+      <a class="mobile-drawer-login" href="{:mac_url('user/login')}">登录</a>
+    </div>
+    {/if}
+  </div>
   <div class="mobile-drawer-section">
     <span>影片分类</span>
     <div class="mobile-drawer-cats">

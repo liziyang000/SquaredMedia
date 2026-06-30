@@ -682,6 +682,7 @@ textarea:focus-visible,
 .hero-carousel {
   position: relative;
   isolation: isolate;
+  display: grid;
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -692,7 +693,9 @@ textarea:focus-visible,
 
 .banner-track {
   position: relative;
-  min-height: 0;
+  display: grid;
+  grid-area: 1 / 1;
+  min-height: 100%;
 }
 
 .banner-bg {
@@ -704,12 +707,13 @@ textarea:focus-visible,
   position: absolute;
   inset: 0;
   display: grid;
+  grid-area: 1 / 1;
   grid-template-columns: minmax(0, 0.9fr) minmax(220px, 304px);
   grid-template-areas: "content art";
   align-items: center;
   gap: 38px;
-  min-height: clamp(430px, 31vw, 520px);
-  padding: 42px 48px 78px;
+  min-height: clamp(410px, 28vw, 480px);
+  padding: 38px 46px 56px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.38s ease;
@@ -750,7 +754,7 @@ textarea:focus-visible,
   position: absolute;
   inset: 0;
   content: "";
-  background: linear-gradient(180deg, rgba(16, 17, 19, 0.05), rgba(16, 17, 19, 0.76));
+  background: linear-gradient(180deg, rgba(16, 17, 19, 0.04) 0%, rgba(16, 17, 19, 0.3) 64%, rgba(16, 17, 19, 0.52) 100%);
 }
 
 .banner-content {
@@ -861,7 +865,7 @@ textarea:focus-visible,
 .banner-controls {
   position: absolute;
   right: 48px;
-  bottom: 24px;
+  bottom: 18px;
   z-index: 4;
   justify-content: center;
   gap: 8px;
@@ -2658,7 +2662,7 @@ textarea:focus-visible,
     grid-template-columns: 1fr;
     grid-template-areas: "content";
     min-height: 0;
-    padding: 22px 18px 82px;
+    padding: 22px 18px 70px;
   }
 
   .banner-bg {
@@ -2695,7 +2699,7 @@ textarea:focus-visible,
 
   .banner-controls {
     right: auto;
-    bottom: 16px;
+    bottom: 12px;
     left: 50%;
     justify-content: center;
     gap: 8px;
@@ -3148,11 +3152,11 @@ textarea:focus-visible,
   }
 
   .hero-slide {
-    padding: 18px 14px 78px;
+    padding: 18px 14px 70px;
   }
 
   .banner-content {
-    min-height: 318px;
+    min-height: 300px;
   }
 
   .banner-copy strong {

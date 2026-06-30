@@ -12,7 +12,7 @@
     <a class="brand" href="{$maccms.path}" aria-label="{$maccms.site_name}">
       <img class="brand-logo" src="{$maccms.path_tpl}images/site-logo.png" alt="{$maccms.site_name} logo" width="136" height="58" decoding="async">
     </a>
-    <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="siteNav">
+    <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer">
       <span></span><span></span><span></span>
     </button>
     <nav class="site-nav" id="siteNav" aria-label="主导航">
@@ -21,10 +21,6 @@
       <a href="{:mac_url('website/index')}">游戏</a>
       <a href="{:mac_url('user/favs')}">收藏</a>
     </nav>
-    <div class="mobile-shortcuts">
-      <a class="mobile-category-entry" href="{:mac_url('label/categories')}">分类</a>
-      <a class="mobile-game-entry" href="{:mac_url('website/index')}">游戏</a>
-    </div>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="{:mac_url('vod/search')}">
         <label class="sr-only" for="globalSearch">站内搜索</label>
@@ -51,4 +47,26 @@
     </div>
   </div>
 </header>
+<div class="mobile-drawer-backdrop" data-mobile-nav-close hidden></div>
+<aside class="mobile-drawer" id="mobileDrawer" aria-label="移动端分类菜单" aria-hidden="true">
+  <div class="mobile-drawer-head">
+    <strong>分类导航</strong>
+    <button class="mobile-drawer-close" type="button" data-mobile-nav-close aria-label="关闭菜单">×</button>
+  </div>
+  <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
+    <a href="{$maccms.path}">首页</a>
+    <a href="{:mac_url('label/categories')}">全部分类</a>
+    <a href="{:mac_url('website/index')}">游戏</a>
+    <a href="{:mac_url('user/favs')}">收藏</a>
+    <a href="{:mac_url('user/plays')}">播放记录</a>
+  </nav>
+  <div class="mobile-drawer-section">
+    <span>影片分类</span>
+    <div class="mobile-drawer-cats">
+      {maccms:type ids="parent" order="asc" by="sort" num="12" id="type"}
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
+      {/maccms:type}
+    </div>
+  </div>
+</aside>
 <main>

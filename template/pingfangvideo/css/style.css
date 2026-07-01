@@ -128,13 +128,17 @@ textarea {
 
 .brand {
   gap: 10px;
+  width: 58px;
+  height: 58px;
+  align-items: center;
+  justify-content: center;
   font-weight: 800;
 }
 
 .brand-logo {
-  width: 136px;
+  width: 58px;
   height: 58px;
-  flex: 0 0 136px;
+  flex: 0 0 58px;
   border-radius: 10px;
   object-fit: contain;
   filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 1px rgba(255, 124, 72, 0.42));
@@ -142,9 +146,9 @@ textarea {
 }
 
 .site-header .brand img {
-  width: 136px;
+  width: 58px;
   height: 58px;
-  max-width: 156px;
+  max-width: 58px;
   object-fit: contain;
 }
 
@@ -1300,7 +1304,7 @@ textarea:focus-visible,
   grid-column: 1 / -1;
   display: block;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   background: var(--panel-soft);
@@ -2981,17 +2985,21 @@ textarea:focus-visible,
     grid-column: 2;
     grid-row: 1;
     justify-self: end;
+    width: 56px;
+    height: 56px;
     min-width: 0;
   }
 
   .site-header .brand img {
-    width: 72px;
-    height: 40px;
-    max-width: 72px;
+    width: 56px;
+    height: 56px;
+    max-width: 56px;
   }
 
   .brand-logo {
-    flex: 0 0 72px;
+    width: 56px;
+    height: 56px;
+    flex: 0 0 56px;
     border-radius: 8px;
   }
 
@@ -3585,13 +3593,21 @@ textarea:focus-visible,
   }
 
   .site-header .brand img {
-    width: 52px;
-    height: 34px;
-    max-width: 52px;
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
   }
 
   .brand-logo {
-    flex-basis: 52px;
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+    flex: 0 0 48px;
+  }
+
+  .site-header .brand {
+    width: 48px;
+    height: 48px;
   }
 
   .nav-toggle {

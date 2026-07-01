@@ -403,18 +403,17 @@ function render_page(array $data, string $route, array $query): string
     }, $rankVideos, array_keys($rankVideos)));
 
     $preferredTabs = ['电影', '剧集', '电视剧', '综艺', '动漫', '纪录', '纪录片', '直播'];
-    $tabLinks = '<nav class="home-shelf-tabs" aria-label="热播分类"><a class="is-active" href="' . e(path_for('category', ['sort' => 'hot'])) . '">推荐</a>';
+    $tabLinks = '<nav class="home-shelf-tabs" aria-label="最新分类"><a class="is-active" href="' . e(path_for('category', ['sort' => 'latest'])) . '">推荐</a>';
     foreach ($preferredTabs as $category) {
         if (in_array($category, $data['categories'], true)) {
-            $tabLinks .= '<a href="' . e(path_for('category', ['name' => $category])) . '">' . e($category) . '</a>';
+            $tabLinks .= '<a href="' . e(path_for('category', ['name' => $category, 'sort' => 'latest'])) . '">' . e($category) . '</a>';
         }
     }
-    $tabLinks .= '</nav><a class="home-shelf-more" href="' . e(path_for('category', ['sort' => 'hot'])) . '">全部</a>';
+    $tabLinks .= '</nav>';
 
     $latestVideos = sort_videos($data['videos'], 'latest');
-    $hotShelf = render_home_shelf('home-shelf-hot', '正在热播', $tabLinks, array_slice($hot, 0, 6), true);
-    $latestShelf = render_home_shelf('home-shelf-latest', '最新上线', '<a class="home-shelf-more" href="' . e(path_for('category')) . '">全部影片</a>', array_slice($latestVideos, 0, 6));
-    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热搜榜</h2><a class="rank-refresh" href="' . e(path_for('category', ['sort' => 'hot'])) . '">换一换</a></div>' . $rank . '</div></div></section>' . $hotShelf . $latestShelf;
+    $latestShelf = render_home_shelf('home-shelf-latest', '最新上线', $tabLinks . '<a class="home-shelf-more" href="' . e(path_for('category')) . '">全部影片</a>', array_slice($latestVideos, 0, 6));
+    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热搜榜</h2><a class="rank-refresh" href="' . e(path_for('category', ['sort' => 'hot'])) . '">换一换</a></div>' . $rank . '</div></div></section>' . $latestShelf;
 
     return render_layout($data, '首页', $content);
 }

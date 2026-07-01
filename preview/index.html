@@ -159,9 +159,9 @@ function homeShelfTabs() {
   const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
   const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
   return `
-    <nav class="home-shelf-tabs" aria-label="热播分类">
-      <a class="is-active" href="${url("category", { sort: "hot" })}" data-route="category">推荐</a>
-      ${categories.map((category) => `<a href="${url("category", { name: category })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
+    <nav class="home-shelf-tabs" aria-label="最新分类">
+      <a class="is-active" href="${url("category", { sort: "latest" })}" data-route="category">推荐</a>
+      ${categories.map((category) => `<a href="${url("category", { name: category, sort: "latest" })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
     </nav>`;
 }
 
@@ -402,17 +402,10 @@ function renderHome() {
         </div>
       </div>
     </section>
-    <section class="wrap home-shelf home-shelf-hot">
-      <div class="home-shelf-head">
-        <h2>正在热播</h2>
-        ${homeShelfTabs()}
-        <a class="home-shelf-more" href="${url("category", { sort: "hot" })}" data-route="category">全部</a>
-      </div>
-      <div class="home-shelf-rail">${hot.slice(0, 6).map((video) => homeShelfCard(video, true)).join("")}</div>
-    </section>
     <section class="wrap home-shelf home-shelf-latest">
       <div class="home-shelf-head">
         <h2>最新上线</h2>
+        ${homeShelfTabs()}
         <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
       </div>
       <div class="home-shelf-rail">${latest.slice(0, 6).map((video) => homeShelfCard(video)).join("")}</div>

@@ -134,28 +134,28 @@ function render_hero_carousel(array $data, array $videos): string
     foreach ($banners as $index => $video) {
         $active = $index === 0 ? ' is-active' : '';
         $slideNo = $index + 1;
-        $slides .= '<a class="hero-slide' . $active . '" href="' . e(path_for('detail', ['id' => $video['id']])) . '" data-carousel-slide style="--banner-bg: url(\'' . e($video['poster']) . '\');">
-  <span class="banner-bg"></span>
+        $backdrop = $video['backdrop'] ?? $video['poster'];
+        $duration = $video['duration'] ?? '时长待定';
+        $version = $video['version'] ?? ($video['remark'] ?? '高清');
+        $slides .= '<article class="hero-slide' . $active . '" data-carousel-slide>
+  <span class="banner-bg" style="--banner-bg: url(\'' . e($backdrop) . '\');"></span>
   <span class="banner-content">
     <span class="banner-copy">
-      <em class="eyebrow">今日更新 ' . e($data['todayUpdated']) . ' 部</em>
+      <em class="eyebrow">热播推荐</em>
       <strong>' . e($video['title']) . '</strong>
+      <span class="banner-meta"><i>' . e($video['year']) . '</i><i>' . e($video['class'] ?? $video['category']) . '</i><i>' . e($duration) . '</i><i>' . e($version) . '</i></span>
       <small>' . e($video['summary']) . '</small>
-      <span class="banner-meta"><i>' . e($video['category']) . '</i><i>' . e($video['year']) . '</i><i>' . e($video['remark']) . '</i></span>
     </span>
-    <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">' . e($video['score']) . ' 分</span></span>
+    <span class="banner-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">详情介绍</a></span>
   </span>
-  <span class="banner-art"><img class="banner-poster" src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy"></span>
-</a>';
+ </article>';
         $dots .= '<button class="banner-dot' . $active . '" type="button" data-carousel-dot aria-label="第' . $slideNo . '张"></button>';
     }
 
     return '<section class="hero-carousel" data-carousel aria-label="首页热播轮播">
   <div class="banner-track">' . $slides . '</div>
   <div class="banner-controls">
-    <button class="banner-arrow" type="button" data-carousel-prev aria-label="上一张">‹</button>
     <div class="banner-dots" role="tablist" aria-label="轮播分页">' . $dots . '</div>
-    <button class="banner-arrow" type="button" data-carousel-next aria-label="下一张">›</button>
   </div>
 </section>';
 }
@@ -374,11 +374,12 @@ function render_page(array $data, string $route, array $query): string
 
     $hot = $data['videos'];
     usort($hot, static fn (array $a, array $b): int => $b['hits'] <=> $a['hits']);
+    $rankVideos = array_slice($hot, 0, 5);
     $rank = implode('', array_map(static function (array $video, int $index): string {
-        return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><span class="rank-index">' . ($index + 1) . '</span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em>' . e($video['remark']) . '</em></span></a>';
-    }, array_slice($hot, 0, 6), array_keys(array_slice($hot, 0, 6))));
+        return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><span class="rank-thumb"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="112" height="84" loading="lazy" decoding="async" sizes="72px"><span class="rank-index">' . ($index + 1) . '</span></span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em class="rank-meta">' . e($video['year']) . ' · ' . e($video['class'] ?? $video['category']) . '</em></span><span class="rank-score">' . e($video['score']) . '</span></a>';
+    }, $rankVideos, array_keys($rankVideos)));
 
-    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热搜榜</h2><a href="' . e(path_for('category', ['sort' => 'hot'])) . '">更多</a></div>' . $rank . '</div></div></section><section class="wrap content-section"><div class="section-head"><h2>最新上线</h2><a href="' . e(path_for('category')) . '">全部影片</a></div><div class="vod-grid">' . render_cards($data['videos']) . '</div></section>';
+    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热搜榜</h2><a class="rank-refresh" href="' . e(path_for('category', ['sort' => 'hot'])) . '">换一换</a></div>' . $rank . '</div></div></section><section class="wrap content-section"><div class="section-head"><h2>最新上线</h2><a href="' . e(path_for('category')) . '">全部影片</a></div><div class="vod-grid">' . render_cards($data['videos']) . '</div></section>';
 
     return render_layout($data, '首页', $content);
 }

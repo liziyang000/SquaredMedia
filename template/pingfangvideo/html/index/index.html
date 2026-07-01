@@ -4,45 +4,47 @@
     <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
       <div class="banner-track">
         {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
-        <a class='hero-slide{if condition="$key eq 1"} is-active{/if}' href="{:mac_url_vod_detail($vo)}" data-carousel-slide style="--banner-bg: url('{$vo.vod_pic|mac_url_img}');">
-          <span class="banner-bg"></span>
+        <article class='hero-slide{if condition="$key eq 1"} is-active{/if}' data-carousel-slide>
+          <span class="banner-bg" style="--banner-bg: url('{if condition="$vo.vod_pic_slide neq ''"}{$vo.vod_pic_slide|mac_url_img}{else/}{$vo.vod_pic|mac_url_img}{/if}');"></span>
           <span class="banner-content">
             <span class="banner-copy">
-              <em class="eyebrow">今日更新 {:mac_data_count(0,'today','vod')} 部</em>
+              <em class="eyebrow">热播推荐 · 今日更新 {:mac_data_count(0,'today','vod')} 部</em>
               <strong>{$vo.vod_name}</strong>
-              <small>{$vo.vod_content|mac_filter_html|mac_substring=86}</small>
-              <span class="banner-meta"><i>{$vo.type.type_name|mac_default='视频'}</i><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_remarks|mac_default='更新中'}</i></span>
+              <span class="banner-meta"><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_class|mac_default='类型待定'}</i><i>{$vo.vod_duration|mac_default='时长待定'}</i><i>{$vo.vod_version|mac_default='高清'}</i></span>
+              <small>{$vo.vod_content|mac_filter_html|mac_substring=92}</small>
             </span>
-            <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">{$vo.vod_score|mac_default='8.0'} 分</span></span>
+            <span class="banner-actions">
+              <a class="primary-btn" href="{:mac_url_vod_play($vo)}">立即播放</a>
+              <a class="ghost-btn" href="{:mac_url_vod_detail($vo)}">详情介绍</a>
+            </span>
           </span>
-          <span class="banner-art">
-            <img class="banner-poster" src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="380" height="570" decoding="async" sizes="(max-width: 760px) 34vw, 190px" {if condition="$key eq 1"}loading="eager" fetchpriority="high"{else/}loading="lazy" fetchpriority="low"{/if}>
-          </span>
-        </a>
+        </article>
         {/maccms:vod}
       </div>
       <div class="banner-controls">
-        <button class="banner-arrow" type="button" data-carousel-prev aria-label="上一张">‹</button>
         <div class="banner-dots" role="tablist" aria-label="轮播分页">
           {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
           <button class='banner-dot{if condition="$key eq 1"} is-active{/if}' type="button" data-carousel-dot aria-label="第{$key}张"></button>
           {/maccms:vod}
         </div>
-        <button class="banner-arrow" type="button" data-carousel-next aria-label="下一张">›</button>
       </div>
     </section>
     <div class="hero-rank">
       <div class="section-head compact">
         <h2>热搜榜</h2>
-        <a href="{:mac_url('label/hot')}">更多</a>
+        <a class="rank-refresh" href="{:mac_url('label/hot')}">换一换</a>
       </div>
-      {maccms:vod type="42,47,48,57,111" num="6" order="desc" by="hits" id="vo" key="key"}
+      {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
       <a class="rank-item" href="{:mac_url_vod_detail($vo)}">
-        <span class="rank-index">{$key}</span>
+        <span class="rank-thumb">
+          <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
+          <span class="rank-index">{$key}</span>
+        </span>
         <span class="rank-body">
           <strong>{$vo.vod_name}</strong>
-          <em>{$vo.vod_remarks|mac_default='更新中'}</em>
+          <em class="rank-meta">{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</em>
         </span>
+        <span class="rank-score">{$vo.vod_score|mac_default='8.0'}</span>
       </a>
       {/maccms:vod}
     </div>

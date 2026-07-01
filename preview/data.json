@@ -27,6 +27,9 @@
       "score": 8.8,
       "updated": "2026-06-15",
       "poster": "https://picsum.photos/seed/pfv1/360/540",
+      "backdrop": "https://picsum.photos/seed/pfv1wide/1280/720",
+      "duration": "2小时08分",
+      "version": "4K",
       "summary": "一名工程师在城市云端系统中发现异常回声，由此追踪到一段被隐藏的记忆。",
       "episodes": [
         { "no": 1, "name": "正片", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
@@ -48,6 +51,9 @@
       "score": 8.5,
       "updated": "2026-06-14",
       "poster": "https://picsum.photos/seed/pfv2/360/540",
+      "backdrop": "https://picsum.photos/seed/pfv2wide/1280/720",
+      "duration": "45分钟",
+      "version": "HDR",
       "summary": "一条跨海航线串起数个家庭的秘密，所有线索都指向十年前的一次失联。",
       "episodes": [
         { "no": 1, "name": "第1集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
@@ -71,6 +77,9 @@
       "score": 8.2,
       "updated": "2026-06-13",
       "poster": "https://picsum.photos/seed/pfv3/360/540",
+      "backdrop": "https://picsum.photos/seed/pfv3wide/1280/720",
+      "duration": "46分钟",
+      "version": "高清",
       "summary": "老街改造前夕，几代人的关系与选择在南城重新交汇。",
       "episodes": [
         { "no": 1, "name": "第1集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
@@ -93,6 +102,9 @@
       "score": 7.9,
       "updated": "2026-06-12",
       "poster": "https://picsum.photos/seed/pfv4/360/540",
+      "backdrop": "https://picsum.photos/seed/pfv4wide/1280/720",
+      "duration": "1小时52分",
+      "version": "蓝光",
       "summary": "档案管理员在午夜发现一份不存在的卷宗，卷宗内容正在现实中逐步发生。",
       "episodes": [
         { "no": 1, "name": "正片", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" }
@@ -114,6 +126,9 @@
       "score": 9.1,
       "updated": "2026-06-11",
       "poster": "https://picsum.photos/seed/pfv5/360/540",
+      "backdrop": "https://picsum.photos/seed/pfv5wide/1280/720",
+      "duration": "52分钟",
+      "version": "4K",
       "summary": "跟拍三组科考队进入远山，记录生态修复和人类迁徙之间的真实关系。",
       "episodes": [
         { "no": 1, "name": "上集", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },
@@ -136,6 +151,9 @@
       "score": 8.0,
       "updated": "2026-06-10",
       "poster": "https://picsum.photos/seed/pfv6/360/540",
+      "backdrop": "https://picsum.photos/seed/pfv6wide/1280/720",
+      "duration": "68分钟",
+      "version": "高清",
       "summary": "以城市文化为主题的棚内外混合综艺，每期用一个频道探索一座城市。",
       "episodes": [
         { "no": 1, "name": "第1期", "src": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" },

@@ -158,32 +158,39 @@ function card(video) {
 function rankItem(video, index) {
   return `
     <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail">
-      <span class="rank-index">${index + 1}</span>
+      <span class="rank-thumb">
+        <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
+        <span class="rank-index">${index + 1}</span>
+      </span>
       <span class="rank-body">
         <strong>${escapeHtml(video.title)}</strong>
-        <em>${escapeHtml(video.remark)}</em>
+        <em class="rank-meta">${escapeHtml(video.year)} · ${escapeHtml(video.class || video.category)}</em>
       </span>
+      <span class="rank-score">${escapeHtml(video.score)}</span>
     </a>`;
 }
 
 function bannerSlide(video, index) {
   const active = index === 0 ? " is-active" : "";
+  const backdrop = video.backdrop || video.poster;
+  const duration = video.duration || "时长待定";
+  const version = video.version || video.remark || "高清";
   return `
-    <a class="hero-slide${active}" href="${url("detail", { id: video.id })}" data-route="detail" data-carousel-slide style="--banner-bg: url('${escapeHtml(video.poster)}');">
-      <span class="banner-bg"></span>
+    <article class="hero-slide${active}" data-carousel-slide>
+      <span class="banner-bg" style="--banner-bg: url('${escapeHtml(backdrop)}');"></span>
       <span class="banner-content">
         <span class="banner-copy">
-          <em class="eyebrow">今日更新 ${store.todayUpdated} 部</em>
+          <em class="eyebrow">热播推荐</em>
           <strong>${escapeHtml(video.title)}</strong>
+          <span class="banner-meta"><i>${escapeHtml(video.year)}</i><i>${escapeHtml(video.class || video.category)}</i><i>${escapeHtml(duration)}</i><i>${escapeHtml(version)}</i></span>
           <small>${escapeHtml(video.summary)}</small>
-          <span class="banner-meta"><i>${escapeHtml(video.category)}</i><i>${escapeHtml(video.year)}</i><i>${escapeHtml(video.remark)}</i></span>
         </span>
-        <span class="banner-actions"><span class="primary-btn">查看详情</span><span class="ghost-btn">${escapeHtml(video.score)} 分</span></span>
+        <span class="banner-actions">
+          <a class="primary-btn" href="${url("play", { id: video.id, episode: 1 })}" data-route="play">立即播放</a>
+          <a class="ghost-btn" href="${url("detail", { id: video.id })}" data-route="detail">详情介绍</a>
+        </span>
       </span>
-      <span class="banner-art">
-        <img class="banner-poster" src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="380" height="570" sizes="(max-width: 760px) 34vw, 190px">
-      </span>
-    </a>`;
+    </article>`;
 }
 
 function renderNav() {
@@ -341,7 +348,7 @@ function renderHistoryPage() {
 
 function renderHome() {
   const latest = [...store.videos].sort((a, b) => b.updated.localeCompare(a.updated));
-  const hot = [...store.videos].sort((a, b) => b.hits - a.hits).slice(0, 6);
+  const hot = [...store.videos].sort((a, b) => b.hits - a.hits).slice(0, 5);
   const banners = hot.slice(0, 5);
   app.innerHTML = `
     <section class="hero">
@@ -351,17 +358,15 @@ function renderHome() {
             ${banners.map(bannerSlide).join("")}
           </div>
           <div class="banner-controls">
-            <button class="banner-arrow" type="button" data-carousel-prev aria-label="上一张">‹</button>
             <div class="banner-dots" role="tablist" aria-label="轮播分页">
               ${banners.map((video, index) => `<button class="banner-dot${index === 0 ? " is-active" : ""}" type="button" data-carousel-dot aria-label="第${index + 1}张"></button>`).join("")}
             </div>
-            <button class="banner-arrow" type="button" data-carousel-next aria-label="下一张">›</button>
           </div>
         </section>
         <div class="hero-rank">
           <div class="section-head compact">
             <h2>热搜榜</h2>
-            <a href="${url("category", { sort: "hot" })}">更多</a>
+            <a class="rank-refresh" href="${url("category", { sort: "hot" })}">换一换</a>
           </div>
           ${hot.map(rankItem).join("")}
         </div>

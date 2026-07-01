@@ -486,10 +486,12 @@
     ".page-title",
     ".filter-panel",
     ".content-section",
+    ".home-shelf",
     ".detail-grid",
     ".episode-box",
     ".player-shell",
     ".vod-card",
+    ".home-shelf-card",
     ".category-tile",
     ".timeline-item",
     ".record-item",
@@ -780,7 +782,7 @@
       var reduceMotion = context.conditions.reduceMotion;
       var canHover = context.conditions.canHover;
       var carousels = scopedElements(scope, "[data-carousel]");
-      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .vod-card, " + revealSelectors);
+      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .vod-card, .home-shelf-card, " + revealSelectors);
       var revealCleanup = null;
 
       if (reduceMotion) {
@@ -801,7 +803,7 @@
       var posterTargets = scopedElements(scope, ".hero-slide.is-active .banner-poster");
       var statTargets = scopedElements(scope, ".hero-carousel .stat-card");
       var rankTargets = scopedElements(scope, ".hero-rank .rank-item");
-      var cards = scopedElements(scope, ".vod-card").slice(0, 12);
+      var cards = scopedElements(scope, ".vod-card, .home-shelf-card").slice(0, 12);
 
       if (heroTargets.length) {
         setMotionWillChange(gsap, heroTargets, "transform, opacity");
@@ -862,6 +864,7 @@
 
       if (canHover) {
         bindGsapHover(scope, ".vod-card", { y: -5, scale: 1.012 }, { y: 0, scale: 1 });
+        bindGsapHover(scope, ".home-shelf-card", { y: -4, scale: 1.01 }, { y: 0, scale: 1 });
         bindGsapHover(scope, ".rank-item", { x: 4 }, { x: 0 });
         bindGsapHover(scope, ".stat-card", { y: -3 }, { y: 0 });
         bindGsapHover(scope, ".category-tile", { y: -4 }, { y: 0 });

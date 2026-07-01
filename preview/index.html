@@ -155,6 +155,35 @@ function card(video) {
     </a>`;
 }
 
+function homeShelfTabs() {
+  const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
+  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+  return `
+    <nav class="home-shelf-tabs" aria-label="热播分类">
+      <a class="is-active" href="${url("category", { sort: "hot" })}" data-route="category">推荐</a>
+      ${categories.map((category) => `<a href="${url("category", { name: category })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
+    </nav>`;
+}
+
+function homeShelfCard(video, featured = false) {
+  const image = video.backdrop || video.poster;
+  const cardClass = featured ? "home-shelf-card is-featured" : "home-shelf-card";
+  const badge = featured ? video.category : (video.remark || "高清");
+  const meta = featured ? (video.remark || "更新中") : `${video.year} · ${video.class || video.category}`;
+  return `
+    <a class="${cardClass}" href="${url("detail", { id: video.id })}" data-route="detail">
+      <span class="home-shelf-poster">
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
+        <em>${escapeHtml(badge)}</em>
+      </span>
+      <span class="home-shelf-body">
+        <strong>${escapeHtml(video.title)}</strong>
+        <small>${escapeHtml(meta)}</small>
+      </span>
+      <span class="home-shelf-score">${escapeHtml(video.score)}</span>
+    </a>`;
+}
+
 function rankItem(video, index) {
   return `
     <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail">
@@ -348,8 +377,9 @@ function renderHistoryPage() {
 
 function renderHome() {
   const latest = [...store.videos].sort((a, b) => b.updated.localeCompare(a.updated));
-  const hot = [...store.videos].sort((a, b) => b.hits - a.hits).slice(0, 5);
+  const hot = [...store.videos].sort((a, b) => b.hits - a.hits);
   const banners = hot.slice(0, 5);
+  const rankVideos = hot.slice(0, 5);
   app.innerHTML = `
     <section class="hero">
       <div class="wrap hero-grid">
@@ -368,16 +398,24 @@ function renderHome() {
             <h2>热搜榜</h2>
             <a class="rank-refresh" href="${url("category", { sort: "hot" })}">换一换</a>
           </div>
-          ${hot.map(rankItem).join("")}
+          ${rankVideos.map(rankItem).join("")}
         </div>
       </div>
     </section>
-    <section class="wrap content-section">
-      <div class="section-head">
-        <h2>最新上线</h2>
-        <a href="${url("category")}">全部影片</a>
+    <section class="wrap home-shelf home-shelf-hot">
+      <div class="home-shelf-head">
+        <h2>正在热播</h2>
+        ${homeShelfTabs()}
+        <a class="home-shelf-more" href="${url("category", { sort: "hot" })}" data-route="category">全部</a>
       </div>
-      <div class="vod-grid">${latest.map(card).join("")}</div>
+      <div class="home-shelf-rail">${hot.slice(0, 6).map((video) => homeShelfCard(video, true)).join("")}</div>
+    </section>
+    <section class="wrap home-shelf home-shelf-latest">
+      <div class="home-shelf-head">
+        <h2>最新上线</h2>
+        <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
+      </div>
+      <div class="home-shelf-rail">${latest.slice(0, 6).map((video) => homeShelfCard(video)).join("")}</div>
     </section>`;
 }
 

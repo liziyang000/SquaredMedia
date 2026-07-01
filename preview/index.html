@@ -155,14 +155,18 @@ function card(video) {
     </a>`;
 }
 
-function homeShelfTabs() {
-  const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
-  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+function homeShelfTabs(tabs) {
   return `
     <nav class="home-shelf-tabs" aria-label="最新分类">
-      <a class="is-active" href="${url("category", { sort: "latest" })}" data-route="category">推荐</a>
-      ${categories.map((category) => `<a href="${url("category", { name: category, sort: "latest" })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
+      ${tabs.map((tab) => `<a href="#home-latest-${escapeHtml(tab.key)}" data-home-tab="${escapeHtml(tab.key)}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</a>`).join("")}
     </nav>`;
+}
+
+function homeShelfPanel(tab) {
+  return `
+    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="home-latest-${escapeHtml(tab.key)}"${tab.isActive ? "" : " hidden"}>
+      ${tab.videos.map((video) => homeShelfCard(video)).join("")}
+    </div>`;
 }
 
 function homeShelfCard(video, featured = false) {
@@ -376,6 +380,26 @@ function renderHistoryPage() {
 }
 
 function renderHome() {
+  const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
+  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+  const latestTabs = [
+    {
+      key: "all",
+      label: "推荐",
+      isActive: true,
+      videos: sortVideos([...store.videos], "latest").slice(0, 6),
+    }
+  ];
+
+  categories.forEach((category, index) => {
+    latestTabs.push({
+      key: `category-${index}`,
+      label: category,
+      isActive: false,
+      videos: sortVideos(filterVideos(category), "latest").slice(0, 6),
+    });
+  });
+
   const latest = [...store.videos].sort((a, b) => b.updated.localeCompare(a.updated));
   const hot = [...store.videos].sort((a, b) => b.hits - a.hits);
   const banners = hot.slice(0, 5);
@@ -405,10 +429,10 @@ function renderHome() {
     <section class="wrap home-shelf home-shelf-latest">
       <div class="home-shelf-head">
         <h2>最新上线</h2>
-        ${homeShelfTabs()}
+        ${homeShelfTabs(latestTabs)}
         <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
       </div>
-      <div class="home-shelf-rail">${latest.slice(0, 6).map((video) => homeShelfCard(video)).join("")}</div>
+      ${latestTabs.map((tab) => homeShelfPanel(tab)).join("")}
     </section>`;
 }
 
@@ -656,6 +680,7 @@ function render() {
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
+  window.PingFangVideo?.initHomeLatestTabs?.();
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initGsapMotion?.(app);
 }

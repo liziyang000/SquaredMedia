@@ -438,17 +438,95 @@
     });
   }
 
+  function resolveHomeLatestTabParam(keys) {
+    if (!keys || typeof keys !== "object") return "";
+    var current = new URL(window.location.href);
+    var queryTab = current.searchParams.get("home_tab");
+    if (queryTab && keys[queryTab]) return queryTab;
+
+    var hash = (current.hash || "").replace(/^#/, "");
+    if (hash.indexOf("home-latest-") !== 0) return "";
+    var encodedTab = hash.slice("home-latest-".length);
+    if (!encodedTab) return "";
+
+    try {
+      var decoded = decodeURIComponent(encodedTab);
+      return keys[decoded] ? decoded : "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function initHomeLatestTabs() {
+    var shelf = document.querySelector(".home-shelf-latest");
+    if (!shelf) return;
+
+    var tabNav = shelf.querySelector(".home-shelf-tabs");
+    if (!tabNav) return;
+
+    var tabLinks = Array.prototype.slice.call(tabNav.querySelectorAll("a[data-home-tab]"));
+    var panels = Array.prototype.slice.call(shelf.querySelectorAll(".home-shelf-rail[data-home-tab]"));
+    if (!tabLinks.length || !panels.length) return;
+
+    var valid = {};
+    var panelMap = {};
+    tabLinks.forEach(function (link) {
+      var key = link.getAttribute("data-home-tab");
+      if (!key) return;
+      valid[key] = true;
+    });
+
+    panels.forEach(function (panel) {
+      var key = panel.getAttribute("data-home-tab");
+      if (key) {
+        panelMap[key] = panel;
+      }
+    });
+
+    function applyTab(tabKey) {
+      var target = valid[tabKey] ? tabKey : (tabLinks[0] ? tabLinks[0].getAttribute("data-home-tab") : "");
+      if (!target) return;
+
+      tabLinks.forEach(function (link) {
+        var isActive = link.getAttribute("data-home-tab") === target;
+        link.classList.toggle("is-active", isActive);
+      });
+
+      Object.keys(panelMap).forEach(function (key) {
+        var panel = panelMap[key];
+        var isActive = key === target;
+        panel.hidden = !isActive;
+        panel.setAttribute("aria-hidden", isActive ? "false" : "true");
+      });
+
+      var current = new URL(window.location.href);
+      current.hash = "home-latest-" + encodeURIComponent(target);
+      window.history.replaceState({}, "", current.pathname + current.search + current.hash);
+    }
+
+    applyTab(resolveHomeLatestTabParam(valid));
+
+    tabNav.addEventListener("click", function (event) {
+      var link = event.target.closest("a[data-home-tab]");
+      if (!link || !tabNav.contains(link)) return;
+      event.preventDefault();
+      applyTab(link.getAttribute("data-home-tab") || "");
+    });
+  }
+
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initSearchForms = initSearchForms;
   window.PingFangVideo.clearFavoriteCache = clearFavoriteCache;
   window.PingFangVideo.initFavoriteButtons = initFavoriteButtons;
   window.PingFangVideo.initPageJumpForms = initPageJumpForms;
+  window.PingFangVideo.initHomeLatestTabs = initHomeLatestTabs;
 
   initSearchForms(document);
   showQueuedSiteNotice();
   initLoginForms(document);
   initFavoriteButtons(document);
   initPageJumpForms();
+  initHomeLatestTabs();
 
   function initRandomAvatars(root) {
     var colors = ["#ef4444", "#f97316", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];

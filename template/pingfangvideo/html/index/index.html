@@ -55,14 +55,14 @@
   <div class="home-shelf-head">
     <h2>最新上线</h2>
     <nav class="home-shelf-tabs" aria-label="最新分类">
-      <a class="is-active" href="{:mac_url('label/videos')}">推荐</a>
+      <a class="is-active" href="#home-latest-all" data-home-tab="all">推荐</a>
       {maccms:type ids="42,47,48,57,111" order="asc" by="sort" num="5" id="type"}
-      <a href="{:mac_url_type($type,['by'=>'time'],'show')}">{$type.type_name}</a>
+      <a href="#home-latest-category-{$key}" data-home-tab="category-{$key}">{$type.type_name}</a>
       {/maccms:type}
     </nav>
     <a class="home-shelf-more" href="{:mac_url('label/videos')}">全部影片</a>
   </div>
-  <div class="home-shelf-rail">
+  <div class="home-shelf-rail" data-home-tab="all" id="home-latest-all">
     {maccms:vod type="all" num="6" order="desc" by="time" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}">
       <span class="home-shelf-poster">
@@ -77,5 +77,22 @@
     </a>
     {/maccms:vod}
   </div>
+  {maccms:type ids="42,47,48,57,111" order="asc" by="sort" num="5" id="type" key="key"}
+  <div class="home-shelf-rail" data-home-tab="category-{$key}" id="home-latest-category-{$key}" hidden aria-hidden="true">
+    {maccms:vod type="{$type.type_name}" num="6" order="desc" by="time" id="vo"}
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}">
+      <span class="home-shelf-poster">
+        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
+        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+      </span>
+      <span class="home-shelf-body">
+        <strong>{$vo.vod_name}</strong>
+        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+      </span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+    </a>
+    {/maccms:vod}
+  </div>
+  {/maccms:type}
 </section>
 {include file="public/foot" /}

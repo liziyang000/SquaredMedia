@@ -372,9 +372,6 @@ function renderHome() {
         </div>
       </div>
     </section>
-    <section class="wrap quick-types">
-      ${store.categories.slice(0, 10).map((category) => `<a href="${url("category", { name: category })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
-    </section>
     <section class="wrap content-section">
       <div class="section-head">
         <h2>最新上线</h2>

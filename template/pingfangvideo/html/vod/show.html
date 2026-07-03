@@ -106,15 +106,15 @@
 <section class="wrap content-section">
   <div class="vod-grid">
     {if condition="$param.by eq 'hits'"}
-    {maccms:vod num="24" paging="yes" pageurl="vod/show" type="all" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="vod/show" type="42,47,48,57,111" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {elseif condition="$param.by eq 'score'"}
-    {maccms:vod num="24" paging="yes" pageurl="vod/show" type="all" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="score" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="vod/show" type="42,47,48,57,111" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="score" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {else}
-    {maccms:vod num="24" paging="yes" pageurl="vod/show" type="all" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="time" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="vod/show" type="42,47,48,57,111" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="time" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
     {/if}

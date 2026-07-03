@@ -77,6 +77,9 @@
   </div>
 </footer>
 <script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
+<script src="../template/pingfangvideo/js/react.production.min.js?v=18.3.1"></script>
+<script src="../template/pingfangvideo/js/react-dom.production.min.js?v=18.3.1"></script>
+<script src="../template/pingfangvideo/js/rank-react.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
@@ -155,14 +158,18 @@ function card(video) {
     </a>`;
 }
 
-function homeShelfTabs() {
-  const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
-  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+function homeShelfTabs(tabs) {
   return `
-    <nav class="home-shelf-tabs" aria-label="最新分类">
-      <a class="is-active" href="${url("category", { sort: "latest" })}" data-route="category">推荐</a>
-      ${categories.map((category) => `<a href="${url("category", { name: category, sort: "latest" })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
+    <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
+      ${tabs.map((tab) => `<button type="button" data-home-tab="${escapeHtml(tab.key)}" role="tab" aria-selected="${tab.isActive ? "true" : "false"}" aria-controls="latest-panel-${escapeHtml(tab.key)}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</button>`).join("")}
     </nav>`;
+}
+
+function homeShelfPanel(tab) {
+  return `
+    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="latest-panel-${escapeHtml(tab.key)}" role="tabpanel" aria-hidden="${tab.isActive ? "false" : "true"}"${tab.isActive ? "" : " hidden"}>
+      ${tab.videos.map((video) => homeShelfCard(video)).join("")}
+    </div>`;
 }
 
 function homeShelfCard(video, featured = false) {
@@ -171,7 +178,7 @@ function homeShelfCard(video, featured = false) {
   const badge = featured ? video.category : (video.remark || "高清");
   const meta = featured ? (video.remark || "更新中") : `${video.year} · ${video.class || video.category}`;
   return `
-    <a class="${cardClass}" href="${url("detail", { id: video.id })}" data-route="detail">
+    <a class="${cardClass}" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail">
       <span class="home-shelf-poster">
         <img src="${escapeHtml(image)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
         <em>${escapeHtml(badge)}</em>
@@ -186,7 +193,7 @@ function homeShelfCard(video, featured = false) {
 
 function rankItem(video, index) {
   return `
-    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail">
+    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail" data-rank-item data-rank-title="${escapeHtml(video.title)}" data-rank-meta="${escapeHtml(video.year)} · ${escapeHtml(video.class || video.category)}" data-rank-score="${escapeHtml(video.score)}" data-rank-pic="${escapeHtml(video.poster)}">
       <span class="rank-thumb">
         <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
         <span class="rank-index">${index + 1}</span>
@@ -376,6 +383,26 @@ function renderHistoryPage() {
 }
 
 function renderHome() {
+  const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
+  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+  const latestTabs = [
+    {
+      key: "all",
+      label: "推荐",
+      isActive: true,
+      videos: sortVideos([...store.videos], "latest").slice(0, 6),
+    }
+  ];
+
+  categories.forEach((category, index) => {
+    latestTabs.push({
+      key: `category-${index}`,
+      label: category,
+      isActive: false,
+      videos: sortVideos(filterVideos(category), "latest").slice(0, 6),
+    });
+  });
+
   const latest = [...store.videos].sort((a, b) => b.updated.localeCompare(a.updated));
   const hot = [...store.videos].sort((a, b) => b.hits - a.hits);
   const banners = hot.slice(0, 5);
@@ -393,22 +420,24 @@ function renderHome() {
             </div>
           </div>
         </section>
-        <div class="hero-rank">
+        <div class="hero-rank" data-rank-react-root data-rank-more-url="${url("category", { sort: "hot" })}">
           <div class="section-head compact">
             <h2>热搜榜</h2>
-            <a class="rank-refresh" href="${url("category", { sort: "hot" })}">换一换</a>
+            <a class="rank-refresh" href="${url("category", { sort: "hot" })}">查看更多</a>
           </div>
-          ${rankVideos.map(rankItem).join("")}
+          <div class="rank-list" data-rank-react-list>
+            ${rankVideos.map(rankItem).join("")}
+          </div>
         </div>
       </div>
     </section>
     <section class="wrap home-shelf home-shelf-latest">
       <div class="home-shelf-head">
         <h2>最新上线</h2>
-        ${homeShelfTabs()}
+        ${homeShelfTabs(latestTabs)}
         <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
       </div>
-      <div class="home-shelf-rail">${latest.slice(0, 6).map((video) => homeShelfCard(video)).join("")}</div>
+      ${latestTabs.map((tab) => homeShelfPanel(tab)).join("")}
     </section>`;
 }
 
@@ -656,6 +685,8 @@ function render() {
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
+  window.PingFangRankReact?.mountAll?.(app);
+  window.PingFangVideo?.initHomeLatestTabs?.();
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initGsapMotion?.(app);
 }

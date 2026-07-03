@@ -86,6 +86,9 @@ function render_layout(array $data, string $title, string $content): string
     <div class="footer-links"><a href="' . e(path_for('home')) . '">首页</a><a href="' . e(path_for('search')) . '">搜索</a></div>
   </div>
 </footer>
+<script src="/template/pingfangvideo/js/react.production.min.js"></script>
+<script src="/template/pingfangvideo/js/react-dom.production.min.js"></script>
+<script src="/template/pingfangvideo/js/rank-react.js"></script>
 <script src="/template/pingfangvideo/js/app.js"></script>
 </body>
 </html>';
@@ -109,7 +112,7 @@ function render_home_shelf_card(array $video, bool $featured = false): string
     $badge = $featured ? ($video['category'] ?? '热播') : ($video['remark'] ?? '高清');
     $meta = $featured ? ($video['remark'] ?? '更新中') : ((string) $video['year'] . ' · ' . (string) ($video['class'] ?? $video['category']));
 
-    return '<a class="' . e($cardClass) . '" href="' . e(path_for('detail', ['id' => $video['id']])) . '">
+    return '<a class="' . e($cardClass) . '" href="' . e(path_for('detail', ['id' => $video['id']])) . '" title="' . e($video['title']) . '">
   <span class="home-shelf-poster"><img src="' . e($image) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px"><em>' . e($badge) . '</em></span>
   <span class="home-shelf-body"><strong>' . e($video['title']) . '</strong><small>' . e($meta) . '</small></span>
   <span class="home-shelf-score">' . e($video['score']) . '</span>
@@ -124,6 +127,18 @@ function render_home_shelf(string $className, string $title, string $headExtra, 
     ));
 
     return '<section class="wrap home-shelf ' . e($className) . '"><div class="home-shelf-head"><h2>' . e($title) . '</h2>' . $headExtra . '</div><div class="home-shelf-rail">' . $cards . '</div></section>';
+}
+
+function render_home_latest_panel(string $tabKey, array $videos, bool $isActive = false): string
+{
+    $cards = implode('', array_map(
+        static fn (array $video): string => render_home_shelf_card($video),
+        $videos,
+    ));
+    $hidden = $isActive ? '' : ' hidden';
+    $aria = $isActive ? 'false' : 'true';
+
+    return '<div class="home-shelf-rail" data-home-tab="' . e($tabKey) . '" id="latest-panel-' . e($tabKey) . '" role="tabpanel" aria-hidden="' . $aria . '"' . $hidden . '>' . $cards . '</div>';
 }
 
 function render_pagination(string $route, array $params, int $currentPage, int $totalPages): string
@@ -399,21 +414,42 @@ function render_page(array $data, string $route, array $query): string
     $hot = sort_videos($data['videos'], 'hot');
     $rankVideos = array_slice($hot, 0, 5);
     $rank = implode('', array_map(static function (array $video, int $index): string {
-        return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><span class="rank-thumb"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="112" height="84" loading="lazy" decoding="async" sizes="72px"><span class="rank-index">' . ($index + 1) . '</span></span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em class="rank-meta">' . e($video['year']) . ' · ' . e($video['class'] ?? $video['category']) . '</em></span><span class="rank-score">' . e($video['score']) . '</span></a>';
+        $meta = $video['year'] . ' · ' . ($video['class'] ?? $video['category']);
+        return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '" data-rank-item data-rank-title="' . e($video['title']) . '" data-rank-meta="' . e($meta) . '" data-rank-score="' . e($video['score']) . '" data-rank-pic="' . e($video['poster']) . '"><span class="rank-thumb"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="112" height="84" loading="lazy" decoding="async" sizes="72px"><span class="rank-index">' . ($index + 1) . '</span></span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em class="rank-meta">' . e($meta) . '</em></span><span class="rank-score">' . e($video['score']) . '</span></a>';
     }, $rankVideos, array_keys($rankVideos)));
 
     $preferredTabs = ['电影', '剧集', '电视剧', '综艺', '动漫', '纪录', '纪录片', '直播'];
-    $tabLinks = '<nav class="home-shelf-tabs" aria-label="最新分类"><a class="is-active" href="' . e(path_for('category', ['sort' => 'latest'])) . '">推荐</a>';
+    $homeTabs = [
+        ['key' => 'all', 'label' => '推荐', 'videos' => array_slice(sort_videos($data['videos'], 'latest'), 0, 6)],
+    ];
+    $tabIndex = 0;
+
     foreach ($preferredTabs as $category) {
-        if (in_array($category, $data['categories'], true)) {
-            $tabLinks .= '<a href="' . e(path_for('category', ['name' => $category, 'sort' => 'latest'])) . '">' . e($category) . '</a>';
+        if (!in_array($category, $data['categories'], true)) {
+            continue;
         }
+
+        $tabIndex += 1;
+        $homeTabs[] = [
+            'key' => 'category-' . $tabIndex,
+            'label' => $category,
+            'videos' => array_slice(sort_videos(filter_videos($data, $category), 'latest'), 0, 6),
+        ];
+    }
+
+    $tabLinks = '<nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">';
+    $tabRails = '';
+    foreach ($homeTabs as $index => $tab) {
+        $active = $index === 0 ? ' class="is-active"' : '';
+        $selected = $index === 0 ? 'true' : 'false';
+        $tabLinks .= '<button type="button" data-home-tab="' . e($tab['key']) . '" role="tab" aria-selected="' . $selected . '" aria-controls="latest-panel-' . e($tab['key']) . '"' . $active . '>' . e($tab['label']) . '</button>';
+        $tabRails .= render_home_latest_panel($tab['key'], $tab['videos'], $index === 0);
     }
     $tabLinks .= '</nav>';
 
-    $latestVideos = sort_videos($data['videos'], 'latest');
-    $latestShelf = render_home_shelf('home-shelf-latest', '最新上线', $tabLinks . '<a class="home-shelf-more" href="' . e(path_for('category')) . '">全部影片</a>', array_slice($latestVideos, 0, 6));
-    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank"><div class="section-head compact"><h2>热搜榜</h2><a class="rank-refresh" href="' . e(path_for('category', ['sort' => 'hot'])) . '">换一换</a></div>' . $rank . '</div></div></section>' . $latestShelf;
+    $latestShelf = '<section class="wrap home-shelf home-shelf-latest"><div class="home-shelf-head"><h2>最新上线</h2>' . $tabLinks . '<a class="home-shelf-more" href="' . e(path_for('category')) . '">全部影片</a></div>' . $tabRails . '</section>';
+    $hotUrl = path_for('category', ['sort' => 'hot']);
+    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank" data-rank-react-root data-rank-more-url="' . e($hotUrl) . '"><div class="section-head compact"><h2>热搜榜</h2><a class="rank-refresh" href="' . e($hotUrl) . '">查看更多</a></div><div class="rank-list" data-rank-react-list>' . $rank . '</div></div></div></section>' . $latestShelf;
 
     return render_layout($data, '首页', $content);
 }

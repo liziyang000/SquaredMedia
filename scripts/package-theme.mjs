@@ -16,6 +16,7 @@ const addonArchive = path.join(dist, `${addonName}.tar.gz`);
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
 const assetVersionInputs = [
   "css/style.css",
+  "js/rank-react.js",
   "js/app.js",
 ];
 

@@ -541,6 +541,111 @@
     });
   }
 
+  var autoNextNavigating = false;
+
+  function normalizePlaybackUrl(value) {
+    var raw = String(value || "").trim();
+    if (!raw || /javascript:/i.test(raw)) return "";
+
+    try {
+      var url = new URL(raw, window.location.href);
+      url.hash = "";
+      return url.href;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function currentPlaybackUrl() {
+    try {
+      var currentUrl = new URL(window.location.href);
+      currentUrl.hash = "";
+      return currentUrl.href;
+    } catch (error) {
+      return window.location.href.split("#")[0];
+    }
+  }
+
+  function getNextPlaybackUrl() {
+    var holder = document.querySelector("[data-next-play-url]");
+    if (!holder) return "";
+
+    var nextUrl = normalizePlaybackUrl(holder.getAttribute("data-next-play-url"));
+    if (!nextUrl || nextUrl === currentPlaybackUrl()) return "";
+    return nextUrl;
+  }
+
+  function syncMacPlayerNextUrl(nextUrl) {
+    if (!nextUrl) return;
+
+    if (window.MacPlayer) {
+      window.MacPlayer.PlayLinkNext = nextUrl;
+    }
+
+    if (window.player_data) {
+      window.player_data.link_next = nextUrl;
+    }
+  }
+
+  function goToNextPlayback() {
+    var nextUrl = getNextPlaybackUrl();
+    if (!nextUrl || autoNextNavigating) return;
+
+    autoNextNavigating = true;
+    if (window.top && window.top !== window) {
+      window.top.location.href = nextUrl;
+      return;
+    }
+    window.location.href = nextUrl;
+  }
+
+  function bindAutoNextDocument(targetDocument) {
+    if (!targetDocument || targetDocument._pingfangAutoNextReady) return;
+    targetDocument._pingfangAutoNextReady = true;
+
+    targetDocument.addEventListener("ended", function (event) {
+      var media = event.target;
+      if (!media || !media.matches || !media.matches("video,audio")) return;
+      goToNextPlayback();
+    }, true);
+  }
+
+  function bindAutoNextFrame(frame) {
+    if (!frame || frame.dataset.autoNextReady === "true") return;
+    frame.dataset.autoNextReady = "true";
+
+    function bindFrameDocument() {
+      try {
+        bindAutoNextDocument(frame.contentDocument);
+      } catch (error) {}
+    }
+
+    frame.addEventListener("load", bindFrameDocument);
+    bindFrameDocument();
+  }
+
+  function bindAutoNextFrames(root) {
+    var scope = root || document;
+    scope.querySelectorAll("iframe").forEach(bindAutoNextFrame);
+  }
+
+  function initAutoNextPlayback() {
+    var nextUrl = getNextPlaybackUrl();
+    if (!nextUrl) return;
+
+    syncMacPlayerNextUrl(nextUrl);
+    bindAutoNextDocument(document);
+    bindAutoNextFrames(document);
+
+    var shell = document.querySelector(".player-shell");
+    if (shell && window.MutationObserver && !shell._pingfangAutoNextObserver) {
+      shell._pingfangAutoNextObserver = new MutationObserver(function () {
+        bindAutoNextFrames(shell);
+      });
+      shell._pingfangAutoNextObserver.observe(shell, { childList: true, subtree: true });
+    }
+  }
+
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initSearchForms = initSearchForms;
   window.PingFangVideo.initLogoutLinks = initLogoutLinks;
@@ -548,6 +653,7 @@
   window.PingFangVideo.initFavoriteButtons = initFavoriteButtons;
   window.PingFangVideo.initPageJumpForms = initPageJumpForms;
   window.PingFangVideo.initHomeLatestTabs = initHomeLatestTabs;
+  window.PingFangVideo.initAutoNextPlayback = initAutoNextPlayback;
 
   initSearchForms(document);
   showQueuedSiteNotice();
@@ -556,6 +662,7 @@
   initFavoriteButtons(document);
   initPageJumpForms();
   initHomeLatestTabs();
+  initAutoNextPlayback();
 
   function initRandomAvatars(root) {
     var colors = ["#ef4444", "#f97316", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];

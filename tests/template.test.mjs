@@ -15,6 +15,9 @@ const requiredFiles = [
   "css/style.css",
   "images/site-logo.png",
   "js/gsap.min.js",
+  "js/react.production.min.js",
+  "js/react-dom.production.min.js",
+  "js/rank-react.js",
   "js/app.js",
   "html/public/include.html",
   "html/public/head.html",
@@ -232,6 +235,8 @@ assert.match(head, /mac_url\('user\/login'\)/);
 assert.match(head, /mac_url\('user\/index'\)/);
 assert.match(head, /url\('pingfangdevice\/index'\)/);
 assert.match(head, /url\('pingfangdevice\/logout'\)/);
+assert.equal((head.match(/data-logout-link/g) || []).length, 2);
+assert.equal((head.match(/data-logout-redirect="\{:mac_url\('user\/login'\)\}"/g) || []).length, 2);
 assert.match(head, /data-avatar-random/);
 assert.match(head, /data-avatar-name="\{\$user\.user_name\|mac_default='用户'\}"/);
 assert.match(head, /class="user-avatar-letter"/);
@@ -349,7 +354,8 @@ assert.match(hotLabelPage, /\{include file="public\/foot" \/\}/);
 
 const videosLabelPage = readThemeFile("html/label/videos.html");
 assert.match(videosLabelPage, /seo_title="影片库"/);
-assert.match(videosLabelPage, /\{maccms:vod num="24" paging="yes" pageurl="label\/videos" type="all" order="desc" by="time" id="vo"\}/);
+assert.match(videosLabelPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/videos" type="${nonAdultVodTypeScope}" order="desc" by="time" id="vo"\\}`));
+assert.doesNotMatch(videosLabelPage, /\{maccms:vod[^}]*type="all"[^}]*by="time"/);
 assert.match(videosLabelPage, /include file="public\/vod_card"/);
 assert.match(videosLabelPage, /include file="public\/paging"/);
 assert.match(videosLabelPage, /\{include file="public\/foot" \/\}/);
@@ -388,6 +394,11 @@ assert.match(userPlaysPage, /record-poster/);
 assert.match(userPlaysPage, /\{\$vo\.data\.pic\|mac_url_img\}/);
 assert.match(userPlaysPage, /alt="\{\$vo\.data\.name\}"/);
 assert.match(userPlaysPage, /loading="lazy" decoding="async" width="160" height="240" sizes="76px"/);
+assert.match(userPlaysPage, /data-record-video-id="\{\$vo\.ulog_rid\}"/);
+assert.match(userPlaysPage, /data-record-id="\{\$vo\.ulog_id\}"/);
+assert.match(userPlaysPage, /collapsePlaybackRecords/);
+assert.match(userPlaysPage, /recordDeleteIds/);
+assert.match(userPlaysPage, /seenByVideo/);
 assert.match(userPlaysPage, /\{\$vo\.ulog_sid\}/);
 assert.match(userPlaysPage, /\{\$vo\.ulog_nid\}/);
 assert.match(userPlaysPage, /user\/ulog_del/);
@@ -466,8 +477,11 @@ assert.match(msgPage, /mac_url\('vod\/show'\)/);
 
 const index = readThemeFile("html/index/index.html");
 assert.match(index, /\{include file="public\/head" seo_title=/);
-assert.match(index, /\{maccms:vod type="all" num="6" order="desc" by="time" id="vo"\}/);
-assert.match(index, new RegExp(`\\{maccms:type ids="${nonAdultVodTypeScope}" order="asc" by="sort" num="5" id="type"\\}`));
+assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" order="desc" by="time" id="vo"\\}`));
+assert.doesNotMatch(index, /\{maccms:vod type="all" num="6" order="desc" by="time" id="vo"\}/);
+for (const typeId of nonAdultVodTypeScope.split(",")) {
+  assert.match(index, new RegExp(`\\{maccms:type ids="${typeId}" order="asc" by="sort" num="1" id="type"\\}`));
+}
 assert.match(index, /mac_data_count\(0,'today','vod'\)/);
 assert.doesNotMatch(index, /mac_data_count\(0,'all','vod'\)/);
 assert.doesNotMatch(index, /全站片库/);
@@ -487,34 +501,64 @@ assert.doesNotMatch(index, /data-carousel-prev/);
 assert.doesNotMatch(index, /data-carousel-next/);
 assert.match(index, /rank-index/);
 assert.match(index, /rank-thumb/);
+assert.match(index, /data-rank-react-root/);
+assert.doesNotMatch(index, /data-rank-visible-count/);
+assert.match(index, /data-rank-react-list/);
+assert.match(index, /data-rank-item/);
+assert.match(index, /\{maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"\}/);
+assert.doesNotMatch(index, /is-rank-extra/);
+assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
+assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
+assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='8\.0'\}"/);
+assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
 assert.match(index, /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/);
 assert.match(index, /rank-body/);
 assert.match(index, /rank-meta/);
 assert.match(index, /rank-score/);
+assert.match(index, /js\/react\.production\.min\.js\?v=18\.3\.1/);
+assert.match(index, /js\/react-dom\.production\.min\.js\?v=18\.3\.1/);
+assert.match(index, new RegExp(`js/rank-react\\.js\\?v=${assetVersionPlaceholder}`));
+assert.match(index, new RegExp(`js/react\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/react-dom\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/rank-react\\.js\\?v=${assetVersionPlaceholder}[\\s\\S]*\\{include file="public/foot" \\/\\}`));
+assert.doesNotMatch(index, /unpkg|jsdelivr|localhost|127\.0\.0\.1/);
 assert.match(index, /home-shelf home-shelf-latest/);
 assert.match(index, /home-shelf-tabs/);
-assert.match(index, /home-shelf-card" href="\{:\s*mac_url_vod_detail\(\$vo\)\}">/);
+assert.match(index, /home-shelf-card" href="\{:\s*mac_url_vod_detail\(\$vo\)\}" title="\{\$vo\.vod_name\}">/);
 assert.match(index, /home-shelf-poster/);
 assert.match(index, /home-shelf-score/);
 assert.match(index, /<h2>最新上线<\/h2>/);
 assert.match(index, /aria-label="最新分类"/);
 assert.match(index, /data-home-tab="all"/);
-assert.match(index, /data-home-tab="category-\{\$key\}"/);
-assert.match(index, /href="#home-latest-all"/);
-assert.match(index, /href="#home-latest-category-\{\$key\}"/);
-assert.match(index, /id="home-latest-all"/);
-assert.match(index, /id="home-latest-category-\{\$key\}"/);
-assert.match(index, /home-shelf-rail[^>]*data-home-tab="category-\{\$key\}"/);
-assert.match(index, /home-latest-category-\{\$key\}[^>]*hidden/);
+assert.match(index, /data-home-tab="category-1"/);
+assert.match(index, /data-home-tab="category-5"/);
+assert.match(index, /<button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all">推荐<\/button>/);
+assert.match(index, /<button type="button" data-home-tab="category-1" role="tab" aria-selected="false" aria-controls="latest-panel-category-1">/);
+assert.match(index, /<button type="button" data-home-tab="category-5" role="tab" aria-selected="false" aria-controls="latest-panel-category-5">/);
+assert.doesNotMatch(index, /href="#home-latest-/);
+assert.doesNotMatch(index, /id="home-latest-/);
+assert.match(index, /id="latest-panel-all"/);
+for (const [tabIndex, typeId] of [
+  ["1", "42"],
+  ["2", "47"],
+  ["3", "48"],
+  ["4", "57"],
+  ["5", "111"],
+]) {
+  assert.match(index, new RegExp(`id="latest-panel-category-${tabIndex}"[\\s\\S]*?\\{maccms:vod type="${typeId}" num="6" order="desc" by="time" id="vo"\\}`));
+}
+for (const vodTag of index.match(/\{maccms:vod[^}]+\}/g) || []) {
+  assert.doesNotMatch(vodTag, /\stype="[^"]*\{/, `${vodTag} should not use dynamic template syntax in type attribute`);
+}
 assert.doesNotMatch(index, /include file="public\/vod_card"/);
 assert.match(index, /<h2>热搜榜<\/h2>/);
-assert.match(index, /class="rank-refresh" href="\{:mac_url\('label\/hot'\)\}">换一换<\/a>/);
+assert.match(index, /class="rank-refresh" href="\{:mac_url\('label\/hot'\)\}">查看更多<\/a>/);
+assert.doesNotMatch(index, /换一换/);
 assert.match(index, /mac_url\('label\/hot'\)/);
 assert.match(index, /mac_url\('label\/videos'\)/);
 assert.doesNotMatch(index, /class="wrap quick-types"/);
 assert.doesNotMatch(index, /\{maccms:type ids="parent" order="asc" by="sort" num="10" id="type"\}/);
 assert.doesNotMatch(index, /\{maccms:type ids="parent" order="asc" by="sort" num="4" id="type"\}/);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" order="desc" by="hits"`, "g")) || []).length, 3);
+assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="12" order="desc" by="rnd"`, "g")) || []).length, 0);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" order="desc" by="hits"`, "g")) || []).length, 0);
 assert.doesNotMatch(index, /\{maccms:vod type="all"[^}]*by="hits"/);
 assert.doesNotMatch(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
@@ -730,6 +774,10 @@ assert.match(showPage, /by="hits"/);
 assert.match(showPage, /by="score"/);
 assert.match(showPage, /by="time"/);
 assert.match(showPage, /pageurl="vod\/show"/);
+for (const sortField of ["hits", "score", "time"]) {
+  assert.match(showPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="vod/show" type="${nonAdultVodTypeScope}"[\\s\\S]*order="desc" by="${sortField}" id="vo"\\}`));
+}
+assert.doesNotMatch(showPage, /\{maccms:vod[^}]*pageurl="vod\/show"[^}]*type="all"/);
 
 const searchPage = readThemeFile("html/vod/search.html");
 assert.match(searchPage, /\{maccms:vod num="20" paging="yes" pageurl="vod\/search"/);
@@ -838,15 +886,21 @@ const contentBodyWrapRule = style.match(/\.hero-copy p,[\s\S]*?\.site-footer p\s
 const homeShelfRule = style.match(/(?:^|\n)\.home-shelf\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfHeadRule = style.match(/\.home-shelf-head\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfTabsRule = style.match(/\.home-shelf-tabs\s*\{[\s\S]*?\}/)?.[0] || "";
-const homeShelfTabsActiveRule = style.match(/\.home-shelf-tabs a\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfTabsActiveRule = style.match(/\.home-shelf-tabs button\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfRailRule = style.match(/\.home-shelf-rail\s*\{[\s\S]*?\}/)?.[0] || "";
+const hiddenHomeShelfRailRule = style.match(/\.home-shelf-rail\[hidden\]\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfCardRule = style.match(/(?:^|\n)\.home-shelf-card\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfPosterRule = style.match(/\.home-shelf-poster\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfPosterImgRule = style.match(/\.home-shelf-poster img\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfPosterHoverRule = style.match(/\.home-shelf-card:hover \.home-shelf-poster\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfPosterImgHoverRule = style.match(/\.home-shelf-card:hover \.home-shelf-poster img\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfBadgeRule = style.match(/\.home-shelf-poster em\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfBodyRule = style.match(/\.home-shelf-body\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfTitleRule = style.match(/\.home-shelf-body strong\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfMetaRule = style.match(/\.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfScoreRule = style.match(/\.home-shelf-score\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfFeaturedBodyRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfFeaturedTextRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body strong,\n\.home-shelf-card\.is-featured \.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
 assert.match(rootRule, /--line-soft: rgba\(255, 255, 255, 0\.08\)/);
 assert.match(rootRule, /--line-strong: rgba\(255, 255, 255, 0\.22\)/);
 assert.match(rootRule, /--line-accent: rgba\(38, 212, 175, 0\.34\)/);
@@ -944,20 +998,57 @@ assert.match(homeShelfTabsRule, /justify-content: center/);
 assert.match(homeShelfTabsRule, /overflow-x: auto/);
 assert.match(homeShelfTabsActiveRule, /border-color: var\(--accent-2\)/);
 assert.match(homeShelfTabsActiveRule, /color: var\(--text\)/);
+assert.match(style, /\.home-shelf-tabs button\s*\{[\s\S]*appearance: none/);
+assert.match(style, /\.home-shelf-tabs button\s*\{[\s\S]*font-family: inherit/);
 assert.match(homeShelfRailRule, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
 assert.match(homeShelfRailRule, /grid-auto-flow: column/);
 assert.match(homeShelfRailRule, /overflow-x: auto/);
 assert.match(homeShelfRailRule, /scroll-snap-type: x proximity/);
+assert.match(hiddenHomeShelfRailRule, /display: none/);
 assert.match(homeShelfCardRule, /display: grid/);
 assert.match(homeShelfCardRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
-assert.match(homeShelfPosterRule, /aspect-ratio: 16 \/ 10/);
+assert.match(homeShelfCardRule, /grid-template-rows: 260px minmax\(64px, auto\) minmax\(0, 1fr\) auto/);
+assert.match(homeShelfCardRule, /row-gap: 10px/);
+assert.match(homeShelfCardRule, /padding: 10px/);
+assert.match(homeShelfCardRule, /min-height: 420px/);
+assert.match(homeShelfCardRule, /border: 1px solid var\(--line-soft\)/);
+assert.match(homeShelfCardRule, /background: linear-gradient/);
+assert.match(homeShelfCardRule, /box-shadow: 0 14px 34px rgba\(0, 0, 0, 0\.18\)/);
+assert.match(style, /\.home-shelf-card:hover\s*\{[\s\S]*border-color: var\(--line-accent\)/);
+assert.match(homeShelfPosterRule, /height: 100%/);
+assert.doesNotMatch(homeShelfPosterRule, /aspect-ratio/);
 assert.match(homeShelfPosterRule, /border: 1px solid var\(--line-soft\)/);
 assert.match(homeShelfPosterImgRule, /object-fit: cover/);
 assert.match(homeShelfBadgeRule, /white-space: normal/);
 assert.match(homeShelfBadgeRule, /overflow-wrap: anywhere/);
-assert.match(homeShelfBodyRule, /min-width: 0/);
+assert.match(homeShelfBodyRule, /display: contents/);
 assert.match(homeShelfTitleRule, /overflow-wrap: anywhere/);
+assert.match(homeShelfTitleRule, /display: -webkit-box/);
+assert.match(homeShelfTitleRule, /grid-column: 1 \/ -1/);
+assert.match(homeShelfTitleRule, /grid-row: 2/);
+assert.match(homeShelfTitleRule, /align-self: start/);
+assert.match(homeShelfTitleRule, /-webkit-line-clamp: 3/);
+assert.match(homeShelfTitleRule, /overflow: hidden/);
+assert.match(homeShelfMetaRule, /display: -webkit-box/);
+assert.match(homeShelfMetaRule, /grid-column: 1/);
+assert.match(homeShelfMetaRule, /grid-row: 4/);
+assert.match(homeShelfMetaRule, /-webkit-line-clamp: 1/);
+assert.match(homeShelfMetaRule, /overflow: hidden/);
+assert.match(homeShelfScoreRule, /grid-column: 2/);
+assert.match(homeShelfScoreRule, /grid-row: 4/);
+assert.match(homeShelfScoreRule, /height: 20px/);
+assert.match(homeShelfScoreRule, /font-size: 11px/);
+assert.match(homeShelfScoreRule, /line-height: 1/);
+assert.match(homeShelfScoreRule, /padding: 0 7px/);
 assert.match(homeShelfScoreRule, /color: var\(--accent-2\)/);
+assert.match(homeShelfScoreRule, /border: 1px solid var\(--line-accent-soft\)/);
+assert.match(homeShelfScoreRule, /background: rgba\(38, 212, 175, 0\.1\)/);
+assert.doesNotMatch(homeShelfPosterRule, /transform 0\.2s ease/);
+assert.doesNotMatch(homeShelfPosterHoverRule, /transform: translateY\(-2px\)/);
+assert.doesNotMatch(homeShelfPosterImgHoverRule, /transform: scale\(1\.04\)/);
+assert.match(homeShelfFeaturedBodyRule, /display: grid/);
+assert.match(homeShelfFeaturedTextRule, /grid-column: auto/);
+assert.match(homeShelfFeaturedTextRule, /grid-row: auto/);
 assert.match(style, /\.banner-track/);
 assert.match(style, /\.hero-slide\.is-active/);
 assert.match(style, /\.hero-carousel\[data-gsap-carousel="true"\] \.hero-slide\s*\{[\s\S]*transition: none/);
@@ -1014,7 +1105,6 @@ for (const chipRule of [
 }
 for (const titleRule of [
   rankListTitleRule,
-  homeShelfTitleRule,
   categoryMainTitleRule,
   timelineTitleRule,
   episodeLinkRule,
@@ -1238,6 +1328,7 @@ assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionPlaceholder/);
+assert.match(packageScript, /"js\/rank-react\.js"/);
 assert.match(packageScript, /replaceAssetVersionPlaceholders/);
 assert.match(packageScript, /normalizePackagePermissions/);
 assert.match(packageScript, /chmodSync\(filePath, 0o644\)/);
@@ -1449,6 +1540,9 @@ assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholder/);
 assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
+assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
+assert.match(releaseVerifier, /pingfangvideo\/js\/react-dom\.production\.min\.js/);
+assert.match(releaseVerifier, /pingfangvideo\/js\/rank-react\.js/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
 
@@ -1460,7 +1554,10 @@ assert.doesNotMatch(preview, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260621/);
 assert.match(preview, /js\/app\.js\?v=/);
 assert.match(preview, /js\/gsap\.min\.js\?v=3\.15\.0/);
-assert.match(preview, new RegExp(`js/gsap\\.min\\.js\\?v=3\\.15\\.0[\\s\\S]*js/app\\.js\\?v=${assetVersionPlaceholder}`));
+assert.match(preview, /js\/react\.production\.min\.js\?v=18\.3\.1/);
+assert.match(preview, /js\/react-dom\.production\.min\.js\?v=18\.3\.1/);
+assert.match(preview, new RegExp(`js/rank-react\\.js\\?v=${assetVersionPlaceholder}`));
+assert.match(preview, new RegExp(`js/gsap\\.min\\.js\\?v=3\\.15\\.0[\\s\\S]*js/react\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/react-dom\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/rank-react\\.js\\?v=${assetVersionPlaceholder}[\\s\\S]*js/app\\.js\\?v=${assetVersionPlaceholder}`));
 assert.doesNotMatch(preview, /js\/app\.js\?v=20260621/);
 assert.match(preview, /sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px"/);
 assert.match(preview, /class="rank-thumb"[\s\S]*sizes="72px"/);
@@ -1510,18 +1607,30 @@ assert.doesNotMatch(preview, /hero-stats/);
 assert.doesNotMatch(preview, /片库内容/);
 assert.match(preview, /hot-search-panel/);
 assert.match(preview, /热搜榜/);
+assert.match(preview, /data-rank-react-root/);
+assert.doesNotMatch(preview, /data-rank-visible-count/);
+assert.match(preview, /data-rank-react-list/);
+assert.match(preview, /data-rank-item/);
+assert.match(preview, /rankVideos = hot\.slice\(0, 5\)/);
+assert.doesNotMatch(preview, /shuffleVideos/);
+assert.doesNotMatch(preview, /is-rank-extra/);
+assert.match(preview, /class="rank-refresh" href="\$\{url\("category", \{ sort: "hot" \}\)\}">查看更多<\/a>/);
+assert.doesNotMatch(preview, /换一换/);
+assert.match(preview, /PingFangRankReact\?\.mountAll\?\.\(app\)/);
 assert.doesNotMatch(preview, /id="hotSearchPanel"/);
 assert.doesNotMatch(preview, /renderHeaderHotSearch/);
 assert.match(preview, /url\("category", \{ sort: "hot" \}\)/);
 assert.match(preview, /score-badge/);
 assert.match(preview, /card-meta/);
 assert.match(preview, /function homeShelfCard\(video, featured = false\)/);
+assert.match(preview, /title="\$\{escapeHtml\(video\.title\)\}"/);
 assert.match(preview, /function homeShelfTabs\(tabs\)/);
 assert.match(preview, /home-shelf home-shelf-latest/);
 assert.doesNotMatch(preview, /home-shelf home-shelf-hot/);
 assert.match(preview, /aria-label="最新分类"/);
-assert.match(preview, /href="#home-latest-\$\{escapeHtml\(tab\.key\)\}"/);
-assert.match(preview, /home-shelf-rail"\s+data-home-tab="\$\{escapeHtml\(tab\.key\)\}"\s+id="home-latest-\$\{escapeHtml\(tab\.key\)\}"\$\{tab\.isActive \? "" : " hidden"\}/);
+assert.match(preview, /<button type="button" data-home-tab="\$\{escapeHtml\(tab\.key\)\}" role="tab" aria-selected="\$\{tab\.isActive \? "true" : "false"\}" aria-controls="latest-panel-\$\{escapeHtml\(tab\.key\)\}"/);
+assert.doesNotMatch(preview, /href="#home-latest-/);
+assert.match(preview, /home-shelf-rail"\s+data-home-tab="\$\{escapeHtml\(tab\.key\)\}"\s+id="latest-panel-\$\{escapeHtml\(tab\.key\)\}"\s+role="tabpanel"\s+aria-hidden="\$\{tab\.isActive \? "false" : "true"\}"\$\{tab\.isActive \? "" : " hidden"\}/);
 assert.doesNotMatch(preview, /homeShelfCard\(video, true\)/);
 assert.match(preview, /latestTabs\.map\(\(tab\) => homeShelfPanel\(tab\)\)\.join\(""\)/);
 assert.doesNotMatch(preview, /<div class="vod-grid">\$\{latest\.map\(card\)\.join\(""\)\}<\/div>/);
@@ -1591,9 +1700,11 @@ assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /banner-dots/);
 assert.match(phpRender, /score-badge/);
 assert.match(phpRender, /function render_home_shelf_card\(array \$video, bool \$featured = false\): string/);
+assert.match(phpRender, /title="' \. e\(\$video\['title'\]\) \. '"/);
 assert.match(phpRender, /\$homeTabs = \[/);
 assert.match(phpRender, /\$tabRails \.= render_home_latest_panel\(\$tab\['key'\], \$tab\['videos'\], \$index === 0\)/);
-assert.match(phpRender, /\$tabLinks \.= '<a href="#home-latest-' \. e\(\$tab\['key'\]\)/);
+assert.match(phpRender, /\$tabLinks \.= '<button type="button" data-home-tab="' \. e\(\$tab\['key'\]\)/);
+assert.doesNotMatch(phpRender, /href="#home-latest-/);
 assert.match(phpRender, /\$latestShelf = '<section class="wrap home-shelf home-shelf-latest"[\s\S]*<h2>最新上线<\/h2>' \. \$tabLinks \. '<a class="home-shelf-more" href="' \. e\(path_for\('category'\)\) \. '">全部影片<\/a>/);
 assert.match(phpRender, /array_slice\(sort_videos\(filter_videos\(\$data, \$category\), 'latest'\), 0, 6\)/);
 assert.match(phpRender, /detail-panel/);
@@ -1661,7 +1772,23 @@ assert.match(phpRender, /gbook_content/);
 assert.doesNotMatch(phpRender, /array_slice\(\$data\['categories'\], 0, 6\)/);
 
 const appJs = readThemeFile("js/app.js");
+const rankReact = readThemeFile("js/rank-react.js");
 const pingfangPlayer = readThemeFile("js/pingfang-player.js");
+assert.match(rankReact, /window\.React/);
+assert.match(rankReact, /window\.ReactDOM/);
+assert.match(rankReact, /ReactDOM\.createRoot/);
+assert.match(rankReact, /data-rank-react-root/);
+assert.match(rankReact, /data-rank-item/);
+assert.match(rankReact, /href: props\.moreUrl \|\| "#"/);
+assert.match(rankReact, /"查看更多"/);
+assert.doesNotMatch(rankReact, /data-rank-refresh/);
+assert.doesNotMatch(rankReact, /data-rank-visible-count/);
+assert.doesNotMatch(rankReact, /shuffleItems/);
+assert.doesNotMatch(rankReact, /rotateItems/);
+assert.doesNotMatch(rankReact, /setOffset/);
+assert.doesNotMatch(rankReact, /换一换/);
+assert.match(rankReact, /PingFangRankReact/);
+assert.doesNotMatch(rankReact, /unpkg|jsdelivr|localhost|127\.0\.0\.1/);
 assert.match(pingfangPlayer, /window\.player_data/);
 assert.match(pingfangPlayer, /\.m3u8/);
 assert.match(pingfangPlayer, /\.mp4/);
@@ -1702,6 +1829,18 @@ assert.match(appJs, /data-page-jump/);
 assert.match(appJs, /data-page-template/);
 assert.match(appJs, /__PAGE__/);
 assert.match(appJs, /window\.location\.href = target/);
+assert.match(appJs, /button\[data-home-tab\]/);
+assert.match(appJs, /aria-selected", isActive \? "true" : "false"/);
+assert.match(appJs, /window\.history\.replaceState\(\{\}, "", window\.location\.pathname \+ window\.location\.search\)/);
+assert.doesNotMatch(appJs, /home-latest-/);
+assert.doesNotMatch(appJs, /replaceState\(\{\}, "", current\.pathname \+ current\.search \+ current\.hash\)/);
+assert.match(appJs, /function initLogoutLinks/);
+assert.match(appJs, /\[data-logout-link\]/);
+assert.match(appJs, /data-logout-redirect/);
+assert.match(appJs, /X-Requested-With": "XMLHttpRequest"/);
+assert.match(appJs, /queueSiteNotice\("已退出登录", "success"\)/);
+assert.match(appJs, /window\.PingFangVideo\.initLogoutLinks = initLogoutLinks/);
+assert.match(appJs, /initLogoutLinks\(document\)/);
 assert.match(appJs, /initGsapMotion/);
 assert.match(appJs, /window\.gsap/);
 assert.match(appJs, /gsap\.matchMedia\(\)/);
@@ -1733,6 +1872,7 @@ assert.match(appJs, /clearProps: "transform,opacity,visibility,willChange,zIndex
 assert.match(appJs, /hero-slide\.is-active \.banner-copy/);
 assert.match(appJs, /vod-card/);
 assert.match(appJs, /rank-item/);
+assert.doesNotMatch(appJs, /bindGsapHover\(scope, "\.home-shelf-card"/);
 assert.match(appJs, /bindGsapHover\(scope, "\.category-tile"/);
 assert.match(appJs, /bindGsapHover\(scope, "\.episode-grid a"/);
 assert.match(appJs, /bindGsapPressFeedback/);

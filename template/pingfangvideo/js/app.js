@@ -252,6 +252,47 @@
     });
   }
 
+  function logoutRedirect(link) {
+    return link.getAttribute("data-logout-redirect") || normalizeHomeUrl("");
+  }
+
+  function completeLogout(link) {
+    queueSiteNotice("已退出登录", "success");
+    window.location.href = logoutRedirect(link);
+  }
+
+  function initLogoutLinks(root) {
+    var scope = root || document;
+    scope.querySelectorAll("[data-logout-link]").forEach(function (link) {
+      if (link.dataset.logoutReady === "true") return;
+      link.dataset.logoutReady = "true";
+
+      link.addEventListener("click", function (event) {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+
+        var logoutUrl = link.getAttribute("href");
+        if (!logoutUrl || !window.fetch) {
+          window.location.href = logoutUrl || logoutRedirect(link);
+          return;
+        }
+
+        fetch(logoutUrl, {
+          method: "GET",
+          credentials: "same-origin",
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            "Accept": "application/json, text/html;q=0.9, */*;q=0.8"
+          }
+        }).then(function () {
+          completeLogout(link);
+        }).catch(function () {
+          window.location.href = logoutUrl;
+        });
+      });
+    });
+  }
+
   var favoritePrefix = "pingfang_favorite_";
   var pendingFavoriteButton = null;
   var pendingFavoriteTimer = null;
@@ -438,25 +479,6 @@
     });
   }
 
-  function resolveHomeLatestTabParam(keys) {
-    if (!keys || typeof keys !== "object") return "";
-    var current = new URL(window.location.href);
-    var queryTab = current.searchParams.get("home_tab");
-    if (queryTab && keys[queryTab]) return queryTab;
-
-    var hash = (current.hash || "").replace(/^#/, "");
-    if (hash.indexOf("home-latest-") !== 0) return "";
-    var encodedTab = hash.slice("home-latest-".length);
-    if (!encodedTab) return "";
-
-    try {
-      var decoded = decodeURIComponent(encodedTab);
-      return keys[decoded] ? decoded : "";
-    } catch (error) {
-      return "";
-    }
-  }
-
   function initHomeLatestTabs() {
     var shelf = document.querySelector(".home-shelf-latest");
     if (!shelf) return;
@@ -464,17 +486,21 @@
     var tabNav = shelf.querySelector(".home-shelf-tabs");
     if (!tabNav) return;
 
-    var tabLinks = Array.prototype.slice.call(tabNav.querySelectorAll("a[data-home-tab]"));
+    var tabControls = Array.prototype.slice.call(tabNav.querySelectorAll("button[data-home-tab]"));
     var panels = Array.prototype.slice.call(shelf.querySelectorAll(".home-shelf-rail[data-home-tab]"));
-    if (!tabLinks.length || !panels.length) return;
+    if (!tabControls.length || !panels.length) return;
 
     var valid = {};
     var panelMap = {};
-    tabLinks.forEach(function (link) {
-      var key = link.getAttribute("data-home-tab");
+    tabControls.forEach(function (control) {
+      var key = control.getAttribute("data-home-tab");
       if (!key) return;
       valid[key] = true;
     });
+
+    if (window.location.hash && window.history && window.history.replaceState) {
+      window.history.replaceState({}, "", window.location.pathname + window.location.search);
+    }
 
     panels.forEach(function (panel) {
       var key = panel.getAttribute("data-home-tab");
@@ -483,13 +509,19 @@
       }
     });
 
+    function getInitialTab() {
+      var active = tabNav.querySelector("button[data-home-tab].is-active");
+      return active ? active.getAttribute("data-home-tab") : "";
+    }
+
     function applyTab(tabKey) {
-      var target = valid[tabKey] ? tabKey : (tabLinks[0] ? tabLinks[0].getAttribute("data-home-tab") : "");
+      var target = valid[tabKey] ? tabKey : (tabControls[0] ? tabControls[0].getAttribute("data-home-tab") : "");
       if (!target) return;
 
-      tabLinks.forEach(function (link) {
-        var isActive = link.getAttribute("data-home-tab") === target;
-        link.classList.toggle("is-active", isActive);
+      tabControls.forEach(function (control) {
+        var isActive = control.getAttribute("data-home-tab") === target;
+        control.classList.toggle("is-active", isActive);
+        control.setAttribute("aria-selected", isActive ? "true" : "false");
       });
 
       Object.keys(panelMap).forEach(function (key) {
@@ -498,24 +530,20 @@
         panel.hidden = !isActive;
         panel.setAttribute("aria-hidden", isActive ? "false" : "true");
       });
-
-      var current = new URL(window.location.href);
-      current.hash = "home-latest-" + encodeURIComponent(target);
-      window.history.replaceState({}, "", current.pathname + current.search + current.hash);
     }
 
-    applyTab(resolveHomeLatestTabParam(valid));
+    applyTab(getInitialTab());
 
     tabNav.addEventListener("click", function (event) {
-      var link = event.target.closest("a[data-home-tab]");
-      if (!link || !tabNav.contains(link)) return;
-      event.preventDefault();
-      applyTab(link.getAttribute("data-home-tab") || "");
+      var control = event.target.closest("button[data-home-tab]");
+      if (!control || !tabNav.contains(control)) return;
+      applyTab(control.getAttribute("data-home-tab") || "");
     });
   }
 
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initSearchForms = initSearchForms;
+  window.PingFangVideo.initLogoutLinks = initLogoutLinks;
   window.PingFangVideo.clearFavoriteCache = clearFavoriteCache;
   window.PingFangVideo.initFavoriteButtons = initFavoriteButtons;
   window.PingFangVideo.initPageJumpForms = initPageJumpForms;
@@ -524,6 +552,7 @@
   initSearchForms(document);
   showQueuedSiteNotice();
   initLoginForms(document);
+  initLogoutLinks(document);
   initFavoriteButtons(document);
   initPageJumpForms();
   initHomeLatestTabs();
@@ -942,7 +971,6 @@
 
       if (canHover) {
         bindGsapHover(scope, ".vod-card", { y: -5, scale: 1.012 }, { y: 0, scale: 1 });
-        bindGsapHover(scope, ".home-shelf-card", { y: -4, scale: 1.01 }, { y: 0, scale: 1 });
         bindGsapHover(scope, ".rank-item", { x: 4 }, { x: 0 });
         bindGsapHover(scope, ".stat-card", { y: -3 }, { y: 0 });
         bindGsapHover(scope, ".category-tile", { y: -4 }, { y: 0 });

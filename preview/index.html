@@ -77,6 +77,9 @@
   </div>
 </footer>
 <script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
+<script src="../template/pingfangvideo/js/react.production.min.js?v=18.3.1"></script>
+<script src="../template/pingfangvideo/js/react-dom.production.min.js?v=18.3.1"></script>
+<script src="../template/pingfangvideo/js/rank-react.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
@@ -157,14 +160,14 @@ function card(video) {
 
 function homeShelfTabs(tabs) {
   return `
-    <nav class="home-shelf-tabs" aria-label="最新分类">
-      ${tabs.map((tab) => `<a href="#home-latest-${escapeHtml(tab.key)}" data-home-tab="${escapeHtml(tab.key)}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</a>`).join("")}
+    <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
+      ${tabs.map((tab) => `<button type="button" data-home-tab="${escapeHtml(tab.key)}" role="tab" aria-selected="${tab.isActive ? "true" : "false"}" aria-controls="latest-panel-${escapeHtml(tab.key)}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</button>`).join("")}
     </nav>`;
 }
 
 function homeShelfPanel(tab) {
   return `
-    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="home-latest-${escapeHtml(tab.key)}"${tab.isActive ? "" : " hidden"}>
+    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="latest-panel-${escapeHtml(tab.key)}" role="tabpanel" aria-hidden="${tab.isActive ? "false" : "true"}"${tab.isActive ? "" : " hidden"}>
       ${tab.videos.map((video) => homeShelfCard(video)).join("")}
     </div>`;
 }
@@ -175,7 +178,7 @@ function homeShelfCard(video, featured = false) {
   const badge = featured ? video.category : (video.remark || "高清");
   const meta = featured ? (video.remark || "更新中") : `${video.year} · ${video.class || video.category}`;
   return `
-    <a class="${cardClass}" href="${url("detail", { id: video.id })}" data-route="detail">
+    <a class="${cardClass}" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail">
       <span class="home-shelf-poster">
         <img src="${escapeHtml(image)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
         <em>${escapeHtml(badge)}</em>
@@ -190,7 +193,7 @@ function homeShelfCard(video, featured = false) {
 
 function rankItem(video, index) {
   return `
-    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail">
+    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail" data-rank-item data-rank-title="${escapeHtml(video.title)}" data-rank-meta="${escapeHtml(video.year)} · ${escapeHtml(video.class || video.category)}" data-rank-score="${escapeHtml(video.score)}" data-rank-pic="${escapeHtml(video.poster)}">
       <span class="rank-thumb">
         <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
         <span class="rank-index">${index + 1}</span>
@@ -417,12 +420,14 @@ function renderHome() {
             </div>
           </div>
         </section>
-        <div class="hero-rank">
+        <div class="hero-rank" data-rank-react-root data-rank-more-url="${url("category", { sort: "hot" })}">
           <div class="section-head compact">
             <h2>热搜榜</h2>
-            <a class="rank-refresh" href="${url("category", { sort: "hot" })}">换一换</a>
+            <a class="rank-refresh" href="${url("category", { sort: "hot" })}">查看更多</a>
           </div>
-          ${rankVideos.map(rankItem).join("")}
+          <div class="rank-list" data-rank-react-list>
+            ${rankVideos.map(rankItem).join("")}
+          </div>
         </div>
       </div>
     </section>
@@ -680,6 +685,7 @@ function render() {
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
+  window.PingFangRankReact?.mountAll?.(app);
   window.PingFangVideo?.initHomeLatestTabs?.();
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initGsapMotion?.(app);

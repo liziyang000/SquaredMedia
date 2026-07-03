@@ -23,7 +23,7 @@
       <div class="record-empty">暂无播放记录</div>
       {/empty}
       {volist name="list" id="vo"}
-      <article class="record-item">
+      <article class="record-item" data-record-video-id="{$vo.ulog_rid}" data-record-id="{$vo.ulog_id}">
         <label class="record-check" aria-label="选择播放记录 {$vo.ulog_id}">
           <input name="ids[]" type="checkbox" value="{$vo.ulog_id}">
         </label>
@@ -47,6 +47,51 @@
 
 <script>
   (function () {
+    function setRecordDeleteIds(item, ids) {
+      var recordDeleteIds = ids.filter(Boolean).join(",");
+      item.setAttribute("data-record-delete-ids", recordDeleteIds);
+
+      var checkbox = item.querySelector('input[name="ids[]"]');
+      if (checkbox) {
+        checkbox.value = recordDeleteIds;
+      }
+
+      var deleteButton = item.querySelector("[data-delete-ulog]");
+      if (deleteButton) {
+        deleteButton.setAttribute("data-delete-ulog", recordDeleteIds);
+      }
+    }
+
+    function collapsePlaybackRecords() {
+      var seenByVideo = Object.create(null);
+      var items = Array.prototype.slice.call(document.querySelectorAll("[data-record-video-id]"));
+
+      items.forEach(function (item) {
+        var videoId = item.getAttribute("data-record-video-id");
+        var recordId = item.getAttribute("data-record-id");
+        if (!videoId) {
+          return;
+        }
+
+        if (!seenByVideo[videoId]) {
+          seenByVideo[videoId] = item;
+          setRecordDeleteIds(item, recordId ? [recordId] : []);
+          return;
+        }
+
+        var keptItem = seenByVideo[videoId];
+        var recordDeleteIds = (keptItem.getAttribute("data-record-delete-ids") || "").split(",");
+        if (recordId && recordDeleteIds.indexOf(recordId) === -1) {
+          recordDeleteIds.push(recordId);
+        }
+        setRecordDeleteIds(keptItem, recordDeleteIds);
+
+        if (item.parentNode) {
+          item.parentNode.removeChild(item);
+        }
+      });
+    }
+
     function collectCheckedIds() {
       if (window.MAC && MAC.CheckBox && typeof MAC.CheckBox.Ids === "function") {
         return MAC.CheckBox.Ids("ids[]");
@@ -76,6 +121,8 @@
       }
     }
 
+    collapsePlaybackRecords();
+
     $("#btnClear").click(function () {
       delData("", 1);
     });
@@ -85,7 +132,7 @@
     });
 
     $("[data-delete-ulog]").click(function () {
-      delData($(this).data("delete-ulog"), 0);
+      delData($(this).attr("data-delete-ulog"), 0);
     });
   })();
 </script>

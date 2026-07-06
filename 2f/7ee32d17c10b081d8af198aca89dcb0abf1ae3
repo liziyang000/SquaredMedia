@@ -1,0 +1,87 @@
+addons/pingfangdevice/bridge/Pingfangdevice.php
+  s_e1f0e5d3a9ad30::t_211665dfe1b721 19,28-30,47-49,61-71
+addons/pingfangdevice/controller/Index.php
+  s_e1f0e5d3a9ad30::t_ae05e5f47648c5 19,29-31,48-50,62-72
+addons/pingfangdevice/service/DeviceSession.php
+  s_e1f0e5d3a9ad30::t_13fd63b861ef66 11,46-47,175-205,294-303,312-316
+addons/pingfangdevice/view/index/index.html
+  s_e1f0e5d3a9ad30::t_d94de3168a0bd2 33,77-78,81
+addons/videolint/controller/Index.php
+  s_e1f0e5d3a9ad30::t_b2d897e50c717f 48,62-64,100-102,115-118,160-186
+addons/videolint/service/QualityScanner.php
+  s_e1f0e5d3a9ad30::t_39edee15d33d55 408-456,459-460,462-465,468-471,474-559
+addons/videolint/view/index/index.html
+  s_e1f0e5d3a9ad30::t_06af6fe67e9dee 2,9,133-135,161-162,165
+preview/index.html
+  s_e1f0e5d3a9ad30::t_9f1b3b9a215583 157,159-161,165,167-168,193,209-212,217-219,390-391,408,413,422,425
+scripts/lint-template.mjs
+  s_e1f0e5d3a9ad30::t_25aa2429dd5dd2 50,84
+scripts/verify-release.mjs
+  s_e1f0e5d3a9ad30::t_19603cb1201a3f 101,170
+server/lib/render.php
+  s_e1f0e5d3a9ad30::t_05644821514c66 174-176,180,418,422-423,430,433-434,438
+template/pingfangvideo/css/style.css
+  s_e1f0e5d3a9ad30::t_93d909210d5d29 733,774-779,784-791,795,1266-1267,1281,1286,3170-3171,3290-3291
+template/pingfangvideo/html/actor/detail.html
+  s_e87c33f49abc21::t_a9e6eead9a45d7 1
+template/pingfangvideo/html/actor/type.html
+  s_e87c33f49abc21::t_c94ce2aa041fa9 1
+template/pingfangvideo/html/art/detail.html
+  s_e87c33f49abc21::t_7fea4ac9e06241 1
+template/pingfangvideo/html/art/type.html
+  s_e87c33f49abc21::t_e5b342b6619349 1
+template/pingfangvideo/html/index/index.html
+  s_e1f0e5d3a9ad30::t_43dc071df0f451 8-22,40-44,48,53,55,75-76,78,81,84,87,90
+template/pingfangvideo/html/pingfangdevice/index.html
+  s_e1f0e5d3a9ad30::t_6a32a1eecfc1fc 2,50-51,54
+template/pingfangvideo/html/plot/udetail.html
+  s_e87c33f49abc21::t_8d4cf5d3ed2a9a 1
+template/pingfangvideo/html/public/foot.html
+  s_e1f0e5d3a9ad30::t_46f3b557664cfa 16
+template/pingfangvideo/html/public/include.html
+  s_e1f0e5d3a9ad30::t_505768400203bb 6,10
+template/pingfangvideo/html/role/detail.html
+  s_e87c33f49abc21::t_76e4d5412f53a7 1
+template/pingfangvideo/html/topic/detail.html
+  s_e87c33f49abc21::t_a55405694401f1 1
+template/pingfangvideo/html/user/login.html
+  s_e1f0e5d3a9ad30::t_d16a98076dcbb1 4
+template/pingfangvideo/html/vod/search.html
+  s_e1f0e5d3a9ad30::t_e32cf84b11fce3 20,53,65,71
+template/pingfangvideo/html/vod/show.html
+  s_e1f0e5d3a9ad30::t_7a528c5633f3c9 109,113,117
+template/pingfangvideo/html/vod/type.html
+  s_e1f0e5d3a9ad30::t_7b1809801c73d3 106,110,114
+template/pingfangvideo/html/website/detail.html
+  s_e87c33f49abc21::t_40abe1c2f291f8 1
+template/pingfangvideo/html/website/type.html
+  s_e87c33f49abc21::t_3b065a7f0f9aa2 1
+template/pingfangvideo/js/app.js
+  s_e1f0e5d3a9ad30::t_40d5345de44368 160-171,237-240,243,296-299,301-302,306,1117-1126,1156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "2f7ee32d17c10b081d8af198aca89dcb0abf1ae3",
+  "prompts": {},
+  "sessions": {
+    "s_e1f0e5d3a9ad30": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3543-2f87-7592-a9da-84ccfc0298eb",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_e87c33f49abc21": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f351a-870c-7580-8f2d-73ce55282554",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

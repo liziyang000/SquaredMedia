@@ -45,6 +45,7 @@ class Index extends Controller
         $this->assign('q', $q);
         $this->assign('level', $level);
         $this->assign('scan_id', $scanId);
+        $this->assign('csrf_token', $this->csrfToken());
 
         return $this->fetch();
     }
@@ -57,6 +58,9 @@ class Index extends Controller
         $adminId = (int) session('admin_id');
         if ($adminId < 1) {
             return json(['code' => 1003, 'msg' => '请先登录管理员账号']);
+        }
+        if (!$this->validateCsrf()) {
+            return json(['code' => 1004, 'msg' => '请求校验失败']);
         }
 
         $options = [
@@ -93,6 +97,9 @@ class Index extends Controller
         if ($adminId < 1) {
             return json(['code' => 1003, 'msg' => '请先登录管理员账号']);
         }
+        if (!$this->validateCsrf()) {
+            return json(['code' => 1004, 'msg' => '请求校验失败']);
+        }
 
         $issueId = (int) input('issue_id/d', 0);
         if ($issueId < 1) {
@@ -105,6 +112,10 @@ class Index extends Controller
 
     public function export()
     {
+        if ((int) session('admin_id') < 1) {
+            return '请先使用管理员账号登录后台后访问该页面。';
+        }
+
         $scanId = (int) input('scan_id/d', 0);
         if ($scanId < 1) {
             return 'scan_id missing';
@@ -145,5 +156,32 @@ class Index extends Controller
         fclose($fp);
 
         return null;
+    }
+
+    private function csrfToken()
+    {
+        $token = (string) session('videolint_csrf_token');
+        if (!preg_match('/\A[a-f0-9]{64}\z/i', $token)) {
+            $token = bin2hex(random_bytes(32));
+            session('videolint_csrf_token', $token);
+        }
+
+        return $token;
+    }
+
+    private function validateCsrf()
+    {
+        $expected = (string) session('videolint_csrf_token');
+        $provided = trim((string) input('csrf_token', ''));
+        if ($provided === '') {
+            $request = request();
+            if (is_object($request) && method_exists($request, 'header')) {
+                $provided = trim((string) $request->header('X-PingFang-CSRF', ''));
+            }
+        }
+
+        return preg_match('/\A[a-f0-9]{64}\z/i', $expected) === 1
+            && preg_match('/\A[a-f0-9]{64}\z/i', $provided) === 1
+            && hash_equals($expected, $provided);
     }
 }

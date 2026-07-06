@@ -5,7 +5,21 @@
       <div class="banner-track">
         {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
         <article class='hero-slide{if condition="$key eq 1"} is-active{/if}' data-carousel-slide>
-          <span class="banner-bg" style="--banner-bg: url('{if condition="$vo.vod_pic_slide neq ''"}{$vo.vod_pic_slide|mac_url_img}{else/}{$vo.vod_pic|mac_url_img}{/if}');"></span>
+          <span class="banner-bg">
+            {if condition="$vo.vod_pic_slide neq ''"}
+            {if condition="$key eq 1"}
+            <img src="{$vo.vod_pic_slide|mac_url_img}" alt="" width="1280" height="720" decoding="async" sizes="100vw" loading="eager" fetchpriority="high">
+            {else/}
+            <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-carousel-lazy-src="{$vo.vod_pic_slide|mac_url_img}" alt="" width="1280" height="720" decoding="async" sizes="100vw" loading="lazy" fetchpriority="low">
+            {/if}
+            {else/}
+            {if condition="$key eq 1"}
+            <img src="{$vo.vod_pic|mac_url_img}" alt="" width="1280" height="720" decoding="async" sizes="100vw" loading="eager" fetchpriority="high">
+            {else/}
+            <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-carousel-lazy-src="{$vo.vod_pic|mac_url_img}" alt="" width="1280" height="720" decoding="async" sizes="100vw" loading="lazy" fetchpriority="low">
+            {/if}
+            {/if}
+          </span>
           <span class="banner-content">
             <span class="banner-copy">
               <em class="eyebrow">热播推荐 · 今日更新 {:mac_data_count(0,'today','vod')} 部</em>
@@ -23,20 +37,22 @@
       </div>
       <div class="banner-controls">
         <div class="banner-dots" role="tablist" aria-label="轮播分页">
-          {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
-          <button class='banner-dot{if condition="$key eq 1"} is-active{/if}' type="button" data-carousel-dot aria-label="第{$key}张"></button>
-          {/maccms:vod}
+          <button class="banner-dot is-active" type="button" data-carousel-dot aria-label="第1张"></button>
+          <button class="banner-dot" type="button" data-carousel-dot aria-label="第2张"></button>
+          <button class="banner-dot" type="button" data-carousel-dot aria-label="第3张"></button>
+          <button class="banner-dot" type="button" data-carousel-dot aria-label="第4张"></button>
+          <button class="banner-dot" type="button" data-carousel-dot aria-label="第5张"></button>
         </div>
       </div>
     </section>
-    <div class="hero-rank" data-rank-react-root data-rank-more-url="{:mac_url('label/hot')}">
+    <div class="hero-rank">
       <div class="section-head compact">
         <h2>热搜榜</h2>
         <a class="rank-refresh" href="{:mac_url('label/hot')}">查看更多</a>
       </div>
-      <div class="rank-list" data-rank-react-list>
+      <div class="rank-list">
       {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"}
-      <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item data-rank-title="{$vo.vod_name}" data-rank-meta="{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}" data-rank-score="{$vo.vod_score|mac_default='8.0'}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
+      <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item>
         <span class="rank-thumb">
           <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
           <span class="rank-index">{$key}</span>
@@ -56,22 +72,22 @@
 <section class="wrap home-shelf home-shelf-latest">
   <div class="home-shelf-head">
     <h2>最新上线</h2>
-    <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
-      <button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all">推荐</button>
+    <nav class="home-shelf-tabs" aria-label="最新分类">
+      <button class="is-active" type="button" data-home-tab="all" aria-controls="latest-panel-all">推荐</button>
       {maccms:type ids="42" order="asc" by="sort" num="1" id="type"}
-      <button type="button" data-home-tab="category-1" role="tab" aria-selected="false" aria-controls="latest-panel-category-1">{$type.type_name}</button>
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
       {maccms:type ids="47" order="asc" by="sort" num="1" id="type"}
-      <button type="button" data-home-tab="category-2" role="tab" aria-selected="false" aria-controls="latest-panel-category-2">{$type.type_name}</button>
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
       {maccms:type ids="48" order="asc" by="sort" num="1" id="type"}
-      <button type="button" data-home-tab="category-3" role="tab" aria-selected="false" aria-controls="latest-panel-category-3">{$type.type_name}</button>
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
       {maccms:type ids="57" order="asc" by="sort" num="1" id="type"}
-      <button type="button" data-home-tab="category-4" role="tab" aria-selected="false" aria-controls="latest-panel-category-4">{$type.type_name}</button>
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
       {maccms:type ids="111" order="asc" by="sort" num="1" id="type"}
-      <button type="button" data-home-tab="category-5" role="tab" aria-selected="false" aria-controls="latest-panel-category-5">{$type.type_name}</button>
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
     </nav>
     <a class="home-shelf-more" href="{:mac_url('label/videos')}">全部影片</a>
@@ -91,83 +107,5 @@
     </a>
     {/maccms:vod}
   </div>
-  <div class="home-shelf-rail" data-home-tab="category-1" id="latest-panel-category-1" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="42" num="6" order="desc" by="time" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
-      <span class="home-shelf-poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
-      </span>
-      <span class="home-shelf-body">
-        <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
-      </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
-    </a>
-    {/maccms:vod}
-  </div>
-  <div class="home-shelf-rail" data-home-tab="category-2" id="latest-panel-category-2" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="47" num="6" order="desc" by="time" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
-      <span class="home-shelf-poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
-      </span>
-      <span class="home-shelf-body">
-        <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
-      </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
-    </a>
-    {/maccms:vod}
-  </div>
-  <div class="home-shelf-rail" data-home-tab="category-3" id="latest-panel-category-3" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="48" num="6" order="desc" by="time" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
-      <span class="home-shelf-poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
-      </span>
-      <span class="home-shelf-body">
-        <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
-      </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
-    </a>
-    {/maccms:vod}
-  </div>
-  <div class="home-shelf-rail" data-home-tab="category-4" id="latest-panel-category-4" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="57" num="6" order="desc" by="time" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
-      <span class="home-shelf-poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
-      </span>
-      <span class="home-shelf-body">
-        <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
-      </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
-    </a>
-    {/maccms:vod}
-  </div>
-  <div class="home-shelf-rail" data-home-tab="category-5" id="latest-panel-category-5" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="111" num="6" order="desc" by="time" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
-      <span class="home-shelf-poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
-      </span>
-      <span class="home-shelf-body">
-        <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
-      </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
-    </a>
-    {/maccms:vod}
-  </div>
 </section>
-<script src="{$maccms.path_tpl}js/react.production.min.js?v=18.3.1"></script>
-<script src="{$maccms.path_tpl}js/react-dom.production.min.js?v=18.3.1"></script>
-<script src="{$maccms.path_tpl}js/rank-react.js?v=__PINGFANG_ASSET_VERSION__"></script>
 {include file="public/foot" /}

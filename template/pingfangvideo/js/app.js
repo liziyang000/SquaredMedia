@@ -157,6 +157,18 @@
     return "/";
   }
 
+  function readCookie(name) {
+    var prefix = name + "=";
+    var cookies = document.cookie ? document.cookie.split(";") : [];
+    for (var i = 0; i < cookies.length; i += 1) {
+      var cookie = cookies[i].trim();
+      if (cookie.indexOf(prefix) === 0) {
+        return decodeURIComponent(cookie.slice(prefix.length));
+      }
+    }
+    return "";
+  }
+
   function queueSiteNotice(message, status) {
     try {
       window.sessionStorage.setItem("pingfang_site_notice", JSON.stringify({
@@ -222,9 +234,13 @@
         }
 
         setLoginSubmitting(form, true);
+        var formData = new FormData(form);
+        if (!formData.get("csrf_token")) {
+          formData.append("csrf_token", readCookie("pfv_csrf_token"));
+        }
         fetch(form.action, {
           method: (form.method || "post").toUpperCase(),
-          body: new FormData(form),
+          body: formData,
           credentials: "same-origin",
           headers: {
             "X-Requested-With": "XMLHttpRequest"
@@ -277,11 +293,17 @@
           return;
         }
 
+        var formData = new FormData();
+        var csrfToken = readCookie("pfv_csrf_token");
+        formData.append("csrf_token", csrfToken);
+
         fetch(logoutUrl, {
-          method: "GET",
+          method: "POST",
+          body: formData,
           credentials: "same-origin",
           headers: {
             "X-Requested-With": "XMLHttpRequest",
+            "X-PingFang-CSRF": csrfToken,
             "Accept": "application/json, text/html;q=0.9, */*;q=0.8"
           }
         }).then(function () {
@@ -1092,6 +1114,16 @@
     });
   }
 
+  function loadCarouselImage(slide) {
+    if (!slide || !slide.querySelector) return;
+    var image = slide.querySelector("[data-carousel-lazy-src]");
+    if (!image) return;
+    var source = image.getAttribute("data-carousel-lazy-src");
+    if (!source) return;
+    image.setAttribute("src", source);
+    image.removeAttribute("data-carousel-lazy-src");
+  }
+
   function initHeroCarousel(root) {
     var scope = root || document;
     scope.querySelectorAll("[data-carousel]").forEach(function (carousel) {
@@ -1121,6 +1153,7 @@
         var activeSlide = slides[normalizedIndex];
         var direction = nextIndex >= previousIndex ? 1 : -1;
 
+        loadCarouselImage(activeSlide);
         index = normalizedIndex;
         slides.forEach(function (slide, itemIndex) {
           var isActive = itemIndex === index;

@@ -17,7 +17,7 @@
     </div>
   </div>
   {else/}
-  {maccms:type ids="'.$param['type'].'" id="current"}
+  {maccms:type ids="'.intval($param['type']).'" id="current"}
   <div class="filter-row">
     <strong>频道</strong>
     <div class="filter-options">
@@ -50,7 +50,7 @@
 <section class="wrap content-section">
   {if condition="$param['type'] eq ''"}
   <div class="vod-list">
-    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.mac_filter_html($param['wd']).'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
       <span>
@@ -62,13 +62,13 @@
     {/maccms:vod}
   </div>
   {else/}
-  {maccms:type ids="'.$param['type'].'" id="current"}
+  {maccms:type ids="'.intval($param['type']).'" id="current"}
   <div class="section-head compact">
     <h2>{$current.type_name}</h2>
     <span>搜索结果</span>
   </div>
   <div class="vod-list">
-    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.mac_filter_html($param['wd']).'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
       <span>

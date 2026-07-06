@@ -16,6 +16,7 @@ class Pingfangdevice extends Base
         $this->assign('obj', $user);
         $this->assign('user', $user);
         $this->assign('device_list', DeviceSession::listSessions($user['user_id']));
+        $this->assign('csrf_token', DeviceSession::csrfToken());
         return $this->fetch('pingfangdevice/index');
     }
 
@@ -23,6 +24,9 @@ class Pingfangdevice extends Base
     {
         if (!Request()->isPost()) {
             return redirect(url('user/login'));
+        }
+        if (!DeviceSession::validateCsrf()) {
+            return json(['code' => 1004, 'msg' => '请求校验失败']);
         }
 
         $param = input();
@@ -40,6 +44,9 @@ class Pingfangdevice extends Base
         if (!Request()->isPost()) {
             return json(['code' => 1001, 'msg' => '请求方式错误']);
         }
+        if (!DeviceSession::validateCsrf()) {
+            return json(['code' => 1004, 'msg' => '请求校验失败']);
+        }
 
         $user = DeviceSession::currentUser();
         if (empty($user)) {
@@ -51,6 +58,17 @@ class Pingfangdevice extends Base
 
     public function logout()
     {
+        if (!Request()->isPost()) {
+            if (request()->isAjax()) {
+                return json(['code' => 1001, 'msg' => '请求方式错误']);
+            }
+
+            return redirect(url('user/index'));
+        }
+        if (!DeviceSession::validateCsrf()) {
+            return json(['code' => 1004, 'msg' => '请求校验失败']);
+        }
+
         $user = DeviceSession::currentUser();
         if (!empty($user)) {
             DeviceSession::logoutCurrentDevice($user['user_id']);

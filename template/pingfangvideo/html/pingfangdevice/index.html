@@ -1,5 +1,5 @@
 {include file="public/head" seo_title="登录设备管理" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
-<section class="wrap user-records device-panel">
+<section class="wrap user-records device-panel" data-csrf-token="{$csrf_token|mac_default=''}">
   <div class="record-toolbar">
     <div>
       <strong>登录设备管理</strong>
@@ -47,8 +47,11 @@
     if (!button || button.disabled) return;
     button.disabled = true;
 
+    var panel = button.closest("[data-csrf-token]");
+    var csrfToken = panel ? panel.getAttribute("data-csrf-token") : "";
     var form = new FormData();
     form.append("session_id", button.getAttribute("data-session-id"));
+    form.append("csrf_token", csrfToken);
 
     fetch("{:url('pingfangdevice/revoke')}", {
       method: "POST",

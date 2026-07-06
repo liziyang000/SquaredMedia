@@ -47,6 +47,7 @@ const forbiddenProductionPatterns = [
   /npm run/,
   /dist\/pingfangvideo/,
 ];
+const rawRequestTagAttributePattern = /\{maccms:(?:vod|type|art|comment)\b[^}]*"\.\$param\[[^\]]+\]\."[^}]*\}/;
 const partials = new Set([
   "public/include.html",
   "public/head.html",
@@ -80,6 +81,7 @@ for (const filePath of files) {
     assert.doesNotMatch(content, pattern, `${file} should not reference local development or preview resources`);
   }
 
+  assert.doesNotMatch(content, rawRequestTagAttributePattern, `${file} should not pass raw request params into MacCMS tag attributes`);
   assert.doesNotMatch(content, /by="'\.\$param\['by'\]\.'"/, `${file} should not pass raw sort params into maccms tags`);
   assert.doesNotMatch(content, /href="javascript:history/, `${file} should not depend on history javascript links`);
   assert.doesNotMatch(content, /action="#"/, `${file} should not use dead form action links`);

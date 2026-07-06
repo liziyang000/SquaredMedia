@@ -98,6 +98,7 @@ const forbiddenProductionPatterns = [
   /npm run/,
   /dist\/pingfangvideo/,
 ];
+const rawRequestTagAttributePattern = /\{maccms:(?:vod|type|art|comment)\b[^}]*"\.\$param\[[^\]]+\]\."[^}]*\}/;
 const requiredAddonEntries = [
   "pingfangdevice/Pingfangdevice.php",
   "pingfangdevice/bridge/Pingfangdevice.php",
@@ -166,6 +167,7 @@ for (const entry of htmlEntries) {
   assert.doesNotMatch(content, /action="#"/, `${entry} should not use dead form action links`);
   assert.doesNotMatch(content, /action="javascript:/, `${entry} should not use javascript form actions`);
   assert.doesNotMatch(content, /__ROOT__/, `${entry} should use MacCMS runtime path variables`);
+  assert.doesNotMatch(content, rawRequestTagAttributePattern, `${entry} should not pass raw request params into MacCMS tag attributes`);
 
   for (const match of content.matchAll(/<(link|script|img)\b[^>]*(?:href|src)="([^"]+)"/g)) {
     assertSafeAssetReference(match[2], entry, match[1]);

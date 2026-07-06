@@ -1,12 +1,11 @@
 {include file="public/head" seo_title="视频库质量检测" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
-<section class="wrap user-records device-panel" data-videolint-csrf="{$csrf_token|htmlspecialchars=###,ENT_QUOTES,'UTF-8'}">
+<section class="wrap user-records device-panel">
   <div class="record-toolbar">
     <div>
       <strong>视频库质量检测</strong>
       <span>扫描影片数据，快速识别缺失字段、播放源异常和重复影片</span>
     </div>
     <form id="runForm" method="post" action="{:addon_url('videolint/index/run')}" class="tool-form">
-      <input type="hidden" name="csrf_token" value="{$csrf_token|htmlspecialchars=###,ENT_QUOTES,'UTF-8'}">
       <label>每批条数
         <input type="number" name="batch_size" value="200" min="50" max="2000">
       </label>
@@ -130,9 +129,6 @@
     event.preventDefault();
     var form = event.target;
     var formData = new FormData(form);
-    var panel = form.closest("[data-videolint-csrf]");
-    var csrfToken = panel ? panel.getAttribute("data-videolint-csrf") : "";
-    formData.append("csrf_token", csrfToken);
 
     fetch(form.getAttribute("action"), {
       method: "POST",
@@ -158,11 +154,8 @@
 
     button.disabled = true;
     var issueId = button.getAttribute("data-issue-id");
-    var panel = button.closest("[data-videolint-csrf]");
-    var csrfToken = panel ? panel.getAttribute("data-videolint-csrf") : "";
     var formData = new FormData();
     formData.append("issue_id", issueId);
-    formData.append("csrf_token", csrfToken);
 
     fetch("{:addon_url('videolint/index/resolve')}", {
       method: "POST",

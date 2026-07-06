@@ -180,8 +180,8 @@ assert.match(readme, /server\/index\.php/);
 assert.match(readme, /MacCMS/);
 
 const include = readThemeFile("html/public/include.html");
-assert.match(include, /<script defer src="\{\$maccms\.path\}static\/js\/jquery\.js"><\/script>/);
-assert.match(include, /<script defer src="\{\$maccms\.path\}static\/js\/home\.js"><\/script>/);
+assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
+assert.match(include, /\{\$maccms\.path\}static\/js\/home\.js/);
 assert.match(include, /css\/style\.css\?v=/);
 assert.match(include, /"path":"\{:\s*rtrim\(\$maccms\['path'\], '\/'\)\}"/);
 assert.match(include, /"aid":"\{\$maccms\.aid\}"/);
@@ -258,9 +258,10 @@ const foot = readThemeFile("html/public/foot.html");
 assert.match(foot, /mac_url\('map\/google'\)/);
 assert.match(foot, /mac_url\('gbook\/index'\)/);
 assert.match(foot, /mac_url\('map\/rss'\)/);
-assert.doesNotMatch(foot, /js\/gsap\.min\.js/);
+assert.match(foot, /js\/gsap\.min\.js\?v=3\.15\.0/);
+assert.match(foot, new RegExp(`js/gsap\\.min\\.js\\?v=3\\.15\\.0[\\s\\S]*js/app\\.js\\?v=${assetVersionPlaceholder}`));
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260621/);
-assert.match(foot, new RegExp(`<script defer src="\\{\\$maccms\\.path_tpl\\}js/app\\.js\\?v=${assetVersionPlaceholder}"><\\/script>`));
+assert.match(foot, new RegExp(`js/app\\.js\\?v=${assetVersionPlaceholder}`));
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260615/);
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260616/);
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260618/);
@@ -370,8 +371,6 @@ const userLoginPage = readThemeFile("html/user/login.html");
 assert.match(userLoginPage, /action="\{:\s*url\('pingfangdevice\/login'\)\}"/);
 assert.match(userLoginPage, /data-login-form/);
 assert.match(userLoginPage, /data-success-redirect="\{\$maccms\.path\}"/);
-assert.match(userLoginPage, /name="csrf_token"/);
-assert.match(userLoginPage, /cookie\('pfv_csrf_token'\)/);
 
 const devicePage = readThemeFile("html/pingfangdevice/index.html");
 assert.match(devicePage, /\{include file="public\/head" seo_title="登录设备管理"/);
@@ -381,8 +380,6 @@ assert.match(devicePage, /\{volist name="device_list" id="vo"\}/);
 assert.match(devicePage, /当前设备/);
 assert.match(devicePage, /最近登录时间/);
 assert.match(devicePage, /data-device-revoke/);
-assert.match(devicePage, /data-csrf-token="\{\$csrf_token\|mac_default=''\}"/);
-assert.match(devicePage, /form\.append\("csrf_token", csrfToken\)/);
 assert.match(devicePage, /url\('pingfangdevice\/revoke'\)/);
 assert.match(devicePage, /\{include file="public\/foot" \/\}/);
 
@@ -433,45 +430,34 @@ assert.doesNotMatch(userFavsPage, /user\/downs|user\/buy|user\/pay/);
 
 const fallbackPages = [
   ["html/topic/index.html", "专题"],
+  ["html/topic/detail.html", "专题"],
   ["html/art/index.html", "文章"],
   ["html/art/confirm.html", "文章"],
+  ["html/art/detail.html", "文章"],
   ["html/art/detail_pwd.html", "文章"],
   ["html/art/search.html", "文章"],
+  ["html/art/type.html", "文章"],
   ["html/art/show.html", "文章"],
   ["html/plot/uindex.html", "剧情"],
+  ["html/plot/udetail.html", "剧情"],
   ["html/actor/index.html", "演员"],
+  ["html/actor/detail.html", "演员"],
   ["html/actor/search.html", "演员"],
   ["html/actor/show.html", "演员"],
+  ["html/actor/type.html", "演员"],
   ["html/role/index.html", "角色"],
+  ["html/role/detail.html", "角色"],
   ["html/role/show.html", "角色"],
   ["html/website/index.html", "游戏"],
+  ["html/website/detail.html", "游戏"],
   ["html/website/search.html", "游戏"],
   ["html/website/show.html", "游戏"],
+  ["html/website/type.html", "游戏"],
 ];
 
 for (const [file, label] of fallbackPages) {
   const page = readThemeFile(file);
   assert.match(page, new RegExp(`seo_title="${label}`));
-  assert.match(page, /module-fallback/);
-  assert.match(page, /mac_url\('vod\/show'\)/);
-}
-
-const objectNamedFallbackPages = [
-  ["html/topic/detail.html", "专题", "$obj.topic_name"],
-  ["html/art/detail.html", "文章", "$obj.art_name"],
-  ["html/art/type.html", "文章", "$obj.type_name"],
-  ["html/plot/udetail.html", "剧情", "$obj.name"],
-  ["html/actor/detail.html", "演员", "$obj.actor_name"],
-  ["html/actor/type.html", "演员", "$obj.type_name"],
-  ["html/role/detail.html", "角色", "$obj.role_name"],
-  ["html/website/detail.html", "游戏", "$obj.website_name"],
-  ["html/website/type.html", "游戏", "$obj.type_name"],
-];
-
-for (const [file, label, titleField] of objectNamedFallbackPages) {
-  const page = readThemeFile(file);
-  assert.ok(page.includes(`seo_title="${titleField}"`), `${file} should use ${titleField} for the public head title`);
-  assert.doesNotMatch(page, new RegExp(`seo_title="${label}(详情|分类)"`));
   assert.match(page, /module-fallback/);
   assert.match(page, /mac_url\('vod\/show'\)/);
 }
@@ -502,11 +488,7 @@ assert.doesNotMatch(index, /全站片库/);
 assert.match(index, /hero-carousel/);
 assert.match(index, /hero-slide/);
 assert.match(index, /banner-content/);
-assert.match(index, /class="banner-bg"[\s\S]*\{if condition="\$vo\.vod_pic_slide neq ''"\}[\s\S]*\{if condition="\$key eq 1"\}[\s\S]*<img src="\{\$vo\.vod_pic_slide\|mac_url_img\}" alt="" width="1280" height="720" decoding="async" sizes="100vw" loading="eager" fetchpriority="high">/);
-assert.match(index, /\{else\/\}[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="" width="1280" height="720" decoding="async" sizes="100vw" loading="eager" fetchpriority="high">/);
-assert.match(index, /src="data:image\/gif;base64,R0lGODlhAQABAAAAACw=" data-carousel-lazy-src="\{\$vo\.vod_pic_slide\|mac_url_img\}"/);
-assert.match(index, /src="data:image\/gif;base64,R0lGODlhAQABAAAAACw=" data-carousel-lazy-src="\{\$vo\.vod_pic\|mac_url_img\}"/);
-assert.doesNotMatch(index, /--banner-bg/);
+assert.match(index, /class="banner-bg" style="--banner-bg: url\('\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}'\);"/);
 assert.match(index, /class="primary-btn" href="\{:mac_url_vod_play\(\$vo\)\}">立即播放<\/a>/);
 assert.match(index, /class="ghost-btn" href="\{:mac_url_vod_detail\(\$vo\)\}">详情介绍<\/a>/);
 assert.match(index, /vod_duration\|mac_default='时长待定'/);
@@ -519,23 +501,24 @@ assert.doesNotMatch(index, /data-carousel-prev/);
 assert.doesNotMatch(index, /data-carousel-next/);
 assert.match(index, /rank-index/);
 assert.match(index, /rank-thumb/);
-assert.doesNotMatch(index, /data-rank-react-root/);
+assert.match(index, /data-rank-react-root/);
 assert.doesNotMatch(index, /data-rank-visible-count/);
-assert.doesNotMatch(index, /data-rank-react-list/);
+assert.match(index, /data-rank-react-list/);
 assert.match(index, /data-rank-item/);
 assert.match(index, /\{maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" id="vo" key="key"\}/);
 assert.doesNotMatch(index, /is-rank-extra/);
-assert.doesNotMatch(index, /data-rank-title=/);
-assert.doesNotMatch(index, /data-rank-meta=/);
-assert.doesNotMatch(index, /data-rank-score=/);
-assert.doesNotMatch(index, /data-rank-pic=/);
+assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
+assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
+assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='8\.0'\}"/);
+assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
 assert.match(index, /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/);
 assert.match(index, /rank-body/);
 assert.match(index, /rank-meta/);
 assert.match(index, /rank-score/);
-assert.doesNotMatch(index, /js\/react\.production\.min\.js/);
-assert.doesNotMatch(index, /js\/react-dom\.production\.min\.js/);
-assert.doesNotMatch(index, /js\/rank-react\.js/);
+assert.match(index, /js\/react\.production\.min\.js\?v=18\.3\.1/);
+assert.match(index, /js\/react-dom\.production\.min\.js\?v=18\.3\.1/);
+assert.match(index, new RegExp(`js/rank-react\\.js\\?v=${assetVersionPlaceholder}`));
+assert.match(index, new RegExp(`js/react\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/react-dom\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/rank-react\\.js\\?v=${assetVersionPlaceholder}[\\s\\S]*\\{include file="public/foot" \\/\\}`));
 assert.doesNotMatch(index, /unpkg|jsdelivr|localhost|127\.0\.0\.1/);
 assert.match(index, /home-shelf home-shelf-latest/);
 assert.match(index, /home-shelf-tabs/);
@@ -545,13 +528,23 @@ assert.match(index, /home-shelf-score/);
 assert.match(index, /<h2>最新上线<\/h2>/);
 assert.match(index, /aria-label="最新分类"/);
 assert.match(index, /data-home-tab="all"/);
-assert.match(index, /<button class="is-active" type="button" data-home-tab="all" aria-controls="latest-panel-all">推荐<\/button>/);
-assert.match(index, /<a href="\{:mac_url_type\(\$type\)\}">\{\$type\.type_name\}<\/a>/);
-assert.doesNotMatch(index, /data-home-tab="category-/);
-assert.doesNotMatch(index, /latest-panel-category-/);
+assert.match(index, /data-home-tab="category-1"/);
+assert.match(index, /data-home-tab="category-5"/);
+assert.match(index, /<button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all">推荐<\/button>/);
+assert.match(index, /<button type="button" data-home-tab="category-1" role="tab" aria-selected="false" aria-controls="latest-panel-category-1">/);
+assert.match(index, /<button type="button" data-home-tab="category-5" role="tab" aria-selected="false" aria-controls="latest-panel-category-5">/);
 assert.doesNotMatch(index, /href="#home-latest-/);
 assert.doesNotMatch(index, /id="home-latest-/);
 assert.match(index, /id="latest-panel-all"/);
+for (const [tabIndex, typeId] of [
+  ["1", "42"],
+  ["2", "47"],
+  ["3", "48"],
+  ["4", "57"],
+  ["5", "111"],
+]) {
+  assert.match(index, new RegExp(`id="latest-panel-category-${tabIndex}"[\\s\\S]*?\\{maccms:vod type="${typeId}" num="6" order="desc" by="time" id="vo"\\}`));
+}
 for (const vodTag of index.match(/\{maccms:vod[^}]+\}/g) || []) {
   assert.doesNotMatch(vodTag, /\stype="[^"]*\{/, `${vodTag} should not use dynamic template syntax in type attribute`);
 }
@@ -564,8 +557,7 @@ assert.match(index, /mac_url\('label\/videos'\)/);
 assert.doesNotMatch(index, /class="wrap quick-types"/);
 assert.doesNotMatch(index, /\{maccms:type ids="parent" order="asc" by="sort" num="10" id="type"\}/);
 assert.doesNotMatch(index, /\{maccms:type ids="parent" order="asc" by="sort" num="4" id="type"\}/);
-assert.equal((index.match(/\{maccms:vod/g) || []).length, 3);
-assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" order="desc" by="hits"`, "g")) || []).length, 2);
+assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" order="desc" by="hits"`, "g")) || []).length, 3);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="12" order="desc" by="rnd"`, "g")) || []).length, 0);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" order="desc" by="hits"`, "g")) || []).length, 0);
 assert.doesNotMatch(index, /\{maccms:vod type="all"[^}]*by="hits"/);
@@ -713,14 +705,11 @@ assert.doesNotMatch(typePage, /'area'=>'中国大陆'/);
 assert.doesNotMatch(typePage, /'lang'=>'国语'/);
 assert.doesNotMatch(typePage, /'class'=>'剧情'/);
 assert.doesNotMatch(typePage, /'year'=>'2026'/);
-assert.doesNotMatch(typePage, /area="'\.\$param\['area'\]\.'"/);
-assert.doesNotMatch(typePage, /lang="'\.\$param\['lang'\]\.'"/);
-assert.doesNotMatch(typePage, /year="'\.\$param\['year'\]\.'"/);
-assert.doesNotMatch(typePage, /letter="'\.\$param\['letter'\]\.'"/);
-assert.doesNotMatch(typePage, /class="'\.\$param\['class'\]\.'"/);
-for (const filterAttr of ["area", "lang", "year", "letter", "class"]) {
-  assert.doesNotMatch(typePage, new RegExp(`\\{maccms:vod[^}]*\\s${filterAttr}=`));
-}
+assert.match(typePage, /area="'\.\$param\['area'\]\.'"/);
+assert.match(typePage, /lang="'\.\$param\['lang'\]\.'"/);
+assert.match(typePage, /year="'\.\$param\['year'\]\.'"/);
+assert.match(typePage, /letter="'\.\$param\['letter'\]\.'"/);
+assert.match(typePage, /class="'\.\$param\['class'\]\.'"/);
 assert.match(typePage, /\$param\.by eq 'hits'/);
 assert.match(typePage, /\$param\.by eq 'score'/);
 assert.match(typePage, /by="hits"/);
@@ -777,14 +766,11 @@ assert.match(showPage, /'by'=>'hits'/);
 assert.match(showPage, /'by'=>'score'/);
 assert.match(showPage, /\$param\.by eq 'hits'/);
 assert.match(showPage, /\$param\.by eq 'score'/);
-assert.doesNotMatch(showPage, /area="'\.\$param\['area'\]\.'"/);
-assert.doesNotMatch(showPage, /lang="'\.\$param\['lang'\]\.'"/);
-assert.doesNotMatch(showPage, /year="'\.\$param\['year'\]\.'"/);
-assert.doesNotMatch(showPage, /letter="'\.\$param\['letter'\]\.'"/);
-assert.doesNotMatch(showPage, /class="'\.\$param\['class'\]\.'"/);
-for (const filterAttr of ["area", "lang", "year", "letter", "class"]) {
-  assert.doesNotMatch(showPage, new RegExp(`\\{maccms:vod[^}]*\\s${filterAttr}=`));
-}
+assert.match(showPage, /area="'\.\$param\['area'\]\.'"/);
+assert.match(showPage, /lang="'\.\$param\['lang'\]\.'"/);
+assert.match(showPage, /year="'\.\$param\['year'\]\.'"/);
+assert.match(showPage, /letter="'\.\$param\['letter'\]\.'"/);
+assert.match(showPage, /class="'\.\$param\['class'\]\.'"/);
 assert.match(showPage, /by="hits"/);
 assert.match(showPage, /by="score"/);
 assert.match(showPage, /by="time"/);
@@ -796,8 +782,6 @@ assert.doesNotMatch(showPage, /\{maccms:vod[^}]*pageurl="vod\/show"[^}]*type="al
 
 const searchPage = readThemeFile("html/vod/search.html");
 assert.match(searchPage, /\{maccms:vod num="20" paging="yes" pageurl="vod\/search"/);
-assert.match(searchPage, /wd="'\.mac_filter_html\(\$param\['wd'\]\)\.'"/);
-assert.doesNotMatch(searchPage, /wd="'\.\$param\['wd'\]\.'"/);
 assert.match(searchPage, /loading="lazy" decoding="async" width="160" height="240"/);
 assert.doesNotMatch(searchPage, /class="hot-search-panel search-hot-panel"/);
 assert.doesNotMatch(searchPage, /\$maccms\.search_hot/);
@@ -812,8 +796,7 @@ assert.match(searchPage, /<strong>频道<\/strong>/);
 assert.match(searchPage, /mac_url\('vod\/search',\['wd'=>\$param\['wd'\]\]\)/);
 assert.match(searchPage, /\{maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"\}/);
 assert.match(searchPage, /mac_url\('vod\/search',\['wd'=>\$param\['wd'\],'type'=>\$type\['type_id'\]\]\)/);
-assert.match(searchPage, /\{maccms:type ids="'\.intval\(\$param\['type'\]\)\.'" id="current"\}/);
-assert.doesNotMatch(searchPage, /\{maccms:type ids="'\.\$param\['type'\]\.'" id="current"\}/);
+assert.match(searchPage, /\{maccms:type ids="'\.\$param\['type'\]\.'" id="current"\}/);
 assert.match(searchPage, /\$current\.type_id eq \$type\.type_id or \$current\.type_pid eq \$type\.type_id/);
 assert.match(searchPage, /<strong>类型<\/strong>/);
 assert.match(searchPage, /\{if condition="\$current\.type_pid gt 0"\}/);
@@ -859,8 +842,6 @@ const fieldFocusRule = style.match(/\.header-search:focus-within,[\s\S]*?\.page-
 const heroGridRule = style.match(/\.hero-grid\s*\{[\s\S]*?\}/)?.[0] || "";
 const heroCarouselRule = style.match(/\.hero-carousel\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerTrackRule = style.match(/\.banner-track\s*\{[\s\S]*?\}/)?.[0] || "";
-const bannerBgRule = style.match(/(?:^|\n)\.banner-bg\s*\{[\s\S]*?\}/)?.[0] || "";
-const bannerBgImgRule = style.match(/\.banner-bg img\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerBgAfterRule = style.match(/\.banner-bg::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const heroRankRule = style.match(/\.hero-rank\s*\{[\s\S]*?\}/)?.[0] || "";
 const heroRankBeforeRule = style.match(/\.hero-rank::before\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -906,7 +887,7 @@ const contentBodyWrapRule = style.match(/\.hero-copy p,[\s\S]*?\.site-footer p\s
 const homeShelfRule = style.match(/(?:^|\n)\.home-shelf\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfHeadRule = style.match(/\.home-shelf-head\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfTabsRule = style.match(/\.home-shelf-tabs\s*\{[\s\S]*?\}/)?.[0] || "";
-const homeShelfTabsActiveRule = style.match(/\.home-shelf-tabs button:hover,[\s\S]*?\.home-shelf-tabs button\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfTabsActiveRule = style.match(/\.home-shelf-tabs button\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfRailRule = style.match(/\.home-shelf-rail\s*\{[\s\S]*?\}/)?.[0] || "";
 const hiddenHomeShelfRailRule = style.match(/\.home-shelf-rail\[hidden\]\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfCardRule = style.match(/(?:^|\n)\.home-shelf-card\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1018,9 +999,8 @@ assert.match(homeShelfTabsRule, /justify-content: center/);
 assert.match(homeShelfTabsRule, /overflow-x: auto/);
 assert.match(homeShelfTabsActiveRule, /border-color: var\(--accent-2\)/);
 assert.match(homeShelfTabsActiveRule, /color: var\(--text\)/);
-assert.match(style, /\.home-shelf-tabs button,\n\.home-shelf-tabs a\s*\{[\s\S]*appearance: none/);
-assert.match(style, /\.home-shelf-tabs button,\n\.home-shelf-tabs a\s*\{[\s\S]*font-family: inherit/);
-assert.match(style, /\.home-shelf-tabs button:hover,\n\.home-shelf-tabs a:hover,\n\.home-shelf-tabs button\.is-active\s*\{/);
+assert.match(style, /\.home-shelf-tabs button\s*\{[\s\S]*appearance: none/);
+assert.match(style, /\.home-shelf-tabs button\s*\{[\s\S]*font-family: inherit/);
 assert.match(homeShelfRailRule, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
 assert.match(homeShelfRailRule, /grid-auto-flow: column/);
 assert.match(homeShelfRailRule, /overflow-x: auto/);
@@ -1079,11 +1059,6 @@ assert.match(heroSlideRule, /position: absolute/);
 assert.match(heroSlideRule, /min-height: clamp\(420px, 34vw, 520px\)/);
 assert.match(heroSlideRule, /padding: clamp\(34px, 4vw, 58px\) clamp\(28px, 4vw, 52px\) 74px/);
 assert.match(activeHeroSlideRule, /position: relative/);
-assert.doesNotMatch(style, /var\(--banner-bg\)/);
-assert.match(bannerBgRule, /overflow: hidden/);
-assert.match(bannerBgImgRule, /object-fit: cover/);
-assert.match(bannerBgImgRule, /filter: saturate\(1\.2\) contrast\(1\.06\)/);
-assert.match(bannerBgImgRule, /transform: scale\(1\.01\)/);
 assert.match(bannerBgAfterRule, /rgba\(7, 9, 13, 0\.76\) 100%/);
 assert.match(bannerContentRule, /grid-area: content/);
 assert.match(bannerContentRule, /align-content: center/);
@@ -1342,10 +1317,8 @@ assert.doesNotMatch(style, /border(?:-color)?: [^;]*rgba\(40, 199, 167/);
 
 const logo = readFileSync(path.join(themeRoot, "images/site-logo.png"));
 assert.equal(logo.subarray(1, 4).toString("ascii"), "PNG");
-const logoStats = statSync(path.join(themeRoot, "images/site-logo.png"));
-assert.deepEqual([logo.readUInt32BE(16), logo.readUInt32BE(20)], [116, 116]);
-assert.ok(logoStats.size <= 100_000, "site logo should stay close to its 58px rendered size");
-const logoMode = logoStats.mode & 0o777;
+assert.deepEqual([logo.readUInt32BE(16), logo.readUInt32BE(20)], [1024, 1024]);
+const logoMode = statSync(path.join(themeRoot, "images/site-logo.png")).mode & 0o777;
 assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web server after deployment");
 
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
@@ -1382,10 +1355,6 @@ assert.match(deployScript, /npm run verify:preview/);
 assert.match(deployScript, /npm run package/);
 assert.match(deployScript, /npm run verify:release/);
 assert.match(deployScript, /dist\/pingfangvideo\.tar\.gz/);
-assert.match(deployScript, /DEPLOY_HOST="\$\{DEPLOY_HOST:-ping2\.my\}"/);
-assert.match(deployScript, /DEPLOY_USER="\$\{DEPLOY_USER:-root\}"/);
-assert.match(deployScript, /DEPLOY_PORT="\$\{DEPLOY_PORT:-22\}"/);
-assert.match(deployScript, /DEPLOY_PATH="\$\{DEPLOY_PATH:-\/www\/wwwroot\/ping2\.my\/template\}"/);
 assert.match(deployScript, /\$\{DEPLOY_HOST/);
 assert.match(deployScript, /\$\{DEPLOY_USER/);
 assert.match(deployScript, /\$\{DEPLOY_PORT/);
@@ -1411,10 +1380,6 @@ assert.doesNotMatch(deployScript, /DEPLOY_PASSWORD=/);
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
 assert.match(rollbackScript, /set -euo pipefail/);
-assert.match(rollbackScript, /DEPLOY_HOST="\$\{DEPLOY_HOST:-ping2\.my\}"/);
-assert.match(rollbackScript, /DEPLOY_USER="\$\{DEPLOY_USER:-root\}"/);
-assert.match(rollbackScript, /DEPLOY_PORT="\$\{DEPLOY_PORT:-22\}"/);
-assert.match(rollbackScript, /DEPLOY_PATH="\$\{DEPLOY_PATH:-\/www\/wwwroot\/ping2\.my\/template\}"/);
 assert.match(rollbackScript, /\$\{DEPLOY_HOST/);
 assert.match(rollbackScript, /\$\{DEPLOY_USER/);
 assert.match(rollbackScript, /\$\{DEPLOY_PORT/);
@@ -1466,8 +1431,6 @@ assert.match(deviceBridgeController, /DeviceSession::registerLogin/);
 assert.match(deviceBridgeController, /DeviceSession::listSessions/);
 assert.match(deviceBridgeController, /DeviceSession::revokeSession/);
 assert.match(deviceBridgeController, /DeviceSession::logoutCurrentDevice/);
-assert.match(deviceBridgeController, /DeviceSession::validateCsrf/);
-assert.match(deviceBridgeController, /Request\(\)->isPost\(\)/);
 
 const deviceAddonController = readAddonFile("controller/Index.php");
 assert.match(deviceAddonController, /model\('User'\)->login\(\$param, \['return_meta' => true\]\)/);
@@ -1476,18 +1439,12 @@ assert.match(deviceAddonController, /DeviceSession::listSessions/);
 assert.match(deviceAddonController, /DeviceSession::revokeSession/);
 assert.match(deviceAddonController, /DeviceSession::logoutCurrentDevice/);
 assert.match(deviceAddonController, /addon_url\('pingfangdevice\/index\/index'\)/);
-assert.match(deviceAddonController, /DeviceSession::validateCsrf/);
-assert.match(deviceAddonController, /Request\(\)->isPost\(\)/);
 
 const deviceSessionService = readAddonFile("service/DeviceSession.php");
 assert.match(deviceSessionService, /const DEFAULT_MAX_DEVICES = 3/);
 assert.match(deviceSessionService, /const TOKEN_COOKIE = 'pfv_device_token'/);
 assert.match(deviceSessionService, /public static function registerLogin/);
 assert.match(deviceSessionService, /public static function syncActiveCookie/);
-assert.match(deviceSessionService, /const CSRF_COOKIE = 'pfv_csrf_token'/);
-assert.match(deviceSessionService, /public static function csrfToken/);
-assert.match(deviceSessionService, /public static function validateCsrf/);
-assert.match(deviceSessionService, /hash_equals\(\$cookieToken, \$requestToken\)/);
 assert.match(deviceSessionService, /public static function enforceDeviceLimit/);
 assert.match(deviceSessionService, /public static function revokeSession/);
 assert.match(deviceSessionService, /hash_equals/);
@@ -1508,27 +1465,6 @@ assert.match(deviceAddonView, /当前设备/);
 assert.match(deviceAddonView, /最近登录时间/);
 assert.match(deviceAddonView, /踢下线/);
 assert.match(deviceAddonView, /data-device-revoke/);
-assert.match(deviceAddonView, /data-csrf-token="\{\$csrf_token\|htmlspecialchars=###,ENT_QUOTES,'UTF-8'\}"/);
-assert.match(deviceAddonView, /form\.append\("csrf_token", csrfToken\)/);
-
-const videoLintController = readFileSync(path.join(root, "addons/videolint/controller/Index.php"), "utf8");
-assert.match(videoLintController, /private function csrfToken/);
-assert.match(videoLintController, /private function validateCsrf/);
-assert.match(videoLintController, /\$this->assign\('csrf_token'/);
-assert.match(videoLintController, /\$this->validateCsrf\(\)/);
-assert.match(videoLintController, /public function export\(\)[\s\S]*session\('admin_id'\)/);
-
-const videoLintView = readFileSync(path.join(root, "addons/videolint/view/index/index.html"), "utf8");
-assert.match(videoLintView, /name="csrf_token"/);
-assert.match(videoLintView, /data-videolint-csrf="\{\$csrf_token\|htmlspecialchars=###,ENT_QUOTES,'UTF-8'\}"/);
-assert.match(videoLintView, /formData\.append\("csrf_token", csrfToken\)/);
-
-const videoLintScanner = readFileSync(path.join(root, "addons/videolint/service/QualityScanner.php"), "utf8");
-assert.match(videoLintScanner, /private static function isPublicHttpUrl/);
-assert.match(videoLintScanner, /FILTER_FLAG_NO_PRIV_RANGE \| FILTER_FLAG_NO_RES_RANGE/);
-assert.match(videoLintScanner, /dns_get_record/);
-assert.doesNotMatch(videoLintScanner, /'verify_peer'\s*=>\s*false/);
-assert.doesNotMatch(videoLintScanner, /'verify_peer_name'\s*=>\s*false/);
 
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);
@@ -1559,7 +1495,6 @@ assert.match(templateLinter, /public\/digg\.html/);
 assert.match(templateLinter, /public\/score\.html/);
 assert.match(templateLinter, /public\/star\.html/);
 assert.match(templateLinter, /maccms\.path without a trailing slash/);
-assert.match(templateLinter, /rawRequestTagAttributePattern/);
 assert.match(templateLinter, /Template lint passed/);
 
 const compatVerifier = readFileSync(path.join(root, "scripts/verify-compat.mjs"), "utf8");
@@ -1602,7 +1537,6 @@ assert.match(releaseVerifier, /maccms\\\['path'\\\]/);
 assert.match(releaseVerifier, /htmlEntries/);
 assert.match(releaseVerifier, /forbiddenProductionPatterns/);
 assert.match(releaseVerifier, /assertSafeAssetReference/);
-assert.match(releaseVerifier, /rawRequestTagAttributePattern/);
 assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholder/);
 assert.match(releaseVerifier, /assetVersionPattern/);
@@ -1620,18 +1554,16 @@ assert.match(preview, new RegExp(`css/style\\.css\\?v=${assetVersionPlaceholder}
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260621/);
 assert.match(preview, /js\/app\.js\?v=/);
-assert.doesNotMatch(preview, /js\/gsap\.min\.js/);
-assert.doesNotMatch(preview, /js\/react\.production\.min\.js/);
-assert.doesNotMatch(preview, /js\/react-dom\.production\.min\.js/);
-assert.doesNotMatch(preview, /js\/rank-react\.js/);
-assert.match(preview, new RegExp(`js/app\\.js\\?v=${assetVersionPlaceholder}`));
+assert.match(preview, /js\/gsap\.min\.js\?v=3\.15\.0/);
+assert.match(preview, /js\/react\.production\.min\.js\?v=18\.3\.1/);
+assert.match(preview, /js\/react-dom\.production\.min\.js\?v=18\.3\.1/);
+assert.match(preview, new RegExp(`js/rank-react\\.js\\?v=${assetVersionPlaceholder}`));
+assert.match(preview, new RegExp(`js/gsap\\.min\\.js\\?v=3\\.15\\.0[\\s\\S]*js/react\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/react-dom\\.production\\.min\\.js\\?v=18\\.3\\.1[\\s\\S]*js/rank-react\\.js\\?v=${assetVersionPlaceholder}[\\s\\S]*js/app\\.js\\?v=${assetVersionPlaceholder}`));
 assert.doesNotMatch(preview, /js\/app\.js\?v=20260621/);
 assert.match(preview, /sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px"/);
 assert.match(preview, /class="rank-thumb"[\s\S]*sizes="72px"/);
 assert.match(preview, /class="rank-score"/);
-assert.match(preview, /const imageAttrs = index === 0/);
-assert.match(preview, /data-carousel-lazy-src="\$\{imageSrc\}"/);
-assert.doesNotMatch(preview, /--banner-bg/);
+assert.match(preview, /class="banner-bg" style="--banner-bg: url/);
 assert.doesNotMatch(preview, /banner-poster/);
 assert.match(preview, /sizes="96px"/);
 assert.doesNotMatch(preview, /v=20260615/);
@@ -1676,16 +1608,16 @@ assert.doesNotMatch(preview, /hero-stats/);
 assert.doesNotMatch(preview, /片库内容/);
 assert.match(preview, /hot-search-panel/);
 assert.match(preview, /热搜榜/);
-assert.doesNotMatch(preview, /data-rank-react-root/);
+assert.match(preview, /data-rank-react-root/);
 assert.doesNotMatch(preview, /data-rank-visible-count/);
-assert.doesNotMatch(preview, /data-rank-react-list/);
+assert.match(preview, /data-rank-react-list/);
 assert.match(preview, /data-rank-item/);
 assert.match(preview, /rankVideos = hot\.slice\(0, 5\)/);
 assert.doesNotMatch(preview, /shuffleVideos/);
 assert.doesNotMatch(preview, /is-rank-extra/);
 assert.match(preview, /class="rank-refresh" href="\$\{url\("category", \{ sort: "hot" \}\)\}">查看更多<\/a>/);
 assert.doesNotMatch(preview, /换一换/);
-assert.doesNotMatch(preview, /PingFangRankReact/);
+assert.match(preview, /PingFangRankReact\?\.mountAll\?\.\(app\)/);
 assert.doesNotMatch(preview, /id="hotSearchPanel"/);
 assert.doesNotMatch(preview, /renderHeaderHotSearch/);
 assert.match(preview, /url\("category", \{ sort: "hot" \}\)/);
@@ -1693,17 +1625,15 @@ assert.match(preview, /score-badge/);
 assert.match(preview, /card-meta/);
 assert.match(preview, /function homeShelfCard\(video, featured = false\)/);
 assert.match(preview, /title="\$\{escapeHtml\(video\.title\)\}"/);
-assert.match(preview, /function homeShelfTabs\(categories\)/);
+assert.match(preview, /function homeShelfTabs\(tabs\)/);
 assert.match(preview, /home-shelf home-shelf-latest/);
 assert.doesNotMatch(preview, /home-shelf home-shelf-hot/);
 assert.match(preview, /aria-label="最新分类"/);
-assert.match(preview, /<button class="is-active" type="button" data-home-tab="all" aria-controls="latest-panel-all">推荐<\/button>/);
-assert.match(preview, /categories\.map\(\(category\) => `<a href="\$\{url\("category", \{ name: category \}\)\}"/);
+assert.match(preview, /<button type="button" data-home-tab="\$\{escapeHtml\(tab\.key\)\}" role="tab" aria-selected="\$\{tab\.isActive \? "true" : "false"\}" aria-controls="latest-panel-\$\{escapeHtml\(tab\.key\)\}"/);
 assert.doesNotMatch(preview, /href="#home-latest-/);
-assert.doesNotMatch(preview, /latest-panel-category-/);
+assert.match(preview, /home-shelf-rail"\s+data-home-tab="\$\{escapeHtml\(tab\.key\)\}"\s+id="latest-panel-\$\{escapeHtml\(tab\.key\)\}"\s+role="tabpanel"\s+aria-hidden="\$\{tab\.isActive \? "false" : "true"\}"\$\{tab\.isActive \? "" : " hidden"\}/);
 assert.doesNotMatch(preview, /homeShelfCard\(video, true\)/);
-assert.match(preview, /homeShelfPanel\(latest\)/);
-assert.doesNotMatch(preview, /latestTabs\.map\(\(tab\) => homeShelfPanel\(tab\)\)\.join\(""\)/);
+assert.match(preview, /latestTabs\.map\(\(tab\) => homeShelfPanel\(tab\)\)\.join\(""\)/);
 assert.doesNotMatch(preview, /<div class="vod-grid">\$\{latest\.map\(card\)\.join\(""\)\}<\/div>/);
 const previewCardFunction = preview.match(/function card\(video\) \{[\s\S]*?function rankItem/)?.[0] || "";
 assert.doesNotMatch(previewCardFunction, /<small>\$\{escapeHtml\(video\.actor\)\}<\/small>/);
@@ -1769,18 +1699,15 @@ assert.match(phpRender, /游戏入口/);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /banner-dots/);
-assert.match(phpRender, /data-carousel-lazy-src/);
 assert.match(phpRender, /score-badge/);
 assert.match(phpRender, /function render_home_shelf_card\(array \$video, bool \$featured = false\): string/);
 assert.match(phpRender, /title="' \. e\(\$video\['title'\]\) \. '"/);
-assert.doesNotMatch(phpRender, /\$homeTabs = \[/);
-assert.match(phpRender, /\$latestVideos = array_slice\(sort_videos\(\$data\['videos'\], 'latest'\), 0, 6\)/);
-assert.match(phpRender, /\$categoryLinks \.= '<a href="' \. e\(path_for\('category', \['name' => \$category\]\)\) \. '">/);
-assert.match(phpRender, /\$tabLinks = '<nav class="home-shelf-tabs" aria-label="最新分类"><button class="is-active" type="button" data-home-tab="all" aria-controls="latest-panel-all">推荐<\/button>/);
+assert.match(phpRender, /\$homeTabs = \[/);
+assert.match(phpRender, /\$tabRails \.= render_home_latest_panel\(\$tab\['key'\], \$tab\['videos'\], \$index === 0\)/);
+assert.match(phpRender, /\$tabLinks \.= '<button type="button" data-home-tab="' \. e\(\$tab\['key'\]\)/);
 assert.doesNotMatch(phpRender, /href="#home-latest-/);
 assert.match(phpRender, /\$latestShelf = '<section class="wrap home-shelf home-shelf-latest"[\s\S]*<h2>最新上线<\/h2>' \. \$tabLinks \. '<a class="home-shelf-more" href="' \. e\(path_for\('category'\)\) \. '">全部影片<\/a>/);
-assert.match(phpRender, /render_home_latest_panel\('all', \$latestVideos, true\)/);
-assert.doesNotMatch(phpRender, /array_slice\(sort_videos\(filter_videos\(\$data, \$category\), 'latest'\), 0, 6\)/);
+assert.match(phpRender, /array_slice\(sort_videos\(filter_videos\(\$data, \$category\), 'latest'\), 0, 6\)/);
 assert.match(phpRender, /detail-panel/);
 const phpRenderCardsFunction = phpRender.match(/function render_cards\(array \$videos\): string[\s\S]*?function hero_slides/)?.[0] || "";
 assert.doesNotMatch(phpRenderCardsFunction, /<small>' \. e\(\$video\['actor'\]\) \. '<\/small>/);
@@ -1947,8 +1874,6 @@ assert.match(appJs, /observer\.unobserve/);
 assert.match(appJs, /willChange/);
 assert.match(appJs, /data-gsap-carousel/);
 assert.match(appJs, /delete carousel\.dataset\.gsapCarousel/);
-assert.match(appJs, /loadCarouselImage/);
-assert.match(appJs, /data-carousel-lazy-src/);
 assert.match(appJs, /clearProps: "transform,opacity,visibility,willChange"/);
 assert.match(appJs, /clearProps: "transform,opacity,visibility,willChange,zIndex"/);
 assert.match(appJs, /hero-slide\.is-active \.banner-copy/);

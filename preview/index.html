@@ -76,6 +76,10 @@
     </div>
   </div>
 </footer>
+<script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
+<script src="../template/pingfangvideo/js/react.production.min.js?v=18.3.1"></script>
+<script src="../template/pingfangvideo/js/react-dom.production.min.js?v=18.3.1"></script>
+<script src="../template/pingfangvideo/js/rank-react.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
@@ -154,18 +158,17 @@ function card(video) {
     </a>`;
 }
 
-function homeShelfTabs(categories) {
+function homeShelfTabs(tabs) {
   return `
-    <nav class="home-shelf-tabs" aria-label="最新分类">
-      <button class="is-active" type="button" data-home-tab="all" aria-controls="latest-panel-all">推荐</button>
-      ${categories.map((category) => `<a href="${url("category", { name: category })}" data-route="category">${escapeHtml(category)}</a>`).join("")}
+    <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
+      ${tabs.map((tab) => `<button type="button" data-home-tab="${escapeHtml(tab.key)}" role="tab" aria-selected="${tab.isActive ? "true" : "false"}" aria-controls="latest-panel-${escapeHtml(tab.key)}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</button>`).join("")}
     </nav>`;
 }
 
-function homeShelfPanel(videos) {
+function homeShelfPanel(tab) {
   return `
-    <div class="home-shelf-rail" data-home-tab="all" id="latest-panel-all" role="tabpanel" aria-hidden="false">
-      ${videos.map((video) => homeShelfCard(video)).join("")}
+    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="latest-panel-${escapeHtml(tab.key)}" role="tabpanel" aria-hidden="${tab.isActive ? "false" : "true"}"${tab.isActive ? "" : " hidden"}>
+      ${tab.videos.map((video) => homeShelfCard(video)).join("")}
     </div>`;
 }
 
@@ -190,7 +193,7 @@ function homeShelfCard(video, featured = false) {
 
 function rankItem(video, index) {
   return `
-    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail" data-rank-item>
+    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail" data-rank-item data-rank-title="${escapeHtml(video.title)}" data-rank-meta="${escapeHtml(video.year)} · ${escapeHtml(video.class || video.category)}" data-rank-score="${escapeHtml(video.score)}" data-rank-pic="${escapeHtml(video.poster)}">
       <span class="rank-thumb">
         <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
         <span class="rank-index">${index + 1}</span>
@@ -206,17 +209,11 @@ function rankItem(video, index) {
 function bannerSlide(video, index) {
   const active = index === 0 ? " is-active" : "";
   const backdrop = video.backdrop || video.poster;
-  const imageSrc = escapeHtml(backdrop);
-  const imageAttrs = index === 0
-    ? `src="${imageSrc}" loading="eager" fetchpriority="high"`
-    : `src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" data-carousel-lazy-src="${imageSrc}" loading="lazy" fetchpriority="low"`;
   const duration = video.duration || "时长待定";
   const version = video.version || video.remark || "高清";
   return `
     <article class="hero-slide${active}" data-carousel-slide>
-      <span class="banner-bg">
-        <img ${imageAttrs} alt="" width="1280" height="720" decoding="async" sizes="100vw">
-      </span>
+      <span class="banner-bg" style="--banner-bg: url('${escapeHtml(backdrop)}');"></span>
       <span class="banner-content">
         <span class="banner-copy">
           <em class="eyebrow">热播推荐</em>
@@ -387,8 +384,26 @@ function renderHistoryPage() {
 
 function renderHome() {
   const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
-  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 5);
-  const latest = sortVideos([...store.videos], "latest").slice(0, 6);
+  const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+  const latestTabs = [
+    {
+      key: "all",
+      label: "推荐",
+      isActive: true,
+      videos: sortVideos([...store.videos], "latest").slice(0, 6),
+    }
+  ];
+
+  categories.forEach((category, index) => {
+    latestTabs.push({
+      key: `category-${index}`,
+      label: category,
+      isActive: false,
+      videos: sortVideos(filterVideos(category), "latest").slice(0, 6),
+    });
+  });
+
+  const latest = [...store.videos].sort((a, b) => b.updated.localeCompare(a.updated));
   const hot = [...store.videos].sort((a, b) => b.hits - a.hits);
   const banners = hot.slice(0, 5);
   const rankVideos = hot.slice(0, 5);
@@ -405,12 +420,12 @@ function renderHome() {
             </div>
           </div>
         </section>
-        <div class="hero-rank">
+        <div class="hero-rank" data-rank-react-root data-rank-more-url="${url("category", { sort: "hot" })}">
           <div class="section-head compact">
             <h2>热搜榜</h2>
             <a class="rank-refresh" href="${url("category", { sort: "hot" })}">查看更多</a>
           </div>
-          <div class="rank-list">
+          <div class="rank-list" data-rank-react-list>
             ${rankVideos.map(rankItem).join("")}
           </div>
         </div>
@@ -419,10 +434,10 @@ function renderHome() {
     <section class="wrap home-shelf home-shelf-latest">
       <div class="home-shelf-head">
         <h2>最新上线</h2>
-        ${homeShelfTabs(categories)}
+        ${homeShelfTabs(latestTabs)}
         <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
       </div>
-      ${homeShelfPanel(latest)}
+      ${latestTabs.map((tab) => homeShelfPanel(tab)).join("")}
     </section>`;
 }
 
@@ -670,6 +685,7 @@ function render() {
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
+  window.PingFangRankReact?.mountAll?.(app);
   window.PingFangVideo?.initHomeLatestTabs?.();
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initGsapMotion?.(app);

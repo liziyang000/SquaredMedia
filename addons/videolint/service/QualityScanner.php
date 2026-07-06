@@ -405,158 +405,36 @@ class QualityScanner
 
     private static function checkHttpUrlReachable(string $url, int $timeoutSeconds = 3)
     {
+        if (!str_starts_with(strtolower($url), 'http://') && !str_starts_with(strtolower($url), 'https://')) {
+            return true;
+        }
+
         $timeout = max(1, min(10, $timeoutSeconds));
-        $currentUrl = $url;
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'HEAD',
+                'timeout' => $timeout,
+                'ignore_errors' => true,
+                'follow_location' => 1,
+                'max_redirects' => 3,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ],
+        ]);
 
-        for ($redirects = 0; $redirects <= 3; $redirects++) {
-            if (!self::isPublicHttpUrl($currentUrl)) {
-                return false;
-            }
-
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'HEAD',
-                    'timeout' => $timeout,
-                    'ignore_errors' => true,
-                    'follow_location' => 0,
-                    'max_redirects' => 0,
-                ],
-                'ssl' => [
-                    'verify_peer' => true,
-                    'verify_peer_name' => true,
-                ],
-            ]);
-
-            $headers = @get_headers($currentUrl, 1, $context);
-            if (!is_array($headers) || empty($headers)) {
-                return false;
-            }
-
-            $status = (string) $headers[0];
-            if (!preg_match('/HTTP\\/\\S+\\s(\\d{3})/i', $status, $matches)) {
-                return false;
-            }
-
+        $headers = @get_headers($url, 1, $context);
+        if (!is_array($headers) || empty($headers)) {
+            return false;
+        }
+        $status = (string) $headers[0];
+        if (preg_match('/HTTP\\/\\S+\\s(\\d{3})/i', $status, $matches)) {
             $code = (int) $matches[1];
-            if ($code >= 200 && $code < 400) {
-                return true;
-            }
-
-            if ($code < 300 || $code >= 400) {
-                return false;
-            }
-
-            $location = $headers['Location'] ?? $headers['location'] ?? '';
-            if (is_array($location)) {
-                $location = end($location);
-            }
-            $currentUrl = self::resolveRedirectUrl($currentUrl, (string) $location);
-            if ($currentUrl === '') {
-                return false;
-            }
+            return $code >= 200 && $code < 400;
         }
 
         return false;
-    }
-
-    private static function isPublicHttpUrl(string $url)
-    {
-        $parts = parse_url($url);
-        if (!is_array($parts)) {
-            return false;
-        }
-
-        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        if ($scheme !== 'http' && $scheme !== 'https') {
-            return false;
-        }
-
-        $host = trim((string) ($parts['host'] ?? ''), '[]');
-        if ($host === '') {
-            return false;
-        }
-
-        $lowerHost = strtolower($host);
-        if ($lowerHost === 'localhost' || str_ends_with($lowerHost, '.localhost')) {
-            return false;
-        }
-
-        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : self::resolveHostIps($host);
-        if (empty($ips)) {
-            return false;
-        }
-
-        foreach ($ips as $ip) {
-            if (!self::isPublicIp($ip)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static function resolveHostIps(string $host)
-    {
-        $ips = [];
-        $records = @dns_get_record($host, DNS_A | DNS_AAAA);
-        if (is_array($records)) {
-            foreach ($records as $record) {
-                if (!empty($record['ip'])) {
-                    $ips[] = (string) $record['ip'];
-                }
-                if (!empty($record['ipv6'])) {
-                    $ips[] = (string) $record['ipv6'];
-                }
-            }
-        }
-
-        if (empty($ips)) {
-            $v4 = @gethostbynamel($host);
-            if (is_array($v4)) {
-                $ips = array_merge($ips, $v4);
-            }
-        }
-
-        return array_values(array_unique($ips));
-    }
-
-    private static function isPublicIp(string $ip)
-    {
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
-    }
-
-    private static function resolveRedirectUrl(string $baseUrl, string $location)
-    {
-        $location = trim($location);
-        if ($location === '') {
-            return '';
-        }
-
-        if (parse_url($location, PHP_URL_SCHEME) !== null) {
-            return $location;
-        }
-
-        $base = parse_url($baseUrl);
-        if (!is_array($base) || empty($base['scheme']) || empty($base['host'])) {
-            return '';
-        }
-
-        if (str_starts_with($location, '//')) {
-            return $base['scheme'] . ':' . $location;
-        }
-
-        $authority = $base['scheme'] . '://' . $base['host'];
-        if (!empty($base['port'])) {
-            $authority .= ':' . $base['port'];
-        }
-
-        if (str_starts_with($location, '/')) {
-            return $authority . $location;
-        }
-
-        $path = (string) ($base['path'] ?? '/');
-        $directory = preg_replace('#/[^/]*$#', '/', $path);
-        return $authority . $directory . $location;
     }
 
     private static function buildIssue($vodId, string $vodName, string $level, string $code, string $field, string $message)

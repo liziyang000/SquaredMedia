@@ -3,15 +3,11 @@ set -euo pipefail
 
 deploy_tmp_dir=""
 
-DEPLOY_HOST="${DEPLOY_HOST:-ping2.my}"
-DEPLOY_USER="${DEPLOY_USER:-root}"
-DEPLOY_PATH="${DEPLOY_PATH:-/www/wwwroot/ping2.my/template}"
-DEPLOY_PORT="${DEPLOY_PORT:-22}"
-
 : "${DEPLOY_HOST:?Set DEPLOY_HOST to the SSH host or IP address.}"
 : "${DEPLOY_USER:?Set DEPLOY_USER to the SSH user.}"
 : "${DEPLOY_PATH:?Set DEPLOY_PATH to the remote MacCMS template directory.}"
 
+DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"

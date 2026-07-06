@@ -8,7 +8,6 @@ class DeviceSession
 {
     const DEFAULT_MAX_DEVICES = 3;
     const TOKEN_COOKIE = 'pfv_device_token';
-    const CSRF_COOKIE = 'pfv_csrf_token';
     const TABLE = 'pingfang_device_session';
     const COOKIE_EXPIRE = 2592000;
 
@@ -43,8 +42,6 @@ class DeviceSession
     public static function syncActiveCookie()
     {
         try {
-            self::csrfToken();
-
             $userId = intval(cookie('user_id'));
             $userName = trim((string) cookie('user_name'));
             $tokenHash = self::currentTokenHash();
@@ -172,37 +169,6 @@ class DeviceSession
         return ['code' => 1, 'msg' => '设备已踢下线'];
     }
 
-    public static function csrfToken()
-    {
-        $token = trim((string) cookie(self::CSRF_COOKIE));
-        if (!self::isValidCsrfToken($token)) {
-            $token = self::newToken();
-            self::setCsrfCookie($token);
-        }
-
-        return $token;
-    }
-
-    public static function validateCsrf()
-    {
-        $cookieToken = trim((string) cookie(self::CSRF_COOKIE));
-        $requestToken = trim((string) input('csrf_token', ''));
-
-        if ($requestToken === '') {
-            $request = request();
-            if (is_object($request) && method_exists($request, 'header')) {
-                $requestToken = trim((string) $request->header('X-PingFang-CSRF', ''));
-                if ($requestToken === '') {
-                    $requestToken = trim((string) $request->header('X-CSRF-Token', ''));
-                }
-            }
-        }
-
-        return self::isValidCsrfToken($cookieToken)
-            && self::isValidCsrfToken($requestToken)
-            && hash_equals($cookieToken, $requestToken);
-    }
-
     public static function logoutCurrentDevice($userId)
     {
         $tokenHash = self::currentTokenHash();
@@ -291,27 +257,12 @@ class DeviceSession
         cookie(self::TOKEN_COOKIE, $token, [
             'expire' => self::COOKIE_EXPIRE,
             'httponly' => true,
-            'samesite' => 'Lax',
-        ]);
-    }
-
-    private static function setCsrfCookie($token)
-    {
-        cookie(self::CSRF_COOKIE, $token, [
-            'expire' => self::COOKIE_EXPIRE,
-            'httponly' => false,
-            'samesite' => 'Lax',
         ]);
     }
 
     private static function clearDeviceCookie()
     {
         cookie(self::TOKEN_COOKIE, null);
-    }
-
-    private static function isValidCsrfToken($token)
-    {
-        return is_string($token) && preg_match('/\A[a-f0-9]{64}\z/i', $token) === 1;
     }
 
     private static function userAgent()

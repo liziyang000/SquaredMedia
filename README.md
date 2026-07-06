@@ -74,15 +74,16 @@ MacCMS template files must exist, hidden dotfiles must be absent, and developmen
 directories such as `preview`, `server`, `docker`, `tests`, and `scripts` must
 not be included.
 
-Deploy the verified package to the configured MacCMS server over SSH:
+Deploy the verified package to a MacCMS server over SSH:
 
 ```bash
+DEPLOY_HOST=example.com \
+DEPLOY_USER=root \
+DEPLOY_PORT=22 \
+DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-The default deployment target is `root@ping2.my:/www/wwwroot/ping2.my/template`
-over SSH port `22`. Override `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT`, or
-`DEPLOY_PATH` in the shell only when deploying to a different MacCMS instance.
 `DEPLOY_PATH` must point to the remote MacCMS `template` directory. The deploy
 script runs the full local verification sequence, uploads `dist/pingfangvideo.tar.gz`,
 backs up any existing remote `pingfangvideo` directory as `pingfangvideo.backup.*`,
@@ -102,6 +103,10 @@ lets revoked devices fall back to the normal MacCMS logged-out state.
 Rollback to the latest remote backup:
 
 ```bash
+DEPLOY_HOST=example.com \
+DEPLOY_USER=root \
+DEPLOY_PORT=22 \
+DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run rollback
 ```
 

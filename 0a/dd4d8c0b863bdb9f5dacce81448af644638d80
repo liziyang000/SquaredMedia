@@ -1,0 +1,21 @@
+docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md
+  s_f8ce03309b7d57::t_d9390373e4f051 1-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "0add4d8c0b863bdb9f5dacce81448af644638d80",
+  "prompts": {},
+  "sessions": {
+    "s_f8ce03309b7d57": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c53-55b0-7b31-b539-a7a378362b49",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

@@ -46,6 +46,8 @@ const requiredThemeFiles = [
   "html/public/msg.html",
   "html/public/verify.html",
   "html/public/vod_card.html",
+  "html/public/vod_filter_common.html",
+  "html/public/vod_grid_results.html",
   "html/public/digg.html",
   "html/public/score.html",
   "html/public/star.html",

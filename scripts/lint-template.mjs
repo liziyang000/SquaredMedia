@@ -53,6 +53,8 @@ const partials = new Set([
   "public/foot.html",
   "public/paging.html",
   "public/vod_card.html",
+  "public/vod_filter_common.html",
+  "public/vod_grid_results.html",
   "public/digg.html",
   "public/score.html",
   "public/star.html",
@@ -107,7 +109,7 @@ for (const filePath of files) {
   const ifCloseCount = content.match(/\{\/if\}/g)?.length || 0;
   assert.ok(ifCloseCount <= ifOpenCount, `${file} should not close more if tags than it opens`);
 
-  for (const match of content.matchAll(/\{include file="([^"]+)" \/\}/g)) {
+  for (const match of content.matchAll(/\{include file="([^"]+)"(?:\s+[^{}]*)?\/\}/g)) {
     const includePath = path.join(htmlRoot, `${match[1]}.html`);
     assert.ok(existsSync(includePath), `${file} includes missing template ${match[1]}`);
   }

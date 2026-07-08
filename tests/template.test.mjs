@@ -30,6 +30,8 @@ const requiredFiles = [
   "html/public/score.html",
   "html/public/star.html",
   "html/public/vod_card.html",
+  "html/public/vod_filter_common.html",
+  "html/public/vod_grid_results.html",
   "html/comment/index.html",
   "html/comment/ajax.html",
   "html/gbook/index.html",
@@ -703,8 +705,17 @@ for (const rssAlias of ["rss/rss.html", "rss/baidu.html", "rss/google.html"]) {
   assert.match(rssAliasPage, /mac_url_vod_detail/);
 }
 
-const typePage = readThemeFile("html/vod/type.html");
+const vodFilterCommonPartial = readThemeFile("html/public/vod_filter_common.html");
+const vodGridResultsPartial = readThemeFile("html/public/vod_grid_results.html");
+function expandVodGridResults(pageurl, vodType) {
+  return vodGridResultsPartial.replaceAll("[pageurl]", pageurl).replaceAll("[vod_type]", vodType);
+}
+
+const typePageSource = readThemeFile("html/vod/type.html");
+const typePage = [typePageSource, vodFilterCommonPartial, expandVodGridResults("vod/type", "current")].join("\n");
 assert.match(typePage, /\{include file="public\/head" seo_title=/);
+assert.match(typePageSource, /\{include file="public\/vod_filter_common" \/\}/);
+assert.match(typePageSource, /\{include file="public\/vod_grid_results" pageurl="vod\/type" vod_type="current" \/\}/);
 assert.match(typePage, /\{maccms:vod num="24" paging="yes"/);
 assert.match(typePage, /pageurl="vod\/type"/);
 assert.doesNotMatch(typePage, /\$param\['by'\]/);
@@ -778,7 +789,12 @@ assert.match(typePage, /by="score"/);
 assert.match(typePage, /by="time"/);
 assert.match(typePage, /\{include file="public\/paging" \/\}/);
 
-const showPage = readThemeFile("html/vod/show.html");
+const showPageSource = readThemeFile("html/vod/show.html");
+const showPage = [showPageSource, vodFilterCommonPartial, expandVodGridResults("vod/show", nonAdultVodTypeScope)].join("\n");
+assert.match(showPageSource, /\{include file="public\/vod_filter_common" \/\}/);
+assert.match(showPageSource, new RegExp(`\\{include file="public/vod_grid_results" pageurl="vod/show" vod_type="${nonAdultVodTypeScope}" \\/\\}`));
+assert.match(vodGridResultsPartial, /pageurl="\[pageurl\]"/);
+assert.match(vodGridResultsPartial, /type="\[vod_type\]"/);
 assert.match(showPage, /data-dynamic-vod-filters/);
 assert.match(showPage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
 assert.match(showPage, /data-filter-type-id="\{\$obj\.type_id\}"/);

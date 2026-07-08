@@ -864,35 +864,6 @@
     });
   }
 
-  function initHeroGradientStrips(root) {
-    var scope = root || document;
-    scope.querySelectorAll("[data-gradient-strips]").forEach(function (strips) {
-      if (strips.dataset.gradientStripsReady === "true") return;
-      strips.dataset.gradientStripsReady = "true";
-
-      var surface = strips.closest(".hero-carousel") || strips.parentElement;
-      if (!surface || prefersReducedMotion() || !window.PointerEvent) return;
-
-      function setPointerPosition(clientX, clientY) {
-        var rect = surface.getBoundingClientRect();
-        if (!rect.width || !rect.height) return;
-        var x = Math.min(Math.max(((clientX - rect.left) / rect.width) * 100, 0), 100);
-        var y = Math.min(Math.max(((clientY - rect.top) / rect.height) * 100, 0), 100);
-        strips.style.setProperty("--strip-x", x.toFixed(1) + "%");
-        strips.style.setProperty("--strip-y", y.toFixed(1) + "%");
-      }
-
-      surface.addEventListener("pointermove", function (event) {
-        setPointerPosition(event.clientX, event.clientY);
-      }, { passive: true });
-
-      surface.addEventListener("pointerleave", function () {
-        strips.style.setProperty("--strip-x", "50%");
-        strips.style.setProperty("--strip-y", "50%");
-      }, { passive: true });
-    });
-  }
-
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initSearchForms = initSearchForms;
   window.PingFangVideo.initLogoutLinks = initLogoutLinks;
@@ -903,7 +874,6 @@
   window.PingFangVideo.initAutoNextPlayback = initAutoNextPlayback;
   window.PingFangVideo.initDynamicVodFilters = initDynamicVodFilters;
   window.PingFangVideo.initThemeSwitchers = initThemeSwitchers;
-  window.PingFangVideo.initHeroGradientStrips = initHeroGradientStrips;
 
   initThemeSwitchers(document);
   initSearchForms(document);
@@ -915,7 +885,6 @@
   initHomeLatestTabs();
   initAutoNextPlayback();
   initDynamicVodFilters(document);
-  initHeroGradientStrips(document);
 
   function initRandomAvatars(root) {
     var colors = ["#ef4444", "#f97316", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];
@@ -957,7 +926,6 @@
     ".detail-grid",
     ".episode-box",
     ".player-shell",
-    ".vod-card",
     ".home-shelf-card",
     ".category-tile",
     ".timeline-item",
@@ -1249,7 +1217,7 @@
       var reduceMotion = context.conditions.reduceMotion;
       var canHover = context.conditions.canHover;
       var carousels = scopedElements(scope, "[data-carousel]");
-      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .vod-card, .home-shelf-card, " + revealSelectors);
+      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .home-shelf-card, " + revealSelectors);
       var revealCleanup = null;
 
       if (reduceMotion) {
@@ -1270,7 +1238,7 @@
       var posterTargets = scopedElements(scope, ".hero-slide.is-active .banner-poster");
       var statTargets = scopedElements(scope, ".hero-carousel .stat-card");
       var rankTargets = scopedElements(scope, ".hero-rank .rank-item");
-      var cards = scopedElements(scope, ".vod-card, .home-shelf-card").slice(0, 12);
+      var cards = scopedElements(scope, ".home-shelf-card").slice(0, 12);
 
       if (heroTargets.length) {
         setMotionWillChange(gsap, heroTargets, "transform, opacity");
@@ -1330,7 +1298,6 @@
       revealCleanup = initRevealMotion(scope, gsap);
 
       if (canHover) {
-        bindGsapHover(scope, ".vod-card", { y: -5, scale: 1.012 }, { y: 0, scale: 1 });
         bindGsapHover(scope, ".rank-item", { x: 4 }, { x: 0 });
         bindGsapHover(scope, ".stat-card", { y: -3 }, { y: 0 });
         bindGsapHover(scope, ".category-tile", { y: -4 }, { y: 0 });

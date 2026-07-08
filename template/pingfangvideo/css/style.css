@@ -926,85 +926,6 @@ textarea:focus-visible,
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42), 0 0 42px rgba(38, 212, 175, 0.12);
 }
 
-.hero-gradient-strips {
-  --strip-x: 50%;
-  --strip-y: 50%;
-  position: absolute;
-  inset: -12%;
-  z-index: 1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.hero-gradient-strips::before {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at var(--strip-x) var(--strip-y), rgba(38, 212, 175, 0.2), transparent 34%), radial-gradient(circle at 74% 18%, rgba(247, 195, 74, 0.14), transparent 30%);
-  content: "";
-  opacity: 0.72;
-  transition: opacity 0.2s ease;
-}
-
-.hero-gradient-strip {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: min(82vw, 820px);
-  height: clamp(18px, 2.8vw, 34px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(255, 90, 61, 0), rgba(255, 90, 61, 0.72) 18%, rgba(247, 195, 74, 0.9) 44%, rgba(38, 212, 175, 0.78) 72%, rgba(38, 212, 175, 0));
-  background-size: 180% 100%;
-  box-shadow: 0 0 22px rgba(38, 212, 175, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  mix-blend-mode: screen;
-  opacity: 0.54;
-  transform-origin: center;
-  animation: gradient-strip-drift 12s ease-in-out infinite alternate;
-}
-
-.hero-gradient-strip:nth-child(1) {
-  transform: translate(-55%, -320%) rotate(-16deg) skewX(-18deg);
-  animation-delay: -0.8s;
-}
-
-.hero-gradient-strip:nth-child(2) {
-  width: min(88vw, 900px);
-  transform: translate(-42%, -170%) rotate(-7deg) skewX(-12deg);
-  animation-delay: -2.2s;
-}
-
-.hero-gradient-strip:nth-child(3) {
-  height: clamp(22px, 3.2vw, 40px);
-  transform: translate(-50%, -12%) rotate(5deg) skewX(-9deg);
-  opacity: 0.62;
-  animation-delay: -4.1s;
-}
-
-.hero-gradient-strip:nth-child(4) {
-  width: min(76vw, 760px);
-  transform: translate(-58%, 142%) rotate(14deg) skewX(-16deg);
-  animation-delay: -5.6s;
-}
-
-.hero-gradient-strip:nth-child(5) {
-  width: min(68vw, 680px);
-  transform: translate(-34%, 286%) rotate(23deg) skewX(-20deg);
-  opacity: 0.42;
-  animation-delay: -7.4s;
-}
-
-@keyframes gradient-strip-drift {
-  0% {
-    background-position: 0% 50%;
-    filter: saturate(1.08);
-  }
-
-  100% {
-    background-position: 100% 50%;
-    filter: saturate(1.35);
-  }
-}
-
 .banner-track {
   position: relative;
   display: grid;
@@ -1061,10 +982,6 @@ textarea:focus-visible,
   [data-gsap-reveal-ready="true"],
   [data-gsap-revealed="true"] {
     transition: none;
-  }
-
-  .hero-gradient-strip {
-    animation: none;
   }
 
   @keyframes theme-flare-reduced {
@@ -1200,18 +1117,34 @@ textarea:focus-visible,
   bottom: 22px;
   left: 50%;
   z-index: 4;
+  isolation: isolate;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--line);
+  min-height: 20px;
+  border: 0;
   border-radius: 999px;
-  background: rgba(7, 9, 12, 0.62);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
-  padding: 6px 8px;
-  backdrop-filter: blur(12px);
+  background: transparent;
+  box-shadow: none;
+  padding: 0 10px;
   transform: translateX(-50%);
 }
 
+.banner-controls::before {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(7, 9, 12, 0.62);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+  content: "";
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
 .banner-dots {
+  position: relative;
+  z-index: 1;
   gap: 8px;
 }
 
@@ -1231,10 +1164,11 @@ textarea:focus-visible,
 .banner-dot {
   position: relative;
   min-width: 44px;
-  min-height: 44px;
+  min-height: 20px;
+  max-height: 20px;
   padding: 0;
   width: 44px;
-  height: 44px;
+  height: 20px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -1883,7 +1817,7 @@ textarea:focus-visible,
   background: var(--surface);
   padding: 8px;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
 .poster {
@@ -3824,6 +3758,9 @@ html[data-theme="poster-magazine"] .banner-controls {
   bottom: 30px;
   left: clamp(30px, 6vw, 84px);
   transform: none;
+}
+
+html[data-theme="poster-magazine"] .banner-controls::before {
   border-color: rgba(248, 243, 255, 0.18);
   background: rgba(5, 6, 19, 0.54);
 }

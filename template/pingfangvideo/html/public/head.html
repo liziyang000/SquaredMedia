@@ -7,6 +7,7 @@
   <meta name="description" content="[seo_description]">
 </head>
 <body>
+<a class="skip-link" href="#mainContent">跳到主要内容</a>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="{$maccms.path}" aria-label="{$maccms.site_name}">
@@ -17,9 +18,10 @@
     </button>
     <nav class="site-nav" id="siteNav" aria-label="主导航">
       <a href="{$maccms.path}">首页</a>
-      <a href="{:mac_url('label/categories')}">分类</a>
+      <a href="{:mac_url('label/categories')}">视频</a>
+      <a href="{:mac_url('label/comics')}">漫画</a>
+      <a href="{:mac_url('art/index')}">文章</a>
       <a href="{:mac_url('website/index')}">游戏</a>
-      <a href="{:mac_url('user/favs')}">收藏</a>
     </nav>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="{:mac_url('vod/search')}">
@@ -27,6 +29,23 @@
         <input id="globalSearch" type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">
         <button type="submit">搜索</button>
       </form>
+    </div>
+    <div class="theme-switcher" data-theme-switcher>
+      <button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-haspopup="true" aria-expanded="false">主题</button>
+      <div class="theme-switcher-menu" data-theme-switcher-menu hidden>
+        <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
+          <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
+          <span>默认</span>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="blue-pink-purple" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-aurora" aria-hidden="true"></span>
+          <span>蓝粉紫</span>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
+          <span>海报杂志</span>
+        </button>
+      </div>
     </div>
     <div class="user-menu">
       {if condition="$user.user_id gt 0"}
@@ -50,12 +69,14 @@
 <div class="mobile-drawer-backdrop" data-mobile-nav-close hidden></div>
 <aside class="mobile-drawer" id="mobileDrawer" aria-label="移动端分类菜单" aria-hidden="true">
   <div class="mobile-drawer-head">
-    <strong>分类导航</strong>
+    <strong id="mobileDrawerTitle">分类导航</strong>
     <button class="mobile-drawer-close" type="button" data-mobile-nav-close aria-label="关闭菜单">×</button>
   </div>
   <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
     <a href="{$maccms.path}">首页</a>
-    <a href="{:mac_url('label/categories')}">全部分类</a>
+    <a href="{:mac_url('label/categories')}">视频</a>
+    <a href="{:mac_url('label/comics')}">漫画</a>
+    <a href="{:mac_url('art/index')}">文章</a>
     <a href="{:mac_url('website/index')}">游戏</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
@@ -74,13 +95,30 @@
     </div>
     {/if}
   </div>
+  <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>
+    <span>主题</span>
+    <div class="theme-option-grid">
+      <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
+        <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
+        <span>默认</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="blue-pink-purple" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-aurora" aria-hidden="true"></span>
+        <span>蓝粉紫</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
+        <span>海报杂志</span>
+      </button>
+    </div>
+  </div>
   <div class="mobile-drawer-section">
     <span>影片分类</span>
     <div class="mobile-drawer-cats">
-      {maccms:type ids="parent" order="asc" by="sort" num="12" id="type"}
+      {maccms:type ids="parent" mid="1" order="asc" by="sort" num="100" id="type"}
       <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
     </div>
   </div>
 </aside>
-<main>
+<main id="mainContent" tabindex="-1">

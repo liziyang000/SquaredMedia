@@ -3,6 +3,7 @@
 namespace addons\pingfangdevice\controller;
 
 use addons\pingfangdevice\service\DeviceSession;
+use addons\pingfangdevice\service\VodFilterOptions;
 use think\addons\Controller;
 
 class Index extends Controller
@@ -48,6 +49,19 @@ class Index extends Controller
         }
 
         return json(DeviceSession::revokeSession($user['user_id'], input('session_id/d', 0)));
+    }
+
+    public function filters()
+    {
+        if (!request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误']);
+        }
+
+        try {
+            return json(VodFilterOptions::filters(input()));
+        } catch (\Throwable $e) {
+            return json(['code' => 1002, 'msg' => '筛选项加载失败', 'data' => ['filters' => []]]);
+        }
     }
 
     public function logout()

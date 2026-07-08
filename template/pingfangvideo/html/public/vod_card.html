@@ -1,4 +1,4 @@
-<a class="vod-card" href="{:mac_url_vod_detail($vo)}">
+<a class="vod-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
   <span class="poster">
     <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">
     <em class="quality-badge">{$vo.vod_remarks|mac_default='高清'}</em>

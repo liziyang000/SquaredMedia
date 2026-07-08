@@ -31,6 +31,7 @@ const requiredEntries = [
   "pingfangvideo/html/book/report.html",
   "pingfangvideo/html/index/index.html",
   "pingfangvideo/html/label/categories.html",
+  "pingfangvideo/html/label/comics.html",
   "pingfangvideo/html/label/history.html",
   "pingfangvideo/html/label/hot.html",
   "pingfangvideo/html/label/videos.html",
@@ -106,6 +107,7 @@ const requiredAddonEntries = [
   "pingfangdevice/info.ini",
   "pingfangdevice/install.sql",
   "pingfangdevice/service/DeviceSession.php",
+  "pingfangdevice/service/VodFilterOptions.php",
   "pingfangdevice/view/index/index.html",
 ];
 

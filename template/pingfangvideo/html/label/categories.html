@@ -1,12 +1,12 @@
-{include file="public/head" seo_title="分类" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{include file="public/head" seo_title="视频分类" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
 <section class="wrap page-title">
-  <span class="eyebrow">分类</span>
-  <h1>全部分类</h1>
-  <p>从这里进入电影、剧集、综艺、动漫和更多频道。</p>
+  <span class="eyebrow">视频</span>
+  <h1>视频分类</h1>
+  <p>从这里进入当前站点的全部视频分类。</p>
 </section>
 
 <section class="wrap category-index">
-  {maccms:type ids="parent" order="asc" by="sort" num="100" id="type"}
+  {maccms:type ids="parent" mid="1" order="asc" by="sort" num="100" id="type"}
   <article class="category-tile">
     <a class="category-hit" href="{:mac_url_type($type)}" aria-label="进入{$type.type_name}"></a>
     <div class="category-main">

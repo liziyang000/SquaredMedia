@@ -3,7 +3,10 @@ import { execFileSync } from "node:child_process";
 
 const routes = [
   ["route=home", ["hero-carousel", "最新上线"]],
-  ["route=categories", ["category-index", "全部分类"]],
+  ["route=videos", ["影片库", "vod-grid"]],
+  ["route=comics", ["漫画入口维护中", "module-fallback"]],
+  ["route=articles", ["文章入口维护中", "module-fallback"]],
+  ["route=categories", ["category-index", "视频分类"]],
   ["route=categories&page=2", ["category-index", "page-state"]],
   ["route=category&name=电影&sort=score", ["分类浏览", "vod-grid"]],
   ["route=category&page=2", ["分类浏览", "page-state", "远山计划"]],

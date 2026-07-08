@@ -53,6 +53,7 @@ const requiredThemeFiles = [
   "html/comment/ajax.html",
   "html/index/index.html",
   "html/label/categories.html",
+  "html/label/comics.html",
   "html/label/history.html",
   "html/label/hot.html",
   "html/label/videos.html",

@@ -36,7 +36,9 @@
   </div>
   <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
     <a href="?route=home" data-route="home">首页</a>
-    <a href="?route=categories" data-route="categories">全部分类</a>
+    <a href="?route=categories" data-route="categories">视频</a>
+    <a href="?route=comics" data-route="comics">漫画</a>
+    <a href="?route=articles" data-route="articles">文章</a>
     <a href="?route=games" data-route="games">游戏</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
@@ -77,9 +79,6 @@
   </div>
 </footer>
 <script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
-<script src="../template/pingfangvideo/js/react.production.min.js?v=18.3.1"></script>
-<script src="../template/pingfangvideo/js/react-dom.production.min.js?v=18.3.1"></script>
-<script src="../template/pingfangvideo/js/rank-react.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
@@ -209,11 +208,12 @@ function rankItem(video, index) {
 function bannerSlide(video, index) {
   const active = index === 0 ? " is-active" : "";
   const backdrop = video.backdrop || video.poster;
+  const bannerBgStyle = index === 0 ? ` style="--banner-bg: url('${escapeHtml(backdrop)}');"` : "";
   const duration = video.duration || "时长待定";
   const version = video.version || video.remark || "高清";
   return `
-    <article class="hero-slide${active}" data-carousel-slide>
-      <span class="banner-bg" style="--banner-bg: url('${escapeHtml(backdrop)}');"></span>
+    <article class="hero-slide${active}" data-carousel-slide data-banner-bg="${escapeHtml(backdrop)}">
+      <span class="banner-bg"${bannerBgStyle}></span>
       <span class="banner-content">
         <span class="banner-copy">
           <em class="eyebrow">热播推荐</em>
@@ -232,7 +232,9 @@ function bannerSlide(video, index) {
 function renderNav() {
   nav.innerHTML = [
     `<a href="${url("home")}" data-route="home">首页</a>`,
-    `<a href="${url("categories")}" data-route="categories">分类</a>`,
+    `<a href="${url("categories")}" data-route="categories">视频</a>`,
+    `<a href="${url("comics")}" data-route="comics">漫画</a>`,
+    `<a href="${url("articles")}" data-route="articles">文章</a>`,
     `<a href="${url("games")}" data-route="games">游戏</a>`
   ].join("");
 }
@@ -292,9 +294,9 @@ function renderCategoriesPage(page = 1) {
   const pagedCategories = store.categories.slice(start, start + categoryPageSize);
   app.innerHTML = `
     <section class="wrap page-title">
-      <span class="eyebrow">分类</span>
-      <h1>全部分类</h1>
-      <p>从这里进入电影、剧集、综艺、动漫和更多频道。</p>
+      <span class="eyebrow">视频</span>
+      <h1>视频分类</h1>
+      <p>从这里进入当前站点的全部视频分类。</p>
     </section>
     <section class="wrap category-index">
       ${pagedCategories.map((category) => `
@@ -322,7 +324,37 @@ function renderGamesPage() {
         <h1>游戏入口维护中</h1>
         <p>游戏模块暂未启用，请先浏览影片内容。</p>
         <div class="detail-actions">
-          <a class="primary-btn" href="${url("categories")}" data-route="categories">浏览影片库</a>
+          <a class="primary-btn" href="${url("videos")}" data-route="videos">浏览影片库</a>
+          <a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a>
+        </div>
+      </div>
+    </section>`;
+}
+
+function renderComicsPage() {
+  app.innerHTML = `
+    <section class="wrap system-page">
+      <div class="system-box module-fallback">
+        <span class="eyebrow">漫画</span>
+        <h1>漫画入口维护中</h1>
+        <p>漫画模块暂未启用，请先浏览影片内容。</p>
+        <div class="detail-actions">
+          <a class="primary-btn" href="${url("videos")}" data-route="videos">浏览影片库</a>
+          <a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a>
+        </div>
+      </div>
+    </section>`;
+}
+
+function renderArticlesPage() {
+  app.innerHTML = `
+    <section class="wrap system-page">
+      <div class="system-box module-fallback">
+        <span class="eyebrow">文章</span>
+        <h1>文章入口维护中</h1>
+        <p>文章模块暂未启用，请先浏览影片内容。</p>
+        <div class="detail-actions">
+          <a class="primary-btn" href="${url("videos")}" data-route="videos">浏览影片库</a>
           <a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a>
         </div>
       </div>
@@ -415,9 +447,7 @@ function renderHome() {
             ${banners.map(bannerSlide).join("")}
           </div>
           <div class="banner-controls">
-            <div class="banner-dots" role="tablist" aria-label="轮播分页">
-              ${banners.map((video, index) => `<button class="banner-dot${index === 0 ? " is-active" : ""}" type="button" data-carousel-dot aria-label="第${index + 1}张"></button>`).join("")}
-            </div>
+            <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>
           </div>
         </section>
         <div class="hero-rank" data-rank-react-root data-rank-more-url="${url("category", { sort: "hot" })}">
@@ -441,7 +471,7 @@ function renderHome() {
     </section>`;
 }
 
-function renderCategory(name, sort = "latest", area = "", year = "", genre = "", page = 1, lang = "", letter = "") {
+function renderCategory(name, sort = "latest", area = "", year = "", genre = "", page = 1, lang = "", letter = "", routeName = "category") {
   const currentSort = ["latest", "hot", "score"].includes(sort) ? sort : "latest";
   const list = sortVideos(filterVideos(name, area, year, genre, lang, letter), currentSort);
   const totalPages = Math.max(Math.ceil(list.length / videoPageSize), 1);
@@ -475,7 +505,7 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
     if (!params.lang) delete params.lang;
     if (!params.letter) delete params.letter;
     if (!params.sort || params.sort === "latest") delete params.sort;
-    return url("category", params);
+    return url(routeName, params);
   }
   const pageParams = { name, area, year, class: genre, lang, letter, sort: currentSort };
   if (!pageParams.name) delete pageParams.name;
@@ -530,7 +560,7 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
         ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${filterUrl({ sort: value })}">${escapeHtml(label)}</a>`).join("")}
       </div>
       <div class="filter-actions">
-        <a class="filter-reset" href="${url("category", name ? { name } : {})}">重置筛选</a>
+        <a class="filter-reset" href="${url(routeName, name ? { name } : {})}">重置筛选</a>
       </div>
     </section>
     <section class="wrap content-section">
@@ -539,7 +569,7 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
         <span>共 ${list.length} 部</span>
       </div>
       <div class="vod-grid">${pagedList.map(card).join("")}</div>
-      ${renderPagination("category", pageParams, currentPage, totalPages)}
+      ${renderPagination(routeName, pageParams, currentPage, totalPages)}
     </section>`;
 }
 
@@ -675,6 +705,9 @@ function render() {
   const params = new URLSearchParams(window.location.search);
   const route = params.get("route") || "home";
   if (route === "categories") renderCategoriesPage(params.get("page"));
+  else if (route === "videos") renderCategory(null, params.get("sort"), params.get("area"), params.get("year"), params.get("class"), params.get("page"), params.get("lang"), params.get("letter"), "videos");
+  else if (route === "comics") renderComicsPage();
+  else if (route === "articles") renderArticlesPage();
   else if (route === "games") renderGamesPage();
   else if (route === "history") renderHistoryPage();
   else if (route === "login") renderLoginPage();

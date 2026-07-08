@@ -84,6 +84,14 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
+For the `ping2.my` server, the non-secret deployment target is stored in
+`scripts/deploy-ping2.env`:
+
+```bash
+source scripts/deploy-ping2.env
+npm run deploy
+```
+
 `DEPLOY_PATH` must point to the remote MacCMS `template` directory. The deploy
 script runs the full local verification sequence, uploads `dist/pingfangvideo.tar.gz`,
 backs up any existing remote `pingfangvideo` directory as `pingfangvideo.backup.*`,

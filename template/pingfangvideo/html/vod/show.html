@@ -5,12 +5,13 @@
   <p>按分类、地区、年份和排序方式查找内容。</p>
 </section>
 
-<section class="wrap filter-panel category-filter">
+<section class="wrap filter-panel category-filter" data-dynamic-vod-filters data-filter-endpoint="{:url('pingfangdevice/filters')}" data-filter-type-id="{$obj.type_id}" data-current-area="{$param.area}" data-current-year="{$param.year}" data-current-lang="{$param.lang}" data-current-class="{$param.class}" data-current-letter="{$param.letter}">
   <div class="filter-row filter-search-row">
     <strong>搜索</strong>
     <form class="channel-search" method="get" action="{:mac_url('vod/search')}">
+      <label class="sr-only" for="librarySearch">在影片库中搜索</label>
       <input type="hidden" name="type" value="{$obj.type_id}">
-      <input type="search" name="wd" value="{$param.wd}" placeholder="在影片库中搜索">
+      <input id="librarySearch" type="search" name="wd" value="{$param.wd}" placeholder="在影片库中搜索">
       <button type="submit">搜索</button>
     </form>
   </div>
@@ -19,64 +20,82 @@
     <div class="filter-options">
       {if condition="$obj.type_pid gt 0"}
       <a href="{:mac_url_type($obj.parent,[],'show')}">全部</a>
-      {maccms:type parent="'.$obj['type_pid'].'" order="asc" by="sort" id="type"}
+      {maccms:type parent="'.$obj['type_pid'].'" order="asc" by="sort" num="100" id="type"}
       <a {if condition="$type.type_id eq $obj.type_id"} class="is-active" {/if} href="{:mac_url_type($type,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$type.type_name}</a>
       {/maccms:type}
       {else/}
       <a {if condition="$param['area'] eq '' && $param['lang'] eq '' && $param['year'] eq '' && $param['letter'] eq '' && $param['class'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,[],'show')}">全部</a>
-      {maccms:type parent="'.$obj['type_id'].'" order="asc" by="sort" id="type"}
+      {maccms:type parent="'.$obj['type_id'].'" order="asc" by="sort" num="100" id="type"}
       <a href="{:mac_url_type($type,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$type.type_name}</a>
       {/maccms:type}
       {/if}
     </div>
   </div>
-  <div class="filter-row">
+  <div class="filter-row" data-filter-kind="area">
     <strong>地区</strong>
     <div class="filter-options">
       <a {if condition="$param['area'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>'','lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
       {notempty name="$obj.type_extend.area"}
       {maccms:foreach name=":explode(',',$obj.type_extend.area)" id="vo2"}
-      <a {if condition="$param['area'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$vo2,'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      <a data-filter-value="{$vo2}" {if condition="$param['area'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$vo2,'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
       {/maccms:foreach}
       {else/}
       {notempty name="$obj.parent.type_extend.area"}
       {maccms:foreach name=":explode(',',$obj.parent.type_extend.area)" id="vo2"}
-      <a {if condition="$param['area'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$vo2,'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      <a data-filter-value="{$vo2}" {if condition="$param['area'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$vo2,'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
       {/maccms:foreach}
+      {else/}
+      {notempty name="$maccms.vod_extend_area"}
+      {maccms:foreach name=":explode(',',$maccms.vod_extend_area)" id="vo2"}
+      <a data-filter-value="{$vo2}" {if condition="$param['area'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$vo2,'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      {/maccms:foreach}
+      {/notempty}
       {/notempty}
       {/notempty}
     </div>
   </div>
-  <div class="filter-row">
+  <div class="filter-row" data-filter-kind="year">
     <strong>年份</strong>
     <div class="filter-options">
       <a {if condition="$param['year'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>'','letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
       {notempty name="$obj.type_extend.year"}
       {maccms:foreach name=":explode(',',$obj.type_extend.year)" id="vo2"}
-      <a {if condition="$param['year'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$vo2,'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      <a data-filter-value="{$vo2}" {if condition="$param['year'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$vo2,'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
       {/maccms:foreach}
       {else/}
       {notempty name="$obj.parent.type_extend.year"}
       {maccms:foreach name=":explode(',',$obj.parent.type_extend.year)" id="vo2"}
-      <a {if condition="$param['year'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$vo2,'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      <a data-filter-value="{$vo2}" {if condition="$param['year'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$vo2,'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
       {/maccms:foreach}
+      {else/}
+      {notempty name="$maccms.vod_extend_year"}
+      {maccms:foreach name=":explode(',',$maccms.vod_extend_year)" id="vo2"}
+      <a data-filter-value="{$vo2}" {if condition="$param['year'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$vo2,'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      {/maccms:foreach}
+      {/notempty}
       {/notempty}
       {/notempty}
     </div>
   </div>
-  <div class="filter-row">
+  <div class="filter-row" data-filter-kind="lang">
     <strong>语言</strong>
     <div class="filter-options">
       <a {if condition="$param['lang'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
       {notempty name="$obj.type_extend.lang"}
       {maccms:foreach name=":explode(',',$obj.type_extend.lang)" id="vo2"}
-      <a {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
       {/maccms:foreach}
       {else/}
       {notempty name="$obj.parent.type_extend.lang"}
       {maccms:foreach name=":explode(',',$obj.parent.type_extend.lang)" id="vo2"}
-      <a {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
       {/maccms:foreach}
+      {else/}
+      {notempty name="$maccms.vod_extend_lang"}
+      {maccms:foreach name=":explode(',',$maccms.vod_extend_lang)" id="vo2"}
+      <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+      {/maccms:foreach}
+      {/notempty}
       {/notempty}
       {/notempty}
     </div>
@@ -103,7 +122,11 @@
   </div>
 </section>
 
-<section class="wrap content-section">
+<section class="wrap content-section" aria-labelledby="libraryListTitle">
+  <div class="section-head">
+    <h2 id="libraryListTitle">筛选结果</h2>
+    <span>按当前条件更新</span>
+  </div>
   <div class="vod-grid">
     {if condition="$param.by eq 'hits'"}
     {maccms:vod num="24" paging="yes" pageurl="vod/show" type="42,47,48,57,111" area="'.$param['area'].'" lang="'.$param['lang'].'" year="'.$param['year'].'" letter="'.$param['letter'].'" class="'.$param['class'].'" order="desc" by="hits" id="vo"}

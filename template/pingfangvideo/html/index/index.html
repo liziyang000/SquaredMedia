@@ -2,6 +2,13 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
+      <span class="hero-gradient-strips" data-gradient-strips aria-hidden="true">
+        <span class="hero-gradient-strip" data-gradient-strip></span>
+        <span class="hero-gradient-strip" data-gradient-strip></span>
+        <span class="hero-gradient-strip" data-gradient-strip></span>
+        <span class="hero-gradient-strip" data-gradient-strip></span>
+        <span class="hero-gradient-strip" data-gradient-strip></span>
+      </span>
       <div class="banner-track">
         {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" cachetime="300" id="vo" key="key"}
         <article class='hero-slide{if condition="$key eq 1"} is-active{/if}' data-carousel-slide data-banner-bg="{if condition="$vo.vod_pic_slide neq ''"}{$vo.vod_pic_slide|mac_url_img}{else/}{$vo.vod_pic|mac_url_img}{/if}">

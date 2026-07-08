@@ -864,6 +864,35 @@
     });
   }
 
+  function initHeroGradientStrips(root) {
+    var scope = root || document;
+    scope.querySelectorAll("[data-gradient-strips]").forEach(function (strips) {
+      if (strips.dataset.gradientStripsReady === "true") return;
+      strips.dataset.gradientStripsReady = "true";
+
+      var surface = strips.closest(".hero-carousel") || strips.parentElement;
+      if (!surface || prefersReducedMotion() || !window.PointerEvent) return;
+
+      function setPointerPosition(clientX, clientY) {
+        var rect = surface.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        var x = Math.min(Math.max(((clientX - rect.left) / rect.width) * 100, 0), 100);
+        var y = Math.min(Math.max(((clientY - rect.top) / rect.height) * 100, 0), 100);
+        strips.style.setProperty("--strip-x", x.toFixed(1) + "%");
+        strips.style.setProperty("--strip-y", y.toFixed(1) + "%");
+      }
+
+      surface.addEventListener("pointermove", function (event) {
+        setPointerPosition(event.clientX, event.clientY);
+      }, { passive: true });
+
+      surface.addEventListener("pointerleave", function () {
+        strips.style.setProperty("--strip-x", "50%");
+        strips.style.setProperty("--strip-y", "50%");
+      }, { passive: true });
+    });
+  }
+
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initSearchForms = initSearchForms;
   window.PingFangVideo.initLogoutLinks = initLogoutLinks;
@@ -874,6 +903,7 @@
   window.PingFangVideo.initAutoNextPlayback = initAutoNextPlayback;
   window.PingFangVideo.initDynamicVodFilters = initDynamicVodFilters;
   window.PingFangVideo.initThemeSwitchers = initThemeSwitchers;
+  window.PingFangVideo.initHeroGradientStrips = initHeroGradientStrips;
 
   initThemeSwitchers(document);
   initSearchForms(document);
@@ -885,6 +915,7 @@
   initHomeLatestTabs();
   initAutoNextPlayback();
   initDynamicVodFilters(document);
+  initHeroGradientStrips(document);
 
   function initRandomAvatars(root) {
     var colors = ["#ef4444", "#f97316", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];

@@ -1,17 +1,17 @@
-{include file="public/head" seo_title="热播榜" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{include file="public/head" seo_title="年度热播榜" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
 <section class="wrap page-title">
-  <span class="eyebrow">热播</span>
-  <h1>热播榜</h1>
-  <p>按播放热度汇总公开频道热门影片。</p>
+  <span class="eyebrow">年度热播</span>
+  <h1>年度热播榜</h1>
+  <p>筛选当年影片，并按播放热度汇总排序。</p>
 </section>
 
 <section class="wrap content-section">
   <div class="section-head">
-    <h2>热门影片</h2>
-    <span>按热度排序</span>
+    <h2>本年最多播放</h2>
+    <span>按总播放量排序</span>
   </div>
   <div class="vod-grid">
-    {maccms:vod num="24" paging="yes" pageurl="label/hot" type="42,47,48,57,111" order="desc" by="hits" id="vo"}
+    {maccms:vod num="24" paging="yes" pageurl="label/hot" type="42,47,48,57,111" year="'.date('Y').'" order="desc" by="hits" id="vo"}
     {include file="public/vod_card" /}
     {/maccms:vod}
   </div>

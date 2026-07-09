@@ -912,6 +912,7 @@ textarea:focus-visible,
   align-items: stretch;
   gap: 24px;
   padding: 34px 0 40px;
+  perspective: 1200px;
 }
 
 .hero-carousel {
@@ -919,11 +920,27 @@ textarea:focus-visible,
   isolation: isolate;
   display: grid;
   min-height: 0;
+  --banner-shine-x: 50%;
+  --banner-shine-y: 44%;
+  --banner-shine-rotate: 0deg;
+  --banner-shine-opacity: 0;
   overflow: hidden;
   border: 1px solid var(--line-accent-soft);
   border-radius: 18px;
   background: linear-gradient(145deg, rgba(24, 27, 34, 0.88), rgba(8, 10, 14, 0.94));
-  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42), 0 0 42px rgba(38, 212, 175, 0.12);
+  box-shadow: 0 34px 110px rgba(0, 0, 0, 0.48), 0 0 48px rgba(38, 212, 175, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform-style: preserve-3d;
+}
+
+.hero-carousel::after {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  mix-blend-mode: screen;
+  opacity: 0.14;
 }
 
 .banner-track {
@@ -1008,6 +1025,19 @@ textarea:focus-visible,
   background-size: cover;
   filter: saturate(1.2) contrast(1.06);
   transform: scale(1.01);
+}
+
+.hero-carousel[data-banner-iridescence="true"] .banner-bg::before {
+  position: absolute;
+  inset: -18%;
+  content: "";
+  pointer-events: none;
+  opacity: var(--banner-shine-opacity);
+  background: radial-gradient(circle at var(--banner-shine-x) var(--banner-shine-y), rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.1) 11%, transparent 28%), conic-gradient(from var(--banner-shine-rotate) at var(--banner-shine-x) var(--banner-shine-y), rgba(38, 212, 175, 0), rgba(38, 212, 175, 0.2), rgba(255, 90, 61, 0.16), rgba(255, 224, 134, 0.18), rgba(38, 212, 175, 0));
+  mix-blend-mode: screen;
+  filter: blur(10px) saturate(1.18);
+  transform: translate3d(0, 0, 0);
+  will-change: opacity;
 }
 
 .banner-bg::after {
@@ -1317,7 +1347,7 @@ textarea:focus-visible,
   border-color: var(--line-accent-soft);
   background: linear-gradient(155deg, rgba(25, 27, 31, 0.9), rgba(13, 24, 25, 0.94));
   padding: 20px 18px;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32), 0 0 38px rgba(38, 212, 175, 0.12);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.38), 0 0 42px rgba(38, 212, 175, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(18px);
 }
 
@@ -1582,6 +1612,7 @@ textarea:focus-visible,
   scroll-snap-type: x proximity;
   scrollbar-width: none;
   padding: 0 0 12px;
+  perspective: 900px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1604,10 +1635,29 @@ textarea:focus-visible,
   border-radius: var(--radius);
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
   color: var(--text);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.055);
   scroll-snap-align: start;
   isolation: isolate;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transform: translateZ(0);
+  transform-style: preserve-3d;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.home-shelf-card::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 42%);
+  opacity: 0.36;
+}
+
+.home-shelf-card:hover {
+  border-color: var(--line-accent);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.024));
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.32), 0 0 26px rgba(38, 212, 175, 0.12);
+  transform: translateY(-4px) translateZ(16px);
 }
 
 .home-shelf-poster {
@@ -1621,6 +1671,10 @@ textarea:focus-visible,
   background: var(--panel-soft);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.home-shelf-card:hover .home-shelf-poster {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
 }
 
 .home-shelf-poster::after {
@@ -1637,7 +1691,12 @@ textarea:focus-visible,
   height: 100%;
   object-fit: cover;
   filter: saturate(1.03) contrast(1.02);
-  transition: filter 0.2s ease;
+  transform: scale(1.012);
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.home-shelf-card:hover .home-shelf-poster img {
+  transform: scale(1.035);
 }
 
 .home-shelf-poster em {

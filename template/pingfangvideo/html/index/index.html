@@ -27,11 +27,11 @@
     </section>
     <div class="hero-rank" data-rank-react-root data-rank-more-url="{:mac_url('label/hot')}">
       <div class="section-head compact">
-        <h2>热搜榜</h2>
+        <h2>年度热播榜</h2>
         <a class="rank-refresh" href="{:mac_url('label/hot')}">查看更多</a>
       </div>
       <div class="rank-list" data-rank-react-list>
-      {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" cachetime="300" id="vo" key="key"}
+      {maccms:vod type="42,47,48,57,111" num="5" year="'.date('Y').'" order="desc" by="hits" cachetime="300" id="vo" key="key"}
       <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item data-rank-title="{$vo.vod_name}" data-rank-meta="{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}" data-rank-score="{$vo.vod_score|mac_default='8.0'}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
         <span class="rank-thumb">
           <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
@@ -49,9 +49,9 @@
   </div>
 </section>
 
-<section class="wrap home-shelf home-shelf-latest" aria-label="最新上线">
+<section class="wrap home-shelf home-shelf-latest" aria-label="本年最新上线">
   <div class="home-shelf-head">
-    <h2>最新上线</h2>
+    <h2>本年最新上线</h2>
     <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
       <button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all">推荐</button>
       {maccms:type ids="42" order="asc" by="sort" num="1" id="type"}
@@ -73,7 +73,7 @@
     <a class="home-shelf-more" href="{:mac_url('label/videos')}">全部影片</a>
   </div>
   <div class="home-shelf-rail" data-home-tab="all" id="latest-panel-all" role="tabpanel" aria-hidden="false">
-    {maccms:vod type="42,47,48,57,111" num="6" order="desc" by="time" cachetime="300" id="vo"}
+    {maccms:vod type="42,47,48,57,111" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="eager" fetchpriority="high" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
@@ -88,7 +88,7 @@
     {/maccms:vod}
   </div>
   <div class="home-shelf-rail" data-home-tab="category-1" id="latest-panel-category-1" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="42" num="6" order="desc" by="time" cachetime="300" id="vo"}
+    {maccms:vod type="42" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
@@ -103,7 +103,7 @@
     {/maccms:vod}
   </div>
   <div class="home-shelf-rail" data-home-tab="category-2" id="latest-panel-category-2" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="47" num="6" order="desc" by="time" cachetime="300" id="vo"}
+    {maccms:vod type="47" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
@@ -118,7 +118,7 @@
     {/maccms:vod}
   </div>
   <div class="home-shelf-rail" data-home-tab="category-3" id="latest-panel-category-3" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="48" num="6" order="desc" by="time" cachetime="300" id="vo"}
+    {maccms:vod type="48" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
@@ -133,7 +133,7 @@
     {/maccms:vod}
   </div>
   <div class="home-shelf-rail" data-home-tab="category-4" id="latest-panel-category-4" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="57" num="6" order="desc" by="time" cachetime="300" id="vo"}
+    {maccms:vod type="57" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
@@ -148,7 +148,7 @@
     {/maccms:vod}
   </div>
   <div class="home-shelf-rail" data-home-tab="category-5" id="latest-panel-category-5" role="tabpanel" hidden aria-hidden="true">
-    {maccms:vod type="111" num="6" order="desc" by="time" cachetime="300" id="vo"}
+    {maccms:vod type="111" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">

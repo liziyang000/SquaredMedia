@@ -1658,6 +1658,7 @@ assert.match(packageScript, /--no-xattrs/);
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 assert.match(packageJson.scripts.test, /tests\/douban-gateway\.test\.php/);
+assert.match(packageJson.scripts.test, /tests\/douban-data\.test\.php/);
 assert.match(packageJson.scripts.test, /tests\/douban-matcher\.test\.php/);
 assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.mjs");
 assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");

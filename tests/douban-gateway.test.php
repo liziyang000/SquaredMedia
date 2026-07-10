@@ -57,8 +57,14 @@ $candidates = DoubanGateway::normalizeCandidates([
         'img' => 'https://img.example/shawshank.jpg',
         'url' => 'https://movie.douban.com/subject/1292052/',
     ],
+    [
+        'id' => '0',
+        'title' => '无效候选',
+        'year' => '2026',
+    ],
 ]);
 
+assertSameValue(1, count($candidates), 'All-zero candidate IDs should be ignored');
 assertSameValue('1292052', $candidates[0]['douban_id'], 'Candidate ID should be normalized');
 assertSameValue('肖申克的救赎', $candidates[0]['title'], 'Candidate title should be normalized');
 assertSameValue('1994', $candidates[0]['year'], 'Candidate year should be normalized');

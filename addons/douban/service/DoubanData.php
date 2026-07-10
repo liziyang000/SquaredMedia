@@ -294,7 +294,7 @@ class DoubanData
     public static function setDoubanId(int $vodId, string $doubanId, int $lock = 0, int $operatorId = 0)
     {
         $vodId = max(0, $vodId);
-        $doubanId = preg_replace('/\D+/', '', $doubanId);
+        $doubanId = self::normalizeDoubanId($doubanId);
         if ($vodId < 1 || $doubanId === '') {
             throw new \InvalidArgumentException('参数错误');
         }
@@ -879,16 +879,22 @@ class DoubanData
 
     private static function resolveDoubanId(array $meta, array $vod)
     {
-        $metaId = trim((string) ($meta['douban_id'] ?? ''));
+        $metaId = self::normalizeDoubanId((string) ($meta['douban_id'] ?? ''));
         if ($metaId !== '') {
-            return preg_replace('/\D+/', '', $metaId);
+            return $metaId;
         }
-        $vodId = trim((string) ($vod['vod_douban_id'] ?? ''));
+        $vodId = self::normalizeDoubanId((string) ($vod['vod_douban_id'] ?? ''));
         if ($vodId !== '') {
-            return preg_replace('/\D+/', '', $vodId);
+            return $vodId;
         }
 
         return '';
+    }
+
+    private static function normalizeDoubanId(string $value)
+    {
+        $id = preg_replace('/\D+/', '', $value);
+        return $id !== '' && ltrim($id, '0') !== '' ? $id : '';
     }
 
     private static function normalizeConfig(array $input)

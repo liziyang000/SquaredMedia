@@ -9,7 +9,7 @@ class DoubanGateway
 
     public static function subject(string $doubanId): array
     {
-        $doubanId = preg_replace('/\D+/', '', $doubanId);
+        $doubanId = self::normalizeId($doubanId);
         if ($doubanId === '') {
             throw new \InvalidArgumentException('豆瓣ID无效');
         }
@@ -39,6 +39,10 @@ class DoubanGateway
         $ratingValue = (float) $rawRatingValue;
         $ratingCount = max(0, (int) ($rating['count'] ?? 0));
         $score = number_format($ratingValue, 1, '.', '');
+        $doubanId = self::normalizeId((string) ($data['id'] ?? ''));
+        if ($doubanId === '') {
+            throw new \RuntimeException('豆瓣数据源返回无效ID');
+        }
         $pic = is_array($data['pic'] ?? null) ? $data['pic'] : [];
         $episodeCount = max(
             0,
@@ -48,7 +52,7 @@ class DoubanGateway
         );
 
         return [
-            'vod_douban_id' => preg_replace('/\D+/', '', (string) ($data['id'] ?? '')),
+            'vod_douban_id' => $doubanId,
             'vod_name' => self::text($data['title'] ?? ''),
             'vod_pic' => self::text($data['cover_url'] ?? ($pic['large'] ?? ($pic['normal'] ?? ''))),
             'vod_year' => self::text($data['year'] ?? ''),
@@ -73,7 +77,7 @@ class DoubanGateway
             if (!is_array($row)) {
                 continue;
             }
-            $id = preg_replace('/\D+/', '', (string) ($row['id'] ?? ''));
+            $id = self::normalizeId((string) ($row['id'] ?? ''));
             $title = self::text($row['title'] ?? '');
             if ($id === '' || $title === '') {
                 continue;
@@ -147,5 +151,11 @@ class DoubanGateway
     private static function text($value): string
     {
         return trim(strip_tags((string) $value));
+    }
+
+    private static function normalizeId(string $value): string
+    {
+        $id = preg_replace('/\D+/', '', $value);
+        return $id !== '' && ltrim($id, '0') !== '' ? $id : '';
     }
 }

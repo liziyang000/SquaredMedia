@@ -6,6 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
 const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
+const doubanAddonArchive = path.join(root, "dist", "douban.tar.gz");
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
@@ -114,6 +115,15 @@ const requiredAddonEntries = [
   "pingfangdevice/service/VodFilterOptions.php",
   "pingfangdevice/view/index/index.html",
 ];
+const requiredDoubanAddonEntries = [
+  "douban/Douban.php",
+  "douban/config.php",
+  "douban/controller/Index.php",
+  "douban/info.ini",
+  "douban/install.sql",
+  "douban/service/DoubanData.php",
+  "douban/view/index/index.html",
+];
 
 function assertBalanced(content, openPattern, closePattern, label, file) {
   const opens = content.match(openPattern)?.length || 0;
@@ -136,6 +146,7 @@ function assertSafeAssetReference(value, file, tag) {
 
 assert.ok(existsSync(archive), "dist/pingfangvideo.tar.gz should exist. Run npm run package first.");
 assert.ok(existsSync(addonArchive), "dist/pingfangdevice.tar.gz should exist. Run npm run package first.");
+assert.ok(existsSync(doubanAddonArchive), "dist/douban.tar.gz should exist. Run npm run package first.");
 
 const tarList = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
 assert.equal(tarList.status, 0, tarList.stderr || "Release archive should be readable");
@@ -229,5 +240,25 @@ assert.match(addonSql, /`login_check_hash` char\(64\) NOT NULL/);
 assert.match(addonSql, /PREPARE pingfang_login_check_hash_stmt/);
 assert.doesNotMatch(addonSql, /DROP\s+TABLE/i);
 
+const doubanAddonTarList = spawnSync("tar", ["-tzf", doubanAddonArchive], { encoding: "utf8" });
+assert.equal(doubanAddonTarList.status, 0, doubanAddonTarList.stderr || "Douban addon release archive should be readable");
+assert.doesNotMatch(doubanAddonTarList.stderr, /LIBARCHIVE\.xattr/, "Douban addon release archive should not include macOS extended attribute metadata");
+
+const doubanAddonEntries = doubanAddonTarList.stdout
+  .trim()
+  .split("\n")
+  .filter(Boolean);
+
+for (const entry of requiredDoubanAddonEntries) {
+  assert.ok(doubanAddonEntries.includes(entry), `${entry} should be included in the douban addon archive`);
+}
+
+const doubanAddonSql = execFileSync("tar", ["-xOf", doubanAddonArchive, "douban/install.sql"], { encoding: "utf8" });
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_vod_meta`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_task`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_log`/);
+assert.doesNotMatch(doubanAddonSql, /DROP\s+TABLE/i);
+
 console.log(`Verified ${archive}`);
 console.log(`Verified ${addonArchive}`);
+console.log(`Verified ${doubanAddonArchive}`);

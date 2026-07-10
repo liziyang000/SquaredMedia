@@ -6,6 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const addonRoot = path.join(root, "addons", "pingfangdevice");
+const doubanAddonRoot = path.join(root, "addons", "douban");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
@@ -125,6 +126,15 @@ const requiredRootFiles = [
   "addons/pingfangdevice/service/DeviceSession.php",
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
+  "addons/douban/Douban.php",
+  "addons/douban/bridge/Douban.php",
+  "addons/douban/bridge/DoubanEndpoint.php",
+  "addons/douban/config.php",
+  "addons/douban/controller/Index.php",
+  "addons/douban/info.ini",
+  "addons/douban/install.sql",
+  "addons/douban/service/DoubanData.php",
+  "addons/douban/view/index/index.html",
   "preview/data.json",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
@@ -157,6 +167,10 @@ function readThemeFile(file) {
 
 function readAddonFile(file) {
   return readFileSync(path.join(addonRoot, file), "utf8");
+}
+
+function readDoubanAddonFile(file) {
+  return readFileSync(path.join(doubanAddonRoot, file), "utf8");
 }
 
 function extractAnchorTexts(markup) {
@@ -1623,6 +1637,7 @@ assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web ser
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
+assert.match(packageScript, /douban/);
 assert.match(packageScript, /dist/);
 assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
@@ -1684,6 +1699,10 @@ assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
 assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
+assert.match(deployScript, /DOUBAN_ADDON_NAME="douban"/);
+assert.match(deployScript, /douban\.tar\.gz/);
+assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
+assert.match(deployScript, /extend\/douban\.php/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
 assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);
@@ -1874,6 +1893,69 @@ assert.match(deviceAddonView, /\{\$max_devices\}/);
 assert.match(deviceAddonView, /device_label_display/);
 assert.match(deviceAddonView, /"X-Requested-With": "XMLHttpRequest"/);
 
+const doubanAddonInfo = readDoubanAddonFile("info.ini");
+assert.match(doubanAddonInfo, /name = douban/);
+assert.match(doubanAddonInfo, /title = 豆瓣数据/);
+
+const doubanAddonConfig = readDoubanAddonFile("config.php");
+assert.match(doubanAddonConfig, /douban_endpoint/);
+assert.match(doubanAddonConfig, /auto_confirm_score/);
+assert.match(doubanAddonConfig, /request_per_minute/);
+
+const doubanAddonHook = readDoubanAddonFile("Douban.php");
+assert.match(doubanAddonHook, /namespace addons\\douban/);
+assert.match(doubanAddonHook, /extends Addons/);
+
+const doubanBridgeController = readDoubanAddonFile("bridge/Douban.php");
+assert.match(doubanBridgeController, /namespace app\\index\\controller/);
+assert.match(doubanBridgeController, /extends AddonIndex/);
+assert.match(doubanBridgeController, /__construct\(\?Request \$request = null\)/);
+
+const doubanGatewayBridge = readDoubanAddonFile("bridge/DoubanEndpoint.php");
+assert.match(doubanGatewayBridge, /DoubanGateway/);
+
+const doubanAddonController = readDoubanAddonFile("controller/Index.php");
+assert.match(doubanAddonController, /DoubanData::dashboard/);
+assert.match(doubanAddonController, /DoubanData::saveConfig/);
+assert.match(doubanAddonController, /DoubanData::enqueueDue/);
+assert.match(doubanAddonController, /DoubanData::runPending/);
+assert.match(doubanAddonController, /DoubanData::syncVod/);
+assert.match(doubanAddonController, /session\('admin_id'\)/);
+
+const doubanDataService = readDoubanAddonFile("service/DoubanData.php");
+assert.match(doubanDataService, /const VOD_TABLE = 'vod'/);
+assert.match(doubanDataService, /const META_TABLE = 'douban_vod_meta'/);
+assert.match(doubanDataService, /const TASK_TABLE = 'douban_task'/);
+assert.match(doubanDataService, /const LOG_TABLE = 'douban_log'/);
+assert.match(doubanDataService, /public static function dashboard/);
+assert.match(doubanDataService, /public static function listVideos/);
+assert.match(doubanDataService, /public static function enqueueDue/);
+assert.match(doubanDataService, /public static function runPending/);
+assert.match(doubanDataService, /public static function syncVod/);
+assert.match(doubanDataService, /douban_id_locked/);
+assert.match(doubanDataService, /douban_next_sync_at/);
+assert.match(doubanDataService, /douban_sync_fail_count/);
+assert.match(doubanDataService, /AUTO_SYNC/);
+assert.match(doubanDataService, /SYNC_DOUBAN/);
+assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
+
+const doubanAddonSql = readDoubanAddonFile("install.sql");
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_config`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_vod_meta`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_task`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_log`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_review_candidate`/);
+assert.doesNotMatch(doubanAddonSql, /DROP\s+TABLE/i);
+
+const doubanAddonView = readDoubanAddonFile("view/index/index.html");
+assert.match(doubanAddonView, /豆瓣数据/);
+assert.match(doubanAddonView, /自动更新设置/);
+assert.match(doubanAddonView, /待核查豆瓣ID/);
+assert.match(doubanAddonView, /无豆瓣ID/);
+assert.match(doubanAddonView, /任务监控与日志/);
+assert.match(doubanAddonView, /data-douban-action/);
+assert.match(doubanAddonView, /url\('douban\/sync'\)/);
+
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);
 assert.match(categoryMaintenanceSql, /SELECT type_id, type_pid, type_name/);
@@ -1944,6 +2026,7 @@ assert.match(previewVerifier, /Preview verification passed/);
 const releaseVerifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
 assert.match(releaseVerifier, /pingfangvideo\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
+assert.match(releaseVerifier, /douban\.tar\.gz/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -1960,10 +2043,12 @@ assert.match(releaseVerifier, /assetVersionPlaceholder/);
 assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
+assert.match(releaseVerifier, /douban\/service\/DoubanData\.php/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react-dom\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/rank-react\.js/);
 assert.match(releaseVerifier, /pingfang_device_session/);
+assert.match(releaseVerifier, /douban_vod_meta/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");

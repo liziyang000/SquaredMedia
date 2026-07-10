@@ -34,8 +34,8 @@ non-admin sessions.
 
 ## Data Source
 
-The addon ships a self-hosted `extend/douban.php` gateway. Deployment copies
-it to the MacCMS `extend` directory.
+The addon ships a self-hosted `bridge/DoubanEndpoint.php` gateway source.
+Deployment copies it to `extend/douban.php` in the MacCMS root.
 
 - `id=<douban_id>` requests subject details from Douban's mobile JSON endpoint
   and normalizes them into the existing addon contract.

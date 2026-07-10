@@ -18,7 +18,7 @@
 
 **Files:**
 - Create: `addons/douban/bridge/Douban.php`
-- Create: `addons/douban/bridge/douban.php`
+- Create: `addons/douban/bridge/DoubanEndpoint.php`
 - Modify: `scripts/deploy-theme.sh`
 - Modify: `scripts/verify-release.mjs`
 - Modify: `tests/template.test.mjs`
@@ -50,7 +50,7 @@ Run:
 ```bash
 npm test
 php -l addons/douban/bridge/Douban.php
-php -l addons/douban/bridge/douban.php
+php -l addons/douban/bridge/DoubanEndpoint.php
 bash -n scripts/deploy-theme.sh
 ```
 
@@ -60,7 +60,7 @@ Expected: all commands exit 0.
 
 **Files:**
 - Create: `addons/douban/service/DoubanGateway.php`
-- Modify: `addons/douban/bridge/douban.php`
+- Modify: `addons/douban/bridge/DoubanEndpoint.php`
 - Modify: `tests/template.test.mjs`
 
 - [ ] **Step 1: Write failing normalization assertions**
@@ -99,7 +99,7 @@ Run:
 
 ```bash
 php -l addons/douban/service/DoubanGateway.php
-php -l addons/douban/bridge/douban.php
+php -l addons/douban/bridge/DoubanEndpoint.php
 php -r 'require "addons/douban/service/DoubanGateway.php"; print_r(addons\douban\service\DoubanGateway::normalizeSubject(["id"=>"1295644","title"=>"这个杀手不太冷","rating"=>["value"=>9.4,"count"=>2562776]]));'
 ```
 

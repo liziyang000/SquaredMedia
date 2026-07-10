@@ -1,0 +1,215 @@
+{include file="public/head" seo_title="豆瓣数据" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap user-records device-panel">
+  <div class="record-toolbar">
+    <div>
+      <strong>豆瓣数据</strong>
+      <span>自动更新设置、待核查豆瓣ID、无豆瓣ID、任务监控与日志</span>
+    </div>
+    <div class="device-meta">
+      <button class="primary-btn" type="button" data-douban-action="enqueue">生成到期任务</button>
+      <button class="ghost-btn" type="button" data-douban-action="run">执行 Pending Worker</button>
+    </div>
+  </div>
+
+  <div class="favorite-list">
+    <article class="device-card">
+      <h2 class="record-title">资料概况</h2>
+      <div class="device-meta">
+        <span>视频总数：{:intval($stats['total_videos'] ?? 0)}</span>
+        <span>无豆瓣ID：{:intval($stats['no_douban_id'] ?? 0)}</span>
+        <span>豆瓣ID重复：{:intval($stats['duplicate_douban_id'] ?? 0)}</span>
+        <span>待核查：{:intval($stats['review'] ?? 0)}</span>
+        <span>已确认：{:intval($stats['confirmed'] ?? 0)}</span>
+        <span>已忽略：{:intval($stats['ignored'] ?? 0)}</span>
+        <span>ID锁定：{:intval($stats['locked_id'] ?? 0)}</span>
+        <span>简介锁定：{:intval($stats['locked_intro'] ?? 0)}</span>
+      </div>
+    </article>
+    <article class="device-card">
+      <h2 class="record-title">任务监控与日志</h2>
+      <div class="device-meta">
+        <span>同步待执行：{:intval($task_stats['SYNC_DOUBAN']['PENDING'] ?? 0)}</span>
+        <span>同步成功：{:intval($task_stats['SYNC_DOUBAN']['SUCCESS'] ?? 0)}</span>
+        <span>匹配待执行：{:intval($task_stats['MATCH_DOUBAN_ID']['PENDING'] ?? 0)}</span>
+        <span>匹配跳过：{:intval($task_stats['MATCH_DOUBAN_ID']['SKIP'] ?? 0)}</span>
+      </div>
+    </article>
+  </div>
+
+  <div class="system-box" style="margin-top: 12px;">
+    <span class="eyebrow">自动更新设置</span>
+    <form id="doubanConfigForm" method="post" action="{:url('douban/saveConfig')}" class="tool-form">
+      <label>douban.php 接口
+        <input type="text" name="douban_endpoint" value="{$config.douban_endpoint|mac_default='/extend/douban.php'}">
+      </label>
+      <label>排除分类ID
+        <input type="text" name="exclude_type_ids" value="{$config.exclude_type_ids|mac_default=''}" placeholder="42,47">
+      </label>
+      <label>批次条数
+        <input type="number" name="batch_size" value="{:intval($config['batch_size'] ?? 100)}" min="1" max="500">
+      </label>
+      <label>Worker上限
+        <input type="number" name="worker_limit" value="{:intval($config['worker_limit'] ?? 20)}" min="1" max="100">
+      </label>
+      <label>每分钟请求数
+        <input type="number" name="request_per_minute" value="{:intval($config['request_per_minute'] ?? 30)}" min="1" max="300">
+      </label>
+      <label>自动确认阈值
+        <input type="number" name="auto_confirm_score" value="{:intval($config['auto_confirm_score'] ?? 85)}" min="0" max="100">
+      </label>
+      <label>待核查阈值
+        <input type="number" name="review_score" value="{:intval($config['review_score'] ?? 70)}" min="0" max="100">
+      </label>
+      <label>候选TopN
+        <input type="number" name="candidate_topn" value="{:intval($config['candidate_topn'] ?? 5)}" min="1" max="10">
+      </label>
+      <button class="primary-btn" type="submit">保存配置</button>
+    </form>
+  </div>
+
+  <div class="system-box">
+    <form method="get" action="{:url('douban/index')}">
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <select name="status">
+          <option value="review" {if condition="$status eq 'review'"}selected{/if}>待核查豆瓣ID</option>
+          <option value="not_found" {if condition="$status eq 'not_found'"}selected{/if}>无豆瓣ID</option>
+          <option value="duplicate" {if condition="$status eq 'duplicate'"}selected{/if}>豆瓣ID重复</option>
+          <option value="locked" {if condition="$status eq 'locked'"}selected{/if}>已锁定豆瓣ID</option>
+          <option value="confirmed" {if condition="$status eq 'confirmed'"}selected{/if}>已确认</option>
+          <option value="all" {if condition="$status eq 'all'"}selected{/if}>全部</option>
+        </select>
+        <input type="text" name="q" value="{$q}" placeholder="按影片名或ID搜索">
+        <button class="ghost-btn" type="submit">筛选</button>
+      </div>
+    </form>
+  </div>
+
+  {if condition="empty($videos)"}
+  <div class="system-box module-fallback">
+    <span class="eyebrow">列表</span>
+    <h1>暂无数据</h1>
+    <p>请先生成到期任务，或切换筛选条件后查看。</p>
+  </div>
+  {else/}
+  <table class="user-records" style="margin-top: 12px; width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>影片</th>
+        <th>年份</th>
+        <th>豆瓣ID</th>
+        <th>状态</th>
+        <th>原因</th>
+        <th>同步</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {volist name="videos" id="vo"}
+      <tr>
+        <td>{$vo.vod_id}</td>
+        <td>{$vo.vod_name|mac_default='-'}</td>
+        <td>{$vo.vod_year|mac_default='-'}</td>
+        <td>
+          <form class="douban-id-form" method="post" action="{:url('douban/setDoubanId')}">
+            <input type="hidden" name="vod_id" value="{$vo.vod_id}">
+            <input type="text" name="douban_id" value="{$vo.display_douban_id|mac_default=''}" style="max-width: 120px;">
+            <label style="display:inline-flex; gap:4px; align-items:center;">
+              <input type="checkbox" name="lock" value="1" {if condition="$vo.douban_id_locked eq 1"}checked{/if}>锁定
+            </label>
+            <button class="ghost-btn" type="submit">保存</button>
+          </form>
+        </td>
+        <td>{$vo.douban_review_status|mac_default='-'}</td>
+        <td>{$vo.douban_review_reason|mac_default='-'}</td>
+        <td>
+          <span>上次：{$vo.douban_last_sync_label}</span><br>
+          <span>下次：{$vo.douban_next_sync_label}</span>
+        </td>
+        <td>
+          <button class="ghost-btn" type="button" data-douban-action="sync" data-vod-id="{$vo.vod_id}">同步</button>
+          <button class="ghost-btn" type="button" data-douban-action="lock-id" data-vod-id="{$vo.vod_id}" data-locked="{:$vo['douban_id_locked']==1 ? 0 : 1}">{if condition="$vo.douban_id_locked eq 1"}解锁ID{else/}锁定ID{/if}</button>
+          <button class="ghost-btn" type="button" data-douban-action="lock-intro" data-vod-id="{$vo.vod_id}" data-locked="{:$vo['intro_locked']==1 ? 0 : 1}">{if condition="$vo.intro_locked eq 1"}解锁简介{else/}锁定简介{/if}</button>
+          <button class="danger-btn" type="button" data-douban-action="ignore" data-vod-id="{$vo.vod_id}">忽略30天</button>
+        </td>
+      </tr>
+      {/volist}
+    </tbody>
+  </table>
+  {/if}
+
+  <div class="system-box">
+    <span class="eyebrow">最近日志</span>
+    {if condition="empty($logs)"}
+    <p>暂无操作日志。</p>
+    {else/}
+    <div class="device-meta">
+      {volist name="logs" id="log"}
+      <span>#{$log.log_id} {$log.action} / vod {$log.vod_id} / {$log.reason|mac_default='-'}</span>
+      {/volist}
+    </div>
+    {/if}
+  </div>
+</section>
+<script>
+  (function () {
+    function post(url, data, button) {
+      if (button) button.disabled = true;
+      return fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        body: data
+      }).then(function (response) {
+        return response.json();
+      }).then(function (result) {
+        if (result && result.code === 1) {
+          window.location.reload();
+          return;
+        }
+        alert((result && result.msg) || "操作失败");
+        if (button) button.disabled = false;
+      }).catch(function () {
+        alert("网络异常，请稍后再试");
+        if (button) button.disabled = false;
+      });
+    }
+
+    document.addEventListener("submit", function (event) {
+      var form = event.target.closest("#doubanConfigForm, .douban-id-form");
+      if (!form) return;
+      event.preventDefault();
+      post(form.getAttribute("action"), new FormData(form), form.querySelector("button[type='submit']"));
+    });
+
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-douban-action]");
+      if (!button || button.disabled) return;
+      var action = button.getAttribute("data-douban-action");
+      var formData = new FormData();
+      var url = "";
+      if (action === "enqueue") {
+        url = "{:url('douban/enqueue')}";
+        formData.append("limit", "{:intval($config['batch_size'] ?? 100)}");
+      } else if (action === "run") {
+        url = "{:url('douban/run')}";
+        formData.append("limit", "{:intval($config['worker_limit'] ?? 20)}");
+      } else if (action === "sync") {
+        url = "{:url('douban/sync')}";
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+      } else if (action === "lock-id" || action === "lock-intro") {
+        url = "{:url('douban/lock')}";
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+        formData.append("field", action === "lock-intro" ? "intro" : "id");
+        formData.append("locked", button.getAttribute("data-locked") || "1");
+      } else if (action === "ignore") {
+        url = "{:url('douban/ignore')}";
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+        formData.append("days", "30");
+      }
+      if (url !== "") {
+        post(url, formData, button);
+      }
+    });
+  })();
+</script>
+{include file="public/foot" /}

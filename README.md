@@ -79,6 +79,7 @@ It also builds the companion MacCMS addon archive:
 
 ```text
 dist/pingfangdevice.tar.gz
+dist/douban.tar.gz
 ```
 
 The `pingfangdevice` addon provides 登录设备管理 for member accounts. It records
@@ -95,6 +96,12 @@ device token cannot recreate the session: the native login cookies are cleared
 instead. Logout and manual revoke actions require same-origin Ajax `POST`
 requests. `device_token_cookie` changes the actual cookie name; changing it on a
 running site signs current devices out and requires users to log in again.
+
+The `douban` addon provides a MacCMS backend page at
+`/addons/douban/index/index` for 豆瓣数据 management. It stores Douban sync
+metadata, task queue state, review status, and operation logs in addon-owned
+tables, and can manually enqueue due videos or run limited sync workers against
+the configured `douban.php` endpoint.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
@@ -140,14 +147,15 @@ This verification runs after remote files and database changes are applied; a
 failure reports an unhealthy deployment but does not automatically roll it
 back.
 
-The deploy script also installs the `pingfangdevice` addon under the remote
-MacCMS `addons` directory, applies `addons/pingfangdevice/install.sql`, and
-adds the addon's `app_begin` hook to `application/extra/addons.php`. This hook
-keeps valid device sessions synchronized with MacCMS `user_check` cookies and
-lets revoked devices fall back to the normal MacCMS logged-out state. Before
-finishing, deployment validates every addon PHP file, the installed hook, and
-the upgraded `login_check_hash` database column. The frontend compatibility
-controller is packaged in the addon's standard
+The deploy script also installs the `pingfangdevice` and `douban` addons under
+the remote MacCMS `addons` directory and applies each addon's `install.sql`.
+For `pingfangdevice`, it also adds the addon's `app_begin` hook to
+`application/extra/addons.php`. This hook keeps valid device sessions
+synchronized with MacCMS `user_check` cookies and lets revoked devices fall
+back to the normal MacCMS logged-out state. Before finishing, deployment
+validates every addon PHP file, the installed hook, and the upgraded
+`login_check_hash` database column. The frontend compatibility controller is
+packaged in the addon's standard
 `application/index/controller/Pingfangdevice.php` payload and copied to the
 matching MacCMS application path during SSH deployment.
 
@@ -180,8 +188,9 @@ GitHub Actions runs the same release gate on pushes and pull requests: `npm test
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,
 `npm run package`, and `npm run verify:release`. After verification, the CI
 workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
-`dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, keeping theme and addon
-release units separate.
+`dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, and
+`dist/douban.tar.gz` as `douban-addon`, keeping theme and addon release units
+separate.
 
 `npm run lint:template` checks local MacCMS template structure before packaging:
 includes must point to existing files, common MacCMS loop tags must be balanced,

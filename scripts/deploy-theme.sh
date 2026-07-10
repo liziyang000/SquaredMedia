@@ -14,11 +14,14 @@ DEPLOY_SITE_SCHEME="${DEPLOY_SITE_SCHEME:-https}"
 DEPLOY_SITE_MARKER="${DEPLOY_SITE_MARKER:-}"
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"
+DOUBAN_ADDON_NAME="douban"
 ARCHIVE="dist/pingfangvideo.tar.gz"
 ADDON_ARCHIVE="dist/pingfangdevice.tar.gz"
+DOUBAN_ADDON_ARCHIVE="dist/douban.tar.gz"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 REMOTE_TMP="${DEPLOY_REMOTE_TMP:-/tmp/${THEME_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 REMOTE_ADDON_TMP="${DEPLOY_REMOTE_ADDON_TMP:-/tmp/${ADDON_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
+REMOTE_DOUBAN_ADDON_TMP="${DEPLOY_REMOTE_DOUBAN_ADDON_TMP:-/tmp/${DOUBAN_ADDON_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 
 if [[ -n "$DEPLOY_SITE_HOST" && ! "$DEPLOY_SITE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
   echo "DEPLOY_SITE_HOST must be a hostname without a scheme or path." >&2
@@ -64,13 +67,16 @@ npm run verify:release
 
 "${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
 "${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
+"${scp_command[@]}" "$DOUBAN_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_DOUBAN_ADDON_TMP}"
 
 remote_env=(
   "DEPLOY_PATH=$(printf "%q" "$DEPLOY_PATH")"
   "REMOTE_TMP=$(printf "%q" "$REMOTE_TMP")"
   "REMOTE_ADDON_TMP=$(printf "%q" "$REMOTE_ADDON_TMP")"
+  "REMOTE_DOUBAN_ADDON_TMP=$(printf "%q" "$REMOTE_DOUBAN_ADDON_TMP")"
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
+  "DOUBAN_ADDON_NAME=$(printf "%q" "$DOUBAN_ADDON_NAME")"
   "DEPLOY_CLEAR_CACHE=$(printf "%q" "$DEPLOY_CLEAR_CACHE")"
   "DEPLOY_SITE_HOST=$(printf "%q" "$DEPLOY_SITE_HOST")"
   "DEPLOY_SITE_SCHEME=$(printf "%q" "$DEPLOY_SITE_SCHEME")"
@@ -137,6 +143,50 @@ verify_deployed_site() {
 
   bytes="$(wc -c < "$verify_file")"
   echo "Verified deployed site ${verify_url}: HTTP ${status}, ${bytes} bytes"
+}
+
+apply_addon_sql() {
+  local maccms_root addon_name
+
+  maccms_root="$1"
+  addon_name="$2"
+
+  MACCMS_ROOT="$maccms_root" ADDON_NAME="$addon_name" php <<'PHP_SQL'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$addon = getenv('ADDON_NAME');
+$dbFile = $root . '/application/database.php';
+$sqlFile = $root . '/addons/' . $addon . '/install.sql';
+if (!is_file($dbFile) || !is_file($sqlFile)) {
+    fwrite(STDERR, "MacCMS database config or addon install.sql is missing.\n");
+    exit(1);
+}
+$db = include $dbFile;
+$prefix = isset($db['prefix']) ? $db['prefix'] : '';
+$sql = str_replace('__PREFIX__', $prefix, file_get_contents($sqlFile));
+$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
+    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+    $db['hostname'] ?? '127.0.0.1',
+    $db['hostport'] ?? '3306',
+    $db['database'] ?? '',
+    $db['charset'] ?? 'utf8'
+);
+$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+]);
+$statement = '';
+foreach (preg_split('/\r?\n/', $sql) as $line) {
+    $trimmed = trim($line);
+    if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
+        continue;
+    }
+    $statement .= $line . "\n";
+    if (substr($trimmed, -1) === ';') {
+        $pdo->exec($statement);
+        $statement = '';
+    }
+}
+PHP_SQL
 }
 
 install_device_addon() {
@@ -266,15 +316,67 @@ PHP_SQL
   echo "Installed and verified ${ADDON_NAME} addon under ${addon_dir}"
 }
 
+install_simple_addon() {
+  local addon_name remote_tmp maccms_root addon_dir backup tmp_dir bridge_controller_source bridge_controller_target gateway_source gateway_target target_backup
+
+  addon_name="$1"
+  remote_tmp="$2"
+  maccms_root="$(dirname "$DEPLOY_PATH")"
+  addon_dir="$maccms_root/addons/$addon_name"
+  mkdir -p "$maccms_root/addons"
+
+  tmp_dir="$deploy_tmp_dir/$addon_name"
+  mkdir -p "$tmp_dir"
+
+  tar -xzf "$remote_tmp" -C "$tmp_dir"
+  if [[ ! -f "$tmp_dir/$addon_name/info.ini" || ! -f "$tmp_dir/$addon_name/install.sql" ]]; then
+    echo "Uploaded addon archive does not contain $addon_name/info.ini and install.sql" >&2
+    exit 1
+  fi
+
+  if [[ -d "$addon_dir" ]]; then
+    backup="${addon_name}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -a "$addon_dir" "$maccms_root/addons/$backup"
+  fi
+
+  rm -rf "$addon_dir"
+  mv "$tmp_dir/$addon_name" "$addon_dir"
+  apply_addon_sql "$maccms_root" "$addon_name"
+
+  if [[ "$addon_name" == "$DOUBAN_ADDON_NAME" ]]; then
+    bridge_controller_source="$addon_dir/bridge/Douban.php"
+    bridge_controller_target="$maccms_root/application/index/controller/Douban.php"
+    gateway_source="$addon_dir/bridge/DoubanEndpoint.php"
+    gateway_target="$maccms_root/extend/douban.php"
+    if [[ ! -f "$bridge_controller_source" || ! -f "$gateway_source" ]]; then
+      echo "Douban addon archive does not contain required bridge files" >&2
+      exit 1
+    fi
+    mkdir -p "$(dirname "$bridge_controller_target")" "$(dirname "$gateway_target")"
+    for target in "$bridge_controller_target" "$gateway_target"
+    do
+      if [[ -f "$target" ]]; then
+        target_backup="${target}.backup.$(date +%Y%m%d%H%M%S)"
+        cp -a "$target" "$target_backup"
+      fi
+    done
+    cp -a "$bridge_controller_source" "$bridge_controller_target"
+    cp -a "$gateway_source" "$gateway_target"
+  fi
+
+  echo "Installed ${addon_name} addon under ${addon_dir}"
+}
+
 if [[ ! -d "$DEPLOY_PATH" ]]; then
   echo "Remote template directory does not exist: $DEPLOY_PATH" >&2
   exit 1
 fi
 
 deploy_tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$deploy_tmp_dir" "$REMOTE_TMP" "$REMOTE_ADDON_TMP"' EXIT
+trap 'rm -rf "$deploy_tmp_dir" "$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_DOUBAN_ADDON_TMP"' EXIT
 
 install_device_addon
+install_simple_addon "$DOUBAN_ADDON_NAME" "$REMOTE_DOUBAN_ADDON_TMP"
 
 cd "$DEPLOY_PATH"
 

@@ -1013,10 +1013,12 @@ const scorePartial = readThemeFile("html/public/score.html");
 assert.match(scorePartial, /score-panel/);
 assert.match(scorePartial, /vod_score/);
 assert.match(scorePartial, /vod_score_num/);
+assert.match(scorePartial, /豆瓣评分/);
 
 const starPartial = readThemeFile("html/public/star.html");
 assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
+assert.match(starPartial, /豆瓣评分/);
 
 const style = readThemeFile("css/style.css");
 const appScript = readThemeFile("js/app.js");
@@ -1963,6 +1965,9 @@ assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_revie
 assert.doesNotMatch(doubanAddonSql, /DROP\s+TABLE/i);
 
 const doubanAddonView = readDoubanAddonFile("view/index/index.html");
+assert.match(doubanAddonView, /<!doctype html>/i);
+assert.doesNotMatch(doubanAddonView, /include file="public\/head"/);
+assert.doesNotMatch(doubanAddonView, /include file="public\/foot"/);
 assert.match(doubanAddonView, /豆瓣数据/);
 assert.match(doubanAddonView, /自动更新设置/);
 assert.match(doubanAddonView, /待核查豆瓣ID/);
@@ -2060,6 +2065,10 @@ assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /douban\/service\/DoubanData\.php/);
+assert.match(releaseVerifier, /douban\/bridge\/Douban\.php/);
+assert.match(releaseVerifier, /douban\/bridge\/DoubanEndpoint\.php/);
+assert.match(releaseVerifier, /douban\/service\/DoubanGateway\.php/);
+assert.match(releaseVerifier, /douban\/service\/DoubanMatcher\.php/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react-dom\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/rank-react\.js/);

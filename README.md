@@ -97,11 +97,24 @@ instead. Logout and manual revoke actions require same-origin Ajax `POST`
 requests. `device_token_cookie` changes the actual cookie name; changing it on a
 running site signs current devices out and requires users to log in again.
 
-The `douban` addon provides a MacCMS backend page at
-`/addons/douban/index/index` for 豆瓣数据 management. It stores Douban sync
-metadata, task queue state, review status, and operation logs in addon-owned
-tables, and can manually enqueue due videos or run limited sync workers against
-the configured `douban.php` endpoint.
+The `douban` addon provides an administrator-only page at
+`/index.php/douban/index` for 豆瓣数据 management. Deployment installs its
+controller bridge and a self-hosted `/extend/douban.php` gateway because the
+target site does not enable generic addon routes. The addon stores sync
+metadata, task state, review candidates, and operation logs in addon-owned
+tables.
+
+MacCMS only exposes `by="score"` as its native score sort. This addon therefore
+keeps the original value in `vod_douban_score` and mirrors it to `vod_score`.
+Use **校准豆瓣评分** once after deployment to copy existing Douban ratings and
+reset videos without a Douban rating to `0`; all native score sorting then uses
+Douban ratings only.
+
+Normal operation is: log in as an administrator, open the Douban page, generate
+due tasks, and run the Pending Worker in limited batches. Existing
+`vod_douban_id` values sync directly. Videos without an ID are searched by title;
+a unique exact title and year match is confirmed automatically, while ambiguous
+results remain in 待核查豆瓣ID for manual confirmation.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
@@ -149,6 +162,8 @@ back.
 
 The deploy script also installs the `pingfangdevice` and `douban` addons under
 the remote MacCMS `addons` directory and applies each addon's `install.sql`.
+For `douban`, it also installs `application/index/controller/Douban.php` and
+`extend/douban.php`.
 For `pingfangdevice`, it also adds the addon's `app_begin` hook to
 `application/extra/addons.php`. This hook keeps valid device sessions
 synchronized with MacCMS `user_check` cookies and lets revoked devices fall

@@ -117,11 +117,15 @@ const requiredAddonEntries = [
 ];
 const requiredDoubanAddonEntries = [
   "douban/Douban.php",
+  "douban/bridge/Douban.php",
+  "douban/bridge/DoubanEndpoint.php",
   "douban/config.php",
   "douban/controller/Index.php",
   "douban/info.ini",
   "douban/install.sql",
   "douban/service/DoubanData.php",
+  "douban/service/DoubanGateway.php",
+  "douban/service/DoubanMatcher.php",
   "douban/view/index/index.html",
 ];
 

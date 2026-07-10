@@ -1,4 +1,40 @@
-{include file="public/head" seo_title="豆瓣数据" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>豆瓣数据</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f6f8; color: #17202a; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, select { font: inherit; }
+    .device-panel { width: min(1440px, calc(100% - 32px)); margin: 24px auto; }
+    .record-toolbar, .device-meta, .tool-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .record-toolbar { justify-content: space-between; margin-bottom: 12px; }
+    .record-toolbar strong { display: block; font-size: 24px; }
+    .record-toolbar span, .device-meta { color: #667085; }
+    .favorite-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .device-card, .system-box { padding: 16px; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; }
+    .system-box { margin-top: 12px; }
+    .record-title { margin: 0 0 10px; font-size: 16px; }
+    .tool-form label { display: grid; gap: 4px; color: #475467; }
+    input, select { min-height: 36px; padding: 7px 9px; border: 1px solid #cfd5dc; border-radius: 4px; background: #fff; color: #17202a; }
+    button { min-height: 36px; padding: 7px 12px; border: 1px solid #b8c1cc; border-radius: 4px; background: #fff; color: #344054; cursor: pointer; }
+    button.primary-btn { border-color: #1769aa; background: #1769aa; color: #fff; }
+    button.danger-btn { border-color: #d92d20; color: #b42318; }
+    button:disabled { cursor: wait; opacity: .55; }
+    table.user-records { display: table; width: 100%; margin-top: 12px; border-collapse: collapse; background: #fff; }
+    th, td { padding: 10px; border: 1px solid #e3e7ec; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; white-space: nowrap; }
+    .douban-id-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .module-fallback h1 { margin: 8px 0; font-size: 18px; }
+    @media (max-width: 820px) {
+      .favorite-list { grid-template-columns: 1fr; }
+      table.user-records { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
 <section class="wrap user-records device-panel">
   <div class="record-toolbar">
     <div>
@@ -215,4 +251,5 @@
     });
   })();
 </script>
-{include file="public/foot" /}
+</body>
+</html>

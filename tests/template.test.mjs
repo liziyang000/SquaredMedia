@@ -569,6 +569,7 @@ assert.doesNotMatch(msgPage, /href="javascript:/);
 assert.match(msgPage, /mac_url\('vod\/show'\)/);
 
 const index = readThemeFile("html/index/index.html");
+assert.doesNotMatch(index, /vod_score\|mac_default='8\.0'/);
 assert.match(index, /\{include file="public\/head" seo_title=/);
 assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" ${currentYearVodAttr} order="desc" by="time" cachetime="300" id="vo"\\}`));
 assert.doesNotMatch(index, /\{maccms:vod type="all" num="6" order="desc" by="time" id="vo"\}/);
@@ -606,7 +607,7 @@ assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num
 assert.doesNotMatch(index, /is-rank-extra/);
 assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
 assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
-assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='8\.0'\}"/);
+assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='0\.0'\}"/);
 assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
 assert.match(index, /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/);
 assert.match(index, /rank-body/);
@@ -667,6 +668,7 @@ assert.doesNotMatch(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
 assert.doesNotMatch(index, /<a href="\{:mac_url\('vod\/show'\)\}">全部影片<\/a>/);
 
 const detail = readThemeFile("html/vod/detail.html");
+assert.doesNotMatch(detail, /vod_score\|mac_default='8\.0'/);
 assert.match(detail, /\{include file="public\/head" seo_title="\{\$obj\.vod_name\}" seo_keywords="\{\$obj\.vod_tag\}" seo_description="\{\$obj\.vod_blurb\}" \/\}/);
 assert.match(detail, /\{\$obj\.vod_pic\|mac_url_img\}/);
 assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/);
@@ -686,6 +688,7 @@ assert.match(detail, /<dt>热度<\/dt><dd>\{\$obj\.vod_hits\|mac_default='0'\} �
 assert.match(detail, /loading="lazy" decoding="async" width="300" height="450" sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px"/);
 
 const vodCard = readThemeFile("html/public/vod_card.html");
+assert.doesNotMatch(vodCard, /vod_score\|mac_default='8\.0'/);
 assert.match(vodCard, /<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" loading="lazy" decoding="async" width="300" height="450" sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px">/);
 
 const searchImagePage = readThemeFile("html/vod/search.html");
@@ -1012,7 +1015,7 @@ assert.match(diggPartial, /vod_down/);
 const scorePartial = readThemeFile("html/public/score.html");
 assert.match(scorePartial, /score-panel/);
 assert.match(scorePartial, /vod_score/);
-assert.match(scorePartial, /vod_score_num/);
+assert.doesNotMatch(scorePartial, /vod_score_num/);
 assert.match(scorePartial, /豆瓣评分/);
 
 const starPartial = readThemeFile("html/public/star.html");
@@ -1920,6 +1923,8 @@ assert.match(doubanBridgeController, /__construct\(\?Request \$request = null\)/
 
 const doubanGatewayBridge = readDoubanAddonFile("bridge/DoubanEndpoint.php");
 assert.match(doubanGatewayBridge, /DoubanGateway/);
+assert.match(doubanGatewayBridge, /REMOTE_ADDR/);
+assert.match(doubanGatewayBridge, /429/);
 
 const doubanAddonController = readDoubanAddonFile("controller/Index.php");
 assert.match(doubanAddonController, /DoubanData::dashboard/);
@@ -1949,15 +1954,23 @@ assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
 assert.match(doubanDataService, /public static function calibrateScores/);
 assert.match(doubanDataService, /vod_douban_score/);
 assert.doesNotMatch(doubanDataService, /'vod_score_all' => \[/);
+assert.doesNotMatch(doubanDataService, /'vod_score_num' => \[/);
 assert.match(doubanDataService, /vod_douban_score > 0 AND vod_douban_score <= 10/);
 assert.match(doubanDataService, /'invalid_reset'/);
 assert.match(doubanDataService, /豆瓣评分必须在 0 到 10 之间/);
+assert.match(doubanDataService, /self::calibrateScores\(\$operatorId\)/);
+assert.match(doubanDataService, /where\('status', 'RUNNING'\)/);
+assert.match(doubanDataService, /where\('status', 'PENDING'\)/);
+assert.match(doubanDataService, /vod_douban_id'\s*=>\s*\$doubanId/);
+assert.match(doubanDataService, /request_per_minute/);
 assert.match(doubanDataService, /DoubanMatcher::rank/);
 assert.match(doubanDataService, /DoubanGateway::subject/);
 assert.match(doubanDataService, /DoubanGateway::search/);
 assert.match(doubanDataService, /\$maccms\['site'\]\['site_url'\]/);
 assert.match(doubanDataService, /information_schema\.COLUMNS/);
 assert.doesNotMatch(doubanDataService, /SHOW COLUMNS FROM \{\$tableName\} LIKE \?/);
+assert.doesNotMatch(doubanDataService, /'verify_peer'\s*=>\s*false/);
+assert.doesNotMatch(doubanDataService, /'verify_peer_name'\s*=>\s*false/);
 assert.match(doubanDataService, /v\.vod_time/);
 assert.match(doubanDataService, /\$vod\['vod_time'\]/);
 assert.doesNotMatch(doubanDataService, /v\.update_time/);
@@ -1968,6 +1981,8 @@ assert.match(doubanGateway, /rexxar\/api\/v2\/movie/);
 assert.match(doubanGateway, /subject_suggest/);
 assert.match(doubanGateway, /rating_count/);
 assert.match(doubanGateway, /vod_douban_score/);
+assert.doesNotMatch(doubanGateway, /'vod_score_num'\s*=>/);
+assert.match(doubanGateway, /豆瓣数据源ID与请求不一致/);
 
 const doubanAddonSql = readDoubanAddonFile("install.sql");
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_config`/);

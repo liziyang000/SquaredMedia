@@ -9,7 +9,7 @@
       <span class="eyebrow">{$obj.type.type_name}</span>
       <div class="detail-title-row">
         <h1>{$obj.vod_name}</h1>
-        <span class="score-badge">{$obj.vod_score|mac_default='8.0'}</span>
+        <span class="score-badge">{$obj.vod_score|mac_default='0.0'}</span>
       </div>
       <p class="meta">{$obj.vod_year|mac_default='年份未知'} / {$obj.vod_area|mac_default='地区未知'} / {$obj.vod_class|mac_default='类型待更新'}</p>
       <p class="summary">{$obj.vod_content|mac_filter_html|mac_substring=180}</p>
@@ -64,7 +64,7 @@
       <span class="poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">
         <em class="quality-badge">{$vo.vod_remarks|mac_default='高清'}</em>
-        <span class="score-badge">{$vo.vod_score|mac_default='8.0'}</span>
+        <span class="score-badge">{$vo.vod_score|mac_default='0.0'}</span>
       </span>
       <strong>{$vo.vod_name}</strong>
       <small>{$vo.vod_actor|mac_default='主演待更新'}</small>

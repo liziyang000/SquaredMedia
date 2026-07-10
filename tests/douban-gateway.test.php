@@ -30,7 +30,8 @@ $subject = DoubanGateway::normalizeSubject([
 assertSameValue('1295644', $subject['vod_douban_id'], 'Douban ID should be normalized');
 assertSameValue('9.4', $subject['vod_douban_score'], 'Canonical Douban score should be normalized');
 assertSameValue('9.4', $subject['vod_score'], 'MacCMS score mirror should match Douban score');
-assertSameValue('2562776', $subject['vod_score_num'], 'Douban rating count should be normalized');
+assertSameValue(false, array_key_exists('vod_score_num', $subject), 'Local rating count should not be overwritten');
+assertSameValue(2562776, $subject['rating_count'], 'Douban rating count should remain gateway metadata');
 assertSameValue(false, array_key_exists('vod_score_all', $subject), 'Local score total should not carry Douban aggregates');
 assertSameValue('法国,美国', $subject['vod_area'], 'Countries should be joined');
 assertSameValue('吕克·贝松', $subject['vod_director'], 'Directors should be joined');
@@ -47,6 +48,18 @@ try {
     $invalidRatingRejected = $e->getMessage() === '豆瓣评分必须在 0 到 10 之间';
 }
 assertSameValue(true, $invalidRatingRejected, 'Out-of-range Douban scores should be rejected');
+
+$missingRatingRejected = false;
+try {
+    DoubanGateway::normalizeSubject([
+        'id' => '1',
+        'title' => '缺少评分',
+        'rating' => ['count' => 1],
+    ]);
+} catch (RuntimeException $e) {
+    $missingRatingRejected = $e->getMessage() === '豆瓣数据源未返回有效评分';
+}
+assertSameValue(true, $missingRatingRejected, 'Missing Douban scores should be rejected');
 
 $candidates = DoubanGateway::normalizeCandidates([
     [

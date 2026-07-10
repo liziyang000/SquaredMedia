@@ -32,7 +32,7 @@
       </div>
       <div class="rank-list" data-rank-react-list>
       {maccms:vod type="42,47,48,57,111" num="5" year="'.date('Y').'" order="desc" by="hits" cachetime="300" id="vo" key="key"}
-      <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item data-rank-title="{$vo.vod_name}" data-rank-meta="{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}" data-rank-score="{$vo.vod_score|mac_default='8.0'}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
+      <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item data-rank-title="{$vo.vod_name}" data-rank-meta="{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}" data-rank-score="{$vo.vod_score|mac_default='0.0'}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
         <span class="rank-thumb">
           <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
           <span class="rank-index">{$key}</span>
@@ -41,7 +41,7 @@
           <strong>{$vo.vod_name}</strong>
           <em class="rank-meta">{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</em>
         </span>
-        <span class="rank-score">{$vo.vod_score|mac_default='8.0'}</span>
+        <span class="rank-score">{$vo.vod_score|mac_default='0.0'}</span>
       </a>
       {/maccms:vod}
       </div>
@@ -83,7 +83,7 @@
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
   </div>
@@ -98,7 +98,7 @@
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
   </div>
@@ -113,7 +113,7 @@
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
   </div>
@@ -128,7 +128,7 @@
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
   </div>
@@ -143,7 +143,7 @@
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
   </div>
@@ -158,7 +158,7 @@
         <strong>{$vo.vod_name}</strong>
         <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
+      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
   </div>

@@ -14,7 +14,12 @@ class DoubanGateway
             throw new \InvalidArgumentException('豆瓣ID无效');
         }
 
-        return self::normalizeSubject(self::requestJson(sprintf(self::SUBJECT_URL, $doubanId)));
+        $subject = self::normalizeSubject(self::requestJson(sprintf(self::SUBJECT_URL, $doubanId)));
+        if ($subject['vod_douban_id'] !== $doubanId) {
+            throw new \RuntimeException('豆瓣数据源ID与请求不一致');
+        }
+
+        return $subject;
     }
 
     public static function search(string $query, int $limit = 5): array
@@ -32,8 +37,11 @@ class DoubanGateway
     public static function normalizeSubject(array $data): array
     {
         $rating = is_array($data['rating'] ?? null) ? $data['rating'] : [];
-        $rawRatingValue = $rating['value'] ?? 0;
-        if (!is_numeric($rawRatingValue) || (float) $rawRatingValue < 0 || (float) $rawRatingValue > 10) {
+        if (!array_key_exists('value', $rating) || !is_numeric($rating['value'])) {
+            throw new \RuntimeException('豆瓣数据源未返回有效评分');
+        }
+        $rawRatingValue = $rating['value'];
+        if ((float) $rawRatingValue < 0 || (float) $rawRatingValue > 10) {
             throw new \RuntimeException('豆瓣评分必须在 0 到 10 之间');
         }
         $ratingValue = (float) $rawRatingValue;
@@ -64,7 +72,6 @@ class DoubanGateway
             'vod_content' => self::text($data['intro'] ?? ''),
             'vod_douban_score' => $score,
             'vod_score' => $score,
-            'vod_score_num' => (string) $ratingCount,
             'rating_count' => $ratingCount,
             'vod_total' => $episodeCount > 0 ? (string) $episodeCount : '',
         ];

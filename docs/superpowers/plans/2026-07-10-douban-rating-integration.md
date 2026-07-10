@@ -91,7 +91,7 @@ public static function normalizeSubject(array $data): array;
 public static function normalizeCandidates(array $rows): array;
 ```
 
-Subject output includes `vod_name`, `vod_pic`, `vod_year`, `vod_area`, `vod_lang`, `vod_class`, `vod_director`, `vod_actor`, `vod_content`, `vod_douban_score`, `vod_score`, `vod_score_num`, and `vod_total`.
+Subject output includes `vod_name`, `vod_pic`, `vod_year`, `vod_area`, `vod_lang`, `vod_class`, `vod_director`, `vod_actor`, `vod_content`, `vod_douban_score`, `vod_score`, `rating_count`, and `vod_total`. `rating_count` remains gateway metadata and must not overwrite MacCMS local rating aggregates.
 
 - [ ] **Step 4: Verify syntax and live response**
 

@@ -106,9 +106,11 @@ tables.
 
 MacCMS only exposes `by="score"` as its native score sort. This addon therefore
 keeps the original value in `vod_douban_score` and mirrors it to `vod_score`.
-Use **校准豆瓣评分** once after deployment to copy existing Douban ratings and
-reset videos without a Douban rating to `0`; all native score sorting then uses
-Douban ratings only.
+It does not overwrite `vod_score_num` or `vod_score_all`, which remain MacCMS
+local rating aggregates. Use **校准豆瓣评分** once after deployment to copy
+existing Douban ratings and reset videos without a Douban rating to `0`.
+Generating due tasks repeats this calibration automatically so newly imported
+videos cannot retain a non-Douban sort score.
 
 Normal operation is: log in as an administrator, open the Douban page, generate
 due tasks, and run the Pending Worker in limited batches. Existing

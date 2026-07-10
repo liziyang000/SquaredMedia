@@ -16,6 +16,7 @@ class DoubanData
     private const TASK_SYNC = 'SYNC_DOUBAN';
     private const TASK_MATCH = 'MATCH_DOUBAN_ID';
     private const ACTION_AUTO_SYNC = 'AUTO_SYNC';
+    private static $lastRequestAt = 0.0;
 
     public static function configDefaults()
     {
@@ -109,6 +110,7 @@ class DoubanData
 
     public static function enqueueDue(int $limit = 100, int $operatorId = 0)
     {
+        self::calibrateScores($operatorId);
         $config = self::config();
         $limit = max(1, min(500, $limit));
         $now = time();
@@ -183,8 +185,18 @@ class DoubanData
 
     public static function runPending(int $limit = 20, int $operatorId = 0)
     {
-        $limit = max(1, min(100, $limit));
+        $config = self::config();
+        $limit = max(1, min(100, (int) $config['request_per_minute'], $limit));
         $now = time();
+        Db::name(self::TASK_TABLE)
+            ->where('status', 'RUNNING')
+            ->where('updated_at', '<', $now - 1800)
+            ->update([
+                'status' => 'PENDING',
+                'run_after' => $now,
+                'last_error' => 'Worker 超时，已重新入队',
+                'updated_at' => $now,
+            ]);
         $tasks = self::toArray(Db::name(self::TASK_TABLE)
             ->where('status', 'PENDING')
             ->where('run_after', '<=', $now)
@@ -196,11 +208,18 @@ class DoubanData
         foreach ($tasks as $task) {
             $taskId = (int) ($task['task_id'] ?? 0);
             $attempts = (int) ($task['attempts'] ?? 0) + 1;
-            Db::name(self::TASK_TABLE)->where('task_id', $taskId)->update([
-                'status' => 'RUNNING',
-                'attempts' => $attempts,
-                'updated_at' => $now,
-            ]);
+            $claimed = Db::name(self::TASK_TABLE)
+                ->where('task_id', $taskId)
+                ->where('status', 'PENDING')
+                ->where('run_after', '<=', $now)
+                ->update([
+                    'status' => 'RUNNING',
+                    'attempts' => $attempts,
+                    'updated_at' => $now,
+                ]);
+            if ((int) $claimed !== 1) {
+                continue;
+            }
 
             try {
                 $itemResult = self::runTask($task, $operatorId);
@@ -297,6 +316,15 @@ class DoubanData
         $doubanId = self::normalizeDoubanId($doubanId);
         if ($vodId < 1 || $doubanId === '') {
             throw new \InvalidArgumentException('参数错误');
+        }
+        $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
+        if (empty($vod)) {
+            throw new \RuntimeException('影片不存在');
+        }
+        if (self::columnExists(self::VOD_TABLE, 'vod_douban_id')) {
+            Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->update([
+                'vod_douban_id' => $doubanId,
+            ]);
         }
 
         $old = self::ensureMeta($vodId);
@@ -651,6 +679,7 @@ class DoubanData
         if ($endpoint === '') {
             throw new \RuntimeException('未配置 douban.php 接口地址');
         }
+        self::throttleRequests($config);
         if ($endpoint === '/extend/douban.php') {
             return DoubanGateway::subject($doubanId);
         }
@@ -663,6 +692,7 @@ class DoubanData
         if ($endpoint === '') {
             throw new \RuntimeException('未配置 douban.php 接口地址');
         }
+        self::throttleRequests($config);
         if ($endpoint === '/extend/douban.php') {
             return DoubanGateway::search($query, (int) ($config['candidate_topn'] ?? 5));
         }
@@ -682,10 +712,6 @@ class DoubanData
                 'timeout' => 20,
                 'ignore_errors' => true,
                 'header' => "Accept: application/json\r\n",
-            ],
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
             ],
         ]);
         $raw = @file_get_contents($url, false, $context);
@@ -723,6 +749,17 @@ class DoubanData
         return $url . (strpos($url, '?') === false ? '?' : '&') . http_build_query($query);
     }
 
+    private static function throttleRequests(array $config)
+    {
+        $requestsPerMinute = max(1, min(300, (int) ($config['request_per_minute'] ?? 30)));
+        $interval = 60 / $requestsPerMinute;
+        $delay = self::$lastRequestAt + $interval - microtime(true);
+        if ($delay > 0) {
+            usleep((int) ($delay * 1000000));
+        }
+        self::$lastRequestAt = microtime(true);
+    }
+
     private static function buildVodUpdates(array $vod, array $meta, array $data, string $doubanId)
     {
         $map = [
@@ -737,7 +774,6 @@ class DoubanData
             'vod_content' => ['vod_content', 'content', 'summary', 'intro', 'description'],
             'vod_douban_score' => ['vod_douban_score', 'vod_score', 'score', 'rating'],
             'vod_score' => ['vod_douban_score', 'vod_score', 'score', 'rating'],
-            'vod_score_num' => ['vod_score_num', 'score_num', 'rating_count', 'comments_count'],
             'vod_total' => ['vod_total', 'total', 'episodes'],
             'vod_remarks' => ['vod_remarks', 'remarks', 'status_text'],
         ];

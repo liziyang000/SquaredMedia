@@ -317,7 +317,7 @@ PHP_SQL
 }
 
 install_simple_addon() {
-  local addon_name remote_tmp maccms_root addon_dir backup tmp_dir bridge_controller_source bridge_controller_target gateway_source gateway_target target_backup
+  local addon_name remote_tmp maccms_root addon_dir backup tmp_dir bridge_controller_source bridge_controller_target admin_bridge_source admin_bridge_target gateway_source gateway_target target_backup
 
   addon_name="$1"
   remote_tmp="$2"
@@ -346,14 +346,16 @@ install_simple_addon() {
   if [[ "$addon_name" == "$DOUBAN_ADDON_NAME" ]]; then
     bridge_controller_source="$addon_dir/bridge/Douban.php"
     bridge_controller_target="$maccms_root/application/index/controller/Douban.php"
+    admin_bridge_source="$addon_dir/bridge/DoubanAdmin.php"
+    admin_bridge_target="$maccms_root/application/admin/controller/Douban.php"
     gateway_source="$addon_dir/bridge/DoubanEndpoint.php"
     gateway_target="$maccms_root/extend/douban.php"
-    if [[ ! -f "$bridge_controller_source" || ! -f "$gateway_source" ]]; then
+    if [[ ! -f "$bridge_controller_source" || ! -f "$admin_bridge_source" || ! -f "$gateway_source" ]]; then
       echo "Douban addon archive does not contain required bridge files" >&2
       exit 1
     fi
-    mkdir -p "$(dirname "$bridge_controller_target")" "$(dirname "$gateway_target")"
-    for target in "$bridge_controller_target" "$gateway_target"
+    mkdir -p "$(dirname "$bridge_controller_target")" "$(dirname "$admin_bridge_target")" "$(dirname "$gateway_target")"
+    for target in "$bridge_controller_target" "$admin_bridge_target" "$gateway_target"
     do
       if [[ -f "$target" ]]; then
         target_backup="${target}.backup.$(date +%Y%m%d%H%M%S)"
@@ -361,6 +363,7 @@ install_simple_addon() {
       fi
     done
     cp -a "$bridge_controller_source" "$bridge_controller_target"
+    cp -a "$admin_bridge_source" "$admin_bridge_target"
     cp -a "$gateway_source" "$gateway_target"
   fi
 

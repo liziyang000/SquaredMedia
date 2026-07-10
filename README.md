@@ -97,12 +97,20 @@ instead. Logout and manual revoke actions require same-origin Ajax `POST`
 requests. `device_token_cookie` changes the actual cookie name; changing it on a
 running site signs current devices out and requires users to log in again.
 
-The `douban` addon provides an administrator-only page at
-`/index.php/douban/index` for 豆瓣数据 management. Deployment installs its
-controller bridge and a self-hosted `/extend/douban.php` gateway because the
-target site does not enable generic addon routes. The addon stores sync
-metadata, task state, review candidates, and operation logs in addon-owned
-tables.
+The `douban` addon provides an administrator-only page for 豆瓣数据 management.
+Add the following exact entry to the MacCMS custom admin menu:
+
+```text
+豆瓣评分,douban/index
+```
+
+It opens `/lbk-admin.php/douban/index.html` as a MacCMS admin tab.
+`/index.php/douban/index.html` remains available as a compatibility route.
+Deployment installs both controller bridges and a self-hosted
+`/extend/douban.php` gateway because the target site does not enable generic
+addon routes. It does not modify MacCMS core menu templates or the custom menu
+configuration. The addon stores sync metadata, task state, review candidates,
+and operation logs in addon-owned tables.
 
 MacCMS only exposes `by="score"` as its native score sort. This addon therefore
 keeps the original value in `vod_douban_score` and mirrors it to `vod_score`.
@@ -165,7 +173,7 @@ back.
 The deploy script also installs the `pingfangdevice` and `douban` addons under
 the remote MacCMS `addons` directory and applies each addon's `install.sql`.
 For `douban`, it also installs `application/index/controller/Douban.php` and
-`extend/douban.php`.
+`application/admin/controller/Douban.php`, plus `extend/douban.php`.
 For `pingfangdevice`, it also adds the addon's `app_begin` hook to
 `application/extra/addons.php`. This hook keeps valid device sessions
 synchronized with MacCMS `user_check` cookies and lets revoked devices fall

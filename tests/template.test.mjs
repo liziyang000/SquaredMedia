@@ -128,6 +128,7 @@ const requiredRootFiles = [
   "addons/pingfangdevice/view/index/index.html",
   "addons/douban/Douban.php",
   "addons/douban/bridge/Douban.php",
+  "addons/douban/bridge/DoubanAdmin.php",
   "addons/douban/bridge/DoubanEndpoint.php",
   "addons/douban/config.php",
   "addons/douban/controller/Index.php",
@@ -1920,6 +1921,13 @@ const doubanBridgeController = readDoubanAddonFile("bridge/Douban.php");
 assert.match(doubanBridgeController, /namespace app\\index\\controller/);
 assert.match(doubanBridgeController, /extends AddonIndex/);
 assert.match(doubanBridgeController, /__construct\(\?Request \$request = null\)/);
+
+const doubanAdminBridgeController = readDoubanAddonFile("bridge/DoubanAdmin.php");
+assert.match(doubanAdminBridgeController, /namespace app\\admin\\controller/);
+assert.match(doubanAdminBridgeController, /extends AddonIndex/);
+assert.match(doubanAdminBridgeController, /__construct\(\?Request \$request = null\)/);
+assert.match(doubanAdminBridgeController, /'addon'\s*=>\s*'douban'/);
+assert.match(doubanAdminBridgeController, /'controller'\s*=>\s*'index'/);
 
 const doubanGatewayBridge = readDoubanAddonFile("bridge/DoubanEndpoint.php");
 assert.match(doubanGatewayBridge, /DoubanGateway/);

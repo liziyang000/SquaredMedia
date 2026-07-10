@@ -3,6 +3,7 @@
 ._*
 .idea/
 .vscode/
+.worktrees/
 
 # Dependencies
 node_modules/

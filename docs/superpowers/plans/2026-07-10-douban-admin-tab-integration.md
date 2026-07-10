@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**目标：** 让自定义菜单项 `豆瓣评分,douban/index` 在 MacCMS 后台右侧标签页中打开完整豆瓣管理功能。
+**目标：** 让自定义菜单项 `豆瓣评分,admin/douban/index` 在 MacCMS 后台右侧标签页中打开完整豆瓣管理功能。
 
 **架构：** 新增一个 `app\admin\controller\Douban` 桥接控制器，把后台模块请求委托给现有插件控制器。发布包携带该桥接文件，部署脚本将其备份后安装到 `application/admin/controller/Douban.php`，不修改 MacCMS 核心菜单代码。
 
@@ -177,10 +177,10 @@ cp -a "$gateway_source" "$gateway_target"
 在 MacCMS 后台“自定义菜单配置”中加入：
 
 ```text
-豆瓣评分,douban/index
+豆瓣评分,admin/douban/index
 ```
 
-该菜单会在后台标签页打开 `/lbk-admin.php/douban/index.html`。原
+该菜单会在后台标签页打开 `/lbk-admin.php/admin/douban/index.html`。原
 `/index.php/douban/index.html` 路由继续保留用于兼容。
 ````
 
@@ -238,7 +238,7 @@ Installed douban addon under /www/wwwroot/ping2.my/addons/douban
 运行：
 
 ```bash
-curl -fsS https://ping2.my/lbk-admin.php/douban/index.html
+curl -fsS https://ping2.my/lbk-admin.php/admin/douban/index.html
 ```
 
 预期：请求不会返回豆瓣配置表单，而是被 MacCMS 后台登录校验拦截或跳转到登录页。
@@ -267,13 +267,13 @@ session('admin_info', $admin);
 curl -fsS \
   -b "PHPSESSID=$sid" \
   -o /tmp/douban-admin-tab.html \
-  https://ping2.my/lbk-admin.php/douban/index.html
+  https://ping2.my/lbk-admin.php/admin/douban/index.html
 
 grep -qi '<!doctype html>' /tmp/douban-admin-tab.html
 grep -q '<title>豆瓣数据</title>' /tmp/douban-admin-tab.html
-grep -q '/lbk-admin.php/douban/saveConfig' /tmp/douban-admin-tab.html
-grep -q '/lbk-admin.php/douban/enqueue' /tmp/douban-admin-tab.html
-grep -q '/lbk-admin.php/douban/run' /tmp/douban-admin-tab.html
+grep -q '/lbk-admin.php/admin/douban/saveconfig.html' /tmp/douban-admin-tab.html
+grep -q '/lbk-admin.php/admin/douban/enqueue.html' /tmp/douban-admin-tab.html
+grep -q '/lbk-admin.php/admin/douban/run.html' /tmp/douban-admin-tab.html
 ! grep -q '请先使用管理员账号登录后台' /tmp/douban-admin-tab.html
 ```
 

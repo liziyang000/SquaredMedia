@@ -101,11 +101,11 @@ The `douban` addon provides an administrator-only page for 豆瓣数据 manageme
 Add the following exact entry to the MacCMS custom admin menu:
 
 ```text
-豆瓣评分,douban/index
+豆瓣评分,admin/douban/index
 ```
 
-The backend URL is `<admin-entry>.php/douban/index.html`; `ping2.my` uses
-`/lbk-admin.php/douban/index.html`, which opens as a MacCMS admin tab.
+The backend URL is `<admin-entry>.php/admin/douban/index.html`; `ping2.my` uses
+`/lbk-admin.php/admin/douban/index.html`, which opens as a MacCMS admin tab.
 `/index.php/douban/index.html` remains available as a compatibility route.
 Deployment installs both controller bridges and a self-hosted
 `/extend/douban.php` gateway because the target site does not enable generic

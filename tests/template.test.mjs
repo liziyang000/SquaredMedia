@@ -1949,6 +1949,8 @@ assert.match(doubanDataService, /public static function calibrateScores/);
 assert.match(doubanDataService, /vod_douban_score/);
 assert.match(doubanDataService, /DoubanMatcher::rank/);
 assert.match(doubanDataService, /\$maccms\['site'\]\['site_url'\]/);
+assert.match(doubanDataService, /information_schema\.COLUMNS/);
+assert.doesNotMatch(doubanDataService, /SHOW COLUMNS FROM \{\$tableName\} LIKE \?/);
 
 const doubanGateway = readDoubanAddonFile("service/DoubanGateway.php");
 assert.match(doubanGateway, /rexxar\/api\/v2\/movie/);

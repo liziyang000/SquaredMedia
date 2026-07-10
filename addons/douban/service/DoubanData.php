@@ -918,8 +918,11 @@ class DoubanData
             return $cache[$key];
         }
         try {
-            $tableName = self::quoteTable(self::tableName($table));
-            $rows = Db::query("SHOW COLUMNS FROM {$tableName} LIKE ?", [$column]);
+            $rows = Db::query(
+                'SELECT COLUMN_NAME FROM information_schema.COLUMNS ' .
+                'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+                [self::tableName($table), $column]
+            );
             $cache[$key] = !empty($rows);
         } catch (\Throwable $e) {
             $cache[$key] = false;

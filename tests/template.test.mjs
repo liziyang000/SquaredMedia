@@ -134,6 +134,7 @@ const requiredRootFiles = [
   "addons/douban/info.ini",
   "addons/douban/install.sql",
   "addons/douban/service/DoubanData.php",
+  "addons/douban/service/DoubanGateway.php",
   "addons/douban/view/index/index.html",
   "preview/data.json",
   "scripts/lint-template.mjs",
@@ -1938,6 +1939,12 @@ assert.match(doubanDataService, /douban_sync_fail_count/);
 assert.match(doubanDataService, /AUTO_SYNC/);
 assert.match(doubanDataService, /SYNC_DOUBAN/);
 assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
+
+const doubanGateway = readDoubanAddonFile("service/DoubanGateway.php");
+assert.match(doubanGateway, /rexxar\/api\/v2\/movie/);
+assert.match(doubanGateway, /subject_suggest/);
+assert.match(doubanGateway, /rating_count/);
+assert.match(doubanGateway, /vod_douban_score/);
 
 const doubanAddonSql = readDoubanAddonFile("install.sql");
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_config`/);

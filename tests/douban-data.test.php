@@ -20,4 +20,38 @@ assertResolvedId('', ['douban_id' => '000'], [], 'All-zero metadata should be tr
 assertResolvedId('1295644', [], ['vod_douban_id' => '1295644'], 'A valid video Douban ID should be preserved');
 assertResolvedId('1292052', ['douban_id' => '1292052'], ['vod_douban_id' => '1295644'], 'Metadata should take precedence');
 
+$validateMethod = new ReflectionMethod(DoubanData::class, 'validateDoubanData');
+$validateMethod->setAccessible(true);
+$validated = $validateMethod->invoke(null, [
+    'id' => '1295644',
+    'score' => '9.4',
+    'vod_name' => '这个杀手不太冷',
+], '1295644');
+if (($validated['vod_douban_score'] ?? '') !== '9.4' || ($validated['vod_score'] ?? '') !== '9.4') {
+    fwrite(STDERR, "Custom endpoint score should be normalized\n");
+    exit(1);
+}
+
+$missingScoreRejected = false;
+try {
+    $validateMethod->invoke(null, ['id' => '1295644'], '1295644');
+} catch (RuntimeException $e) {
+    $missingScoreRejected = $e->getMessage() === '豆瓣数据源未返回有效评分';
+}
+if (!$missingScoreRejected) {
+    fwrite(STDERR, "Custom endpoint responses without a score should be rejected\n");
+    exit(1);
+}
+
+$mismatchedIdRejected = false;
+try {
+    $validateMethod->invoke(null, ['id' => '1292052', 'score' => '9.7'], '1295644');
+} catch (RuntimeException $e) {
+    $mismatchedIdRejected = $e->getMessage() === '豆瓣数据源ID与请求不一致';
+}
+if (!$mismatchedIdRejected) {
+    fwrite(STDERR, "Custom endpoint responses for another subject should be rejected\n");
+    exit(1);
+}
+
 echo "Douban data tests passed\n";

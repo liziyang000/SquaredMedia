@@ -681,9 +681,12 @@ class DoubanData
         }
         self::throttleRequests($config);
         if ($endpoint === '/extend/douban.php') {
-            return DoubanGateway::subject($doubanId);
+            $data = DoubanGateway::subject($doubanId);
+        } else {
+            $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, ['id' => $doubanId]));
         }
-        return self::requestEndpoint(self::buildEndpointUrl($endpoint, ['id' => $doubanId]));
+
+        return self::validateDoubanData($data, $doubanId);
     }
 
     private static function fetchDoubanCandidates(string $query, array $config)
@@ -758,6 +761,27 @@ class DoubanData
             usleep((int) ($delay * 1000000));
         }
         self::$lastRequestAt = microtime(true);
+    }
+
+    private static function validateDoubanData(array $data, string $expectedDoubanId)
+    {
+        $doubanId = self::normalizeDoubanId(self::extractValue($data, ['vod_douban_id', 'douban_id', 'id']));
+        if ($doubanId === '') {
+            throw new \RuntimeException('豆瓣数据源未返回有效ID');
+        }
+        if ($doubanId !== self::normalizeDoubanId($expectedDoubanId)) {
+            throw new \RuntimeException('豆瓣数据源ID与请求不一致');
+        }
+        $score = self::extractValue($data, ['vod_douban_score', 'vod_score', 'score', 'rating']);
+        if ($score === '' || !is_numeric($score)) {
+            throw new \RuntimeException('豆瓣数据源未返回有效评分');
+        }
+        $score = self::normalizeDoubanScore($score);
+        $data['vod_douban_id'] = $doubanId;
+        $data['vod_douban_score'] = $score;
+        $data['vod_score'] = $score;
+
+        return $data;
     }
 
     private static function buildVodUpdates(array $vod, array $meta, array $data, string $doubanId)

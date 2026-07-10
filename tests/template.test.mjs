@@ -1954,6 +1954,10 @@ assert.match(doubanDataService, /DoubanGateway::search/);
 assert.match(doubanDataService, /\$maccms\['site'\]\['site_url'\]/);
 assert.match(doubanDataService, /information_schema\.COLUMNS/);
 assert.doesNotMatch(doubanDataService, /SHOW COLUMNS FROM \{\$tableName\} LIKE \?/);
+assert.match(doubanDataService, /v\.vod_time/);
+assert.match(doubanDataService, /\$vod\['vod_time'\]/);
+assert.doesNotMatch(doubanDataService, /v\.update_time/);
+assert.doesNotMatch(doubanDataService, /\$vod\['update_time'\]/);
 
 const doubanGateway = readDoubanAddonFile("service/DoubanGateway.php");
 assert.match(doubanGateway, /rexxar\/api\/v2\/movie/);

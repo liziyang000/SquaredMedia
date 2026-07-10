@@ -533,7 +533,7 @@ class DoubanData
     {
         $metaTable = self::tableName(self::META_TABLE) . ' m';
         $hasVodDoubanId = self::columnExists(self::VOD_TABLE, 'vod_douban_id');
-        $fields = 'v.vod_id,v.vod_name,v.type_id,v.vod_year,v.vod_area,v.vod_director,v.vod_actor,v.update_time,' .
+        $fields = 'v.vod_id,v.vod_name,v.type_id,v.vod_year,v.vod_area,v.vod_director,v.vod_actor,v.vod_time,' .
             'm.douban_id,m.douban_id_locked,m.douban_id_source,m.douban_id_confidence,m.douban_review_status,' .
             'm.douban_review_reason,m.douban_ignore_until,m.douban_last_sync_at,m.douban_next_sync_at,' .
             'm.douban_sync_fail_count,m.douban_last_fail_reason,m.intro_locked';
@@ -816,7 +816,7 @@ class DoubanData
     private static function nextSyncAt(array $vod)
     {
         $now = time();
-        $updateTime = (int) ($vod['update_time'] ?? 0);
+        $updateTime = (int) ($vod['vod_time'] ?? 0);
         $age = $updateTime > 0 ? max(0, $now - $updateTime) : 9999 * 86400;
         if ($age <= 30 * 86400) {
             $days = 3;

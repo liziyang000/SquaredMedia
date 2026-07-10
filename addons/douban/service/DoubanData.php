@@ -647,6 +647,9 @@ class DoubanData
         if ($endpoint === '') {
             throw new \RuntimeException('未配置 douban.php 接口地址');
         }
+        if ($endpoint === '/extend/douban.php') {
+            return DoubanGateway::subject($doubanId);
+        }
         return self::requestEndpoint(self::buildEndpointUrl($endpoint, ['id' => $doubanId]));
     }
 
@@ -655,6 +658,9 @@ class DoubanData
         $endpoint = trim((string) ($config['douban_endpoint'] ?? ''));
         if ($endpoint === '') {
             throw new \RuntimeException('未配置 douban.php 接口地址');
+        }
+        if ($endpoint === '/extend/douban.php') {
+            return DoubanGateway::search($query, (int) ($config['candidate_topn'] ?? 5));
         }
         $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, [
             'q' => $query,

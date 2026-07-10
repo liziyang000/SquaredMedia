@@ -1948,6 +1948,8 @@ assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
 assert.match(doubanDataService, /public static function calibrateScores/);
 assert.match(doubanDataService, /vod_douban_score/);
 assert.match(doubanDataService, /DoubanMatcher::rank/);
+assert.match(doubanDataService, /DoubanGateway::subject/);
+assert.match(doubanDataService, /DoubanGateway::search/);
 assert.match(doubanDataService, /\$maccms\['site'\]\['site_url'\]/);
 assert.match(doubanDataService, /information_schema\.COLUMNS/);
 assert.doesNotMatch(doubanDataService, /SHOW COLUMNS FROM \{\$tableName\} LIKE \?/);

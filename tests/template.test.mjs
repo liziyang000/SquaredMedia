@@ -1933,7 +1933,8 @@ assert.match(doubanAddonController, /DoubanData::enqueueDue/);
 assert.match(doubanAddonController, /DoubanData::runPending/);
 assert.match(doubanAddonController, /DoubanData::syncVod/);
 assert.match(doubanAddonController, /DoubanData::calibrateScores/);
-assert.match(doubanAddonController, /session\('admin_id'\)/);
+assert.match(doubanAddonController, /model\('Admin'\)->checkLogin\(\)/);
+assert.doesNotMatch(doubanAddonController, /session\('admin_id'\)/);
 
 const doubanDataService = readDoubanAddonFile("service/DoubanData.php");
 assert.match(doubanDataService, /const VOD_TABLE = 'vod'/);

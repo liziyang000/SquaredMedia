@@ -209,6 +209,14 @@ class Index extends Controller
 
     private function adminId()
     {
-        return (int) session('admin_id');
+        try {
+            $result = model('Admin')->checkLogin();
+            if ((int) ($result['code'] ?? 0) === 1) {
+                return (int) ($result['info']['admin_id'] ?? 0);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return 0;
     }
 }

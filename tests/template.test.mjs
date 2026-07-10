@@ -1924,10 +1924,13 @@ assert.match(doubanBridgeController, /__construct\(\?Request \$request = null\)/
 
 const doubanAdminBridgeController = readDoubanAddonFile("bridge/DoubanAdmin.php");
 assert.match(doubanAdminBridgeController, /namespace app\\admin\\controller/);
+assert.match(doubanAdminBridgeController, /class Douban\b/);
 assert.match(doubanAdminBridgeController, /extends AddonIndex/);
 assert.match(doubanAdminBridgeController, /__construct\(\?Request \$request = null\)/);
 assert.match(doubanAdminBridgeController, /'addon'\s*=>\s*'douban'/);
 assert.match(doubanAdminBridgeController, /'controller'\s*=>\s*'index'/);
+assert.match(doubanAdminBridgeController, /'action'\s*=>\s*\$request->action\(\)\s*\?:\s*'index'/);
+assert.match(doubanAdminBridgeController, /parent::__construct\(\$request\)/);
 
 const doubanGatewayBridge = readDoubanAddonFile("bridge/DoubanEndpoint.php");
 assert.match(doubanGatewayBridge, /DoubanGateway/);

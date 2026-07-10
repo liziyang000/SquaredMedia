@@ -104,7 +104,8 @@ Add the following exact entry to the MacCMS custom admin menu:
 豆瓣评分,douban/index
 ```
 
-It opens `/lbk-admin.php/douban/index.html` as a MacCMS admin tab.
+The backend URL is `<admin-entry>.php/douban/index.html`; `ping2.my` uses
+`/lbk-admin.php/douban/index.html`, which opens as a MacCMS admin tab.
 `/index.php/douban/index.html` remains available as a compatibility route.
 Deployment installs both controller bridges and a self-hosted
 `/extend/douban.php` gateway because the target site does not enable generic

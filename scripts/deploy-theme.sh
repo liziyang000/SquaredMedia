@@ -333,6 +333,12 @@ install_simple_addon() {
     echo "Uploaded addon archive does not contain $addon_name/info.ini and install.sql" >&2
     exit 1
   fi
+  if [[ "$addon_name" == "$DOUBAN_ADDON_NAME" ]]; then
+    if [[ ! -f "$tmp_dir/$addon_name/bridge/Douban.php" || ! -f "$tmp_dir/$addon_name/bridge/DoubanAdmin.php" || ! -f "$tmp_dir/$addon_name/bridge/DoubanEndpoint.php" ]]; then
+      echo "Uploaded Douban addon archive does not contain required bridge files" >&2
+      exit 1
+    fi
+  fi
 
   if [[ -d "$addon_dir" ]]; then
     backup="${addon_name}.backup.$(date +%Y%m%d%H%M%S)"

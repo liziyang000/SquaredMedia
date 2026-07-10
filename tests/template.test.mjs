@@ -1683,6 +1683,10 @@ assert.match(ping2DeployEnv, /export DEPLOY_SITE_MARKER=\/template\/pingfangvide
 assert.doesNotMatch(ping2DeployEnv, /DEPLOY_PASSWORD/);
 
 const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "utf8");
+const installSimpleAddonStart = deployScript.indexOf("install_simple_addon() {");
+const installSimpleAddonEnd = deployScript.indexOf('\n}\n\nif [[ ! -d "$DEPLOY_PATH" ]]', installSimpleAddonStart);
+assert.ok(installSimpleAddonStart >= 0 && installSimpleAddonEnd > installSimpleAddonStart);
+const installSimpleAddonScript = deployScript.slice(installSimpleAddonStart, installSimpleAddonEnd);
 assert.match(deployScript, /^#!\/usr\/bin\/env bash/);
 assert.match(deployScript, /set -euo pipefail/);
 assert.match(deployScript, /npm test/);
@@ -1716,6 +1720,22 @@ assert.match(deployScript, /bridge\/DoubanAdmin\.php/);
 assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
 assert.match(deployScript, /application\/admin\/controller\/Douban\.php/);
 assert.match(deployScript, /extend\/douban\.php/);
+assert.match(installSimpleAddonScript, /admin_bridge_source="\$addon_dir\/bridge\/DoubanAdmin\.php"/);
+assert.match(installSimpleAddonScript, /admin_bridge_target="\$maccms_root\/application\/admin\/controller\/Douban\.php"/);
+assert.match(installSimpleAddonScript, /for target in "\$bridge_controller_target" "\$admin_bridge_target" "\$gateway_target"/);
+assert.match(installSimpleAddonScript, /cp -a "\$admin_bridge_source" "\$admin_bridge_target"/);
+assert.match(installSimpleAddonScript, /"\$tmp_dir\/\$addon_name\/bridge\/Douban\.php"/);
+assert.match(installSimpleAddonScript, /"\$tmp_dir\/\$addon_name\/bridge\/DoubanAdmin\.php"/);
+assert.match(installSimpleAddonScript, /"\$tmp_dir\/\$addon_name\/bridge\/DoubanEndpoint\.php"/);
+const extractedAdminBridgePreflight = installSimpleAddonScript.indexOf('"$tmp_dir/$addon_name/bridge/DoubanAdmin.php"');
+const existingAddonBackup = installSimpleAddonScript.indexOf('if [[ -d "$addon_dir" ]]');
+const destructiveAddonReplacement = installSimpleAddonScript.indexOf('rm -rf "$addon_dir"');
+assert.ok(
+  extractedAdminBridgePreflight >= 0
+    && extractedAdminBridgePreflight < existingAddonBackup
+    && extractedAdminBridgePreflight < destructiveAddonReplacement,
+  "Douban admin bridge should be validated before backing up or replacing the existing addon",
+);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
 assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);

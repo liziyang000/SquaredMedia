@@ -36,6 +36,18 @@ assertSameValue('法国,美国', $subject['vod_area'], 'Countries should be join
 assertSameValue('吕克·贝松', $subject['vod_director'], 'Directors should be joined');
 assertSameValue('让·雷诺,娜塔莉·波特曼', $subject['vod_actor'], 'Actors should be joined');
 
+$invalidRatingRejected = false;
+try {
+    DoubanGateway::normalizeSubject([
+        'id' => '1',
+        'title' => '异常评分',
+        'rating' => ['value' => 50, 'count' => 1],
+    ]);
+} catch (RuntimeException $e) {
+    $invalidRatingRejected = $e->getMessage() === '豆瓣评分必须在 0 到 10 之间';
+}
+assertSameValue(true, $invalidRatingRejected, 'Out-of-range Douban scores should be rejected');
+
 $candidates = DoubanGateway::normalizeCandidates([
     [
         'id' => '1292052',

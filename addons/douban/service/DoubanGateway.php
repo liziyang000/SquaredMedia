@@ -32,7 +32,11 @@ class DoubanGateway
     public static function normalizeSubject(array $data): array
     {
         $rating = is_array($data['rating'] ?? null) ? $data['rating'] : [];
-        $ratingValue = max(0, min(10, (float) ($rating['value'] ?? 0)));
+        $rawRatingValue = $rating['value'] ?? 0;
+        if (!is_numeric($rawRatingValue) || (float) $rawRatingValue < 0 || (float) $rawRatingValue > 10) {
+            throw new \RuntimeException('豆瓣评分必须在 0 到 10 之间');
+        }
+        $ratingValue = (float) $rawRatingValue;
         $ratingCount = max(0, (int) ($rating['count'] ?? 0));
         $score = number_format($ratingValue, 1, '.', '');
         $pic = is_array($data['pic'] ?? null) ? $data['pic'] : [];

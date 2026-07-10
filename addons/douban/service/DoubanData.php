@@ -370,15 +370,19 @@ class DoubanData
             throw new \RuntimeException('视频表缺少豆瓣评分字段');
         }
         $vodTable = self::quoteTable(self::tableName(self::VOD_TABLE));
+        $invalidReset = Db::execute(
+            "UPDATE {$vodTable} SET vod_douban_score = 0, vod_score = 0 " .
+            "WHERE vod_douban_score < 0 OR vod_douban_score > 10"
+        );
         $mirrored = Db::execute(
             "UPDATE {$vodTable} SET vod_score = vod_douban_score " .
-            "WHERE vod_douban_score > 0 AND IFNULL(vod_score, 0) <> vod_douban_score"
+            "WHERE vod_douban_score > 0 AND vod_douban_score <= 10 AND IFNULL(vod_score, 0) <> vod_douban_score"
         );
         $reset = Db::execute(
             "UPDATE {$vodTable} SET vod_score = 0 " .
             "WHERE IFNULL(vod_douban_score, 0) = 0 AND IFNULL(vod_score, 0) <> 0"
         );
-        $result = ['mirrored' => (int) $mirrored, 'reset' => (int) $reset];
+        $result = ['invalid_reset' => (int) $invalidReset, 'mirrored' => (int) $mirrored, 'reset' => (int) $reset];
         self::recordLog(0, 'CALIBRATE_SCORE', [], $result, '统一使用豆瓣评分排序', 0, $operatorId);
 
         return $result;
@@ -749,6 +753,9 @@ class DoubanData
             if ($value === '') {
                 continue;
             }
+            if ($field === 'vod_douban_score' || $field === 'vod_score') {
+                $value = self::normalizeDoubanScore($value);
+            }
             if ((string) ($vod[$field] ?? '') !== $value) {
                 $updates[$field] = $value;
             }
@@ -761,6 +768,15 @@ class DoubanData
         }
 
         return $updates;
+    }
+
+    private static function normalizeDoubanScore(string $value)
+    {
+        if (!is_numeric($value) || (float) $value < 0 || (float) $value > 10) {
+            throw new \RuntimeException('豆瓣评分必须在 0 到 10 之间');
+        }
+
+        return number_format((float) $value, 1, '.', '');
     }
 
     private static function extractValue(array $data, array $keys)

@@ -31,7 +31,7 @@ assertSameValue('1295644', $subject['vod_douban_id'], 'Douban ID should be norma
 assertSameValue('9.4', $subject['vod_douban_score'], 'Canonical Douban score should be normalized');
 assertSameValue('9.4', $subject['vod_score'], 'MacCMS score mirror should match Douban score');
 assertSameValue('2562776', $subject['vod_score_num'], 'Douban rating count should be normalized');
-assertSameValue('24090094', $subject['vod_score_all'], 'Score total should remain internally consistent');
+assertSameValue(false, array_key_exists('vod_score_all', $subject), 'Local score total should not carry Douban aggregates');
 assertSameValue('法国,美国', $subject['vod_area'], 'Countries should be joined');
 assertSameValue('吕克·贝松', $subject['vod_director'], 'Directors should be joined');
 assertSameValue('让·雷诺,娜塔莉·波特曼', $subject['vod_actor'], 'Actors should be joined');

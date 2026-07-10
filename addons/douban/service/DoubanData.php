@@ -733,7 +733,6 @@ class DoubanData
             'vod_content' => ['vod_content', 'content', 'summary', 'intro', 'description'],
             'vod_douban_score' => ['vod_douban_score', 'vod_score', 'score', 'rating'],
             'vod_score' => ['vod_douban_score', 'vod_score', 'score', 'rating'],
-            'vod_score_all' => ['vod_score_all', 'score_all'],
             'vod_score_num' => ['vod_score_num', 'score_num', 'rating_count', 'comments_count'],
             'vod_total' => ['vod_total', 'total', 'episodes'],
             'vod_remarks' => ['vod_remarks', 'remarks', 'status_text'],

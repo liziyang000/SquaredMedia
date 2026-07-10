@@ -57,7 +57,6 @@ class DoubanGateway
             'vod_douban_score' => $score,
             'vod_score' => $score,
             'vod_score_num' => (string) $ratingCount,
-            'vod_score_all' => (string) round($ratingValue * $ratingCount),
             'rating_count' => $ratingCount,
             'vod_total' => $episodeCount > 0 ? (string) $episodeCount : '',
         ];

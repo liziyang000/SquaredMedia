@@ -1947,6 +1947,7 @@ assert.match(doubanDataService, /SYNC_DOUBAN/);
 assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
 assert.match(doubanDataService, /public static function calibrateScores/);
 assert.match(doubanDataService, /vod_douban_score/);
+assert.doesNotMatch(doubanDataService, /'vod_score_all' => \[/);
 assert.match(doubanDataService, /DoubanMatcher::rank/);
 assert.match(doubanDataService, /DoubanGateway::subject/);
 assert.match(doubanDataService, /DoubanGateway::search/);

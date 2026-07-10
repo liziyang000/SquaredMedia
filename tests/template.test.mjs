@@ -135,6 +135,7 @@ const requiredRootFiles = [
   "addons/douban/install.sql",
   "addons/douban/service/DoubanData.php",
   "addons/douban/service/DoubanGateway.php",
+  "addons/douban/service/DoubanMatcher.php",
   "addons/douban/view/index/index.html",
   "preview/data.json",
   "scripts/lint-template.mjs",
@@ -1654,6 +1655,8 @@ assert.match(packageScript, /COPYFILE_DISABLE/);
 assert.match(packageScript, /--no-xattrs/);
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+assert.match(packageJson.scripts.test, /tests\/douban-gateway\.test\.php/);
+assert.match(packageJson.scripts.test, /tests\/douban-matcher\.test\.php/);
 assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.mjs");
 assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");
 assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
@@ -1921,6 +1924,7 @@ assert.match(doubanAddonController, /DoubanData::saveConfig/);
 assert.match(doubanAddonController, /DoubanData::enqueueDue/);
 assert.match(doubanAddonController, /DoubanData::runPending/);
 assert.match(doubanAddonController, /DoubanData::syncVod/);
+assert.match(doubanAddonController, /DoubanData::calibrateScores/);
 assert.match(doubanAddonController, /session\('admin_id'\)/);
 
 const doubanDataService = readDoubanAddonFile("service/DoubanData.php");
@@ -1939,6 +1943,10 @@ assert.match(doubanDataService, /douban_sync_fail_count/);
 assert.match(doubanDataService, /AUTO_SYNC/);
 assert.match(doubanDataService, /SYNC_DOUBAN/);
 assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
+assert.match(doubanDataService, /public static function calibrateScores/);
+assert.match(doubanDataService, /vod_douban_score/);
+assert.match(doubanDataService, /DoubanMatcher::rank/);
+assert.match(doubanDataService, /\$maccms\['site'\]\['site_url'\]/);
 
 const doubanGateway = readDoubanAddonFile("service/DoubanGateway.php");
 assert.match(doubanGateway, /rexxar\/api\/v2\/movie/);
@@ -1962,6 +1970,7 @@ assert.match(doubanAddonView, /无豆瓣ID/);
 assert.match(doubanAddonView, /任务监控与日志/);
 assert.match(doubanAddonView, /data-douban-action/);
 assert.match(doubanAddonView, /url\('douban\/sync'\)/);
+assert.match(doubanAddonView, /data-douban-action="calibrate"/);
 
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);

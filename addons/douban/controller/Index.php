@@ -103,6 +103,23 @@ class Index extends Controller
         }
     }
 
+    public function calibrate()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '豆瓣评分校准完成',
+                'data' => DoubanData::calibrateScores($this->adminId()),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
     public function setDoubanId()
     {
         if (($error = $this->guardPost()) !== null) {

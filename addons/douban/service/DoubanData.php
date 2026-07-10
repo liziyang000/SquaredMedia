@@ -364,6 +364,26 @@ class DoubanData
         return ['vod_id' => $vodId, 'ignore_until' => $until];
     }
 
+    public static function calibrateScores(int $operatorId = 0)
+    {
+        if (!self::columnExists(self::VOD_TABLE, 'vod_douban_score') || !self::columnExists(self::VOD_TABLE, 'vod_score')) {
+            throw new \RuntimeException('视频表缺少豆瓣评分字段');
+        }
+        $vodTable = self::quoteTable(self::tableName(self::VOD_TABLE));
+        $mirrored = Db::execute(
+            "UPDATE {$vodTable} SET vod_score = vod_douban_score " .
+            "WHERE vod_douban_score > 0 AND IFNULL(vod_score, 0) <> vod_douban_score"
+        );
+        $reset = Db::execute(
+            "UPDATE {$vodTable} SET vod_score = 0 " .
+            "WHERE IFNULL(vod_douban_score, 0) = 0 AND IFNULL(vod_score, 0) <> 0"
+        );
+        $result = ['mirrored' => (int) $mirrored, 'reset' => (int) $reset];
+        self::recordLog(0, 'CALIBRATE_SCORE', [], $result, '统一使用豆瓣评分排序', 0, $operatorId);
+
+        return $result;
+    }
+
     private static function runTask(array $task, int $operatorId)
     {
         $taskType = (string) ($task['task_type'] ?? '');
@@ -372,24 +392,91 @@ class DoubanData
             return self::syncVod($vodId, $operatorId);
         }
         if ($taskType === self::TASK_MATCH) {
-            return self::markMissingCandidate($vodId, $operatorId);
+            return self::matchVod($vodId, $operatorId);
         }
 
         return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '未知任务类型'];
     }
 
-    private static function markMissingCandidate(int $vodId, int $operatorId)
+    private static function matchVod(int $vodId, int $operatorId)
     {
-        $old = self::ensureMeta($vodId);
+        $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
+        if (empty($vod)) {
+            throw new \RuntimeException('影片不存在');
+        }
+        $meta = self::ensureMeta($vodId);
+        if ((int) ($meta['douban_id_locked'] ?? 0) === 1) {
+            return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '豆瓣ID已锁定'];
+        }
+
+        $config = self::config();
+        $candidates = self::fetchDoubanCandidates((string) ($vod['vod_name'] ?? ''), $config);
+        if (empty($candidates)) {
+            $updates = [
+                'douban_review_status' => 'NOT_FOUND',
+                'douban_review_reason' => '未找到豆瓣候选',
+                'douban_next_sync_at' => time() + 7 * 86400,
+            ];
+            self::updateMeta($vodId, $updates);
+            self::recordLog($vodId, 'MATCH_DOUBAN_ID', $meta, $updates, '未找到豆瓣候选', 0, $operatorId);
+
+            return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '未找到豆瓣候选'];
+        }
+
+        $ranked = DoubanMatcher::rank((array) $vod, $candidates, (int) $config['auto_confirm_score']);
+        self::saveCandidates($vodId, $ranked['candidates'], (int) $config['candidate_topn']);
+        $top = $ranked['candidates'][0] ?? [];
+        $doubanId = (string) ($top['douban_id'] ?? '');
+        $duplicate = $doubanId !== '' && Db::name(self::META_TABLE)
+            ->where('douban_id', $doubanId)
+            ->where('vod_id', '<>', $vodId)
+            ->find();
+
+        if (!empty($ranked['auto_confirm']) && empty($duplicate)) {
+            $score = (int) ($top['score_total'] ?? 0);
+            $updates = [
+                'douban_id' => $doubanId,
+                'douban_id_source' => 'auto',
+                'douban_id_confidence' => $score,
+                'douban_review_status' => 'CONFIRMED',
+                'douban_review_reason' => '',
+                'douban_next_sync_at' => time(),
+            ];
+            self::updateMeta($vodId, $updates);
+            self::recordLog($vodId, 'AUTO_MATCH', $meta, $updates, '片名和年份唯一匹配', $score, $operatorId);
+            $synced = self::syncVod($vodId, $operatorId);
+            $synced['matched_douban_id'] = $doubanId;
+
+            return $synced;
+        }
+
+        $reason = !empty($duplicate) ? '候选豆瓣ID已被其他影片使用' : '候选匹配需要人工核查';
         $updates = [
-            'douban_review_status' => 'NOT_FOUND',
-            'douban_review_reason' => '未配置搜索 API，等待人工补充豆瓣ID',
+            'douban_review_status' => 'REVIEW',
+            'douban_review_reason' => $reason,
             'douban_next_sync_at' => time() + 7 * 86400,
         ];
         self::updateMeta($vodId, $updates);
-        self::recordLog($vodId, 'MATCH_DOUBAN_ID', $old, $updates, '缺少搜索 API，暂不自动匹配', 0, $operatorId);
+        self::recordLog($vodId, 'MATCH_DOUBAN_ID', $meta, $updates, $reason, (int) ($top['score_total'] ?? 0), $operatorId);
 
-        return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '已标记为无豆瓣ID，等待人工补充'];
+        return ['vod_id' => $vodId, 'skipped' => true, 'msg' => $reason];
+    }
+
+    private static function saveCandidates(int $vodId, array $candidates, int $limit)
+    {
+        Db::name(self::CANDIDATE_TABLE)->where('vod_id', $vodId)->delete();
+        $now = time();
+        foreach (array_slice($candidates, 0, max(1, min(10, $limit))) as $rank => $candidate) {
+            Db::name(self::CANDIDATE_TABLE)->insert([
+                'vod_id' => $vodId,
+                'douban_id' => (string) ($candidate['douban_id'] ?? ''),
+                'score_total' => (int) ($candidate['score_total'] ?? 0),
+                'score_detail' => self::json($candidate['score_detail'] ?? []),
+                'conflicts' => self::json($candidate['conflicts'] ?? []),
+                'rank' => $rank + 1,
+                'created_at' => $now,
+            ]);
+        }
     }
 
     private static function stats()
@@ -560,7 +647,25 @@ class DoubanData
         if ($endpoint === '') {
             throw new \RuntimeException('未配置 douban.php 接口地址');
         }
-        $url = self::buildEndpointUrl($endpoint, $doubanId);
+        return self::requestEndpoint(self::buildEndpointUrl($endpoint, ['id' => $doubanId]));
+    }
+
+    private static function fetchDoubanCandidates(string $query, array $config)
+    {
+        $endpoint = trim((string) ($config['douban_endpoint'] ?? ''));
+        if ($endpoint === '') {
+            throw new \RuntimeException('未配置 douban.php 接口地址');
+        }
+        $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, [
+            'q' => $query,
+            'limit' => (int) ($config['candidate_topn'] ?? 5),
+        ]));
+
+        return array_values(array_filter($data, 'is_array'));
+    }
+
+    private static function requestEndpoint(string $url)
+    {
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
@@ -591,7 +696,7 @@ class DoubanData
         return $decoded;
     }
 
-    private static function buildEndpointUrl(string $endpoint, string $doubanId)
+    private static function buildEndpointUrl(string $endpoint, array $query)
     {
         if (preg_match('/^https?:\/\//i', $endpoint)) {
             $url = $endpoint;
@@ -605,7 +710,7 @@ class DoubanData
             throw new \RuntimeException('douban.php 接口地址必须是完整 URL 或以 / 开头');
         }
 
-        return $url . (strpos($url, '?') === false ? '?' : '&') . 'id=' . urlencode($doubanId);
+        return $url . (strpos($url, '?') === false ? '?' : '&') . http_build_query($query);
     }
 
     private static function buildVodUpdates(array $vod, array $meta, array $data, string $doubanId)
@@ -620,7 +725,9 @@ class DoubanData
             'vod_director' => ['vod_director', 'director', 'directors'],
             'vod_actor' => ['vod_actor', 'actor', 'actors', 'cast'],
             'vod_content' => ['vod_content', 'content', 'summary', 'intro', 'description'],
-            'vod_score' => ['vod_score', 'score', 'rating'],
+            'vod_douban_score' => ['vod_douban_score', 'vod_score', 'score', 'rating'],
+            'vod_score' => ['vod_douban_score', 'vod_score', 'score', 'rating'],
+            'vod_score_all' => ['vod_score_all', 'score_all'],
             'vod_score_num' => ['vod_score_num', 'score_num', 'rating_count', 'comments_count'],
             'vod_total' => ['vod_total', 'total', 'episodes'],
             'vod_remarks' => ['vod_remarks', 'remarks', 'status_text'],
@@ -855,6 +962,9 @@ class DoubanData
     {
         try {
             $maccms = config('maccms');
+            if (is_array($maccms) && !empty($maccms['site']['site_url'])) {
+                return rtrim((string) $maccms['site']['site_url'], '/');
+            }
             if (is_array($maccms) && !empty($maccms['site_url'])) {
                 return rtrim((string) $maccms['site_url'], '/');
             }

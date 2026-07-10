@@ -8,6 +8,7 @@
     <div class="device-meta">
       <button class="primary-btn" type="button" data-douban-action="enqueue">生成到期任务</button>
       <button class="ghost-btn" type="button" data-douban-action="run">执行 Pending Worker</button>
+      <button class="ghost-btn" type="button" data-douban-action="calibrate">校准豆瓣评分</button>
     </div>
   </div>
 
@@ -196,6 +197,8 @@
       } else if (action === "sync") {
         url = "{:url('douban/sync')}";
         formData.append("vod_id", button.getAttribute("data-vod-id"));
+      } else if (action === "calibrate") {
+        url = "{:url('douban/calibrate')}";
       } else if (action === "lock-id" || action === "lock-intro") {
         url = "{:url('douban/lock')}";
         formData.append("vod_id", button.getAttribute("data-vod-id"));

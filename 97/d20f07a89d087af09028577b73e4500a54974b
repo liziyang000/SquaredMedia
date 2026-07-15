@@ -1,0 +1,23 @@
+addons/squareddevice/service/MemberAccess.php
+  s_320dd6ef5910f2::t_d9e325fad6fb68 26,132-155
+tests/member-access.test.php
+  s_320dd6ef5910f2::t_79953457ffd453 3-61,135-183,185-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "97d20f07a89d087af09028577b73e4500a54974b",
+  "prompts": {},
+  "sessions": {
+    "s_320dd6ef5910f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6570-83a8-7471-ae21-8ca0636600d6",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

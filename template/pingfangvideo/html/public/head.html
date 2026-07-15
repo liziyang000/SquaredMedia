@@ -115,9 +115,15 @@
   <div class="mobile-drawer-section">
     <span>影片分类</span>
     <div class="mobile-drawer-cats">
+      {if condition="$user.user_id gt 0"}
       {maccms:type ids="parent" mid="1" order="asc" by="sort" num="100" id="type"}
       <a href="{:mac_url_type($type)}">{$type.type_name}</a>
       {/maccms:type}
+      {else/}
+      {maccms:type ids="42,47,48,57,111" mid="1" order="asc" by="sort" num="100" id="type"}
+      <a href="{:mac_url_type($type)}">{$type.type_name}</a>
+      {/maccms:type}
+      {/if}
     </div>
   </div>
 </aside>

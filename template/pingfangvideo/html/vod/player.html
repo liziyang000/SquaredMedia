@@ -1,3 +1,18 @@
+{if condition="$user.user_id lt 1"}
+{include file="public/head" seo_title="登录后播放" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
+<section class="wrap system-page">
+  <div class="system-box">
+    <span class="eyebrow">会员播放</span>
+    <h1>登录后继续观看</h1>
+    <p>播放内容需要登录账号后访问。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">登录后播放</a>
+      <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">返回详情</a>
+    </div>
+  </div>
+</section>
+{include file="public/foot" /}
+{else/}
 {include file="public/head" seo_title="$obj.vod_name 试看播放" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
 <section class="player-page">
   <div class="wrap">
@@ -21,3 +36,4 @@
   </div>
 </section>
 {include file="public/foot" /}
+{/if}

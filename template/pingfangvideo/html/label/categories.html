@@ -6,6 +6,7 @@
 </section>
 
 <section class="wrap category-index">
+  {if condition="$user.user_id gt 0"}
   {maccms:type ids="parent" mid="1" order="asc" by="sort" num="100" id="type"}
   <article class="category-tile">
     <a class="category-hit" href="{:mac_url_type($type)}" aria-label="进入{$type.type_name}"></a>
@@ -20,5 +21,21 @@
     </div>
   </article>
   {/maccms:type}
+  {else/}
+  {maccms:type ids="42,47,48,57,111" mid="1" order="asc" by="sort" num="100" id="type"}
+  <article class="category-tile">
+    <a class="category-hit" href="{:mac_url_type($type)}" aria-label="进入{$type.type_name}"></a>
+    <div class="category-main">
+      <span>{$type.type_name}</span>
+      <em>进入频道</em>
+    </div>
+    <div class="category-children">
+      <a class="category-sort sort-latest" href="{:mac_url_type($type,['by'=>'time'])}">最新</a>
+      <a class="category-sort sort-hot" href="{:mac_url_type($type,['by'=>'hits'])}">最热</a>
+      <a class="category-sort sort-score" href="{:mac_url_type($type,['by'=>'score'])}">评分</a>
+    </div>
+  </article>
+  {/maccms:type}
+  {/if}
 </section>
 {include file="public/foot" /}

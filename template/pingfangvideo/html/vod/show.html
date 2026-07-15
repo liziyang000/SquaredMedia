@@ -1,3 +1,18 @@
+{if condition="$user.user_id lt 1 && $obj.type_id gt 0 && !in_array($obj['type_id'], explode(',', '42,47,48,57,111')) && !in_array($obj['type_pid'], explode(',', '42,47,48,57,111'))"}
+{include file="public/head" seo_title="登录后浏览" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <div class="system-box">
+    <span class="eyebrow">会员分类</span>
+    <h1>登录后浏览该分类</h1>
+    <p>当前分类需要登录账号后访问，游客可继续浏览开放分类。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">登录后浏览</a>
+      <a class="ghost-btn" href="{:mac_url('label/categories')}">游客分类</a>
+    </div>
+  </div>
+</section>
+{include file="public/foot" /}
+{else/}
 {include file="public/head" seo_title="影片库" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
 <section class="wrap page-title">
   <span class="eyebrow">筛选</span>
@@ -45,3 +60,4 @@
   {include file="public/paging" /}
 </section>
 {include file="public/foot" /}
+{/if}

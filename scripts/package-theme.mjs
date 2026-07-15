@@ -5,14 +5,11 @@ import path from "node:path";
 
 const root = process.cwd();
 const themeName = "pingfangvideo";
-const addonName = "pingfangdevice";
+const addonNames = ["pingfangdevice", "douban"];
 const source = path.join(root, "template", themeName);
-const addonSource = path.join(root, "addons", addonName);
 const dist = path.join(root, "dist");
 const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
-const addonPackageRoot = path.join(dist, addonName);
-const addonArchive = path.join(dist, `${addonName}.tar.gz`);
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
 const assetVersionInputs = [
   "css/style.css",
@@ -69,22 +66,10 @@ cpSync(source, packageRoot, {
   recursive: true,
   filter: (sourcePath) => !path.basename(sourcePath).startsWith("."),
 });
-cpSync(addonSource, addonPackageRoot, {
-  recursive: true,
-  filter: (sourcePath) => !path.basename(sourcePath).startsWith("."),
-});
 const version = assetVersion();
 replaceAssetVersionPlaceholders(packageRoot, version);
 normalizePackagePermissions(packageRoot);
-normalizePackagePermissions(addonPackageRoot);
 execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", dist, themeName], {
-  env: {
-    ...process.env,
-    COPYFILE_DISABLE: "1",
-  },
-  stdio: "inherit",
-});
-execFileSync("tar", ["--no-xattrs", "-czf", addonArchive, "-C", dist, addonName], {
   env: {
     ...process.env,
     COPYFILE_DISABLE: "1",
@@ -93,4 +78,22 @@ execFileSync("tar", ["--no-xattrs", "-czf", addonArchive, "-C", dist, addonName]
 });
 
 console.log(`Created ${archive} with asset version ${version}`);
-console.log(`Created ${addonArchive}`);
+
+for (const addonName of addonNames) {
+  const addonSource = path.join(root, "addons", addonName);
+  const addonPackageRoot = path.join(dist, addonName);
+  const addonArchive = path.join(dist, `${addonName}.tar.gz`);
+  cpSync(addonSource, addonPackageRoot, {
+    recursive: true,
+    filter: (sourcePath) => !path.basename(sourcePath).startsWith("."),
+  });
+  normalizePackagePermissions(addonPackageRoot);
+  execFileSync("tar", ["--no-xattrs", "-czf", addonArchive, "-C", dist, addonName], {
+    env: {
+      ...process.env,
+      COPYFILE_DISABLE: "1",
+    },
+    stdio: "inherit",
+  });
+  console.log(`Created ${addonArchive}`);
+}

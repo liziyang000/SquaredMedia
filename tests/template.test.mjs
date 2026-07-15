@@ -6,6 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const addonRoot = path.join(root, "addons", "pingfangdevice");
+const doubanAddonRoot = path.join(root, "addons", "douban");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
@@ -117,6 +118,13 @@ const requiredRootFiles = [
   "addons/pingfangdevice/service/DeviceSession.php",
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
+  "addons/douban/Douban.php",
+  "addons/douban/config.php",
+  "addons/douban/controller/Index.php",
+  "addons/douban/info.ini",
+  "addons/douban/install.sql",
+  "addons/douban/service/DoubanData.php",
+  "addons/douban/view/index/index.html",
   "preview/data.json",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
@@ -145,6 +153,10 @@ function readThemeFile(file) {
 
 function readAddonFile(file) {
   return readFileSync(path.join(addonRoot, file), "utf8");
+}
+
+function readDoubanAddonFile(file) {
+  return readFileSync(path.join(doubanAddonRoot, file), "utf8");
 }
 
 function extractAnchorTexts(markup) {
@@ -264,6 +276,7 @@ assert.match(head, /<a href="\{:mac_url\('user\/index'\)\}">用户中心<\/a>/);
 assert.match(head, /<a href="\{:mac_url\('user\/favs'\)\}">我的收藏<\/a>/);
 assert.match(head, /class="mobile-drawer-cats"/);
 assert.match(head, /\{maccms:type ids="parent" mid="1" order="asc" by="sort" num="100" id="type"\}/);
+assert.match(head, new RegExp(`class="mobile-drawer-cats"[\\s\\S]*?\\{if condition="\\$user\\.user_id gt 0"\\}[\\s\\S]*?\\{maccms:type ids="parent"[\\s\\S]*?\\{else/\\}[\\s\\S]*?\\{maccms:type ids="${nonAdultVodTypeScope}"`));
 assert.match(head, /href="\{:mac_url_type\(\$type\)\}">\{\$type\.type_name\}<\/a>/);
 assert.match(head, /mac_url\('user\/plays'\)/);
 assert.match(head, /mac_url\('user\/favs'\)/);
@@ -370,6 +383,8 @@ assert.match(comicsPage, /漫画入口维护中/);
 assert.match(comicsPage, /mac_url\('vod\/show'\)/);
 assert.match(comicsPage, /\{include file="public\/foot" \/\}/);
 assert.match(categoriesPage, /\{maccms:type ids="parent" mid="1" order="asc" by="sort"/);
+assert.match(categoriesPage, /\{if condition="\$user\.user_id gt 0"\}/);
+assert.match(categoriesPage, new RegExp(`\\{maccms:type ids="${nonAdultVodTypeScope}" mid="1" order="asc" by="sort" num="100" id="type"\\}`));
 assert.match(categoriesPage, /num="100"/);
 assert.doesNotMatch(categoriesPage, /paging="yes"/);
 assert.match(categoriesPage, /category-tile/);
@@ -524,6 +539,7 @@ assert.match(msgPage, /mac_url\('vod\/show'\)/);
 
 const index = readThemeFile("html/index/index.html");
 assert.match(index, /\{include file="public\/head" seo_title=/);
+assert.match(index, /<h1 class="sr-only">\{\$maccms\.site_name\}<\/h1>/);
 assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" ${currentYearVodAttr} order="desc" by="time" cachetime="300" id="vo"\\}`));
 assert.doesNotMatch(index, /\{maccms:vod type="all" num="6" order="desc" by="time" id="vo"\}/);
 for (const typeId of nonAdultVodTypeScope.split(",")) {
@@ -639,10 +655,11 @@ const vodCard = readThemeFile("html/public/vod_card.html");
 assert.match(vodCard, /<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" loading="lazy" decoding="async" width="300" height="450" sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px">/);
 
 const searchImagePage = readThemeFile("html/vod/search.html");
-assert.equal((searchImagePage.match(/sizes="96px"/g) || []).length, 2);
+assert.equal((searchImagePage.match(/sizes="96px"/g) || []).length, 3);
 
 const play = readThemeFile("html/vod/play.html");
 assert.match(play, /\{include file="public\/head" seo_title=/);
+assert.match(play, /\{if condition="\$user\.user_id lt 1"\}[\s\S]*mac_url\('user\/login'\)[\s\S]*\{else\/\}[\s\S]*\{\$player_data\}/);
 assert.match(play, /\{\$player_data\}/);
 assert.match(play, /\{\$player_js\}/);
 assert.doesNotMatch(play, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -668,6 +685,7 @@ assert.match(vodDetailPwdPage, /name="pwd"/);
 assert.match(vodDetailPwdPage, /验证码/);
 
 const playerPage = readThemeFile("html/vod/player.html");
+assert.match(playerPage, /\{if condition="\$user\.user_id lt 1"\}[\s\S]*mac_url\('user\/login'\)[\s\S]*\{else\/\}[\s\S]*\{\$player_data\}/);
 assert.match(playerPage, /\{\$player_data\}/);
 assert.match(playerPage, /\{\$player_js\}/);
 assert.doesNotMatch(playerPage, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -711,6 +729,19 @@ for (const rssAlias of ["rss/rss.html", "rss/baidu.html", "rss/google.html"]) {
   assert.match(rssAliasPage, /mac_url_vod_detail/);
 }
 
+for (const publicVodFeed of [
+  "map/rss.html",
+  "map/baidu.html",
+  "map/google.html",
+  "rss/rss.html",
+  "rss/baidu.html",
+  "rss/google.html",
+]) {
+  const publicVodFeedPage = readThemeFile(`html/${publicVodFeed}`);
+  assert.match(publicVodFeedPage, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}"`));
+  assert.doesNotMatch(publicVodFeedPage, /\{maccms:vod[^}]*type="all"/);
+}
+
 const vodFilterCommonPartial = readThemeFile("html/public/vod_filter_common.html");
 const vodGridResultsPartial = readThemeFile("html/public/vod_grid_results.html");
 function expandVodGridResults(pageurl, vodType) {
@@ -720,6 +751,10 @@ function expandVodGridResults(pageurl, vodType) {
 const typePageSource = readThemeFile("html/vod/type.html");
 const typePage = [typePageSource, vodFilterCommonPartial, expandVodGridResults("vod/type", "current")].join("\n");
 assert.match(typePage, /\{include file="public\/head" seo_title=/);
+assert.match(typePageSource, /\$user\.user_id lt 1 && \$obj\.type_id gt 0/);
+assert.match(typePageSource, /in_array\(\$obj\['type_id'\], explode\(',', '42,47,48,57,111'\)\)/);
+assert.match(typePageSource, /in_array\(\$obj\['type_pid'\], explode\(',', '42,47,48,57,111'\)\)/);
+assert.match(typePageSource, /mac_url\('label\/categories'\)/);
 assert.match(typePageSource, /\{include file="public\/vod_filter_common" \/\}/);
 assert.match(typePageSource, /\{include file="public\/vod_grid_results" pageurl="vod\/type" vod_type="current" \/\}/);
 assert.match(typePage, /\{maccms:vod num="24" paging="yes"/);
@@ -797,6 +832,10 @@ assert.match(typePage, /\{include file="public\/paging" \/\}/);
 
 const showPageSource = readThemeFile("html/vod/show.html");
 const showPage = [showPageSource, vodFilterCommonPartial, expandVodGridResults("vod/show", nonAdultVodTypeScope)].join("\n");
+assert.match(showPageSource, /\$user\.user_id lt 1 && \$obj\.type_id gt 0/);
+assert.match(showPageSource, /in_array\(\$obj\['type_id'\], explode\(',', '42,47,48,57,111'\)\)/);
+assert.match(showPageSource, /in_array\(\$obj\['type_pid'\], explode\(',', '42,47,48,57,111'\)\)/);
+assert.match(showPageSource, /mac_url\('label\/categories'\)/);
 assert.match(showPageSource, /\{include file="public\/vod_filter_common" \/\}/);
 assert.match(showPageSource, new RegExp(`\\{include file="public/vod_grid_results" pageurl="vod/show" vod_type="${nonAdultVodTypeScope}" \\/\\}`));
 assert.match(vodGridResultsPartial, /pageurl="\[pageurl\]"/);
@@ -896,9 +935,14 @@ assert.match(searchPage, /class="wrap filter-panel category-filter search-filter
 assert.match(searchPage, /<strong>频道<\/strong>/);
 assert.match(searchPage, /mac_url\('vod\/search',\['wd'=>\$param\['wd'\]\]\)/);
 assert.match(searchPage, /\{maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"\}/);
+assert.match(searchPage, new RegExp(`\\{maccms:type ids="${nonAdultVodTypeScope}" order="asc" by="sort" mid="1" num="20" id="type"\\}`));
 assert.match(searchPage, /mac_url\('vod\/search',\['wd'=>\$param\['wd'\],'type'=>\$type\['type_id'\]\]\)/);
+assert.match(searchPage, new RegExp(`\\{maccms:vod num="20" paging="yes" pageurl="vod/search" type="${nonAdultVodTypeScope}" order="desc" by="time" id="vo"\\}`));
+assert.doesNotMatch(searchPage, /\{maccms:vod[^}]*\swd=/);
 assert.match(searchPage, /\{maccms:type ids="'\.\$param\['type'\]\.'" id="current"\}/);
 assert.match(searchPage, /\$current\.type_id eq \$type\.type_id or \$current\.type_pid eq \$type\.type_id/);
+assert.match(searchPage, /\$user\.user_id lt 1 && !in_array\(\$current\['type_id'\], explode\(',', '42,47,48,57,111'\)\) && !in_array\(\$current\['type_pid'\], explode\(',', '42,47,48,57,111'\)\)/);
+assert.match(searchPage, /登录后查看该分类的搜索结果/);
 assert.match(searchPage, /<strong>类型<\/strong>/);
 assert.match(searchPage, /\{if condition="\$current\.type_pid gt 0"\}/);
 assert.match(searchPage, /\{maccms:type parent="'\.\$current\['type_pid'\]\.'" order="asc" by="sort" id="child"\}/);
@@ -1011,7 +1055,8 @@ const homeShelfRailRule = style.match(/\.home-shelf-rail\s*\{[\s\S]*?\}/)?.[0] |
 const hiddenHomeShelfRailRule = style.match(/\.home-shelf-rail\[hidden\]\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfCardRule = style.match(/(?:^|\n)\.home-shelf-card\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfCardBeforeRule = style.match(/\.home-shelf-card::before\s*\{[\s\S]*?\}/)?.[0] || "";
-const homeShelfCardHoverRule = style.match(/\.home-shelf-card:hover\s*\{[\s\S]*?\}/)?.[0] || "";
+const homeShelfCardHoverRules = [...style.matchAll(/(?:^|\n)\.home-shelf-card:hover\s*\{[\s\S]*?\}/g)].map((match) => match[0]);
+const homeShelfCardHoverRule = homeShelfCardHoverRules[0] || "";
 const homeShelfPosterRule = style.match(/\.home-shelf-poster\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfPosterImgRule = style.match(/\.home-shelf-poster img\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfPosterHoverRule = style.match(/\.home-shelf-card:hover \.home-shelf-poster\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1168,9 +1213,11 @@ assert.match(style, /\.home-shelf-tabs button\s*\{[\s\S]*appearance: none/);
 assert.match(style, /\.home-shelf-tabs button\s*\{[\s\S]*font-family: inherit/);
 assert.match(homeShelfRailRule, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
 assert.match(homeShelfRailRule, /grid-auto-flow: column/);
-assert.match(homeShelfRailRule, /overflow-x: auto/);
-assert.match(homeShelfRailRule, /scroll-snap-type: x proximity/);
+assert.match(homeShelfRailRule, /overflow: visible/);
+assert.doesNotMatch(homeShelfRailRule, /overflow-x: auto/);
+assert.doesNotMatch(homeShelfRailRule, /scroll-snap-type: x proximity/);
 assert.match(homeShelfRailRule, /perspective: 900px/);
+assert.doesNotMatch(homeShelfRailRule, /scroll-padding/);
 assert.match(hiddenHomeShelfRailRule, /display: none/);
 assert.match(homeShelfCardRule, /display: grid/);
 assert.match(homeShelfCardRule, /grid-template-columns: minmax\(0, 1fr\) auto/);
@@ -1185,8 +1232,10 @@ assert.match(homeShelfCardRule, /transform: translateZ\(0\)/);
 assert.match(homeShelfCardRule, /transform-style: preserve-3d/);
 assert.match(homeShelfCardBeforeRule, /pointer-events: none/);
 assert.match(homeShelfCardBeforeRule, /linear-gradient\(135deg, rgba\(255, 255, 255, 0\.14\), transparent 42%\)/);
+assert.equal(homeShelfCardHoverRules.length, 1);
 assert.match(style, /\.home-shelf-card:hover\s*\{[\s\S]*border-color: var\(--line-accent\)/);
-assert.match(homeShelfCardHoverRule, /transform: translateY\(-4px\) translateZ\(16px\)/);
+assert.match(homeShelfCardHoverRule, /z-index: 9/);
+assert.match(homeShelfCardHoverRule, /transform: translateY\(-4px\);/);
 assert.match(homeShelfCardHoverRule, /box-shadow: 0 28px 72px rgba\(0, 0, 0, 0\.32\), 0 0 26px rgba\(38, 212, 175, 0\.12\)/);
 assert.match(homeShelfPosterRule, /height: 100%/);
 assert.doesNotMatch(homeShelfPosterRule, /aspect-ratio/);
@@ -1539,6 +1588,7 @@ assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web ser
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
+assert.match(packageScript, /douban/);
 assert.match(packageScript, /dist/);
 assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
@@ -1588,6 +1638,8 @@ assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
 assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
+assert.match(deployScript, /DOUBAN_ADDON_NAME="douban"/);
+assert.match(deployScript, /douban\.tar\.gz/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application\/extra\/addons\.php/);
 assert.match(deployScript, /install\.sql/);
@@ -1719,6 +1771,64 @@ assert.match(deviceAddonView, /最近登录时间/);
 assert.match(deviceAddonView, /踢下线/);
 assert.match(deviceAddonView, /data-device-revoke/);
 
+const doubanAddonInfo = readDoubanAddonFile("info.ini");
+assert.match(doubanAddonInfo, /name = douban/);
+assert.match(doubanAddonInfo, /title = 豆瓣数据/);
+assert.match(doubanAddonInfo, /url = \/addons\/douban\/index\/index/);
+
+const doubanAddonConfig = readDoubanAddonFile("config.php");
+assert.match(doubanAddonConfig, /douban_endpoint/);
+assert.match(doubanAddonConfig, /auto_confirm_score/);
+assert.match(doubanAddonConfig, /request_per_minute/);
+
+const doubanAddonHook = readDoubanAddonFile("Douban.php");
+assert.match(doubanAddonHook, /namespace addons\\douban/);
+assert.match(doubanAddonHook, /extends Addons/);
+
+const doubanAddonController = readDoubanAddonFile("controller/Index.php");
+assert.match(doubanAddonController, /DoubanData::dashboard/);
+assert.match(doubanAddonController, /DoubanData::saveConfig/);
+assert.match(doubanAddonController, /DoubanData::enqueueDue/);
+assert.match(doubanAddonController, /DoubanData::runPending/);
+assert.match(doubanAddonController, /DoubanData::syncVod/);
+assert.match(doubanAddonController, /session\('admin_id'\)/);
+
+const doubanDataService = readDoubanAddonFile("service/DoubanData.php");
+assert.match(doubanDataService, /const VOD_TABLE = 'vod'/);
+assert.match(doubanDataService, /const META_TABLE = 'douban_vod_meta'/);
+assert.match(doubanDataService, /const TASK_TABLE = 'douban_task'/);
+assert.match(doubanDataService, /const LOG_TABLE = 'douban_log'/);
+assert.match(doubanDataService, /public static function dashboard/);
+assert.match(doubanDataService, /public static function listVideos/);
+assert.match(doubanDataService, /public static function enqueueDue/);
+assert.match(doubanDataService, /public static function runPending/);
+assert.match(doubanDataService, /public static function syncVod/);
+assert.match(doubanDataService, /douban_id_locked/);
+assert.match(doubanDataService, /douban_next_sync_at/);
+assert.match(doubanDataService, /douban_sync_fail_count/);
+assert.match(doubanDataService, /AUTO_SYNC/);
+assert.match(doubanDataService, /SYNC_DOUBAN/);
+assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
+
+const doubanAddonSql = readDoubanAddonFile("install.sql");
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_config`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_vod_meta`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_task`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_log`/);
+assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_review_candidate`/);
+assert.match(doubanAddonSql, /KEY `idx_douban_next_sync_at`/);
+assert.match(doubanAddonSql, /KEY `idx_task_poll`/);
+assert.match(doubanAddonSql, /KEY `idx_vod_action`/);
+assert.doesNotMatch(doubanAddonSql, /DROP\s+TABLE/i);
+
+const doubanAddonView = readDoubanAddonFile("view/index/index.html");
+assert.match(doubanAddonView, /豆瓣数据/);
+assert.match(doubanAddonView, /自动更新设置/);
+assert.match(doubanAddonView, /待核查豆瓣ID/);
+assert.match(doubanAddonView, /无豆瓣ID/);
+assert.match(doubanAddonView, /任务监控与日志/);
+assert.match(doubanAddonView, /data-douban-action/);
+
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);
 assert.match(categoryMaintenanceSql, /SELECT type_id, type_pid, type_name/);
@@ -1783,6 +1893,7 @@ assert.match(previewVerifier, /Preview verification passed/);
 const releaseVerifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
 assert.match(releaseVerifier, /pingfangvideo\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
+assert.match(releaseVerifier, /douban\.tar\.gz/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -1799,10 +1910,12 @@ assert.match(releaseVerifier, /assetVersionPlaceholder/);
 assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
+assert.match(releaseVerifier, /douban\/service\/DoubanData\.php/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react-dom\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/rank-react\.js/);
 assert.match(releaseVerifier, /pingfang_device_session/);
+assert.match(releaseVerifier, /douban_vod_meta/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
@@ -2127,6 +2240,9 @@ assert.match(appJs, /is-favorited/);
 assert.match(appJs, /收藏成功/);
 assert.match(appJs, /clearFavoriteCache/);
 assert.match(appJs, /ajaxSuccess/);
+assert.match(appJs, /window\.MAC && MAC\.User && String\(MAC\.User\.IsLogin\) !== "1"/);
+assert.match(appJs, /failFavorite\(button, "收藏请求超时，请稍后重试"\)/);
+assert.doesNotMatch(appJs, /pendingFavoriteTimer = window\.setTimeout\(function \(\) \{\s*completeFavorite/);
 assert.match(appJs, /initPageJumpForms/);
 assert.match(appJs, /data-page-jump/);
 assert.match(appJs, /data-page-template/);
@@ -2147,6 +2263,9 @@ assert.match(appJs, /function initLogoutLinks/);
 assert.match(appJs, /\[data-logout-link\]/);
 assert.match(appJs, /data-logout-redirect/);
 assert.match(appJs, /X-Requested-With": "XMLHttpRequest"/);
+assert.match(appJs, /if \(!response\.ok\) throw new Error\("Logout request failed"\)/);
+assert.match(appJs, /return response\.json\(\)/);
+assert.match(appJs, /if \(!payload \|\| Number\(payload\.code\) !== 1\) throw new Error\("Logout response failed"\)/);
 assert.match(appJs, /queueSiteNotice\("已退出登录", "success"\)/);
 assert.match(appJs, /window\.PingFangVideo\.initLogoutLinks = initLogoutLinks/);
 assert.match(appJs, /initLogoutLinks\(document\)/);
@@ -2169,6 +2288,8 @@ assert.match(appJs, /initRevealMotion/);
 assert.match(appJs, /IntersectionObserver/);
 assert.match(appJs, /data-gsap-reveal-ready/);
 assert.match(appJs, /data-gsap-revealed/);
+assert.match(appJs, /var url = normalizePlaybackUrl\(record\.url \|\| fallbackHistoryUrl\) \|\| normalizePlaybackUrl\(fallbackHistoryUrl\) \|\| "\/"/);
+assert.match(appJs, /<img src="' \+ escapeHtml\(pic\) \+ '" alt="' \+ escapeHtml\(name\) \+ '" loading="lazy" decoding="async" width="152" height="228">/);
 assert.match(appJs, /\.page-title/);
 assert.match(appJs, /\.filter-panel/);
 assert.match(appJs, /function initDynamicVodFilters/);

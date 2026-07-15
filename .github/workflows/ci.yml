@@ -51,3 +51,4 @@ jobs:
           path: |
             dist/pingfangvideo.tar.gz
             dist/pingfangdevice.tar.gz
+            dist/douban.tar.gz

@@ -417,7 +417,11 @@
             "X-Requested-With": "XMLHttpRequest",
             "Accept": "application/json, text/html;q=0.9, */*;q=0.8"
           }
-        }).then(function () {
+        }).then(function (response) {
+          if (!response.ok) throw new Error("Logout request failed");
+          return response.json();
+        }).then(function (payload) {
+          if (!payload || Number(payload.code) !== 1) throw new Error("Logout response failed");
           completeLogout(link);
         }).catch(function () {
           window.location.href = logoutUrl;
@@ -545,6 +549,8 @@
       }
 
       button.addEventListener("click", function (event) {
+        if (window.MAC && MAC.User && String(MAC.User.IsLogin) !== "1") return;
+
         if (button.dataset.favoriteState === "saved") {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -564,8 +570,8 @@
         getFavoriteLabel(button).textContent = "收藏中";
         window.clearTimeout(pendingFavoriteTimer);
         pendingFavoriteTimer = window.setTimeout(function () {
-          completeFavorite(button, "收藏成功，已加入收藏页");
-        }, 1600);
+          failFavorite(button, "收藏请求超时，请稍后重试");
+        }, 6000);
       });
     });
   }
@@ -1650,10 +1656,10 @@
           var date = (record.date || record.time || "").slice(0, 10) || "最近";
           var clock = (record.date || record.time || "").slice(11, 16) || "--:--";
           var name = record.name || record.title || "观看记录";
-          var url = record.url || fallbackHistoryUrl;
+          var url = normalizePlaybackUrl(record.url || fallbackHistoryUrl) || normalizePlaybackUrl(fallbackHistoryUrl) || "/";
           var pic = record.pic || record.image || "";
           var progress = record.progress || record.episode || "继续观看";
-          return '<div class="timeline-date">' + escapeHtml(date) + '</div><article class="timeline-item"><span class="timeline-dot"></span><div class="timeline-time">' + escapeHtml(clock) + '</div><a class="timeline-card" href="' + escapeHtml(url) + '">' + (pic ? '<img src="' + escapeHtml(pic) + '" alt="' + escapeHtml(name) + '">' : '') + '<span><strong>' + escapeHtml(name) + '</strong><small>' + escapeHtml(progress) + '</small><em>点击继续播放</em></span></a></article>';
+          return '<div class="timeline-date">' + escapeHtml(date) + '</div><article class="timeline-item"><span class="timeline-dot"></span><div class="timeline-time">' + escapeHtml(clock) + '</div><a class="timeline-card" href="' + escapeHtml(url) + '">' + (pic ? '<img src="' + escapeHtml(pic) + '" alt="' + escapeHtml(name) + '" loading="lazy" decoding="async" width="152" height="228">' : '') + '<span><strong>' + escapeHtml(name) + '</strong><small>' + escapeHtml(progress) + '</small><em>点击继续播放</em></span></a></article>';
         }).join("");
       }
     } catch (error) {

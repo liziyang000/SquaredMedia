@@ -11,9 +11,15 @@
     <strong>频道</strong>
     <div class="filter-options">
       <a class="is-active" href="{:mac_url('vod/search',['wd'=>$param['wd']])}">全部</a>
+      {if condition="$user.user_id gt 0"}
       {maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"}
       <a href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$type['type_id']])}">{$type.type_name}</a>
       {/maccms:type}
+      {else/}
+      {maccms:type ids="42,47,48,57,111" order="asc" by="sort" mid="1" num="20" id="type"}
+      <a href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$type['type_id']])}">{$type.type_name}</a>
+      {/maccms:type}
+      {/if}
     </div>
   </div>
   {else/}
@@ -22,11 +28,18 @@
     <strong>频道</strong>
     <div class="filter-options">
       <a href="{:mac_url('vod/search',['wd'=>$param['wd']])}">全部</a>
+      {if condition="$user.user_id gt 0"}
       {maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"}
       <a {if condition="$current.type_id eq $type.type_id or $current.type_pid eq $type.type_id"} class="is-active" {/if} href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$type['type_id']])}">{$type.type_name}</a>
       {/maccms:type}
+      {else/}
+      {maccms:type ids="42,47,48,57,111" order="asc" by="sort" mid="1" num="20" id="type"}
+      <a {if condition="$current.type_id eq $type.type_id or $current.type_pid eq $type.type_id"} class="is-active" {/if} href="{:mac_url('vod/search',['wd'=>$param['wd'],'type'=>$type['type_id']])}">{$type.type_name}</a>
+      {/maccms:type}
+      {/if}
     </div>
   </div>
+  {if condition="$user.user_id gt 0 || in_array($current['type_id'], explode(',', '42,47,48,57,111')) || in_array($current['type_pid'], explode(',', '42,47,48,57,111'))"}
   <div class="filter-row">
     <strong>类型</strong>
     <div class="filter-options">
@@ -43,6 +56,7 @@
       {/if}
     </div>
   </div>
+  {/if}
   {/maccms:type}
   {/if}
 </section>
@@ -50,7 +64,8 @@
 <section class="wrap content-section">
   {if condition="$param['type'] eq ''"}
   <div class="vod-list">
-    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
+    {if condition="$user.user_id gt 0"}
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
       <span>
@@ -60,15 +75,38 @@
       </span>
     </a>
     {/maccms:vod}
+    {else/}
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" type="42,47,48,57,111" order="desc" by="time" id="vo"}
+    <a class="list-item" href="{:mac_url_vod_detail($vo)}">
+      <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
+      <span>
+        <strong>{$vo.vod_name}</strong>
+        <small>{$vo.vod_actor|mac_default='主演待更新'}</small>
+        <em>{$vo.vod_content|mac_filter_html|mac_substring=90}</em>
+      </span>
+    </a>
+    {/maccms:vod}
+    {/if}
   </div>
   {else/}
   {maccms:type ids="'.$param['type'].'" id="current"}
+  {if condition="$user.user_id lt 1 && !in_array($current['type_id'], explode(',', '42,47,48,57,111')) && !in_array($current['type_pid'], explode(',', '42,47,48,57,111'))"}
+  <div class="system-box">
+    <span class="eyebrow">会员分类</span>
+    <h2>登录后查看该分类的搜索结果</h2>
+    <p>当前分类需要登录账号后访问，游客可继续搜索开放分类。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">登录后查看</a>
+      <a class="ghost-btn" href="{:mac_url('vod/search',['wd'=>$param['wd']])}">搜索开放分类</a>
+    </div>
+  </div>
+  {else/}
   <div class="section-head compact">
     <h2>{$current.type_name}</h2>
     <span>搜索结果</span>
   </div>
   <div class="vod-list">
-    {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
+    {maccms:vod num="20" paging="yes" pageurl="vod/search" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
       <span>
@@ -79,6 +117,7 @@
     </a>
     {/maccms:vod}
   </div>
+  {/if}
   {/maccms:type}
   {/if}
 {include file="public/paging" /}

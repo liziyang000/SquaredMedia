@@ -11,11 +11,14 @@ DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"
+DOUBAN_ADDON_NAME="douban"
 ARCHIVE="dist/pingfangvideo.tar.gz"
 ADDON_ARCHIVE="dist/pingfangdevice.tar.gz"
+DOUBAN_ADDON_ARCHIVE="dist/douban.tar.gz"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 REMOTE_TMP="${DEPLOY_REMOTE_TMP:-/tmp/${THEME_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 REMOTE_ADDON_TMP="${DEPLOY_REMOTE_ADDON_TMP:-/tmp/${ADDON_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
+REMOTE_DOUBAN_ADDON_TMP="${DEPLOY_REMOTE_DOUBAN_ADDON_TMP:-/tmp/${DOUBAN_ADDON_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 
 ssh_options=(-p "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
 scp_options=(-P "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
@@ -43,13 +46,16 @@ npm run verify:release
 
 "${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
 "${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
+"${scp_command[@]}" "$DOUBAN_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_DOUBAN_ADDON_TMP}"
 
 remote_env=(
   "DEPLOY_PATH=$(printf "%q" "$DEPLOY_PATH")"
   "REMOTE_TMP=$(printf "%q" "$REMOTE_TMP")"
   "REMOTE_ADDON_TMP=$(printf "%q" "$REMOTE_ADDON_TMP")"
+  "REMOTE_DOUBAN_ADDON_TMP=$(printf "%q" "$REMOTE_DOUBAN_ADDON_TMP")"
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
+  "DOUBAN_ADDON_NAME=$(printf "%q" "$DOUBAN_ADDON_NAME")"
   "DEPLOY_CLEAR_CACHE=$(printf "%q" "$DEPLOY_CLEAR_CACHE")"
 )
 
@@ -75,6 +81,50 @@ clear_maccms_cache() {
   done
 
   echo "Cleared ${cleared} MacCMS cache directories under ${maccms_root}"
+}
+
+apply_addon_sql() {
+  local maccms_root addon_name
+
+  maccms_root="$1"
+  addon_name="$2"
+
+  MACCMS_ROOT="$maccms_root" ADDON_NAME="$addon_name" php <<'PHP_SQL'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$addon = getenv('ADDON_NAME');
+$dbFile = $root . '/application/database.php';
+$sqlFile = $root . '/addons/' . $addon . '/install.sql';
+if (!is_file($dbFile) || !is_file($sqlFile)) {
+    fwrite(STDERR, "MacCMS database config or addon install.sql is missing.\n");
+    exit(1);
+}
+$db = include $dbFile;
+$prefix = isset($db['prefix']) ? $db['prefix'] : '';
+$sql = str_replace('__PREFIX__', $prefix, file_get_contents($sqlFile));
+$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
+    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+    $db['hostname'] ?? '127.0.0.1',
+    $db['hostport'] ?? '3306',
+    $db['database'] ?? '',
+    $db['charset'] ?? 'utf8'
+);
+$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+]);
+$statement = '';
+foreach (preg_split('/\r?\n/', $sql) as $line) {
+    $trimmed = trim($line);
+    if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
+        continue;
+    }
+    $statement .= $line . "\n";
+    if (substr($trimmed, -1) === ';') {
+        $pdo->exec($statement);
+        $statement = '';
+    }
+}
+PHP_SQL
 }
 
 install_device_addon() {
@@ -135,44 +185,39 @@ if (!in_array($addon, $config['hooks']['app_begin'], true)) {
 file_put_contents($path, "<?php\n\nreturn " . var_export($config, true) . ";\n");
 PHP_CONFIG
 
-  MACCMS_ROOT="$maccms_root" ADDON_NAME="$ADDON_NAME" php <<'PHP_SQL'
-<?php
-$root = rtrim(getenv('MACCMS_ROOT'), '/');
-$addon = getenv('ADDON_NAME');
-$dbFile = $root . '/application/database.php';
-$sqlFile = $root . '/addons/' . $addon . '/install.sql';
-if (!is_file($dbFile) || !is_file($sqlFile)) {
-    fwrite(STDERR, "MacCMS database config or addon install.sql is missing.\n");
-    exit(1);
-}
-$db = include $dbFile;
-$prefix = isset($db['prefix']) ? $db['prefix'] : '';
-$sql = str_replace('__PREFIX__', $prefix, file_get_contents($sqlFile));
-$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
-    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-    $db['hostname'] ?? '127.0.0.1',
-    $db['hostport'] ?? '3306',
-    $db['database'] ?? '',
-    $db['charset'] ?? 'utf8'
-);
-$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
-$statement = '';
-foreach (preg_split('/\r?\n/', $sql) as $line) {
-    $trimmed = trim($line);
-    if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
-        continue;
-    }
-    $statement .= $line . "\n";
-    if (substr($trimmed, -1) === ';') {
-        $pdo->exec($statement);
-        $statement = '';
-    }
-}
-PHP_SQL
+  apply_addon_sql "$maccms_root" "$ADDON_NAME"
 
   echo "Installed ${ADDON_NAME} addon under ${addon_dir}"
+}
+
+install_simple_addon() {
+  local addon_name remote_tmp maccms_root addon_dir backup tmp_dir
+
+  addon_name="$1"
+  remote_tmp="$2"
+  maccms_root="$(dirname "$DEPLOY_PATH")"
+  addon_dir="$maccms_root/addons/$addon_name"
+  mkdir -p "$maccms_root/addons"
+
+  tmp_dir="$deploy_tmp_dir/$addon_name"
+  mkdir -p "$tmp_dir"
+
+  tar -xzf "$remote_tmp" -C "$tmp_dir"
+  if [[ ! -f "$tmp_dir/$addon_name/info.ini" || ! -f "$tmp_dir/$addon_name/install.sql" ]]; then
+    echo "Uploaded addon archive does not contain $addon_name/info.ini and install.sql" >&2
+    exit 1
+  fi
+
+  if [[ -d "$addon_dir" ]]; then
+    backup="${addon_name}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -a "$addon_dir" "$maccms_root/addons/$backup"
+  fi
+
+  rm -rf "$addon_dir"
+  mv "$tmp_dir/$addon_name" "$addon_dir"
+  apply_addon_sql "$maccms_root" "$addon_name"
+
+  echo "Installed ${addon_name} addon under ${addon_dir}"
 }
 
 if [[ ! -d "$DEPLOY_PATH" ]]; then
@@ -181,9 +226,10 @@ if [[ ! -d "$DEPLOY_PATH" ]]; then
 fi
 
 deploy_tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$deploy_tmp_dir" "$REMOTE_TMP" "$REMOTE_ADDON_TMP"' EXIT
+trap 'rm -rf "$deploy_tmp_dir" "$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_DOUBAN_ADDON_TMP"' EXIT
 
 install_device_addon
+install_simple_addon "$DOUBAN_ADDON_NAME" "$REMOTE_DOUBAN_ADDON_TMP"
 
 cd "$DEPLOY_PATH"
 

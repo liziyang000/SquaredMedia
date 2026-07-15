@@ -4,7 +4,7 @@
     <title>{$maccms.site_name}</title>
     <link>{$maccms.site_url}</link>
     <description>{$maccms.site_description}</description>
-    {maccms:vod type="all" num="50" order="desc" by="time" id="vo"}
+    {maccms:vod type="42,47,48,57,111" num="50" order="desc" by="time" id="vo"}
     <item>
       <title>{$vo.vod_name}</title>
       <link>{$maccms.site_url}{:mac_url_vod_detail($vo)}</link>

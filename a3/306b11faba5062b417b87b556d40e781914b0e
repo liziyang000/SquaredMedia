@@ -1,0 +1,148 @@
+.github/workflows/ci.yml
+  s_47603efaa31ac3::t_dea9e8c5a468b7 50,52-53
+AGENTS.md
+  s_47603efaa31ac3::t_6c98a1e488bc71 14
+README.md
+  s_47603efaa31ac3::t_4ecaff9e777ba0 1,3,5-19,22,24,26-28,30-88,91,93,95,101,107-109,111-112,118,120,122-124,127,133,135-138,140,142,144-169,172,174-178,180,182-184,194-199,201-203,210-214,224,227,230,232-239,242,244-247
+  s_320dd6ef5910f2::t_598892dcd09eea 20-21,23,25,29,113-116,200
+addons/douban/info.ini
+  s_47603efaa31ac3::t_356a733a2d9413 4-5
+addons/squareddevice/Squareddevice.php
+  s_47603efaa31ac3::t_f36880443dc9ad 3,5,9
+  s_320dd6ef5910f2::t_da2c769578809f 6,24-29
+addons/squareddevice/bridge/Squareddevice.php
+  s_47603efaa31ac3::t_f96700c3aca93e 5-6,8,20
+addons/squareddevice/controller/Index.php
+  s_47603efaa31ac3::t_0a292cdc65b510 3,5-6,20
+addons/squareddevice/info.ini
+  s_47603efaa31ac3::t_a2eb133ece763d 1-5,8
+addons/squareddevice/install.sql
+  s_47603efaa31ac3::t_0acb9e05da2f93 1
+addons/squareddevice/service/VodFilterOptions.php
+  s_47603efaa31ac3::t_e3d9bee3621ca9 3,17
+addons/squareddevice/view/index/index.html
+  s_47603efaa31ac3::t_e35c24f5b572d3 80,88
+addons/videolint/info.ini
+  s_47603efaa31ac3::t_ab438ad5862306 4-5
+addons/videolint/install.sql
+  s_47603efaa31ac3::t_e13e194d9514ff 1,18
+addons/videolint/service/QualityScanner.php
+  s_47603efaa31ac3::t_3f0faa654d4c0b 9-10
+docker-compose.yml
+  s_47603efaa31ac3::t_12c03188a5328c 11
+docker/php/Dockerfile
+  s_47603efaa31ac3::t_25148fcbbf4eac 3
+docs/maccms-theme-development-spec.md
+  s_47603efaa31ac3::t_78b2d6c934b7a4 5,23,32,36,199
+docs/maccms-vod-category-maintenance.md
+  s_47603efaa31ac3::t_c25bafd6e18c4e 56,62
+docs/superpowers/notes/2026-07-01-squared-media-player-handoff.md
+  s_47603efaa31ac3::t_6c5270524a9413 1,23-25,29-30,36-37,43,56
+docs/superpowers/plans/2026-06-27-gsap-motion-optimization.md
+  s_47603efaa31ac3::t_c42659cf267cc1 5,7,16-17,52,100,315-316,318,439,448,484,542,552
+docs/superpowers/plans/2026-06-29-home-mobile-polish.md
+  s_47603efaa31ac3::t_0c289642e83b60 5,7,51,209
+docs/superpowers/plans/2026-07-01-squared-media-player.md
+  s_47603efaa31ac3::t_398eca6417b7d4 1,5,26,28-38,54-55,59,63,68,78-79,88,93,98,102,106,132
+docs/superpowers/plans/2026-07-07-poster-magazine-theme.md
+  s_47603efaa31ac3::t_2321902e8a818d 15-18,58-59,97,168,177,334-335,372,379
+docs/superpowers/plans/2026-07-10-douban-rating-integration.md
+  s_47603efaa31ac3::t_a88d1f1f9d9cd3 157-158
+docs/superpowers/specs/2026-06-27-cinematic-premium-theme-design.md
+  s_47603efaa31ac3::t_742971ad673285 7,14,80,91,102,162-164
+docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md
+  s_47603efaa31ac3::t_acf7fd7c71eff7 7,16,31,56
+docs/superpowers/specs/2026-06-29-home-mobile-polish-design.md
+  s_47603efaa31ac3::t_9ec47b5361eb71 7,18,24,82,86-88
+docs/superpowers/specs/2026-07-01-squared-media-player-design.md
+  s_47603efaa31ac3::t_d2b550fe2bee6b 1,7,29,35,57-58,62-64
+docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md
+  s_47603efaa31ac3::t_cdd37e941eacac 7,44,143-146
+package-lock.json
+  s_47603efaa31ac3::t_5ace0f3f729aef 2,8
+package.json
+  s_47603efaa31ac3::t_11dbcf9b0c433d 2
+preview/index.html
+  s_47603efaa31ac3::t_b3c9b147b60ac7 6,8,14,71,81-82,721-724
+  s_320dd6ef5910f2::t_8e795eb7c732a8 15
+scripts/deploy-theme.sh
+  s_47603efaa31ac3::t_d8d41a51294947 12-13,15-16,135,155,157,251
+  s_320dd6ef5910f2::t_df1321c94413fd 131,166-177,191-197
+scripts/lint-template.mjs
+  s_47603efaa31ac3::t_67c896bad958b3 6,48
+scripts/package-theme.mjs
+  s_47603efaa31ac3::t_da455edc1d648a 7-8,13
+scripts/rollback-theme.sh
+  s_47603efaa31ac3::t_9bba42c3f08097 11,95
+scripts/verify-compat.mjs
+  s_47603efaa31ac3::t_5017b22a5b08c5 6,19,61
+scripts/verify-release.mjs
+  s_47603efaa31ac3::t_e356562fff073c 7-8,10,13-90,100,103-109,111,113,143-144,167,194,199,202,219-220
+  s_320dd6ef5910f2::t_d669c94494915a 110,112
+server/lib/render.php
+  s_47603efaa31ac3::t_c83e9576508b0b 55,93
+  s_320dd6ef5910f2::t_d53b94051c3113 60
+template/squaredmedia/css/style.css
+  s_47603efaa31ac3::t_ade2e543658fbf 357-358,2723,2731,2735,2744,2756,2769,2783,2797,2803-2806,2810,2818-2819,2825,2829,2833,3371-3372,3380-3381,3389-3390,3659-3660,4603,4608,4614,4620,4625,4630,4635,4640
+  s_320dd6ef5910f2::t_df0527bf4e216d 342,346-347,352-356,359,3583-3585,3589-3591,4061-4067,4071,4710-4716,4719
+template/squaredmedia/html/public/foot.html
+  s_47603efaa31ac3::t_b25d8d1552d496 17
+template/squaredmedia/html/public/head.html
+  s_47603efaa31ac3::t_b2e7757cb34724 58-59,89-90
+  s_320dd6ef5910f2::t_1b032ff4625039 14
+template/squaredmedia/html/public/include.html
+  s_47603efaa31ac3::t_a1c50cdd839bc9 8,17
+template/squaredmedia/html/squareddevice/index.html
+  s_47603efaa31ac3::t_0c7f58c2f683ed 53
+template/squaredmedia/html/user/favs.html
+  s_47603efaa31ac3::t_e40cc223448314 77-78
+template/squaredmedia/html/user/index.html
+  s_47603efaa31ac3::t_c3fe149073435f 10
+template/squaredmedia/html/user/login.html
+  s_47603efaa31ac3::t_161cd321415c30 3
+template/squaredmedia/html/vod/show.html
+  s_47603efaa31ac3::t_a6043f1364d0a1 23
+template/squaredmedia/html/vod/type.html
+  s_47603efaa31ac3::t_b7ab72d28a8a1b 23
+template/squaredmedia/info.ini
+  s_47603efaa31ac3::t_37965dd7aadc43 1
+template/squaredmedia/js/app.js
+  s_47603efaa31ac3::t_0f2d5de430cc36 7,295,306,313,435,744-745,782-783,786,852-853,875-884,1365-1366,1368,1636-1638,1653
+  s_320dd6ef5910f2::t_6a5e9417419c75 373-375,382
+template/squaredmedia/js/rank-react.js
+  s_47603efaa31ac3::t_adbd58411cc657 105,110-111,123
+addons/squareddevice/robots.txt
+  s_320dd6ef5910f2::t_3277644956d21a 1-2
+addons/squareddevice/service/MemberAccess.php
+  s_320dd6ef5910f2::t_9d912c9d88fe85 1-137
+tests/member-access.test.php
+  s_320dd6ef5910f2::t_4f8e0794face9c 1-76
+tests/template.test.mjs
+  s_320dd6ef5910f2::t_61f0c2ecc1eea0 22,119,121,142,236-240,1434-1439,1443,1479,1519,1642-1643,1699-1719,2033,2149,2251-2256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a3306b11faba5062b417b87b556d40e781914b0e",
+  "prompts": {},
+  "sessions": {
+    "s_320dd6ef5910f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6570-83a8-7471-ae21-8ca0636600d6",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_47603efaa31ac3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f63c0-c14c-76b3-87cd-53daffa403d4",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

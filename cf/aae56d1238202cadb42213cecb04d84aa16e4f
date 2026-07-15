@@ -1,0 +1,45 @@
+README.md
+  s_320dd6ef5910f2::t_598892dcd09eea 20-21,23,25,29,113-116,200
+addons/squareddevice/Squareddevice.php
+  s_320dd6ef5910f2::t_da2c769578809f 6,24-29
+addons/squareddevice/robots.txt
+  s_320dd6ef5910f2::t_3277644956d21a 1-2
+addons/squareddevice/service/MemberAccess.php
+  s_320dd6ef5910f2::t_9d912c9d88fe85 1-137
+preview/index.html
+  s_320dd6ef5910f2::t_8e795eb7c732a8 15
+scripts/deploy-theme.sh
+  s_320dd6ef5910f2::t_df1321c94413fd 131,166-177,191-197
+scripts/verify-release.mjs
+  s_320dd6ef5910f2::t_d669c94494915a 110,112
+server/lib/render.php
+  s_320dd6ef5910f2::t_d53b94051c3113 60
+template/squaredmedia/css/style.css
+  s_320dd6ef5910f2::t_df0527bf4e216d 342,346-347,352-356,359,3583-3585,3589-3591,4061-4067,4071,4710-4716,4719
+template/squaredmedia/html/public/head.html
+  s_320dd6ef5910f2::t_1b032ff4625039 14
+template/squaredmedia/js/app.js
+  s_320dd6ef5910f2::t_6a5e9417419c75 373-375,382
+tests/member-access.test.php
+  s_320dd6ef5910f2::t_4f8e0794face9c 1-76
+tests/template.test.mjs
+  s_320dd6ef5910f2::t_61f0c2ecc1eea0 22,119,121,142,236-240,1434-1439,1443,1479,1519,1642-1643,1699-1719,2033,2149,2251-2256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cfaae56d1238202cadb42213cecb04d84aa16e4f",
+  "prompts": {},
+  "sessions": {
+    "s_320dd6ef5910f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6570-83a8-7471-ae21-8ca0636600d6",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

@@ -1,6 +1,6 @@
 FROM php:8.4-apache
 
-COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-pingfangvideo.ini
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-squaredmedia.ini
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \

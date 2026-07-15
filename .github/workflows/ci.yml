@@ -47,8 +47,8 @@ jobs:
       - name: Upload theme package
         uses: actions/upload-artifact@v4
         with:
-          name: pingfangvideo-theme
+          name: squared-media-theme
           path: |
-            dist/pingfangvideo.tar.gz
-            dist/pingfangdevice.tar.gz
+            dist/squaredmedia.tar.gz
+            dist/squareddevice.tar.gz
             dist/douban.tar.gz

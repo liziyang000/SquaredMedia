@@ -12,10 +12,10 @@
 
 ## File Structure
 
-- Modify `template/pingfangvideo/html/public/include.html`: allow the early theme script to apply `poster-magazine` before CSS loads.
-- Modify `template/pingfangvideo/html/public/head.html`: add desktop and mobile “海报杂志” theme options.
-- Modify `template/pingfangvideo/js/app.js`: add `poster-magazine` to the valid theme map and wrap user-triggered theme changes in a short transition class.
-- Modify `template/pingfangvideo/css/style.css`: add the new swatch, transition overlay, `poster-magazine` tokens, homepage hero layout, floating rank panel, magazine shelf cards, shared glass surfaces, and responsive safeguards.
+- Modify `template/squaredmedia/html/public/include.html`: allow the early theme script to apply `poster-magazine` before CSS loads.
+- Modify `template/squaredmedia/html/public/head.html`: add desktop and mobile “海报杂志” theme options.
+- Modify `template/squaredmedia/js/app.js`: add `poster-magazine` to the valid theme map and wrap user-triggered theme changes in a short transition class.
+- Modify `template/squaredmedia/css/style.css`: add the new swatch, transition overlay, `poster-magazine` tokens, homepage hero layout, floating rank panel, magazine shelf cards, shared glass surfaces, and responsive safeguards.
 - Modify `tests/template.test.mjs`: add regression assertions for the new theme option, early script, JS valid themes, transition state, and scoped CSS rules.
 
 ## Task 1: Failing Test Coverage
@@ -55,8 +55,8 @@ Expected: `npm test` fails because `poster-magazine` is not present in the templ
 ## Task 2: Theme Option Markup And Early Theme Script
 
 **Files:**
-- Modify: `template/pingfangvideo/html/public/include.html`
-- Modify: `template/pingfangvideo/html/public/head.html`
+- Modify: `template/squaredmedia/html/public/include.html`
+- Modify: `template/squaredmedia/html/public/head.html`
 
 - [ ] **Step 1: Update the early theme script**
 
@@ -94,7 +94,7 @@ Expected: the include/head assertions pass, while app/CSS assertions still fail.
 ## Task 3: Theme Switch Transition Logic
 
 **Files:**
-- Modify: `template/pingfangvideo/js/app.js`
+- Modify: `template/squaredmedia/js/app.js`
 
 - [ ] **Step 1: Add the theme to the valid theme map**
 
@@ -165,7 +165,7 @@ function applyTheme(theme, shouldPersist) {
 Run:
 
 ```bash
-node --check template/pingfangvideo/js/app.js
+node --check template/squaredmedia/js/app.js
 npm test
 ```
 
@@ -174,7 +174,7 @@ Expected: JS syntax passes; CSS assertions still fail.
 ## Task 4: Poster Magazine CSS Theme
 
 **Files:**
-- Modify: `template/pingfangvideo/css/style.css`
+- Modify: `template/squaredmedia/css/style.css`
 
 - [ ] **Step 1: Add the poster swatch**
 
@@ -331,8 +331,8 @@ Expected: all theme assertions pass.
 Run:
 
 ```bash
-node --check template/pingfangvideo/js/app.js
-git diff --check -- template/pingfangvideo/html/public/include.html template/pingfangvideo/html/public/head.html template/pingfangvideo/js/app.js template/pingfangvideo/css/style.css tests/template.test.mjs
+node --check template/squaredmedia/js/app.js
+git diff --check -- template/squaredmedia/html/public/include.html template/squaredmedia/html/public/head.html template/squaredmedia/js/app.js template/squaredmedia/css/style.css tests/template.test.mjs
 ```
 
 Expected: both commands exit 0.
@@ -369,14 +369,14 @@ Run:
 source scripts/deploy-ping2.env && npm run deploy
 ```
 
-Expected: deploy script runs tests, packages, verifies release archives, installs addon files, clears MacCMS cache, and deploys `pingfangvideo` to `root@ping2.my:/www/wwwroot/ping2.my/template/pingfangvideo`.
+Expected: deploy script runs tests, packages, verifies release archives, installs addon files, clears MacCMS cache, and deploys `squaredmedia` to `root@ping2.my:/www/wwwroot/ping2.my/template/squaredmedia`.
 
 - [ ] **Step 5: Confirm deployed files contain the new theme**
 
 Run:
 
 ```bash
-ssh root@ping2.my "grep -n 'poster-magazine' /www/wwwroot/ping2.my/template/pingfangvideo/js/app.js /www/wwwroot/ping2.my/template/pingfangvideo/css/style.css /www/wwwroot/ping2.my/template/pingfangvideo/html/public/head.html | head"
+ssh root@ping2.my "grep -n 'poster-magazine' /www/wwwroot/ping2.my/template/squaredmedia/js/app.js /www/wwwroot/ping2.my/template/squaredmedia/css/style.css /www/wwwroot/ping2.my/template/squaredmedia/html/public/head.html | head"
 ```
 
 Expected: remote output shows `poster-magazine` in JS, CSS, and the public head template.

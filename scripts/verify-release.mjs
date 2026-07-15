@@ -4,91 +4,90 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
-const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
+const archive = path.join(root, "dist", "squaredmedia.tar.gz");
+const addonArchive = path.join(root, "dist", "squareddevice.tar.gz");
 const doubanAddonArchive = path.join(root, "dist", "douban.tar.gz");
-const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
+const assetVersionPlaceholder = "__SQUARED_MEDIA_ASSET_VERSION__";
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
-  "pingfangvideo/info.ini",
-  "pingfangvideo/css/style.css",
-  "pingfangvideo/js/gsap.min.js",
-  "pingfangvideo/js/react.production.min.js",
-  "pingfangvideo/js/react-dom.production.min.js",
-  "pingfangvideo/js/rank-react.js",
-  "pingfangvideo/js/app.js",
-  "pingfangvideo/images/site-logo.png",
-  "pingfangvideo/html/public/include.html",
-  "pingfangvideo/html/public/head.html",
-  "pingfangvideo/html/public/foot.html",
-  "pingfangvideo/html/public/digg.html",
-  "pingfangvideo/html/public/score.html",
-  "pingfangvideo/html/public/star.html",
-  "pingfangvideo/html/public/vod_card.html",
-  "pingfangvideo/html/comment/index.html",
-  "pingfangvideo/html/comment/ajax.html",
-  "pingfangvideo/html/gbook/index.html",
-  "pingfangvideo/html/book/index.html",
-  "pingfangvideo/html/book/report.html",
-  "pingfangvideo/html/index/index.html",
-  "pingfangvideo/html/label/categories.html",
-  "pingfangvideo/html/label/comics.html",
-  "pingfangvideo/html/label/history.html",
-  "pingfangvideo/html/label/hot.html",
-  "pingfangvideo/html/label/videos.html",
-  "pingfangvideo/html/pingfangdevice/index.html",
-  "pingfangvideo/html/topic/index.html",
-  "pingfangvideo/html/topic/detail.html",
-  "pingfangvideo/html/art/index.html",
-  "pingfangvideo/html/art/confirm.html",
-  "pingfangvideo/html/art/detail.html",
-  "pingfangvideo/html/art/detail_pwd.html",
-  "pingfangvideo/html/art/rss.html",
-  "pingfangvideo/html/art/search.html",
-  "pingfangvideo/html/art/type.html",
-  "pingfangvideo/html/art/show.html",
-  "pingfangvideo/html/rss/rss.html",
-  "pingfangvideo/html/rss/baidu.html",
-  "pingfangvideo/html/rss/google.html",
-  "pingfangvideo/html/vod/show.html",
-  "pingfangvideo/html/vod/type.html",
-  "pingfangvideo/html/vod/search.html",
-  "pingfangvideo/html/vod/detail.html",
-  "pingfangvideo/html/vod/confirm.html",
-  "pingfangvideo/html/vod/detail_pwd.html",
-  "pingfangvideo/html/vod/play.html",
-  "pingfangvideo/html/vod/player.html",
-  "pingfangvideo/html/vod/player_pwd.html",
-  "pingfangvideo/html/vod/down.html",
-  "pingfangvideo/html/vod/downer_pwd.html",
-  "pingfangvideo/html/vod/copyright.html",
-  "pingfangvideo/html/vod/plot.html",
-  "pingfangvideo/html/vod/rss.html",
-  "pingfangvideo/html/plot/uindex.html",
-  "pingfangvideo/html/plot/udetail.html",
-  "pingfangvideo/html/actor/index.html",
-  "pingfangvideo/html/actor/detail.html",
-  "pingfangvideo/html/actor/search.html",
-  "pingfangvideo/html/actor/show.html",
-  "pingfangvideo/html/actor/type.html",
-  "pingfangvideo/html/role/index.html",
-  "pingfangvideo/html/role/detail.html",
-  "pingfangvideo/html/role/show.html",
-  "pingfangvideo/html/website/index.html",
-  "pingfangvideo/html/website/detail.html",
-  "pingfangvideo/html/website/search.html",
-  "pingfangvideo/html/website/show.html",
-  "pingfangvideo/html/website/type.html",
-  "pingfangvideo/html/user/head.html",
-  "pingfangvideo/html/user/foot.html",
-  "pingfangvideo/html/user/include.html",
-  "pingfangvideo/html/user/index.html",
-  "pingfangvideo/html/user/login.html",
-  "pingfangvideo/html/user/reg.html",
-  "pingfangvideo/html/user/findpass.html",
-  "pingfangvideo/html/map/rss.html",
-  "pingfangvideo/html/map/baidu.html",
-  "pingfangvideo/html/map/google.html",
+  "squaredmedia/info.ini",
+  "squaredmedia/css/style.css",
+  "squaredmedia/js/gsap.min.js",
+  "squaredmedia/js/react.production.min.js",
+  "squaredmedia/js/react-dom.production.min.js",
+  "squaredmedia/js/rank-react.js",
+  "squaredmedia/js/app.js",
+  "squaredmedia/html/public/include.html",
+  "squaredmedia/html/public/head.html",
+  "squaredmedia/html/public/foot.html",
+  "squaredmedia/html/public/digg.html",
+  "squaredmedia/html/public/score.html",
+  "squaredmedia/html/public/star.html",
+  "squaredmedia/html/public/vod_card.html",
+  "squaredmedia/html/comment/index.html",
+  "squaredmedia/html/comment/ajax.html",
+  "squaredmedia/html/gbook/index.html",
+  "squaredmedia/html/book/index.html",
+  "squaredmedia/html/book/report.html",
+  "squaredmedia/html/index/index.html",
+  "squaredmedia/html/label/categories.html",
+  "squaredmedia/html/label/comics.html",
+  "squaredmedia/html/label/history.html",
+  "squaredmedia/html/label/hot.html",
+  "squaredmedia/html/label/videos.html",
+  "squaredmedia/html/squareddevice/index.html",
+  "squaredmedia/html/topic/index.html",
+  "squaredmedia/html/topic/detail.html",
+  "squaredmedia/html/art/index.html",
+  "squaredmedia/html/art/confirm.html",
+  "squaredmedia/html/art/detail.html",
+  "squaredmedia/html/art/detail_pwd.html",
+  "squaredmedia/html/art/rss.html",
+  "squaredmedia/html/art/search.html",
+  "squaredmedia/html/art/type.html",
+  "squaredmedia/html/art/show.html",
+  "squaredmedia/html/rss/rss.html",
+  "squaredmedia/html/rss/baidu.html",
+  "squaredmedia/html/rss/google.html",
+  "squaredmedia/html/vod/show.html",
+  "squaredmedia/html/vod/type.html",
+  "squaredmedia/html/vod/search.html",
+  "squaredmedia/html/vod/detail.html",
+  "squaredmedia/html/vod/confirm.html",
+  "squaredmedia/html/vod/detail_pwd.html",
+  "squaredmedia/html/vod/play.html",
+  "squaredmedia/html/vod/player.html",
+  "squaredmedia/html/vod/player_pwd.html",
+  "squaredmedia/html/vod/down.html",
+  "squaredmedia/html/vod/downer_pwd.html",
+  "squaredmedia/html/vod/copyright.html",
+  "squaredmedia/html/vod/plot.html",
+  "squaredmedia/html/vod/rss.html",
+  "squaredmedia/html/plot/uindex.html",
+  "squaredmedia/html/plot/udetail.html",
+  "squaredmedia/html/actor/index.html",
+  "squaredmedia/html/actor/detail.html",
+  "squaredmedia/html/actor/search.html",
+  "squaredmedia/html/actor/show.html",
+  "squaredmedia/html/actor/type.html",
+  "squaredmedia/html/role/index.html",
+  "squaredmedia/html/role/detail.html",
+  "squaredmedia/html/role/show.html",
+  "squaredmedia/html/website/index.html",
+  "squaredmedia/html/website/detail.html",
+  "squaredmedia/html/website/search.html",
+  "squaredmedia/html/website/show.html",
+  "squaredmedia/html/website/type.html",
+  "squaredmedia/html/user/head.html",
+  "squaredmedia/html/user/foot.html",
+  "squaredmedia/html/user/include.html",
+  "squaredmedia/html/user/index.html",
+  "squaredmedia/html/user/login.html",
+  "squaredmedia/html/user/reg.html",
+  "squaredmedia/html/user/findpass.html",
+  "squaredmedia/html/map/rss.html",
+  "squaredmedia/html/map/baidu.html",
+  "squaredmedia/html/map/google.html",
 ];
 const forbiddenProductionPatterns = [
   /preview\/data\.json/,
@@ -98,18 +97,18 @@ const forbiddenProductionPatterns = [
   /localhost/,
   /127\.0\.0\.1/,
   /npm run/,
-  /dist\/pingfangvideo/,
+  /dist\/squaredmedia/,
 ];
 const requiredAddonEntries = [
-  "pingfangdevice/Pingfangdevice.php",
-  "pingfangdevice/bridge/Pingfangdevice.php",
-  "pingfangdevice/config.php",
-  "pingfangdevice/controller/Index.php",
-  "pingfangdevice/info.ini",
-  "pingfangdevice/install.sql",
-  "pingfangdevice/service/DeviceSession.php",
-  "pingfangdevice/service/VodFilterOptions.php",
-  "pingfangdevice/view/index/index.html",
+  "squareddevice/Squareddevice.php",
+  "squareddevice/bridge/Squareddevice.php",
+  "squareddevice/config.php",
+  "squareddevice/controller/Index.php",
+  "squareddevice/info.ini",
+  "squareddevice/install.sql",
+  "squareddevice/service/DeviceSession.php",
+  "squareddevice/service/VodFilterOptions.php",
+  "squareddevice/view/index/index.html",
 ];
 const requiredDoubanAddonEntries = [
   "douban/Douban.php",
@@ -139,8 +138,8 @@ function assertSafeAssetReference(value, file, tag) {
   assert.ok(allowed, `${file} should use MacCMS runtime variables for ${tag} asset ${value}`);
 }
 
-assert.ok(existsSync(archive), "dist/pingfangvideo.tar.gz should exist. Run npm run package first.");
-assert.ok(existsSync(addonArchive), "dist/pingfangdevice.tar.gz should exist. Run npm run package first.");
+assert.ok(existsSync(archive), "dist/squaredmedia.tar.gz should exist. Run npm run package first.");
+assert.ok(existsSync(addonArchive), "dist/squareddevice.tar.gz should exist. Run npm run package first.");
 assert.ok(existsSync(doubanAddonArchive), "dist/douban.tar.gz should exist. Run npm run package first.");
 
 const tarList = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
@@ -163,7 +162,7 @@ const forbiddenRoots = ["preview/", "server/", "docker/", "tests/", "scripts/"];
 const forbiddenEntries = entries.filter((entry) => forbiddenRoots.some((rootName) => entry.startsWith(rootName) || entry.includes(`/${rootName}`)));
 assert.deepEqual(forbiddenEntries, [], "Release archive should contain only the MacCMS theme directory");
 
-const htmlEntries = entries.filter((entry) => entry.startsWith("pingfangvideo/html/") && entry.endsWith(".html"));
+const htmlEntries = entries.filter((entry) => entry.startsWith("squaredmedia/html/") && entry.endsWith(".html"));
 assert.ok(htmlEntries.length >= 70, "Release archive should include the full MacCMS HTML template surface");
 
 for (const entry of htmlEntries) {
@@ -190,15 +189,15 @@ for (const entry of htmlEntries) {
   assertBalanced(content, /\{maccms:foreach\b/g, /\{\/maccms:foreach\}/g, "maccms:foreach", entry);
 }
 
-const includeHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/include.html"], { encoding: "utf8" });
+const includeHtml = execFileSync("tar", ["-xOf", archive, "squaredmedia/html/public/include.html"], { encoding: "utf8" });
 assert.match(includeHtml, /"path":"\{:\s*rtrim\(\$maccms\['path'\], '\/'\)\}"/);
 assert.match(includeHtml, /"aid":"\{\$maccms\.aid\}"/);
 assert.match(includeHtml, new RegExp(`css/style\\.css${assetVersionPattern.source}`));
 
-const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/foot.html"], { encoding: "utf8" });
+const footHtml = execFileSync("tar", ["-xOf", archive, "squaredmedia/html/public/foot.html"], { encoding: "utf8" });
 assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
 
-const appJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/app.js"], { encoding: "utf8" });
+const appJs = execFileSync("tar", ["-xOf", archive, "squaredmedia/js/app.js"], { encoding: "utf8" });
 assert.match(appJs, /fallbackHistoryUrl/);
 assert.doesNotMatch(appJs, /javascript:;/);
 
@@ -215,8 +214,8 @@ for (const entry of requiredAddonEntries) {
   assert.ok(addonEntries.includes(entry), `${entry} should be included in the addon archive`);
 }
 
-const addonSql = execFileSync("tar", ["-xOf", addonArchive, "pingfangdevice/install.sql"], { encoding: "utf8" });
-assert.match(addonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);
+const addonSql = execFileSync("tar", ["-xOf", addonArchive, "squareddevice/install.sql"], { encoding: "utf8" });
+assert.match(addonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__squared_media_device_session`/);
 assert.doesNotMatch(addonSql, /DROP\s+TABLE/i);
 
 const doubanAddonTarList = spawnSync("tar", ["-tzf", doubanAddonArchive], { encoding: "utf8" });

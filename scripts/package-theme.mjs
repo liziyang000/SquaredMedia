@@ -4,13 +4,13 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 
 const root = process.cwd();
-const themeName = "pingfangvideo";
-const addonNames = ["pingfangdevice", "douban"];
+const themeName = "squaredmedia";
+const addonNames = ["squareddevice", "douban"];
 const source = path.join(root, "template", themeName);
 const dist = path.join(root, "dist");
 const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
-const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
+const assetVersionPlaceholder = "__SQUARED_MEDIA_ASSET_VERSION__";
 const assetVersionInputs = [
   "css/style.css",
   "js/rank-react.js",

@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const themeName = "pingfangvideo";
+const themeName = "squaredmedia";
 const themeRoot = path.join(root, "template", themeName);
 const htmlRoot = path.join(themeRoot, "html");
 
@@ -16,7 +16,7 @@ const requiredThemeDirs = [
   "html/public",
   "html/index",
   "html/label",
-  "html/pingfangdevice",
+  "html/squareddevice",
   "html/map",
   "html/rss",
   "html/topic",
@@ -37,7 +37,6 @@ const requiredThemeFiles = [
   "css/style.css",
   "js/gsap.min.js",
   "js/app.js",
-  "images/site-logo.png",
   "html/public/include.html",
   "html/public/head.html",
   "html/public/foot.html",
@@ -59,7 +58,7 @@ const requiredThemeFiles = [
   "html/label/history.html",
   "html/label/hot.html",
   "html/label/videos.html",
-  "html/pingfangdevice/index.html",
+  "html/squareddevice/index.html",
   "html/topic/index.html",
   "html/topic/detail.html",
   "html/art/index.html",

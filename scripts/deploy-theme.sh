@@ -9,11 +9,11 @@ deploy_tmp_dir=""
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
-THEME_NAME="pingfangvideo"
-ADDON_NAME="pingfangdevice"
+THEME_NAME="squaredmedia"
+ADDON_NAME="squareddevice"
 DOUBAN_ADDON_NAME="douban"
-ARCHIVE="dist/pingfangvideo.tar.gz"
-ADDON_ARCHIVE="dist/pingfangdevice.tar.gz"
+ARCHIVE="dist/squaredmedia.tar.gz"
+ADDON_ARCHIVE="dist/squareddevice.tar.gz"
 DOUBAN_ADDON_ARCHIVE="dist/douban.tar.gz"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 REMOTE_TMP="${DEPLOY_REMOTE_TMP:-/tmp/${THEME_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
@@ -132,7 +132,7 @@ install_device_addon() {
 
   maccms_root="$(dirname "$DEPLOY_PATH")"
   addon_dir="$maccms_root/addons/$ADDON_NAME"
-  bridge_target="$maccms_root/application/index/controller/Pingfangdevice.php"
+  bridge_target="$maccms_root/application/index/controller/Squareddevice.php"
   mkdir -p "$maccms_root/addons"
 
   tmp_dir="$deploy_tmp_dir/addon"
@@ -152,9 +152,9 @@ install_device_addon() {
   rm -rf "$addon_dir"
   mv "$tmp_dir/$ADDON_NAME" "$addon_dir"
 
-  bridge_source="$addon_dir/bridge/Pingfangdevice.php"
+  bridge_source="$addon_dir/bridge/Squareddevice.php"
   if [[ ! -f "$bridge_source" ]]; then
-    echo "Addon archive does not contain bridge/Pingfangdevice.php" >&2
+    echo "Addon archive does not contain bridge/Squareddevice.php" >&2
     exit 1
   fi
   if [[ -f "$bridge_target" ]]; then
@@ -234,7 +234,7 @@ install_simple_addon "$DOUBAN_ADDON_NAME" "$REMOTE_DOUBAN_ADDON_TMP"
 cd "$DEPLOY_PATH"
 
 if [[ -d "$THEME_NAME" ]]; then
-  backup="pingfangvideo.backup.$(date +%Y%m%d%H%M%S)"
+  backup="squaredmedia.backup.$(date +%Y%m%d%H%M%S)"
   cp -a "$THEME_NAME" "$backup"
 fi
 

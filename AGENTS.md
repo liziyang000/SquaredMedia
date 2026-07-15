@@ -11,7 +11,7 @@ patterns.
 
 Do not introduce production references to local preview files, localhost,
 Docker, npm commands, or other development-only resources under
-`template/pingfangvideo/**`.
+`template/squaredmedia/**`.
 
 Run the relevant verification before claiming a theme change is complete:
 

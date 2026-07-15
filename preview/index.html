@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PingFang Video Preview</title>
+  <title>Squared Media Preview</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=__PINGFANG_ASSET_VERSION__">
+  <link rel="stylesheet" href="../template/squaredmedia/css/style.css?v=__SQUARED_MEDIA_ASSET_VERSION__">
 </head>
 <body>
 <a class="sr-only" href="#app" aria-label="跳转到内容区">跳转到内容</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="?route=home" data-route="home" aria-label="平方影视">
-      <img class="brand-logo" src="../template/pingfangvideo/images/site-logo.png" alt="平方影视 logo">
+    <a class="brand" href="?route=home" data-route="home" aria-label="Squared Media">
+      <span class="brand-mark" aria-hidden="true">S<sup>2</sup></span>
     </a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer">
       <span></span><span></span><span></span>
@@ -68,7 +68,7 @@
 <footer class="site-footer">
   <div class="wrap footer-grid">
     <div>
-      <strong>平方影视</strong>
+      <strong>Squared Media</strong>
       <p>每日更新电影、剧集、综艺与动漫内容，支持多端自适应浏览。</p>
     </div>
     <div class="footer-links">
@@ -78,8 +78,8 @@
     </div>
   </div>
 </footer>
-<script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
-<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
+<script src="../template/squaredmedia/js/gsap.min.js?v=3.15.0"></script>
+<script src="../template/squaredmedia/js/app.js?v=__SQUARED_MEDIA_ASSET_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -718,10 +718,10 @@ function render() {
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
-  window.PingFangRankReact?.mountAll?.(app);
-  window.PingFangVideo?.initHomeLatestTabs?.();
-  window.PingFangVideo?.initHeroCarousel?.(app);
-  window.PingFangVideo?.initGsapMotion?.(app);
+  window.SquaredMediaRankReact?.mountAll?.(app);
+  window.SquaredMedia?.initHomeLatestTabs?.();
+  window.SquaredMedia?.initHeroCarousel?.(app);
+  window.SquaredMedia?.initGsapMotion?.(app);
 }
 
 function bindSearchForms() {

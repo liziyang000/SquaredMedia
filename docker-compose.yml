@@ -8,7 +8,7 @@ services:
       - "8084:80"
     volumes:
       - ./server:/var/www/html:ro
-      - ./template/pingfangvideo:/var/www/html/template/pingfangvideo:ro
+      - ./template/squaredmedia:/var/www/html/template/squaredmedia:ro
       - ./preview:/var/www/html/preview:ro
     environment:
       PHP_VERSION_REQUIREMENT: "8.4"

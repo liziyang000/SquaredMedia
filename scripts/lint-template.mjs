@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const themeRoot = path.join(root, "template", "pingfangvideo");
+const themeRoot = path.join(root, "template", "squaredmedia");
 const htmlRoot = path.join(themeRoot, "html");
 
 function walk(dir) {
@@ -45,7 +45,7 @@ const forbiddenProductionPatterns = [
   /localhost/,
   /127\.0\.0\.1/,
   /npm run/,
-  /dist\/pingfangvideo/,
+  /dist\/squaredmedia/,
 ];
 const partials = new Set([
   "public/include.html",

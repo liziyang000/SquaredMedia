@@ -4,14 +4,14 @@
 
 ## 目标
 
-将 `pingfangvideo` MacCMS 主题从“可用的暗色视频模板”升级为更有质感的影院级体验，同时保持 MacCMS V10 兼容性、现有页面覆盖范围和当前发布验证流程。
+将 `squaredmedia` MacCMS 主题从“可用的暗色视频模板”升级为更有质感的影院级体验，同时保持 MacCMS V10 兼容性、现有页面覆盖范围和当前发布验证流程。
 
 目标观感是精致、内容优先、有影院感：更深的 OLED 风格背景、更强的海报层级、更克制但高对比的操作控件，以及在移动端也显得从容、不拥挤的导航体验。
 
 ## 非目标
 
 - 不把站点改成浅色主题。
-- 不在 `template/pingfangvideo/**` 下引入指向 localhost、预览文件、Docker、npm 或其他开发专用资源的生产引用。
+- 不在 `template/squaredmedia/**` 下引入指向 localhost、预览文件、Docker、npm 或其他开发专用资源的生产引用。
 - 不用自定义运行时逻辑替换 MacCMS 模板标签、URL 帮助函数、播放器变量、用户日志钩子、评论钩子、评分钩子、顶踩钩子或分页模式。
 - 不在主题目录内实现主题后台。任何后台配置能力都不属于本次视觉升级。
 - 不增加沉重的自动播放视频背景或装饰性无限动画。
@@ -77,7 +77,7 @@
 
 ### 头部与导航
 
-优化 `template/pingfangvideo/html/public/head.html` 和相关 CSS：
+优化 `template/squaredmedia/html/public/head.html` 和相关 CSS：
 
 - 保持 logo、搜索、主导航、用户菜单、移动端快捷入口与 MacCMS 运行时路径兼容。
 - 为搜索框增加可见或仅屏幕阅读器可见的标签。
@@ -88,7 +88,7 @@
 
 ### 首页
 
-优化 `template/pingfangvideo/html/index/index.html` 和对应 CSS：
+优化 `template/squaredmedia/html/index/index.html` 和对应 CSS：
 
 - 保留 hero 轮播、热播榜、快捷分类、最新上线和分类内容区。
 - 通过更强的图片存在感、更深的遮罩层次和更清晰的元信息层级，让 hero 更有高级感。
@@ -99,7 +99,7 @@
 
 ### 视频卡片
 
-优先通过 CSS 优化 `template/pingfangvideo/html/public/vod_card.html`，除非确实需要调整标记：
+优先通过 CSS 优化 `template/squaredmedia/html/public/vod_card.html`，除非确实需要调整标记：
 
 - 保留 `mac_url_vod_detail($vo)` 和 `mac_url_img`。
 - 保持海报比例和显式图片尺寸。
@@ -159,9 +159,9 @@
 
 预期实现文件：
 
-- `template/pingfangvideo/css/style.css`
-- `template/pingfangvideo/html/public/head.html`
-- `template/pingfangvideo/html/index/index.html`
+- `template/squaredmedia/css/style.css`
+- `template/squaredmedia/html/public/head.html`
+- `template/squaredmedia/html/index/index.html`
 - 如本地预览标记需要同步生产头部或首页 hero 变化，可修改 `preview/index.html`
 
 只有当共享样式一致性或实现过程中发现的可访问性/交互缺口需要时，才触碰其他模板文件。

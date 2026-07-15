@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Improve the `pingfangvideo` homepage mobile CSS so the hero, stats, carousel controls, quick categories, and cards feel stable and touch-friendly on small screens.
+**Goal:** Improve the `squaredmedia` homepage mobile CSS so the hero, stats, carousel controls, quick categories, and cards feel stable and touch-friendly on small screens.
 
-**Architecture:** Keep the MacCMS templates unchanged and make a scoped CSS-only adjustment in `template/pingfangvideo/css/style.css`. Protect the change with regex-based style assertions in the existing `tests/template.test.mjs` suite, then verify with the repository's required commands and browser viewport checks.
+**Architecture:** Keep the MacCMS templates unchanged and make a scoped CSS-only adjustment in `template/squaredmedia/css/style.css`. Protect the change with regex-based style assertions in the existing `tests/template.test.mjs` suite, then verify with the repository's required commands and browser viewport checks.
 
 **Tech Stack:** MacCMS V10 theme templates, CSS media queries, Node.js `assert` tests, PHP preview renderer.
 
@@ -48,7 +48,7 @@ Expected: `npm test` fails because the new responsive rules are not present yet.
 ### Task 2: Implement Responsive Homepage CSS
 
 **Files:**
-- Modify: `template/pingfangvideo/css/style.css`
+- Modify: `template/squaredmedia/css/style.css`
 
 - [ ] **Step 1: Update the 760px media block**
 
@@ -206,7 +206,7 @@ Update the base hero stats rule and the 1020px breakpoint so carousel controls h
 
 - [ ] **Step 4: Keep the change scoped**
 
-Do not edit `template/pingfangvideo/html/index/index.html`, `template/pingfangvideo/html/public/head.html`, `template/pingfangvideo/js/app.js`, `preview/**`, or `server/**`.
+Do not edit `template/squaredmedia/html/index/index.html`, `template/squaredmedia/html/public/head.html`, `template/squaredmedia/js/app.js`, `preview/**`, or `server/**`.
 
 ### Task 3: Verify and Inspect
 

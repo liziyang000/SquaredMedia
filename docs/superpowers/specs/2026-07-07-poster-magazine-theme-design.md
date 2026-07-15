@@ -4,7 +4,7 @@
 
 ## 目标
 
-为 `pingfangvideo` MacCMS 主题新增第三个可选主题：`poster-magazine`，用户界面显示为“海报杂志”。
+为 `squaredmedia` MacCMS 主题新增第三个可选主题：`poster-magazine`，用户界面显示为“海报杂志”。
 
 这个主题要打破当前较规整的卡片站布局，在首页首屏呈现更强的海报杂志感：大幅影片画面、错位叠层、玻璃浮层、蓝粉紫高光和更有冲击力的标题排版。同时保留默认主题和当前“蓝粉紫”主题，用户可以随时切回。
 
@@ -41,7 +41,7 @@
 - 蓝粉紫：设置 `data-theme="blue-pink-purple"`
 - 海报杂志：设置 `data-theme="poster-magazine"`
 
-`localStorage` 继续使用现有 `pingfang_theme` key。早期 head 脚本必须在 CSS 加载前识别 `poster-magazine`，避免刷新时先显示默认主题再跳变。
+`localStorage` 继续使用现有 `squared_media_theme` key。早期 head 脚本必须在 CSS 加载前识别 `poster-magazine`，避免刷新时先显示默认主题再跳变。
 
 桌面端和移动端抽屉都必须显示“海报杂志”选项，并同步 active/pressed 状态。
 
@@ -140,10 +140,10 @@
 
 预期修改文件：
 
-- `template/pingfangvideo/html/public/include.html`
-- `template/pingfangvideo/html/public/head.html`
-- `template/pingfangvideo/js/app.js`
-- `template/pingfangvideo/css/style.css`
+- `template/squaredmedia/html/public/include.html`
+- `template/squaredmedia/html/public/head.html`
+- `template/squaredmedia/js/app.js`
+- `template/squaredmedia/css/style.css`
 - `tests/template.test.mjs`
 
 如本地预览需要与生产主题选项或首页结构保持一致，可同步修改：

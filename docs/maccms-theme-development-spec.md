@@ -2,7 +2,7 @@
 
 Last checked: 2026-06-16
 
-This repository develops the `pingfangvideo` theme as a MacCMS V10 theme. All
+This repository develops the `squaredmedia` theme as a MacCMS V10 theme. All
 theme changes must follow the official MacCMS theme documentation first:
 
 - Theme entry: https://www.maccms.la/theme
@@ -20,7 +20,7 @@ page from the theme documentation before editing.
 
 This spec applies to:
 
-- `template/pingfangvideo/**`
+- `template/squaredmedia/**`
 - local preview files that mirror MacCMS behavior: `preview/**`, `server/**`
 - verification scripts and tests that protect MacCMS compatibility
 
@@ -29,11 +29,11 @@ remain valid MacCMS templates.
 
 ## Required Theme Structure
 
-Keep the theme under `template/pingfangvideo/` and preserve the standard MacCMS
+Keep the theme under `template/squaredmedia/` and preserve the standard MacCMS
 theme shape:
 
 ```text
-template/pingfangvideo/
+template/squaredmedia/
   info.ini
   ads/
   css/
@@ -196,6 +196,6 @@ A change is not ready unless:
 - shared head and foot includes remain present on ordinary HTML pages
 - pagination uses documented list tag behavior and route-specific `pageurl`
   where required
-- no development-only references leak into `template/pingfangvideo/**`
+- no development-only references leak into `template/squaredmedia/**`
 - tests, lint, compatibility, and preview checks pass or the exact blocker is
   documented

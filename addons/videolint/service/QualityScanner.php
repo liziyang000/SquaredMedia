@@ -6,8 +6,8 @@ use think\Db;
 
 class QualityScanner
 {
-    private const SCAN_TABLE = 'pingfang_video_lint_scan';
-    private const ISSUE_TABLE = 'pingfang_video_lint_issue';
+    private const SCAN_TABLE = 'squared_media_video_lint_scan';
+    private const ISSUE_TABLE = 'squared_media_video_lint_issue';
     private const VOD_TABLE = 'vod';
     private const LEVEL_CRITICAL = 'critical';
     private const LEVEL_WARNING = 'warning';

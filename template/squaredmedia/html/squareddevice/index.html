@@ -1,0 +1,72 @@
+{include file="public/head" seo_title="登录设备管理" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap user-records device-panel">
+  <div class="record-toolbar">
+    <div>
+      <strong>登录设备管理</strong>
+      <span>最多 3 台设备同时在线，超过后自动踢掉最早登录的设备。</span>
+    </div>
+    <a class="ghost-btn" href="{:mac_url('user/index')}">返回用户中心</a>
+  </div>
+
+  {empty name="device_list"}
+  <div class="system-box module-fallback">
+    <span class="eyebrow">设备</span>
+    <h1>暂无登录设备</h1>
+    <p>重新登录后，当前设备会显示在这里。</p>
+  </div>
+  {else/}
+  <div class="favorite-list">
+    {volist name="device_list" id="vo"}
+    <article class="device-card">
+      <div>
+        <h2 class="record-title">
+          {$vo.device_label|mac_default='未知设备'}
+          {if condition="$vo.is_current"}<span class="device-current">当前设备</span>{/if}
+        </h2>
+        <div class="device-meta">
+          <span>最近登录时间：{$vo.login_at}</span>
+          <span>最近活动时间：{$vo.last_seen_at}</span>
+          <span>登录 IP：{$vo.ip_address|mac_default='-'}</span>
+          <span>UA：{$vo.user_agent|mac_substring=120|mac_default='-'}</span>
+        </div>
+      </div>
+      <div class="detail-actions">
+        <span class="device-status">{$vo.status_label}</span>
+        {if condition="$vo.revoked_time eq 0 && $vo.is_current neq 1"}
+        <button class="danger-btn" type="button" data-device-revoke data-session-id="{$vo.session_id}">踢下线</button>
+        {/if}
+      </div>
+    </article>
+    {/volist}
+  </div>
+  {/empty}
+</section>
+<script>
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-device-revoke]");
+    if (!button || button.disabled) return;
+    button.disabled = true;
+
+    var form = new FormData();
+    form.append("session_id", button.getAttribute("data-session-id"));
+
+    fetch("{:url('squareddevice/revoke')}", {
+      method: "POST",
+      credentials: "same-origin",
+      body: form
+    }).then(function (response) {
+      return response.json();
+    }).then(function (data) {
+      if (data && data.code === 1) {
+        window.location.reload();
+        return;
+      }
+      alert((data && data.msg) || "操作失败");
+      button.disabled = false;
+    }).catch(function () {
+      alert("网络异常，请稍后再试");
+      button.disabled = false;
+    });
+  });
+</script>
+{include file="public/foot" /}

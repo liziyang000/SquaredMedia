@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Polish the homepage GSAP motion and add lightweight all-site reveal motion for the MacCMS `pingfangvideo` theme.
+**Goal:** Polish the homepage GSAP motion and add lightweight all-site reveal motion for the MacCMS `squaredmedia` theme.
 
-**Architecture:** Keep the motion system in `template/pingfangvideo/js/app.js`, because GSAP is already loaded globally from `public/foot.html`. Use `gsap.matchMedia()` for reduced-motion and hover capability gates, a single `IntersectionObserver` for all-site reveal batches, and small CSS support rules only for transition conflicts and short-lived compositor hints.
+**Architecture:** Keep the motion system in `template/squaredmedia/js/app.js`, because GSAP is already loaded globally from `public/foot.html`. Use `gsap.matchMedia()` for reduced-motion and hover capability gates, a single `IntersectionObserver` for all-site reveal batches, and small CSS support rules only for transition conflicts and short-lived compositor hints.
 
 **Tech Stack:** MacCMS V10 templates, vanilla JavaScript, GSAP core, Node.js assertion tests, existing template lint and preview verification scripts.
 
@@ -13,8 +13,8 @@
 ## File Structure
 
 - Modify `tests/template.test.mjs`: add string-level regression checks for the new reveal layer, observer lifecycle, hover selectors, and reduced-motion cleanup.
-- Modify `template/pingfangvideo/js/app.js`: refactor GSAP helpers, improve homepage timeline timing, add all-site reveal observer, expand hover bindings, and expose `PingFangVideo.initGsapMotion`.
-- Modify `template/pingfangvideo/css/style.css`: add scoped CSS support for GSAP-controlled elements and reduced-motion cleanup without changing layout.
+- Modify `template/squaredmedia/js/app.js`: refactor GSAP helpers, improve homepage timeline timing, add all-site reveal observer, expand hover bindings, and expose `SquaredMedia.initGsapMotion`.
+- Modify `template/squaredmedia/css/style.css`: add scoped CSS support for GSAP-controlled elements and reduced-motion cleanup without changing layout.
 - No production HTML template changes are planned.
 
 ## Task 1: Add Motion Regression Tests
@@ -49,7 +49,7 @@ assert.match(appJs, /clearProps: "transform,opacity,visibility,willChange,zIndex
 assert.match(appJs, /bindGsapHover\(scope, "\\.category-tile"/);
 assert.match(appJs, /bindGsapHover\(scope, "\\.episode-grid a"/);
 assert.match(appJs, /bindGsapPressFeedback/);
-assert.match(appJs, /PingFangVideo\.initGsapMotion = initGsapMotion/);
+assert.match(appJs, /SquaredMedia\.initGsapMotion = initGsapMotion/);
 ```
 
 Insert these assertions near the existing `style` GSAP assertions:
@@ -97,7 +97,7 @@ Expected: commit succeeds with only `tests/template.test.mjs` staged.
 ## Task 2: Implement GSAP Motion Helpers And Reveal Layer
 
 **Files:**
-- Modify: `template/pingfangvideo/js/app.js`
+- Modify: `template/squaredmedia/js/app.js`
 
 - [ ] **Step 1: Replace the current `clearMotionStyles`, hover binding, and `initGsapMotion` block with helper functions**
 
@@ -312,10 +312,10 @@ Replace the existing GSAP helper block from `function clearMotionStyles(gsap, ta
     var motionRoot = scope === document ? document.documentElement : scope;
     var mm = gsap.matchMedia();
 
-    if (motionRoot._pingfangGsapMotion) {
-      motionRoot._pingfangGsapMotion.revert();
+    if (motionRoot._squaredMediaGsapMotion) {
+      motionRoot._squaredMediaGsapMotion.revert();
     }
-    motionRoot._pingfangGsapMotion = mm;
+    motionRoot._squaredMediaGsapMotion = mm;
 
     mm.add({
       reduceMotion: "(prefers-reduced-motion: reduce)",
@@ -436,7 +436,7 @@ Expected: either pass all tests or fail only on CSS assertions from Task 3.
 Run:
 
 ```bash
-git add template/pingfangvideo/js/app.js
+git add template/squaredmedia/js/app.js
 git commit -m "feat: expand gsap motion layer"
 ```
 
@@ -445,7 +445,7 @@ Expected: commit succeeds with only `app.js` staged.
 ## Task 3: Add CSS Support For GSAP-Controlled States
 
 **Files:**
-- Modify: `template/pingfangvideo/css/style.css`
+- Modify: `template/squaredmedia/css/style.css`
 
 - [ ] **Step 1: Add scoped CSS support near the existing GSAP carousel rule**
 
@@ -481,7 +481,7 @@ Expected: pass.
 Run:
 
 ```bash
-git add template/pingfangvideo/css/style.css
+git add template/squaredmedia/css/style.css
 git commit -m "style: support gsap reveal states"
 ```
 
@@ -539,7 +539,7 @@ Run:
 ```bash
 git status --short
 git diff --stat
-git diff -- template/pingfangvideo/js/app.js template/pingfangvideo/css/style.css tests/template.test.mjs
+git diff -- template/squaredmedia/js/app.js template/squaredmedia/css/style.css tests/template.test.mjs
 ```
 
 Expected: only intended motion, CSS, and test changes appear.
@@ -549,7 +549,7 @@ Expected: only intended motion, CSS, and test changes appear.
 Run only if Task 4 revealed small fixups:
 
 ```bash
-git add tests/template.test.mjs template/pingfangvideo/js/app.js template/pingfangvideo/css/style.css
+git add tests/template.test.mjs template/squaredmedia/js/app.js template/squaredmedia/css/style.css
 git commit -m "fix: finalize gsap motion verification"
 ```
 

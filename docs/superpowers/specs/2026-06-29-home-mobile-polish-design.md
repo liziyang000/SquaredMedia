@@ -4,7 +4,7 @@
 
 ## 目标
 
-在不改动 MacCMS 模板标签结构的前提下，优化 `pingfangvideo` 首页在手机屏幕上的首屏体验。
+在不改动 MacCMS 模板标签结构的前提下，优化 `squaredmedia` 首页在手机屏幕上的首屏体验。
 
 本次优化延续现有“影院级深色主题”，但重点从桌面视觉冲击转向移动端可用性：首屏 hero 不拥挤，文案、统计卡片和轮播控件不互相压叠，分类入口更顺手，影片卡片在小屏下更稳定。
 
@@ -15,13 +15,13 @@
 - 不引入远程字体、远程图片或生产环境外部资源。
 - 不修改 `maccms:vod`、`maccms:type` 标签参数。
 - 不修改 URL helper、图片 helper、分页或 MacCMS 运行时路径。
-- 不在 `template/pingfangvideo/**` 中加入 localhost、preview、Docker、npm 或其他开发专用引用。
+- 不在 `template/squaredmedia/**` 中加入 localhost、preview、Docker、npm 或其他开发专用引用。
 
 ## 来源与约束
 
 所有实现必须遵守 `docs/maccms-theme-development-spec.md`。
 
-本方案预计只修改 `template/pingfangvideo/css/style.css`。如果实现阶段发现必须调整 `template/pingfangvideo/html/index/index.html`，需要先阅读 MacCMS 官方主题文档中首页、视频标签、分类标签和全局标签相关页面，并保持所有标签、字段和 URL helper 与官方文档一致。
+本方案预计只修改 `template/squaredmedia/css/style.css`。如果实现阶段发现必须调整 `template/squaredmedia/html/index/index.html`，需要先阅读 MacCMS 官方主题文档中首页、视频标签、分类标签和全局标签相关页面，并保持所有标签、字段和 URL helper 与官方文档一致。
 
 ## 设计方向
 
@@ -79,13 +79,13 @@
 
 预期只修改：
 
-- `template/pingfangvideo/css/style.css`
+- `template/squaredmedia/css/style.css`
 
 不修改：
 
-- `template/pingfangvideo/html/index/index.html`
-- `template/pingfangvideo/html/public/head.html`
-- `template/pingfangvideo/js/app.js`
+- `template/squaredmedia/html/index/index.html`
+- `template/squaredmedia/html/public/head.html`
+- `template/squaredmedia/js/app.js`
 - `preview/**`
 - `server/**`
 

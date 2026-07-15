@@ -8,7 +8,7 @@ set -euo pipefail
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
 ROLLBACK_BACKUP="${ROLLBACK_BACKUP:-}"
-THEME_NAME="pingfangvideo"
+THEME_NAME="squaredmedia"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 
 ssh_options=(-p "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
@@ -92,7 +92,7 @@ fi
 
 previous_theme=""
 if [[ -d "$THEME_NAME" ]]; then
-  previous_theme="pingfangvideo.failed.$(date +%Y%m%d%H%M%S)"
+  previous_theme="squaredmedia.failed.$(date +%Y%m%d%H%M%S)"
   mv "$THEME_NAME" "$previous_theme"
 fi
 

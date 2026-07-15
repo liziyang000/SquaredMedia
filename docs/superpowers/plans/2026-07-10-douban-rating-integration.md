@@ -154,8 +154,8 @@ Expected: all commands exit 0.
 ### Task 4: Frontend Semantics, Full Verification, And Deployment
 
 **Files:**
-- Modify: `template/pingfangvideo/html/public/score.html`
-- Modify: `template/pingfangvideo/html/public/star.html`
+- Modify: `template/squaredmedia/html/public/score.html`
+- Modify: `template/squaredmedia/html/public/star.html`
 - Modify: `README.md`
 - Modify: `tests/template.test.mjs`
 

@@ -4,7 +4,7 @@ Date: 2026-06-27
 
 ## Goal
 
-Improve the `pingfangvideo` MacCMS theme motion system with two scopes:
+Improve the `squaredmedia` MacCMS theme motion system with two scopes:
 
 - Polish the homepage hero, carousel, ranking list, stats, and first content rows.
 - Add lightweight, consistent GSAP motion to common site pages without changing MacCMS template data flow.
@@ -13,7 +13,7 @@ The result should feel smoother and more intentional while keeping compatibility
 
 ## Constraints
 
-- Keep production theme assets under `template/pingfangvideo/**`.
+- Keep production theme assets under `template/squaredmedia/**`.
 - Do not add references to local preview files, localhost, Docker, npm commands, or development-only resources in production templates.
 - Prefer MacCMS runtime paths that already exist in `public/include.html` and `public/foot.html`.
 - Avoid changing MacCMS tags, URL helpers, pagination, or query parameters unless a motion marker is strictly needed.
@@ -28,7 +28,7 @@ The result should feel smoother and more intentional while keeping compatibility
 
 ## Recommended Approach
 
-Use the existing `template/pingfangvideo/js/gsap.min.js` dependency and improve `template/pingfangvideo/js/app.js` as the primary integration point. Add only small CSS support where it prevents transition conflicts or improves performance.
+Use the existing `template/squaredmedia/js/gsap.min.js` dependency and improve `template/squaredmedia/js/app.js` as the primary integration point. Add only small CSS support where it prevents transition conflicts or improves performance.
 
 This avoids touching many MacCMS templates and keeps the change compatible with official template structure. The existing homepage markup and shared classes already provide enough stable selectors for a motion layer.
 
@@ -53,7 +53,7 @@ Add a generic reveal layer driven by `IntersectionObserver`:
 - Animate only when elements enter the viewport.
 - Batch list items with a small stagger and cap each batch so long paginated pages do not create many simultaneous tweens.
 - Mark initialized elements with data attributes in JavaScript to avoid duplicate observers and duplicate tweens.
-- Expose the initializer through `window.PingFangVideo` so the local preview router can re-run it after client-side route updates.
+- Expose the initializer through `window.SquaredMedia` so the local preview router can re-run it after client-side route updates.
 
 The reveal layer should not depend on ScrollTrigger or other extra plugins.
 

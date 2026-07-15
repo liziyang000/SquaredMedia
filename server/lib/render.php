@@ -52,12 +52,12 @@ function render_layout(array $data, string $title, string $content): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>' . e($title) . ' - ' . e($data['siteName']) . '</title>
-  <link rel="stylesheet" href="/template/pingfangvideo/css/style.css">
+  <link rel="stylesheet" href="/template/squaredmedia/css/style.css">
 </head>
 <body>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="' . e($data['siteName']) . ' logo"></a>
+    <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><span class="brand-mark" aria-hidden="true">S<sup>2</sup></span></a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer"><span></span><span></span><span></span></button>
     <nav class="site-nav">' . $nav . '</nav>
     <div class="header-search-wrap">
@@ -90,7 +90,7 @@ function render_layout(array $data, string $title, string $content): string
     <div class="footer-links"><a href="' . e(path_for('home')) . '">首页</a><a href="' . e(path_for('search')) . '">搜索</a></div>
   </div>
 </footer>
-<script src="/template/pingfangvideo/js/app.js"></script>
+<script src="/template/squaredmedia/js/app.js"></script>
 </body>
 </html>';
 }

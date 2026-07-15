@@ -1,0 +1,63 @@
+{if condition="$user.user_id lt 1 && $obj.type_id gt 0 && !in_array($obj['type_id'], explode(',', '42,47,48,57,111')) && !in_array($obj['type_pid'], explode(',', '42,47,48,57,111'))"}
+{include file="public/head" seo_title="登录后浏览" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap system-page">
+  <div class="system-box">
+    <span class="eyebrow">会员分类</span>
+    <h1>登录后浏览该分类</h1>
+    <p>当前分类需要登录账号后访问，游客可继续浏览开放分类。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">登录后浏览</a>
+      <a class="ghost-btn" href="{:mac_url('label/categories')}">游客分类</a>
+    </div>
+  </div>
+</section>
+{include file="public/foot" /}
+{else/}
+{include file="public/head" seo_title="影片库" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap page-title">
+  <span class="eyebrow">筛选</span>
+  <h1>影片库</h1>
+  <p>按分类、地区、年份和排序方式查找内容。</p>
+</section>
+
+<section class="wrap filter-panel category-filter" data-dynamic-vod-filters data-filter-endpoint="{:url('squareddevice/filters')}" data-filter-type-id="{$obj.type_id}" data-current-area="{$param.area}" data-current-year="{$param.year}" data-current-lang="{$param.lang}" data-current-class="{$param.class}" data-current-letter="{$param.letter}">
+  <div class="filter-row filter-search-row">
+    <strong>搜索</strong>
+    <form class="channel-search" method="get" action="{:mac_url('vod/search')}">
+      <label class="sr-only" for="librarySearch">在影片库中搜索</label>
+      <input type="hidden" name="type" value="{$obj.type_id}">
+      <input id="librarySearch" type="search" name="wd" value="{$param.wd}" placeholder="在影片库中搜索">
+      <button type="submit">搜索</button>
+    </form>
+  </div>
+  <div class="filter-row">
+    <strong>类型</strong>
+    <div class="filter-options">
+      {if condition="$obj.type_pid gt 0"}
+      <a href="{:mac_url_type($obj.parent,[],'show')}">全部</a>
+      {maccms:type parent="'.$obj['type_pid'].'" order="asc" by="sort" num="100" id="type"}
+      <a {if condition="$type.type_id eq $obj.type_id"} class="is-active" {/if} href="{:mac_url_type($type,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$type.type_name}</a>
+      {/maccms:type}
+      {else/}
+      <a {if condition="$param['area'] eq '' && $param['lang'] eq '' && $param['year'] eq '' && $param['letter'] eq '' && $param['class'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,[],'show')}">全部</a>
+      {maccms:type parent="'.$obj['type_id'].'" order="asc" by="sort" num="100" id="type"}
+      <a href="{:mac_url_type($type,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$type.type_name}</a>
+      {/maccms:type}
+      {/if}
+    </div>
+  </div>
+  {include file="public/vod_filter_common" /}
+</section>
+
+<section class="wrap content-section" aria-labelledby="libraryListTitle">
+  <div class="section-head">
+    <h2 id="libraryListTitle">筛选结果</h2>
+    <span>按当前条件更新</span>
+  </div>
+  <div class="vod-grid">
+    {include file="public/vod_grid_results" pageurl="vod/show" vod_type="42,47,48,57,111" /}
+  </div>
+  {include file="public/paging" /}
+</section>
+{include file="public/foot" /}
+{/if}

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_video_lint_scan` (
+CREATE TABLE IF NOT EXISTS `__PREFIX__squared_media_video_lint_scan` (
   `scan_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `run_by` int(10) unsigned NOT NULL DEFAULT 0,
   `status` varchar(16) NOT NULL DEFAULT 'running',
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_video_lint_scan` (
   KEY `idx_started_at` (`started_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_video_lint_issue` (
+CREATE TABLE IF NOT EXISTS `__PREFIX__squared_media_video_lint_issue` (
   `issue_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `scan_id` int(10) unsigned NOT NULL DEFAULT 0,
   `vod_id` int(10) unsigned NOT NULL DEFAULT 0,

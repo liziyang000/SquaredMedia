@@ -1,0 +1,73 @@
+.github/workflows/ci.yml
+  s_b6e6c1357f79b3::t_847a5302b8b3eb 54
+README.md
+  s_b6e6c1357f79b3::t_32ee7961b23f81 64,73-78,112-117,142-143
+addons/douban/Douban.php
+  s_b6e6c1357f79b3::t_8230f52134dadd 1-18
+addons/douban/config.php
+  s_b6e6c1357f79b3::t_e17e78bf7d9138 1-52
+addons/douban/controller/Index.php
+  s_b6e6c1357f79b3::t_5a9af5cc3a22aa 1-197
+addons/douban/info.ini
+  s_b6e6c1357f79b3::t_b360ae781d21b2 1-8
+addons/douban/install.sql
+  s_b6e6c1357f79b3::t_304ca337a235ec 1-93
+addons/douban/service/DoubanData.php
+  s_b6e6c1357f79b3::t_ea7b5f98e6cc1f 1-889
+addons/douban/view/index/index.html
+  s_b6e6c1357f79b3::t_6b1bc079d81cac 1-215
+package-lock.json
+  s_b6e6c1357f79b3::t_42902c8430c7d3 1-12
+scripts/deploy-theme.sh
+  s_b6e6c1357f79b3::t_ef98336434c8b6 14,17,21,49,55,58,86-129,188,193-222,229,232
+scripts/package-theme.mjs
+  s_b6e6c1357f79b3::t_50183a02c97c04 8,81-99
+scripts/verify-release.mjs
+  s_b6e6c1357f79b3::t_97e7fbf7bb05b4 9,114-122,144,222-240,243
+template/pingfangvideo/css/style.css
+  s_6bc24db8cb8870::t_68455aede87f08 1522,1611,1613-1614,1656,1660,1814,3886-3888,4006-4008,4026-4028,4333-4335
+template/pingfangvideo/html/label/categories.html
+  s_f902207f1d7714::t_62752ab2921415 9,24-39
+template/pingfangvideo/html/vod/play.html
+  s_f902207f1d7714::t_7675088eceae25 1-15,56
+template/pingfangvideo/html/vod/player.html
+  s_f902207f1d7714::t_cbb7c11ffde9df 1-15,39
+template/pingfangvideo/html/vod/show.html
+  s_f902207f1d7714::t_186b826f2ba40a 1-15,63
+template/pingfangvideo/html/vod/type.html
+  s_f902207f1d7714::t_900a1b81c8d27b 1-15,56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "96db44229bd2e62709cdf3271bce74b5e972f808",
+  "prompts": {},
+  "sessions": {
+    "s_6bc24db8cb8870": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f45cb-229a-7693-94a3-ade48edd7e73",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_b6e6c1357f79b3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f46f6-5084-7611-aaf1-be102c568810",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_f902207f1d7714": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f46b0-18bc-7363-9ec0-c3568112c7cb",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

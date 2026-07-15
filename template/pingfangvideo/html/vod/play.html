@@ -8,20 +8,22 @@
       </div>
       <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">返回详情</a>
     </div>
-    <div class="player-toolbar">
-      <span>{$obj.vod_name} / {$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']}</span>
-      <div class="player-toolbar-actions">
-        <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">选集</a>
-      </div>
-    </div>
-    <div class="player-shell">
+    <div class="player-shell" role="region" aria-label="视频播放器">
       {$player_data}
       {$player_js}
+    </div>
+    <div class="player-toolbar" role="group" aria-label="播放控制">
+      <span>{$obj.vod_name} / {$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']}</span>
+      <div class="player-toolbar-actions">
+        {if condition="$param.nid gt 1"}<a class="ghost-btn player-step-link" href="{$obj.player_info.link_pre}" rel="prev">上一集</a>{/if}
+        <a class="ghost-btn" href="#episodeList">选集</a>
+        {if condition="$param.nid lt $obj['vod_play_list'][$param['sid']]['url_count']"}<a class="ghost-btn player-step-link" href="{$obj.player_info.link_next}" rel="next">下一集</a>{/if}
+      </div>
     </div>
   </div>
 </section>
 
-<section class="wrap content-section">
+<section class="wrap content-section" id="episodeList" aria-label="选集列表">
   {maccms:foreach name="obj.vod_play_list" id="vo"}
   <div class="episode-box">
     <div class="section-head compact">
@@ -30,7 +32,7 @@
     </div>
     <div class="episode-grid">
       {maccms:foreach name="vo.urls" id="vo2"}
-      <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{$vo2.name}</a>
+      <a{if condition="$vo.sid eq $param.sid and $vo2.nid eq $param.nid"} class="is-active" aria-current="page"{/if} href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{$vo2.name}</a>
       {/maccms:foreach}
     </div>
   </div>

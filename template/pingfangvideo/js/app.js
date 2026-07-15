@@ -661,6 +661,7 @@
         var isActive = control.getAttribute("data-home-tab") === target;
         control.classList.toggle("is-active", isActive);
         control.setAttribute("aria-selected", isActive ? "true" : "false");
+        control.tabIndex = isActive ? 0 : -1;
       });
 
       Object.keys(panelMap).forEach(function (key) {
@@ -677,6 +678,30 @@
       var control = event.target.closest("button[data-home-tab]");
       if (!control || !tabNav.contains(control)) return;
       applyTab(control.getAttribute("data-home-tab") || "");
+    });
+
+    tabNav.addEventListener("keydown", function (event) {
+      var control = event.target.closest("button[data-home-tab]");
+      if (!control || !tabNav.contains(control)) return;
+
+      var currentIndex = tabControls.indexOf(control);
+      var nextIndex = currentIndex;
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        nextIndex = (currentIndex + 1) % tabControls.length;
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        nextIndex = (currentIndex - 1 + tabControls.length) % tabControls.length;
+      } else if (event.key === "Home") {
+        nextIndex = 0;
+      } else if (event.key === "End") {
+        nextIndex = tabControls.length - 1;
+      } else {
+        return;
+      }
+
+      event.preventDefault();
+      var nextControl = tabControls[nextIndex];
+      applyTab(nextControl.getAttribute("data-home-tab") || "");
+      nextControl.focus();
     });
   }
 
@@ -927,33 +952,10 @@
     return Math.min(Math.max(value, min), max);
   }
 
-  var revealBatchSize = 18;
-  var revealSelectors = [
-    ".page-title",
-    ".filter-panel",
-    ".content-section",
-    ".home-shelf",
-    ".detail-grid",
-    ".episode-box",
-    ".player-shell",
-    ".home-shelf-card",
-    ".category-tile",
-    ".timeline-item",
-    ".record-item",
-    ".list-item",
-    ".module-fallback",
-    ".system-box"
-  ].join(", ");
-
   function clearMotionStyles(gsap, targets) {
     if (targets.length === 0) return;
     gsap.killTweensOf(targets);
     gsap.set(targets, { clearProps: "transform,opacity,visibility,willChange,zIndex" });
-  }
-
-  function setMotionWillChange(gsap, targets, value) {
-    if (!targets.length) return;
-    gsap.set(targets, { willChange: value || "auto" });
   }
 
   function enableGsapCarousel(carousel) {
@@ -1041,170 +1043,6 @@
         clearProps: "transform"
       });
     }
-  }
-
-  function revealDirection(target) {
-    if (target.classList.contains("rank-item")) return { x: 12, y: 0 };
-    if (target.classList.contains("detail-grid")) return { x: 0, y: 18 };
-    if (target.classList.contains("player-shell")) return { x: 0, y: 12 };
-    return { x: 0, y: 16 };
-  }
-
-  function revealTargets(gsap, targets) {
-    var visibleTargets = targets.filter(function (target) {
-      return target.getAttribute("data-gsap-revealed") !== "true";
-    });
-    if (!visibleTargets.length) return;
-
-    function animateBatch() {
-      var batch = visibleTargets.splice(0, revealBatchSize);
-      if (!batch.length) return;
-
-      batch.forEach(function (target) {
-        target.setAttribute("data-gsap-revealed", "true");
-      });
-
-      setMotionWillChange(gsap, batch, "transform, opacity");
-      gsap.fromTo(batch, {
-        x: function (index, target) {
-          return revealDirection(target).x;
-        },
-        y: function (index, target) {
-          return revealDirection(target).y;
-        },
-        autoAlpha: 0
-      }, {
-        x: 0,
-        y: 0,
-        autoAlpha: 1,
-        duration: 0.36,
-        ease: "power3.out",
-        stagger: {
-          each: 0.035,
-          from: "start"
-        },
-        overwrite: "auto",
-        onComplete: function () {
-          setMotionWillChange(gsap, batch, "auto");
-          animateBatch();
-        },
-        clearProps: "transform,opacity,visibility,willChange"
-      });
-    }
-
-    animateBatch();
-  }
-
-  function initRevealMotion(scope, gsap) {
-    var root = scope || document;
-    var targets = scopedElements(root, revealSelectors).filter(function (target) {
-      if (target.closest(".hero-carousel")) return false;
-      if (target.getAttribute("data-gsap-reveal-ready") === "true") return false;
-      target.setAttribute("data-gsap-reveal-ready", "true");
-      return true;
-    });
-
-    if (!targets.length) return null;
-
-    if (!("IntersectionObserver" in window)) {
-      revealTargets(gsap, targets);
-      return null;
-    }
-
-    var pending = [];
-    var scheduled = false;
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (!entry.isIntersecting) return;
-        pending.push(entry.target);
-        observer.unobserve(entry.target);
-      });
-
-      if (scheduled || !pending.length) return;
-      scheduled = true;
-      window.requestAnimationFrame(function () {
-        scheduled = false;
-        revealTargets(gsap, pending.splice(0, pending.length));
-      });
-    }, {
-      rootMargin: "0px 0px -8% 0px",
-      threshold: 0.12
-    });
-
-    targets.forEach(function (target) {
-      observer.observe(target);
-    });
-
-    return function () {
-      observer.disconnect();
-      pending = [];
-    };
-  }
-
-  function bindGsapHover(scope, selector, enterVars, leaveVars) {
-    var gsap = window.gsap;
-    if (!gsap) return;
-
-    scopedElements(scope, selector).forEach(function (item) {
-      if (item.dataset.gsapHoverReady === "true") return;
-      item.dataset.gsapHoverReady = "true";
-
-      item.addEventListener("mouseenter", function () {
-        gsap.to(item, Object.assign({
-          duration: 0.18,
-          ease: "power2.out",
-          overwrite: "auto"
-        }, enterVars));
-      });
-
-      item.addEventListener("mouseleave", function () {
-        gsap.to(item, Object.assign({
-          duration: 0.22,
-          ease: "power2.out",
-          overwrite: "auto",
-          clearProps: "transform"
-        }, leaveVars));
-      });
-    });
-  }
-
-  function bindGsapPressFeedback(scope, selector) {
-    var gsap = window.gsap;
-    if (!gsap) return;
-
-    scopedElements(scope, selector).forEach(function (item) {
-      if (item.dataset.gsapPressReady === "true") return;
-      item.dataset.gsapPressReady = "true";
-
-      item.addEventListener("pointerdown", function () {
-        gsap.to(item, {
-          scale: 0.985,
-          duration: 0.1,
-          ease: "power2.out",
-          overwrite: "auto"
-        });
-      });
-
-      item.addEventListener("pointerup", function () {
-        gsap.to(item, {
-          scale: 1,
-          duration: 0.14,
-          ease: "power2.out",
-          overwrite: "auto",
-          clearProps: "transform"
-        });
-      });
-
-      item.addEventListener("pointerleave", function () {
-        gsap.to(item, {
-          scale: 1,
-          duration: 0.14,
-          ease: "power2.out",
-          overwrite: "auto",
-          clearProps: "transform"
-        });
-      });
-    });
   }
 
   function clearBannerIridescence(gsap, carousels) {
@@ -1367,16 +1205,12 @@
 
     mm.add({
       reduceMotion: "(prefers-reduced-motion: reduce)",
-      coarsePointer: "(hover: none) and (pointer: coarse)",
-      canHover: "(hover: hover) and (pointer: fine)"
+      coarsePointer: "(hover: none) and (pointer: coarse)"
     }, function (context) {
       var reduceMotion = context.conditions.reduceMotion;
       var coarsePointer = context.conditions.coarsePointer;
-      var canHover = context.conditions.canHover;
       var carousels = scopedElements(scope, "[data-carousel]");
-      var entranceTargets = scopedElements(scope, ".hero-carousel .stat-card, .hero-rank .rank-item, .home-shelf-card, " + revealSelectors);
       var iridescenceCleanup = null;
-      var revealCleanup = null;
 
       if (reduceMotion) {
         carousels.forEach(function (carousel) {
@@ -1384,7 +1218,6 @@
           clearMotionStyles(gsap, scopedElements(carousel, ".hero-slide"));
         });
         clearBannerIridescence(gsap, carousels);
-        clearMotionStyles(gsap, entranceTargets);
         return;
       }
 
@@ -1393,82 +1226,8 @@
       });
       iridescenceCleanup = initBannerIridescence(scope, gsap, coarsePointer);
 
-      var timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
-      var heroTargets = scopedElements(scope, ".hero-slide.is-active .eyebrow, .hero-slide.is-active .banner-copy strong, .hero-slide.is-active .banner-copy small, .hero-slide.is-active .banner-meta, .hero-slide.is-active .banner-actions");
-      var posterTargets = scopedElements(scope, ".hero-slide.is-active .banner-poster");
-      var statTargets = scopedElements(scope, ".hero-carousel .stat-card");
-      var rankTargets = scopedElements(scope, ".hero-rank .rank-item");
-      var cards = scopedElements(scope, ".home-shelf-card").slice(0, 12);
-
-      if (heroTargets.length) {
-        setMotionWillChange(gsap, heroTargets, "transform, opacity");
-        timeline.from(heroTargets, {
-          y: 18,
-          autoAlpha: 0,
-          duration: 0.48,
-          stagger: 0.04,
-          clearProps: "transform,opacity,visibility,willChange"
-        }, 0.03);
-      }
-
-      if (posterTargets.length) {
-        setMotionWillChange(gsap, posterTargets, "transform, opacity");
-        timeline.from(posterTargets, {
-          x: 28,
-          scale: 0.965,
-          autoAlpha: 0,
-          duration: 0.56,
-          clearProps: "transform,opacity,visibility,willChange"
-        }, 0.1);
-      }
-
-      if (statTargets.length) {
-        setMotionWillChange(gsap, statTargets, "transform, opacity");
-        timeline.from(statTargets, {
-          y: 14,
-          autoAlpha: 0,
-          duration: 0.34,
-          stagger: 0.04,
-          clearProps: "transform,opacity,visibility,willChange"
-        }, 0.24);
-      }
-
-      if (rankTargets.length) {
-        setMotionWillChange(gsap, rankTargets, "transform, opacity");
-        timeline.from(rankTargets, {
-          x: 12,
-          autoAlpha: 0,
-          duration: 0.34,
-          stagger: 0.03,
-          clearProps: "transform,opacity,visibility,willChange"
-        }, 0.2);
-      }
-
-      if (cards.length) {
-        setMotionWillChange(gsap, cards, "transform, opacity");
-        timeline.from(cards, {
-          y: 16,
-          autoAlpha: 0,
-          duration: 0.34,
-          stagger: 0.02,
-          clearProps: "transform,opacity,visibility,willChange"
-        }, 0.38);
-      }
-
-      revealCleanup = initRevealMotion(scope, gsap);
-
-      if (canHover) {
-        bindGsapHover(scope, ".rank-item", { x: 4 }, { x: 0 });
-        bindGsapHover(scope, ".stat-card", { y: -3 }, { y: 0 });
-        bindGsapHover(scope, ".category-tile", { y: -4 }, { y: 0 });
-        bindGsapHover(scope, ".timeline-card, .favorite-card, .list-item", { y: -3 }, { y: 0 });
-        bindGsapHover(scope, ".episode-grid a", { y: -2 }, { y: 0 });
-        bindGsapPressFeedback(scope, ".primary-btn, .ghost-btn, .banner-arrow, .page-link, .page-jump-submit");
-      }
-
       return function () {
         if (iridescenceCleanup) iridescenceCleanup();
-        if (revealCleanup) revealCleanup();
       };
     });
   }
@@ -1485,6 +1244,7 @@
       dot.setAttribute("role", "tab");
       dot.setAttribute("aria-label", "第" + (itemIndex + 1) + "张");
       dot.setAttribute("aria-selected", itemIndex === 0 ? "true" : "false");
+      dot.tabIndex = itemIndex === 0 ? 0 : -1;
       dotsWrap.appendChild(dot);
     });
   }
@@ -1543,6 +1303,7 @@
           var isActive = itemIndex === index;
           dot.classList.toggle("is-active", isActive);
           dot.setAttribute("aria-selected", isActive ? "true" : "false");
+          dot.tabIndex = isActive ? 0 : -1;
         });
         if (shouldAnimate !== false && previousSlide !== activeSlide) {
           animateHeroSlide(carousel, previousSlide, activeSlide, direction);
@@ -1550,7 +1311,7 @@
       }
 
       function start() {
-        if (slides.length < 2 || timer || document.hidden) return;
+        if (slides.length < 2 || timer || document.hidden || prefersReducedMotion()) return;
         timer = window.setInterval(function () {
           activate(index + 1);
         }, 5200);
@@ -1582,6 +1343,26 @@
         dot.addEventListener("click", function () {
           stop();
           activate(itemIndex);
+          start();
+        });
+        dot.addEventListener("keydown", function (event) {
+          var nextIndex = itemIndex;
+          if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+            nextIndex = (itemIndex + 1) % dots.length;
+          } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+            nextIndex = (itemIndex - 1 + dots.length) % dots.length;
+          } else if (event.key === "Home") {
+            nextIndex = 0;
+          } else if (event.key === "End") {
+            nextIndex = dots.length - 1;
+          } else {
+            return;
+          }
+
+          event.preventDefault();
+          stop();
+          activate(nextIndex);
+          dots[nextIndex].focus();
           start();
         });
       });

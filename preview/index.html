@@ -160,7 +160,7 @@ function card(video) {
 function homeShelfTabs(tabs) {
   return `
     <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
-      ${tabs.map((tab) => `<button type="button" data-home-tab="${escapeHtml(tab.key)}" role="tab" aria-selected="${tab.isActive ? "true" : "false"}" aria-controls="latest-panel-${escapeHtml(tab.key)}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</button>`).join("")}
+      ${tabs.map((tab) => `<button type="button" data-home-tab="${escapeHtml(tab.key)}" role="tab" aria-selected="${tab.isActive ? "true" : "false"}" aria-controls="latest-panel-${escapeHtml(tab.key)}" tabindex="${tab.isActive ? "0" : "-1"}" class="${tab.isActive ? "is-active" : ""}">${escapeHtml(tab.label)}</button>`).join("")}
     </nav>`;
 }
 
@@ -172,14 +172,14 @@ function homeShelfPanel(tab) {
 }
 
 function homeShelfCard(video, featured = false) {
-  const image = video.backdrop || video.poster;
+  const image = featured ? (video.backdrop || video.poster) : video.poster;
   const cardClass = featured ? "home-shelf-card is-featured" : "home-shelf-card";
   const badge = featured ? video.category : (video.remark || "高清");
   const meta = featured ? (video.remark || "更新中") : `${video.year} · ${video.class || video.category}`;
   return `
     <a class="${cardClass}" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail">
       <span class="home-shelf-poster">
-        <img src="${escapeHtml(image)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px">
+        <img src="${escapeHtml(image)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
         <em>${escapeHtml(badge)}</em>
       </span>
       <span class="home-shelf-body">
@@ -676,6 +676,9 @@ function renderDetail(id) {
 function renderPlay(id, episodeNo) {
   const video = videoById(id);
   const episode = video.episodes.find((item) => String(item.no) === String(episodeNo)) || video.episodes[0];
+  const episodeIndex = video.episodes.findIndex((item) => item.no === episode.no);
+  const previousEpisode = episodeIndex > 0 ? video.episodes[episodeIndex - 1] : null;
+  const nextEpisode = episodeIndex < video.episodes.length - 1 ? video.episodes[episodeIndex + 1] : null;
   app.innerHTML = `
     <section class="player-page">
       <div class="wrap">
@@ -686,16 +689,29 @@ function renderPlay(id, episodeNo) {
           </div>
           <a class="ghost-btn" href="${url("detail", { id: video.id })}">返回详情</a>
         </div>
-        <div class="player-toolbar">
-          <span>${escapeHtml(video.title)} / ${escapeHtml(episode.name)}</span>
-          <div class="player-toolbar-actions">
-            <a class="ghost-btn" href="${url("detail", { id: video.id })}">选集</a>
-          </div>
-        </div>
-        <div class="player-shell">
-          <video controls poster="${escapeHtml(video.poster)}">
+        <div class="player-shell" role="region" aria-label="视频播放器">
+          <video controls preload="metadata" playsinline poster="${escapeHtml(video.poster)}">
             <source src="${escapeHtml(episode.src)}" type="video/mp4">
           </video>
+        </div>
+        <div class="player-toolbar" role="group" aria-label="播放控制">
+          <span>${escapeHtml(video.title)} / ${escapeHtml(episode.name)}</span>
+          <div class="player-toolbar-actions">
+            ${previousEpisode ? `<a class="ghost-btn player-step-link" href="${url("play", { id: video.id, episode: previousEpisode.no })}" data-route="play" rel="prev">上一集</a>` : ""}
+            <a class="ghost-btn" href="#episodeList">选集</a>
+            ${nextEpisode ? `<a class="ghost-btn player-step-link" href="${url("play", { id: video.id, episode: nextEpisode.no })}" data-route="play" rel="next">下一集</a>` : ""}
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="wrap content-section" id="episodeList" aria-label="选集列表">
+      <div class="episode-box">
+        <div class="section-head compact">
+          <h2>在线播放</h2>
+          <span>${video.episodes.length} 集</span>
+        </div>
+        <div class="episode-grid">
+          ${video.episodes.map((item) => `<a class="${item.no === episode.no ? "is-active" : ""}" aria-current="${item.no === episode.no ? "page" : "false"}" href="${url("play", { id: video.id, episode: item.no })}" data-route="play">${escapeHtml(item.name)}</a>`).join("")}
         </div>
       </div>
     </section>`;
@@ -745,6 +761,7 @@ document.body.addEventListener("click", (event) => {
   if (!link) return;
   const next = new URL(link.href, window.location.href);
   if (next.origin !== window.location.origin || next.pathname !== window.location.pathname) return;
+  if (next.hash && next.pathname === window.location.pathname && next.search === window.location.search) return;
   event.preventDefault();
   window.history.pushState({}, "", `${next.pathname}${next.search}`);
   render();

@@ -8,15 +8,15 @@
       </div>
       <a class="ghost-btn" href="{:mac_url_vod_detail($obj)}">返回详情</a>
     </div>
-    <div class="player-toolbar">
+    <div class="player-shell" role="region" aria-label="试看播放器">
+      {$player_data}
+      {$player_js}
+    </div>
+    <div class="player-toolbar" role="group" aria-label="播放控制">
       <span>{$obj.vod_name} / {$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']}</span>
       <div class="player-toolbar-actions">
         <a class="ghost-btn" href="{:mac_url_vod_play($obj)}">完整播放</a>
       </div>
-    </div>
-    <div class="player-shell">
-      {$player_data}
-      {$player_js}
     </div>
   </div>
 </section>

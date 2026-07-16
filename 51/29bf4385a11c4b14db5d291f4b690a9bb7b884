@@ -1,0 +1,23 @@
+scripts/deploy-ping2.env
+  s_4732fd2eb1db79::t_9a647db883657e 3
+tests/template.test.mjs
+  s_4732fd2eb1db79::t_f8c312d472cbf3 1566
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5129bf4385a11c4b14db5d291f4b690a9bb7b884",
+  "prompts": {},
+  "sessions": {
+    "s_4732fd2eb1db79": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f66ae-5ffc-78f2-baa0-afb51f542992",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

@@ -121,6 +121,7 @@ function assertSafeAssetReference(value, file, tag) {
   const allowed =
     value.startsWith("{$maccms.path}") ||
     value.startsWith("{$maccms.path_tpl}") ||
+    value.startsWith("{:url(") ||
     value.includes("|mac_url_img") ||
     value.startsWith("http://") ||
     value.startsWith("https://") ||
@@ -206,6 +207,8 @@ for (const entry of requiredAddonEntries) {
 
 const addonSql = execFileSync("tar", ["-xOf", addonArchive, "pingfangdevice/install.sql"], { encoding: "utf8" });
 assert.match(addonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);
+assert.match(addonSql, /`login_check_hash` char\(64\) NOT NULL/);
+assert.match(addonSql, /PREPARE pingfang_login_check_hash_stmt/);
 assert.doesNotMatch(addonSql, /DROP\s+TABLE/i);
 
 console.log(`Verified ${archive}`);

@@ -406,21 +406,27 @@
 
         var logoutUrl = link.getAttribute("href");
         if (!logoutUrl || !window.fetch) {
-          window.location.href = logoutUrl || logoutRedirect(link);
+          showSiteNotice("当前浏览器不支持安全退出，请更换浏览器后重试", "error");
           return;
         }
 
         fetch(logoutUrl, {
-          method: "GET",
+          method: "POST",
           credentials: "same-origin",
           headers: {
             "X-Requested-With": "XMLHttpRequest",
-            "Accept": "application/json, text/html;q=0.9, */*;q=0.8"
+            "Accept": "application/json"
           }
-        }).then(function () {
-          completeLogout(link);
+        }).then(function (response) {
+          return response.json();
+        }).then(function (data) {
+          if (data && String(data.code) === "1") {
+            completeLogout(link);
+            return;
+          }
+          showSiteNotice((data && data.msg) || "退出失败，请稍后重试", "error");
         }).catch(function () {
-          window.location.href = logoutUrl;
+          showSiteNotice("退出请求失败，请稍后重试", "error");
         });
       });
     });

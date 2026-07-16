@@ -12,6 +12,17 @@
       <span>密码</span>
       <input type="password" name="user_pwd" autocomplete="current-password" placeholder="登录密码">
     </label>
+    {if condition="$GLOBALS['config']['user']['login_verify'] eq 1"}
+    <label>
+      <span>验证码</span>
+      <input type="text" name="verify" autocomplete="off" placeholder="输入验证码">
+      <img class="mac_verify_img" src="{:url('verify/index')}" alt="点击刷新验证码">
+    </label>
+    {else/}
+    <input type="hidden" name="verify" value="">
+    {/if}
+    <input type="hidden" name="openid" value="">
+    <input type="hidden" name="col" value="">
     <button class="primary-btn" type="submit">登录</button>
   </form>
 </section>

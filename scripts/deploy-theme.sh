@@ -93,6 +93,9 @@ install_device_addon() {
     echo "Uploaded addon archive does not contain $ADDON_NAME/info.ini and install.sql" >&2
     exit 1
   fi
+  while IFS= read -r -d '' php_file; do
+    php -l "$php_file" >/dev/null
+  done < <(find "$tmp_dir/$ADDON_NAME" -type f -name '*.php' -print0)
 
   if [[ -d "$addon_dir" ]]; then
     backup="${ADDON_NAME}.backup.$(date +%Y%m%d%H%M%S)"
@@ -132,7 +135,22 @@ if (!isset($config['hooks']['app_begin']) || !is_array($config['hooks']['app_beg
 if (!in_array($addon, $config['hooks']['app_begin'], true)) {
     $config['hooks']['app_begin'][] = $addon;
 }
-file_put_contents($path, "<?php\n\nreturn " . var_export($config, true) . ";\n");
+$content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+$tempPath = $path . '.tmp.' . getmypid();
+if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
+    fwrite(STDERR, "Failed to back up addon hook config.\n");
+    exit(1);
+}
+if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $path)) {
+    @unlink($tempPath);
+    fwrite(STDERR, "Failed to update addon hook config.\n");
+    exit(1);
+}
+$verified = include $path;
+if (!in_array($addon, $verified['hooks']['app_begin'] ?? [], true)) {
+    fwrite(STDERR, "Addon app_begin hook verification failed.\n");
+    exit(1);
+}
 PHP_CONFIG
 
   MACCMS_ROOT="$maccms_root" ADDON_NAME="$ADDON_NAME" php <<'PHP_SQL'
@@ -170,9 +188,19 @@ foreach (preg_split('/\r?\n/', $sql) as $line) {
         $statement = '';
     }
 }
+$table = $prefix . 'pingfang_device_session';
+$check = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+$check->execute([$table, 'login_check_hash']);
+if ((int)$check->fetchColumn() !== 1) {
+    fwrite(STDERR, "Device session schema verification failed.\n");
+    exit(1);
+}
 PHP_SQL
 
-  echo "Installed ${ADDON_NAME} addon under ${addon_dir}"
+  php -l "$addon_dir/service/DeviceSession.php" >/dev/null
+  php -l "$bridge_target" >/dev/null
+
+  echo "Installed and verified ${ADDON_NAME} addon under ${addon_dir}"
 }
 
 if [[ ! -d "$DEPLOY_PATH" ]]; then

@@ -66,8 +66,17 @@ dist/pingfangdevice.tar.gz
 The `pingfangdevice` addon provides 登录设备管理 for member accounts. It records
 each successful login as a device session, shows current devices with recent
 login and activity time, supports manually kicking other devices offline, and
-keeps a maximum of 3 devices online（最多 3 台设备）. When a fourth device logs
-in, the oldest active device is revoked.
+keeps 3 devices online by default（默认最多 3 台设备）. The addon settings allow
+1–20 concurrent devices and a 1–365 day server-side session lifetime; the
+defaults are 3 devices and 30 days. When the configured limit is exceeded, the
+oldest active device is revoked.
+
+The addon also adopts valid MacCMS native registration and OAuth logins into
+device management. Once a login has been managed, deleting or replacing its
+device token cannot recreate the session: the native login cookies are cleared
+instead. Logout and manual revoke actions require same-origin Ajax `POST`
+requests. `device_token_cookie` changes the actual cookie name; changing it on a
+running site signs current devices out and requires users to log in again.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
@@ -106,7 +115,9 @@ The deploy script also installs the `pingfangdevice` addon under the remote
 MacCMS `addons` directory, applies `addons/pingfangdevice/install.sql`, and
 adds the addon's `app_begin` hook to `application/extra/addons.php`. This hook
 keeps valid device sessions synchronized with MacCMS `user_check` cookies and
-lets revoked devices fall back to the normal MacCMS logged-out state.
+lets revoked devices fall back to the normal MacCMS logged-out state. Before
+finishing, deployment validates every addon PHP file, the installed hook, and
+the upgraded `login_check_hash` database column.
 
 Rollback to the latest remote backup:
 
@@ -126,7 +137,11 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260627093000 npm run rollback
 
 Rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
 the selected backup to `pingfangvideo`, and clears the same MacCMS cache
-directories unless `DEPLOY_CLEAR_CACHE=0` is set.
+directories unless `DEPLOY_CLEAR_CACHE=0` is set. This command intentionally
+rolls back only the theme. Addon code and its additive device-session schema are
+left in place so a theme rollback cannot discard login history or silently
+remove a security migration; deploy-created addon and bridge backups remain on
+the server for an explicit manual addon rollback if one is required.
 
 GitHub Actions runs the same release gate on pushes and pull requests: `npm test`,
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,

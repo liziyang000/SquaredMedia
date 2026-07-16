@@ -28,6 +28,7 @@ function assertSafeAssetReference(value, file, tag) {
   const allowed =
     value.startsWith("{$maccms.path}") ||
     value.startsWith("{$maccms.path_tpl}") ||
+    value.startsWith("{:url(") ||
     value.includes("|mac_url_img") ||
     value.startsWith("http://") ||
     value.startsWith("https://") ||

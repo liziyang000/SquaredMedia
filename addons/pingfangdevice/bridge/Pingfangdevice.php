@@ -17,6 +17,7 @@ class Pingfangdevice extends Base
         $this->assign('obj', $user);
         $this->assign('user', $user);
         $this->assign('device_list', DeviceSession::listSessions($user['user_id']));
+        $this->assign('max_devices', DeviceSession::maxDeviceCount());
         return $this->fetch('pingfangdevice/index');
     }
 
@@ -25,26 +26,42 @@ class Pingfangdevice extends Base
         if (!Request()->isPost()) {
             return redirect(url('user/login'));
         }
+        if (!Request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
+        }
 
         $param = input();
+        $param += ['verify' => '', 'openid' => '', 'col' => ''];
         $res = model('User')->login($param, ['return_meta' => true]);
         if (($res['code'] ?? 0) == 1 && !empty($res['meta'])) {
-            DeviceSession::registerLogin($res['meta']);
-            unset($res['meta']);
+            try {
+                DeviceSession::registerLogin($res['meta']);
+            } catch (\Throwable $e) {
+                if (function_exists('trace')) {
+                    trace('[pingfangdevice] Failed to register login: ' . $e->getMessage(), 'error');
+                }
+                try {
+                    DeviceSession::logoutCurrentDevice(intval($res['meta']['user_id'] ?? 0));
+                } catch (\Throwable $ignored) {
+                }
+                model('User')->logout();
+                return json(['code' => 1004, 'msg' => '设备会话创建失败，请重试'], 500);
+            }
         }
+        unset($res['meta']);
 
         return json($res);
     }
 
     public function revoke()
     {
-        if (!Request()->isPost()) {
-            return json(['code' => 1001, 'msg' => '请求方式错误']);
+        if (!Request()->isPost() || !Request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
         }
 
         $user = DeviceSession::currentUser();
         if (empty($user)) {
-            return json(['code' => 1002, 'msg' => '请先登录']);
+            return json(['code' => 1002, 'msg' => '请先登录'], 401);
         }
 
         return json(DeviceSession::revokeSession($user['user_id'], input('session_id/d', 0)));
@@ -65,17 +82,27 @@ class Pingfangdevice extends Base
 
     public function logout()
     {
-        $user = DeviceSession::currentUser();
-        if (!empty($user)) {
-            DeviceSession::logoutCurrentDevice($user['user_id']);
+        if (!Request()->isPost() || !Request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
+        }
+
+        $user = null;
+        try {
+            $user = DeviceSession::currentUser();
+        } catch (\Throwable $e) {
+            if (function_exists('trace')) {
+                trace('[pingfangdevice] Failed to read logout user: ' . $e->getMessage(), 'error');
+            }
+        }
+        try {
+            DeviceSession::logoutCurrentDevice(intval($user['user_id'] ?? 0));
+        } catch (\Throwable $e) {
+            if (function_exists('trace')) {
+                trace('[pingfangdevice] Failed to revoke logout session: ' . $e->getMessage(), 'error');
+            }
         }
 
         model('User')->logout();
-
-        if (request()->isAjax()) {
-            return json(['code' => 1, 'msg' => '已退出登录']);
-        }
-
-        return redirect(url('user/login'));
+        return json(['code' => 1, 'msg' => '已退出登录']);
     }
 }

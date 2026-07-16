@@ -7,7 +7,7 @@ use think\Db;
 class VodFilterOptions
 {
     const VOD_TABLE = 'vod';
-    const CACHE_VERSION = 'v3';
+    const CACHE_VERSION = 'v4';
     const CACHE_SECONDS = 120;
 
     public static function filters(array $input)
@@ -56,7 +56,9 @@ class VodFilterOptions
 
     private static function candidateOptions($dimension, array $params, array $candidates)
     {
-        $options = [];
+        $fields = self::filterFields();
+        $field = $fields[$dimension];
+        $values = [];
         foreach ($candidates as $value) {
             $value = trim((string) $value);
             if ($value === '') {
@@ -65,13 +67,36 @@ class VodFilterOptions
             if ($dimension === 'year' && !self::isValidYearValue($value)) {
                 continue;
             }
-            if (!self::optionExists($dimension, $value, $params)) {
+            $values[$value] = $value;
+            if (count($values) >= 200) {
+                break;
+            }
+        }
+        if (empty($values)) {
+            return [];
+        }
+
+        $rows = self::rowsToArray(self::baseQuery($params, $dimension)
+            ->where($field, 'in', array_values($values))
+            ->field($field . ' as value, count(*) as total')
+            ->group($field)
+            ->select());
+        $totals = [];
+        foreach ($rows as $row) {
+            $value = trim((string) ($row['value'] ?? ''));
+            if ($value !== '') {
+                $totals[$value] = intval($row['total'] ?? 0);
+            }
+        }
+
+        $options = [];
+        foreach ($values as $value) {
+            if (!array_key_exists($value, $totals)) {
                 continue;
             }
-
             $options[] = [
                 'value' => $value,
-                'total' => 0,
+                'total' => $totals[$value],
             ];
             if (count($options) >= $params['limit']) {
                 break;
@@ -114,20 +139,6 @@ class VodFilterOptions
         }
 
         return $options;
-    }
-
-    private static function optionExists($dimension, $value, array $params)
-    {
-        $fields = self::filterFields();
-        if (empty($fields[$dimension])) {
-            return false;
-        }
-
-        $row = self::baseQuery($params, $dimension)
-            ->where($fields[$dimension], $value)
-            ->field('vod_id')->find();
-
-        return !empty($row);
     }
 
     private static function baseQuery(array $params, $withoutDimension)
@@ -252,7 +263,7 @@ class VodFilterOptions
             if (is_array($decoded)) {
                 $extend = $decoded;
             } else {
-                $decoded = @unserialize($extend);
+                $decoded = @unserialize($extend, ['allowed_classes' => false]);
                 $extend = is_array($decoded) ? $decoded : [];
             }
         }

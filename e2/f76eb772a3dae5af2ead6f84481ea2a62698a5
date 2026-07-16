@@ -1,0 +1,35 @@
+docs/maccms-vod-poster-repair.md
+  s_d1d9053f984736::t_dc1ff4c37ac725 1-69
+package.json
+  s_5d65b07e5d35cf::t_73e095d4e3b729 7
+scripts/repair-vod-posters.php
+  s_d1d9053f984736::t_2d1d9bfda3a5a5 1-897
+tests/poster-repair.test.php
+  s_d1d9053f984736::t_fdfc6b1a5572df 1-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e2f76eb772a3dae5af2ead6f84481ea2a62698a5",
+  "prompts": {},
+  "sessions": {
+    "s_5d65b07e5d35cf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6974-f4cc-7963-9fe8-1473d2cd1b84",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_d1d9053f984736": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f68b3-9093-7780-be93-81678cda46e2",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

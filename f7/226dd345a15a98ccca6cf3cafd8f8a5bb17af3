@@ -1,0 +1,21 @@
+gptbot-ip-rules.json
+  s_7acc8e8e5e51b5::t_802d3d9d54a67f 1-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f7226dd345a15a98ccca6cf3cafd8f8a5bb17af3",
+  "prompts": {},
+  "sessions": {
+    "s_7acc8e8e5e51b5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f68c5-4f65-7ac0-a0d9-1e8886094a03",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

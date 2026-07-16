@@ -1,0 +1,21 @@
+package.json
+  s_5d65b07e5d35cf::t_e4ba2a25543dfd 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "731e16efd3754e5b108f7ed8736369812daa44ad",
+  "prompts": {},
+  "sessions": {
+    "s_5d65b07e5d35cf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6974-f4cc-7963-9fe8-1473d2cd1b84",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

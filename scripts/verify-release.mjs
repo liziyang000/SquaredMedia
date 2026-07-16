@@ -17,6 +17,9 @@ const requiredEntries = [
   "pingfangvideo/js/rank-react.js",
   "pingfangvideo/js/app.js",
   "pingfangvideo/images/site-logo.png",
+  "pingfangvideo/player/preload.html",
+  "pingfangvideo/player/buffering.html",
+  "pingfangvideo/player/prompt.css",
   "pingfangvideo/html/public/include.html",
   "pingfangvideo/html/public/head.html",
   "pingfangvideo/html/public/foot.html",
@@ -191,6 +194,16 @@ assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
 const appJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/app.js"], { encoding: "utf8" });
 assert.match(appJs, /fallbackHistoryUrl/);
 assert.doesNotMatch(appJs, /javascript:;/);
+
+const preloadPrompt = execFileSync("tar", ["-xOf", archive, "pingfangvideo/player/preload.html"], { encoding: "utf8" });
+const bufferingPrompt = execFileSync("tar", ["-xOf", archive, "pingfangvideo/player/buffering.html"], { encoding: "utf8" });
+const playerPromptStyle = execFileSync("tar", ["-xOf", archive, "pingfangvideo/player/prompt.css"], { encoding: "utf8" });
+for (const prompt of [preloadPrompt, bufferingPrompt]) {
+  assert.match(prompt, new RegExp(`prompt\\.css${assetVersionPattern.source}`));
+  assert.doesNotMatch(prompt, /<script\b/);
+  assert.doesNotMatch(prompt, new RegExp(assetVersionPlaceholder, "g"));
+}
+assert.match(playerPromptStyle, /prefers-reduced-motion: reduce/);
 
 const addonTarList = spawnSync("tar", ["-tzf", addonArchive], { encoding: "utf8" });
 assert.equal(addonTarList.status, 0, addonTarList.stderr || "Addon release archive should be readable");

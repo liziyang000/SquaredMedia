@@ -32,6 +32,20 @@ http://localhost:8084/index.php
 4. Clear template cache after changing files under `html/public`, `css`, or `js`.
 5. Confirm home, category, search, detail, play, download, comment, feedback, RSS, sitemap, jump, message, password, and copyright pages render correctly with production data.
 
+### Player Loading Prompts
+
+The theme includes two standalone, dependency-free player prompt pages. After
+uploading the theme, set the matching fields in the MacCMS player settings to:
+
+```text
+预加载提示: /template/pingfangvideo/player/preload.html
+缓冲提示:   /template/pingfangvideo/player/buffering.html
+```
+
+These pages stay inside the theme package, so deployment and rollback update
+them together with the rest of the theme without replacing MacCMS core files
+under `/static/player`.
+
 ## Release Package
 
 Create a deployable archive:

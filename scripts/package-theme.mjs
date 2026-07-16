@@ -18,6 +18,7 @@ const assetVersionInputs = [
   "css/style.css",
   "js/rank-react.js",
   "js/app.js",
+  "player/prompt.css",
 ];
 
 function assetVersion() {

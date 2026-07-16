@@ -19,6 +19,9 @@ const requiredFiles = [
   "js/react-dom.production.min.js",
   "js/rank-react.js",
   "js/app.js",
+  "player/preload.html",
+  "player/buffering.html",
+  "player/prompt.css",
   "html/public/include.html",
   "html/public/head.html",
   "html/public/foot.html",
@@ -193,6 +196,8 @@ assert.match(readme, /pingfangdevice/);
 assert.match(readme, /最多 3 台/);
 assert.match(readme, /server\/index\.php/);
 assert.match(readme, /MacCMS/);
+assert.match(readme, /\/template\/pingfangvideo\/player\/preload\.html/);
+assert.match(readme, /\/template\/pingfangvideo\/player\/buffering\.html/);
 
 const include = readThemeFile("html/public/include.html");
 assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
@@ -687,6 +692,34 @@ assert.doesNotMatch(playerPage, /横屏全屏/);
 assert.match(playerPage, /\$obj\['vod_play_list'\]\[\$param\['sid'\]\]\['urls'\]\[\$param\['nid'\]\]\['name'\]/);
 assert.doesNotMatch(playerPage, /<h1>\{\$obj\.vod_name\}<\/h1>/);
 assert.match(playerPage, /\{include file="public\/foot" \/\}/);
+
+const preloadPrompt = readThemeFile("player/preload.html");
+const bufferingPrompt = readThemeFile("player/buffering.html");
+const playerPromptStyle = readThemeFile("player/prompt.css");
+
+assert.match(preloadPrompt, /class="player-prompt player-prompt--preload"/);
+assert.match(preloadPrompt, /role="status"/);
+assert.match(preloadPrompt, /aria-live="polite"/);
+assert.match(preloadPrompt, /正在准备播放/);
+assert.match(preloadPrompt, new RegExp(`href="\\.\\/prompt\\.css\\?v=${assetVersionPlaceholder}"`));
+
+assert.match(bufferingPrompt, /class="player-prompt player-prompt--buffering"/);
+assert.match(bufferingPrompt, /role="status"/);
+assert.match(bufferingPrompt, /aria-live="polite"/);
+assert.match(bufferingPrompt, /正在续接画面/);
+assert.match(bufferingPrompt, new RegExp(`href="\\.\\/prompt\\.css\\?v=${assetVersionPlaceholder}"`));
+
+for (const prompt of [preloadPrompt, bufferingPrompt]) {
+  assert.match(prompt, /<meta name="viewport"/);
+  assert.doesNotMatch(prompt, /<script\b/);
+  assert.doesNotMatch(prompt, /https?:\/\//);
+}
+
+assert.match(playerPromptStyle, /@media \(prefers-reduced-motion: reduce\)/);
+assert.match(playerPromptStyle, /@media \(max-width: 560px\)/);
+assert.match(playerPromptStyle, /@keyframes preload-signal/);
+assert.match(playerPromptStyle, /@keyframes buffer-orbit/);
+assert.doesNotMatch(playerPromptStyle, /transition:\s*all/);
 
 const playerPwdPage = readThemeFile("html/vod/player_pwd.html");
 assert.match(playerPwdPage, /seo_title="播放验证"/);
@@ -1554,6 +1587,7 @@ assert.match(packageScript, /startsWith\("\."\)/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionPlaceholder/);
 assert.match(packageScript, /"js\/rank-react\.js"/);
+assert.match(packageScript, /"player\/prompt\.css"/);
 assert.match(packageScript, /replaceAssetVersionPlaceholders/);
 assert.match(packageScript, /normalizePackagePermissions/);
 assert.match(packageScript, /chmodSync\(filePath, 0o644\)/);

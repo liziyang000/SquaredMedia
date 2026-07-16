@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 
 const routes = [
-  ["route=home", ["hero-carousel", "最新上线"]],
+  ["route=home", ["hero-carousel", "最新上线", "width=\"300\" height=\"450\"", "tabindex=\"0\""]],
   ["route=videos", ["影片库", "vod-grid"]],
   ["route=comics", ["漫画入口维护中", "module-fallback"]],
   ["route=articles", ["文章入口维护中", "module-fallback"]],
@@ -15,8 +15,8 @@ const routes = [
   ["route=category&class=悬疑", ["午夜档案", "共 2 部内容"]],
   ["route=search&wd=云端", ["搜索结果", "云端"]],
   ["route=detail&id=1", ["detail-panel", "立即播放"]],
-  ["route=play&id=1&episode=1", ["player-shell", "正在播放"]],
-  ["route=player&id=1&episode=1", ["player-shell", "试看播放"]],
+  ["route=play&id=2&episode=2", ["player-shell", "正在播放", "preload=\"metadata\" playsinline", "id=\"episodeList\"", "上一集", "下一集"]],
+  ["route=player&id=2&episode=2", ["player-shell", "试看播放", "preload=\"metadata\" playsinline", "完整播放"]],
   ["route=down&id=1", ["download-list", "点击下载"]],
   ["route=copyright&id=1", ["copyright-box", "版权限制"]],
   ["route=history", ["history-timeline", "时间轴"]],
@@ -37,6 +37,12 @@ echo render_page($data, (string)($_GET["route"] ?? "home"), $_GET);
   return execFileSync("php", ["-r", code], { encoding: "utf8" });
 }
 
+function assertBefore(html, first, second, route) {
+  const firstIndex = html.indexOf(first);
+  const secondIndex = html.indexOf(second);
+  assert.ok(firstIndex >= 0 && secondIndex >= 0 && firstIndex < secondIndex, `${route} should render ${first} before ${second}`);
+}
+
 for (const [query, expected] of routes) {
   const html = render(query);
   assert.match(html, /<!doctype html>/, `${query} should render a full HTML document`);
@@ -45,6 +51,24 @@ for (const [query, expected] of routes) {
 
   for (const marker of expected) {
     assert.ok(html.includes(marker), `${query} should include ${marker}`);
+  }
+
+  if (query === "route=home") {
+    const shelfImage = html.match(/<span class="home-shelf-poster"><img[^>]+>/)?.[0] || "";
+    assert.match(shelfImage, /\/360\/540/);
+    assert.doesNotMatch(shelfImage, /wide\/1280\/720/);
+    assert.match(shelfImage, /width="300" height="450"/);
+  }
+
+  if (query.startsWith("route=play&")) {
+    assertBefore(html, 'class="player-shell"', 'class="player-toolbar"', query);
+    assert.match(html, /<video controls preload="metadata" playsinline/);
+    assert.match(html, /class="is-active" aria-current="page"[^>]*>第2集<\/a>/);
+  }
+
+  if (query.startsWith("route=player&")) {
+    assertBefore(html, 'class="player-shell"', 'class="player-toolbar"', query);
+    assert.doesNotMatch(html, /id="episodeList"/);
   }
 }
 

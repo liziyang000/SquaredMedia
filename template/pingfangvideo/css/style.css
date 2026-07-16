@@ -3910,7 +3910,8 @@ html[data-theme="poster-magazine"] .home-shelf-card:first-child {
   grid-row: auto;
 }
 
-html[data-theme="poster-magazine"] .home-shelf-card:first-child .home-shelf-poster {
+html[data-theme="poster-magazine"] .home-shelf-poster {
+  height: 100%;
   aspect-ratio: auto;
 }
 
@@ -4592,7 +4593,8 @@ html[data-theme="poster-magazine"] .player-page {
   }
 
   .player-toolbar-actions .ghost-btn {
-    flex: 1 1 120px;
+    flex: 1 1 0;
+    min-width: 0;
     text-align: center;
   }
 

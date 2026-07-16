@@ -108,13 +108,13 @@ function render_cards(array $videos): string
 
 function render_home_shelf_card(array $video, bool $featured = false): string
 {
-    $image = $video['backdrop'] ?? $video['poster'];
+    $image = $featured ? ($video['backdrop'] ?? $video['poster']) : $video['poster'];
     $cardClass = $featured ? 'home-shelf-card is-featured' : 'home-shelf-card';
     $badge = $featured ? ($video['category'] ?? '热播') : ($video['remark'] ?? '高清');
     $meta = $featured ? ($video['remark'] ?? '更新中') : ((string) $video['year'] . ' · ' . (string) ($video['class'] ?? $video['category']));
 
     return '<a class="' . e($cardClass) . '" href="' . e(path_for('detail', ['id' => $video['id']])) . '" title="' . e($video['title']) . '">
-  <span class="home-shelf-poster"><img src="' . e($image) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="360" height="203" sizes="(max-width: 760px) 76vw, 260px"><em>' . e($badge) . '</em></span>
+  <span class="home-shelf-poster"><img src="' . e($image) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px"><em>' . e($badge) . '</em></span>
   <span class="home-shelf-body"><strong>' . e($video['title']) . '</strong><small>' . e($meta) . '</small></span>
   <span class="home-shelf-score">' . e($video['score']) . '</span>
 </a>';
@@ -235,9 +235,42 @@ function render_feedback_page(array $data, string $title, string $eyebrow, strin
 </section>');
 }
 
-function render_player_preview(array $data, array $video, array $episode, string $eyebrow): string
+function render_player_preview(array $data, array $video, array $episode, string $eyebrow, bool $trial = false): string
 {
-    return render_layout($data, $video['title'], '<section class="player-page"><div class="wrap"><div class="player-head"><div><span class="eyebrow">' . e($eyebrow) . '</span><h1>' . e($video['title']) . ' - ' . e($episode['name']) . '</h1></div><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">返回详情</a></div><div class="player-toolbar"><span>' . e($video['title']) . ' / ' . e($episode['name']) . '</span><div class="player-toolbar-actions"><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">选集</a></div></div><div class="player-shell"><video controls poster="' . e($video['poster']) . '"><source src="' . e($episode['src']) . '" type="video/mp4"></video></div></div></section>');
+    $episodeIndex = 0;
+    foreach ($video['episodes'] as $index => $item) {
+        if ((int) $item['no'] === (int) $episode['no']) {
+            $episodeIndex = $index;
+            break;
+        }
+    }
+
+    $playerLabel = $trial ? '试看播放器' : '视频播放器';
+    if ($trial) {
+        $actions = '<a class="ghost-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $episode['no']])) . '">完整播放</a>';
+        $episodeSection = '';
+    } else {
+        $previousEpisode = $episodeIndex > 0 ? $video['episodes'][$episodeIndex - 1] : null;
+        $nextEpisode = $episodeIndex < count($video['episodes']) - 1 ? $video['episodes'][$episodeIndex + 1] : null;
+        $actions = '';
+        if ($previousEpisode !== null) {
+            $actions .= '<a class="ghost-btn player-step-link" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $previousEpisode['no']])) . '" rel="prev">上一集</a>';
+        }
+        $actions .= '<a class="ghost-btn" href="#episodeList">选集</a>';
+        if ($nextEpisode !== null) {
+            $actions .= '<a class="ghost-btn player-step-link" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $nextEpisode['no']])) . '" rel="next">下一集</a>';
+        }
+
+        $episodeLinks = implode('', array_map(static function (array $item) use ($video, $episode): string {
+            $active = (int) $item['no'] === (int) $episode['no'] ? ' class="is-active" aria-current="page"' : '';
+            return '<a' . $active . ' href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $item['no']])) . '">' . e($item['name']) . '</a>';
+        }, $video['episodes']));
+        $episodeSection = '<section class="wrap content-section" id="episodeList" aria-label="选集列表"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodeLinks . '</div></div></section>';
+    }
+
+    $content = '<section class="player-page"><div class="wrap"><div class="player-head"><div><span class="eyebrow">' . e($eyebrow) . '</span><h1>' . e($video['title']) . ' - ' . e($episode['name']) . '</h1></div><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">返回详情</a></div><div class="player-shell" role="region" aria-label="' . $playerLabel . '"><video controls preload="metadata" playsinline poster="' . e($video['poster']) . '"><source src="' . e($episode['src']) . '" type="video/mp4"></video></div><div class="player-toolbar" role="group" aria-label="播放控制"><span>' . e($video['title']) . ' / ' . e($episode['name']) . '</span><div class="player-toolbar-actions">' . $actions . '</div></div></div></section>' . $episodeSection;
+
+    return render_layout($data, $video['title'], $content);
 }
 
 function render_page(array $data, string $route, array $query): string
@@ -418,7 +451,7 @@ function render_page(array $data, string $route, array $query): string
         $episodeNo = (int) ($query['episode'] ?? 1);
         $episode = find_episode($video, $episodeNo);
 
-        return render_player_preview($data, $video, $episode, '试看播放');
+        return render_player_preview($data, $video, $episode, '试看播放', true);
     }
 
     $hot = sort_videos($data['videos'], 'hot');
@@ -452,7 +485,8 @@ function render_page(array $data, string $route, array $query): string
     foreach ($homeTabs as $index => $tab) {
         $active = $index === 0 ? ' class="is-active"' : '';
         $selected = $index === 0 ? 'true' : 'false';
-        $tabLinks .= '<button type="button" data-home-tab="' . e($tab['key']) . '" role="tab" aria-selected="' . $selected . '" aria-controls="latest-panel-' . e($tab['key']) . '"' . $active . '>' . e($tab['label']) . '</button>';
+        $tabIndexValue = $index === 0 ? '0' : '-1';
+        $tabLinks .= '<button type="button" data-home-tab="' . e($tab['key']) . '" role="tab" aria-selected="' . $selected . '" aria-controls="latest-panel-' . e($tab['key']) . '" tabindex="' . $tabIndexValue . '"' . $active . '>' . e($tab['label']) . '</button>';
         $tabRails .= render_home_latest_panel($tab['key'], $tab['videos'], $index === 0);
     }
     $tabLinks .= '</nav>';

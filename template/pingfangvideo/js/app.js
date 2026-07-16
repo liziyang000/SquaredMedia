@@ -1274,6 +1274,7 @@
       var next = carousel.querySelector("[data-carousel-next]");
       var index = 0;
       var timer = null;
+      var carouselHasFocus = false;
       var touchStartX = null;
       var touchStartY = null;
 
@@ -1311,7 +1312,7 @@
       }
 
       function start() {
-        if (slides.length < 2 || timer || document.hidden || prefersReducedMotion()) return;
+        if (slides.length < 2 || timer || document.hidden || prefersReducedMotion() || carouselHasFocus) return;
         timer = window.setInterval(function () {
           activate(index + 1);
         }, 5200);
@@ -1369,9 +1370,13 @@
 
       carousel.addEventListener("mouseenter", stop);
       carousel.addEventListener("mouseleave", start);
-      carousel.addEventListener("focusin", stop);
+      carousel.addEventListener("focusin", function () {
+        carouselHasFocus = true;
+        stop();
+      });
       carousel.addEventListener("focusout", function (event) {
         if (!carousel.contains(event.relatedTarget)) {
+          carouselHasFocus = false;
           start();
         }
       });

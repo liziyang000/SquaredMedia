@@ -1563,7 +1563,7 @@ assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
 assert.match(ping2DeployEnv, /export DEPLOY_HOST=ping2\.my/);
 assert.match(ping2DeployEnv, /export DEPLOY_USER=root/);
-assert.match(ping2DeployEnv, /export DEPLOY_PATH=\/www\/wwwroot\/ping2\.my\/template/);
+assert.match(ping2DeployEnv, /export DEPLOY_PATH=\/www\/wwwroot\/squaredMedia\/template/);
 assert.match(ping2DeployEnv, /export DEPLOY_PORT=22/);
 assert.doesNotMatch(ping2DeployEnv, /DEPLOY_PASSWORD/);
 

@@ -1,0 +1,27 @@
+template/pingfangvideo/html/vod/detail.html
+  s_267fd830421716::t_6709cea521f3e9 1
+template/pingfangvideo/html/vod/play.html
+  s_267fd830421716::t_34c6419ee21c80 1
+template/pingfangvideo/html/vod/player.html
+  s_267fd830421716::t_2af1b811f16b59 1
+tests/template.test.mjs
+  s_267fd830421716::t_b36a75e713be8b 643,668,701
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "86ecb4cb74e5a5d3b4a1e48993dfa94babbb91d0",
+  "prompts": {},
+  "sessions": {
+    "s_267fd830421716": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6e11-e5c0-7011-b496-adb639d48d1c",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

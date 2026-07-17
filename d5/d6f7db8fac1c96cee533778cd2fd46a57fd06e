@@ -1,0 +1,23 @@
+template/pingfangvideo/html/public/include.html
+  s_267fd830421716::t_266a500573581c 5-7
+tests/template.test.mjs
+  s_267fd830421716::t_55f73d9e6d6dcc 16-18,206-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d5d6f7db8fac1c96cee533778cd2fd46a57fd06e",
+  "prompts": {},
+  "sessions": {
+    "s_267fd830421716": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6e11-e5c0-7011-b496-adb639d48d1c",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

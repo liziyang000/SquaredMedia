@@ -16,11 +16,15 @@ For a PHP 8.4 container:
 docker compose up --build php84
 ```
 
-The static preview is then available at:
+The container starts at:
 
 ```text
 http://localhost:8084/index.php
 ```
+
+Docker sets `PINGFANG_PREVIEW_DATA` to the mounted
+`/var/www/html/preview/data.json`, so the backend preview and the static preview
+read the same sample data inside the container.
 
 `server/index.php` is a PHP 8.4 backend-linked preview entry. It reads `preview/data.json` and renders home, category, search, detail, and play routes with normal links. In production MacCMS will render the real theme under `template/pingfangvideo`; this preview backend is a local integration layer for testing page flow before connecting a real database or MacCMS data source.
 
@@ -108,7 +112,9 @@ npm run deploy
 ```
 
 For the `ping2.my` server, the non-secret deployment target is stored in
-`scripts/deploy-ping2.env`:
+`scripts/deploy-ping2.env`. This file distinguishes the SSH host `ping2.my`
+from the public site host `www.ping2video.xyz` and selects the dedicated local
+deployment identity:
 
 ```bash
 source scripts/deploy-ping2.env
@@ -123,7 +129,16 @@ under the site root: `runtime/cache`, `runtime/temp`, `application/admin/view/_c
 and `application/index/view/_cache`. Set `DEPLOY_CLEAR_CACHE=0` only when cache
 clearing must be skipped for a controlled maintenance window. For password
 authentication, set `DEPLOY_PASSWORD` in the shell environment and install
-`sshpass`; SSH key authentication is preferred for routine releases.
+`sshpass`; SSH key authentication is preferred for routine releases. When the
+deployment key is not the default SSH identity, set `DEPLOY_IDENTITY_FILE` to
+its local private-key path; the script enables `IdentitiesOnly` for that key.
+When `DEPLOY_SITE_HOST` is configured, the remote script performs an HTTPS
+loopback request with the real Host/SNI after cache clearing. An optional
+`DEPLOY_SITE_MARKER` must also occur in the response, preventing a generic
+control-panel default page from being accepted as a successful deployment.
+This verification runs after remote files and database changes are applied; a
+failure reports an unhealthy deployment but does not automatically roll it
+back.
 
 The deploy script also installs the `pingfangdevice` addon under the remote
 MacCMS `addons` directory, applies `addons/pingfangdevice/install.sql`, and
@@ -131,7 +146,10 @@ adds the addon's `app_begin` hook to `application/extra/addons.php`. This hook
 keeps valid device sessions synchronized with MacCMS `user_check` cookies and
 lets revoked devices fall back to the normal MacCMS logged-out state. Before
 finishing, deployment validates every addon PHP file, the installed hook, and
-the upgraded `login_check_hash` database column.
+the upgraded `login_check_hash` database column. The frontend compatibility
+controller is packaged in the addon's standard
+`application/index/controller/Pingfangdevice.php` payload and copied to the
+matching MacCMS application path during SSH deployment.
 
 Rollback to the latest remote backup:
 
@@ -154,14 +172,16 @@ the selected backup to `pingfangvideo`, and clears the same MacCMS cache
 directories unless `DEPLOY_CLEAR_CACHE=0` is set. This command intentionally
 rolls back only the theme. Addon code and its additive device-session schema are
 left in place so a theme rollback cannot discard login history or silently
-remove a security migration; deploy-created addon and bridge backups remain on
-the server for an explicit manual addon rollback if one is required.
+remove a security migration; deploy-created addon and application-controller
+backups remain on the server for an explicit manual addon rollback if one is
+required.
 
 GitHub Actions runs the same release gate on pushes and pull requests: `npm test`,
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,
-`npm run package`, and `npm run verify:release`. The CI workflow uploads
-`dist/pingfangvideo.tar.gz` and `dist/pingfangdevice.tar.gz` as the
-`pingfangvideo-theme` artifact after the package is verified.
+`npm run package`, and `npm run verify:release`. After verification, the CI
+workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
+`dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, keeping theme and addon
+release units separate.
 
 `npm run lint:template` checks local MacCMS template structure before packaging:
 includes must point to existing files, common MacCMS loop tags must be balanced,
@@ -218,9 +238,19 @@ MacCMS player and history scripts generate `/index.php/...` and
 
 ## Local Preview
 
-Open `preview/index.html` in a browser to view a local data-linked preview. It reads `preview/data.json` and supports category, search, detail, and play navigation without requiring MacCMS.
+Serve the repository root over HTTP before opening the static preview. The page
+fetches `/preview/data.json`, so opening `preview/index.html` directly with a
+`file://` URL does not provide a working data-linked preview:
 
-When Docker/PHP is available, use `server/index.php` through the PHP 8.4 container for backend-rendered navigation.
+```bash
+php -S 127.0.0.1:8080 -t .
+```
+
+Then open `http://localhost:8080/preview/index.html`. It supports category,
+search, detail, and play navigation without requiring MacCMS.
+
+For backend-rendered route verification, run `npm run verify:preview`. It invokes
+`server/index.php` through the local PHP CLI without requiring Docker.
 
 ## Verify
 

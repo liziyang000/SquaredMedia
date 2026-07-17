@@ -1,5 +1,5 @@
 [
-  {
+{
     "Address": "132.196.86.0/24",
     "Strategy": "drop",
     "Chain": "INPUT",

@@ -1,11 +1,11 @@
 <?php
 
-namespace addons\pingfangdevice\controller;
+namespace app\index\controller;
 
+use addons\pingfangdevice\controller\DeviceActions;
 use addons\pingfangdevice\service\DeviceSession;
-use think\addons\Controller;
 
-class Index extends Controller
+class Pingfangdevice extends Base
 {
     use DeviceActions;
 
@@ -16,10 +16,10 @@ class Index extends Controller
             return redirect(url('user/login'));
         }
 
+        $this->assign('obj', $user);
         $this->assign('user', $user);
         $this->assign('device_list', DeviceSession::listSessions($user['user_id']));
         $this->assign('max_devices', DeviceSession::maxDeviceCount());
-        $this->assign('current_url', addon_url('pingfangdevice/index/index'));
-        return $this->fetch();
+        return $this->fetch('pingfangdevice/index');
     }
 }

@@ -66,6 +66,12 @@ namespace app\index\controller {
     }
 }
 
+namespace think\addons {
+    class Controller
+    {
+    }
+}
+
 namespace {
     use addons\pingfangdevice\service\DeviceSession;
 
@@ -138,7 +144,19 @@ namespace {
         return '/' . $route;
     }
 
-    require_once dirname(__DIR__) . '/addons/pingfangdevice/bridge/Pingfangdevice.php';
+    require_once dirname(__DIR__) . '/addons/pingfangdevice/controller/DeviceActions.php';
+    require_once dirname(__DIR__) . '/addons/pingfangdevice/application/index/controller/Pingfangdevice.php';
+    require_once dirname(__DIR__) . '/addons/pingfangdevice/controller/Index.php';
+
+    $actionTrait = \addons\pingfangdevice\controller\DeviceActions::class;
+    if (!in_array($actionTrait, class_uses(\app\index\controller\Pingfangdevice::class), true)) {
+        fwrite(STDERR, "Application controller must use the shared device actions.\n");
+        exit(1);
+    }
+    if (!in_array($actionTrait, class_uses(\addons\pingfangdevice\controller\Index::class), true)) {
+        fwrite(STDERR, "Addon controller must use the shared device actions.\n");
+        exit(1);
+    }
 
     $controller = new \app\index\controller\Pingfangdevice();
     $fail = static function ($message) {

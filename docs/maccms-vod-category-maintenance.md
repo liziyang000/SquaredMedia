@@ -53,13 +53,13 @@ mysqldump -u"$USER" -p"$PASS" --single-transaction --routines --triggers --event
 如果表前缀是 `mac_`：
 
 ```bash
-mysql -u"$USER" -p"$PASS" "$DB" < /path/to/PingFangVideo/scripts/sql/maccms-vod-category-maintenance.sql
+mysql -u"$USER" -p"$PASS" "$DB" < /path/to/SquaredMedia/scripts/sql/maccms-vod-category-maintenance.sql
 ```
 
 如果你的表前缀不是 `mac_`，先复制一份脚本并替换表名：
 
 ```bash
-cp /path/to/PingFangVideo/scripts/sql/maccms-vod-category-maintenance.sql /root/maccms-vod-category-maintenance.sql
+cp /path/to/SquaredMedia/scripts/sql/maccms-vod-category-maintenance.sql /root/maccms-vod-category-maintenance.sql
 sed -i "s/mac_vod/${PREFIX}vod/g; s/mac_type/${PREFIX}type/g" /root/maccms-vod-category-maintenance.sql
 mysql -u"$USER" -p"$PASS" "$DB" < /root/maccms-vod-category-maintenance.sql
 ```

@@ -13,6 +13,14 @@ REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 
 ssh_options=(-p "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
 
+if [[ -n "${DEPLOY_IDENTITY_FILE:-}" ]]; then
+  if [[ ! -f "$DEPLOY_IDENTITY_FILE" ]]; then
+    echo "DEPLOY_IDENTITY_FILE does not exist: $DEPLOY_IDENTITY_FILE" >&2
+    exit 1
+  fi
+  ssh_options+=(-i "$DEPLOY_IDENTITY_FILE" -o IdentitiesOnly=yes)
+fi
+
 if [[ -n "${DEPLOY_PASSWORD:-}" ]]; then
   if ! command -v sshpass >/dev/null 2>&1; then
     echo "DEPLOY_PASSWORD requires sshpass. Install sshpass or configure SSH key authentication." >&2

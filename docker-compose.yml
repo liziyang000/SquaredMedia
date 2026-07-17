@@ -12,6 +12,7 @@ services:
       - ./preview:/var/www/html/preview:ro
     environment:
       PHP_VERSION_REQUIREMENT: "8.4"
+      PINGFANG_PREVIEW_DATA: /var/www/html/preview/data.json
     healthcheck:
       test: ["CMD", "php", "-v"]
       interval: 30s

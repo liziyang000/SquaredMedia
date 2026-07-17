@@ -1,6 +1,6 @@
 # MacCMS Theme Development Spec
 
-Last checked: 2026-06-16
+Last checked: 2026-07-17
 
 This repository develops the `pingfangvideo` theme as a MacCMS V10 theme. All
 theme changes must follow the official MacCMS theme documentation first:

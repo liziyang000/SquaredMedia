@@ -104,8 +104,9 @@ const forbiddenProductionPatterns = [
 ];
 const requiredAddonEntries = [
   "pingfangdevice/Pingfangdevice.php",
-  "pingfangdevice/bridge/Pingfangdevice.php",
+  "pingfangdevice/application/index/controller/Pingfangdevice.php",
   "pingfangdevice/config.php",
+  "pingfangdevice/controller/DeviceActions.php",
   "pingfangdevice/controller/Index.php",
   "pingfangdevice/info.ini",
   "pingfangdevice/install.sql",
@@ -217,6 +218,10 @@ const addonEntries = addonTarList.stdout
 for (const entry of requiredAddonEntries) {
   assert.ok(addonEntries.includes(entry), `${entry} should be included in the addon archive`);
 }
+assert.ok(
+  !addonEntries.some((entry) => entry.startsWith("pingfangdevice/bridge/")),
+  "Legacy bridge files should not be included in the addon archive"
+);
 
 const addonSql = execFileSync("tar", ["-xOf", addonArchive, "pingfangdevice/install.sql"], { encoding: "utf8" });
 assert.match(addonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);

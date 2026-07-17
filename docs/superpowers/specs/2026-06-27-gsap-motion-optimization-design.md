@@ -2,6 +2,8 @@
 
 Date: 2026-06-27
 
+> 当前状态（2026-07-17）：本文是历史设计。全站 `IntersectionObserver` 入场和卡片 GSAP hover 已被后续实现回退；当前仅保留首页轮播切换与 banner 虹彩动效，并由测试明确禁止全站 reveal。当前事实请参见 `docs/theme-and-preview.md` 和代码。
+
 ## Goal
 
 Improve the `pingfangvideo` MacCMS theme motion system with two scopes:

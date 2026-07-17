@@ -9,6 +9,9 @@ deploy_tmp_dir=""
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
+DEPLOY_SITE_HOST="${DEPLOY_SITE_HOST:-}"
+DEPLOY_SITE_SCHEME="${DEPLOY_SITE_SCHEME:-https}"
+DEPLOY_SITE_MARKER="${DEPLOY_SITE_MARKER:-}"
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"
 ARCHIVE="dist/pingfangvideo.tar.gz"
@@ -17,8 +20,26 @@ REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 REMOTE_TMP="${DEPLOY_REMOTE_TMP:-/tmp/${THEME_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 REMOTE_ADDON_TMP="${DEPLOY_REMOTE_ADDON_TMP:-/tmp/${ADDON_NAME}.$(date +%Y%m%d%H%M%S).tar.gz}"
 
+if [[ -n "$DEPLOY_SITE_HOST" && ! "$DEPLOY_SITE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
+  echo "DEPLOY_SITE_HOST must be a hostname without a scheme or path." >&2
+  exit 1
+fi
+if [[ "$DEPLOY_SITE_SCHEME" != "http" && "$DEPLOY_SITE_SCHEME" != "https" ]]; then
+  echo "DEPLOY_SITE_SCHEME must be http or https." >&2
+  exit 1
+fi
+
 ssh_options=(-p "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
 scp_options=(-P "$DEPLOY_PORT" -o StrictHostKeyChecking=accept-new)
+
+if [[ -n "${DEPLOY_IDENTITY_FILE:-}" ]]; then
+  if [[ ! -f "$DEPLOY_IDENTITY_FILE" ]]; then
+    echo "DEPLOY_IDENTITY_FILE does not exist: $DEPLOY_IDENTITY_FILE" >&2
+    exit 1
+  fi
+  ssh_options+=(-i "$DEPLOY_IDENTITY_FILE" -o IdentitiesOnly=yes)
+  scp_options+=(-i "$DEPLOY_IDENTITY_FILE" -o IdentitiesOnly=yes)
+fi
 
 if [[ -n "${DEPLOY_PASSWORD:-}" ]]; then
   if ! command -v sshpass >/dev/null 2>&1; then
@@ -51,6 +72,9 @@ remote_env=(
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
   "DEPLOY_CLEAR_CACHE=$(printf "%q" "$DEPLOY_CLEAR_CACHE")"
+  "DEPLOY_SITE_HOST=$(printf "%q" "$DEPLOY_SITE_HOST")"
+  "DEPLOY_SITE_SCHEME=$(printf "%q" "$DEPLOY_SITE_SCHEME")"
+  "DEPLOY_SITE_MARKER=$(printf "%q" "$DEPLOY_SITE_MARKER")"
 )
 
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_SCRIPT'
@@ -77,12 +101,50 @@ clear_maccms_cache() {
   echo "Cleared ${cleared} MacCMS cache directories under ${maccms_root}"
 }
 
+verify_deployed_site() {
+  local port verify_url verify_file status bytes
+
+  if [[ -z "$DEPLOY_SITE_HOST" ]]; then
+    return
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "curl is required when DEPLOY_SITE_HOST is configured." >&2
+    exit 1
+  fi
+
+  if [[ "$DEPLOY_SITE_SCHEME" == "https" ]]; then
+    port=443
+  else
+    port=80
+  fi
+  verify_url="${DEPLOY_SITE_SCHEME}://${DEPLOY_SITE_HOST}/"
+  verify_file="$deploy_tmp_dir/site-verification.html"
+  if ! status="$(curl -k -sS -L --max-time 30 \
+    --resolve "${DEPLOY_SITE_HOST}:${port}:127.0.0.1" \
+    -o "$verify_file" -w '%{http_code}' "$verify_url")"; then
+    echo "Deployed site verification request failed for ${verify_url}" >&2
+    exit 1
+  fi
+
+  if [[ ! "$status" =~ ^[23][0-9][0-9]$ ]]; then
+    echo "Deployed site verification failed for ${verify_url}: HTTP ${status}" >&2
+    exit 1
+  fi
+  if [[ -n "$DEPLOY_SITE_MARKER" ]] && ! grep -Fq -- "$DEPLOY_SITE_MARKER" "$verify_file"; then
+    echo "Deployed site verification failed: response is missing marker ${DEPLOY_SITE_MARKER}" >&2
+    exit 1
+  fi
+
+  bytes="$(wc -c < "$verify_file")"
+  echo "Verified deployed site ${verify_url}: HTTP ${status}, ${bytes} bytes"
+}
+
 install_device_addon() {
-  local maccms_root addon_dir backup tmp_dir bridge_source bridge_target bridge_backup
+  local maccms_root addon_dir backup tmp_dir application_source application_target application_backup
 
   maccms_root="$(dirname "$DEPLOY_PATH")"
   addon_dir="$maccms_root/addons/$ADDON_NAME"
-  bridge_target="$maccms_root/application/index/controller/Pingfangdevice.php"
+  application_target="$maccms_root/application/index/controller/Pingfangdevice.php"
   mkdir -p "$maccms_root/addons"
 
   tmp_dir="$deploy_tmp_dir/addon"
@@ -105,16 +167,17 @@ install_device_addon() {
   rm -rf "$addon_dir"
   mv "$tmp_dir/$ADDON_NAME" "$addon_dir"
 
-  bridge_source="$addon_dir/bridge/Pingfangdevice.php"
-  if [[ ! -f "$bridge_source" ]]; then
-    echo "Addon archive does not contain bridge/Pingfangdevice.php" >&2
+  application_source="$addon_dir/application/index/controller/Pingfangdevice.php"
+  if [[ ! -f "$application_source" ]]; then
+    echo "Addon archive does not contain application/index/controller/Pingfangdevice.php" >&2
     exit 1
   fi
-  if [[ -f "$bridge_target" ]]; then
-    bridge_backup="${bridge_target}.backup.$(date +%Y%m%d%H%M%S)"
-    cp -a "$bridge_target" "$bridge_backup"
+  mkdir -p "$(dirname "$application_target")"
+  if [[ -f "$application_target" ]]; then
+    application_backup="${application_target}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -a "$application_target" "$application_backup"
   fi
-  cp -a "$bridge_source" "$bridge_target"
+  cp -a "$application_source" "$application_target"
 
   MACCMS_ROOT="$maccms_root" ADDON_NAME="$ADDON_NAME" php <<'PHP_CONFIG'
 <?php
@@ -198,7 +261,7 @@ if ((int)$check->fetchColumn() !== 1) {
 PHP_SQL
 
   php -l "$addon_dir/service/DeviceSession.php" >/dev/null
-  php -l "$bridge_target" >/dev/null
+  php -l "$application_target" >/dev/null
 
   echo "Installed and verified ${ADDON_NAME} addon under ${addon_dir}"
 }
@@ -236,6 +299,8 @@ mv "$tmp_dir/$THEME_NAME" "$THEME_NAME"
 if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
   clear_maccms_cache
 fi
+
+verify_deployed_site
 REMOTE_SCRIPT
 
 echo "Deployed ${THEME_NAME} to ${REMOTE}:${DEPLOY_PATH}/${THEME_NAME}"

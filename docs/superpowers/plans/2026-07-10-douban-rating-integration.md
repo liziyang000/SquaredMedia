@@ -1,5 +1,9 @@
 # Douban Rating Integration Implementation Plan
 
+> **历史状态（2026-07-17）：** 这是旧版实施计划。当前仓库没有本文所述的
+> `addons/douban/**`、Douban 桥接控制器或网关，发布链路也未包含这些文件。
+> 请以 `addons/**` 和 `docs/addons.md` 为当前事实源；本文不能证明功能已实现或已部署。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the Douban addon reachable, source live Douban data, and make native MacCMS score sorting use Douban ratings only.

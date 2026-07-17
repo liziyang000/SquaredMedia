@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -112,11 +112,13 @@ const requiredRootFiles = [
   "docker-compose.yml",
   "docker/php/Dockerfile",
   "docker/php/php.ini",
+  "ops/security/gptbot-ip-rules.json",
   "README.md",
   ".github/workflows/ci.yml",
   "addons/pingfangdevice/Pingfangdevice.php",
-  "addons/pingfangdevice/bridge/Pingfangdevice.php",
+  "addons/pingfangdevice/application/index/controller/Pingfangdevice.php",
   "addons/pingfangdevice/config.php",
+  "addons/pingfangdevice/controller/DeviceActions.php",
   "addons/pingfangdevice/controller/Index.php",
   "addons/pingfangdevice/info.ini",
   "addons/pingfangdevice/install.sql",
@@ -140,6 +142,10 @@ const requiredRootFiles = [
 for (const file of requiredRootFiles) {
   assert.ok(existsSync(path.join(root, file)), `${file} should exist`);
 }
+assert.ok(
+  !existsSync(path.join(addonRoot, "bridge/Pingfangdevice.php")),
+  "The frontend compatibility controller should use the standard addon application payload"
+);
 
 for (const file of requiredFiles) {
   assert.ok(existsSync(path.join(themeRoot, file)), `${file} should exist`);
@@ -179,7 +185,12 @@ assert.match(phpIni, /opcache\.enable\s*=\s*1/);
 const compose = readFileSync(path.join(root, "docker-compose.yml"), "utf8");
 assert.match(compose, /php84/);
 assert.match(compose, /template\/pingfangvideo/);
+assert.match(compose, /PINGFANG_PREVIEW_DATA: \/var\/www\/html\/preview\/data\.json/);
 assert.match(compose, /healthcheck:/);
+
+const previewDataLoader = readFileSync(path.join(root, "server/lib/data.php"), "utf8");
+assert.match(previewDataLoader, /getenv\('PINGFANG_PREVIEW_DATA'\)/);
+assert.match(previewDataLoader, /dirname\(__DIR__, 2\) \. '\/preview\/data\.json'/);
 
 const readme = readFileSync(path.join(root, "README.md"), "utf8");
 assert.match(readme, /PHP 8\.4/);
@@ -1639,6 +1650,10 @@ assert.match(ping2DeployEnv, /export DEPLOY_HOST=ping2\.my/);
 assert.match(ping2DeployEnv, /export DEPLOY_USER=root/);
 assert.match(ping2DeployEnv, /export DEPLOY_PATH=\/www\/wwwroot\/squaredMedia\/template/);
 assert.match(ping2DeployEnv, /export DEPLOY_PORT=22/);
+assert.match(ping2DeployEnv, /pingfangvideo_deploy_ed25519/);
+assert.match(ping2DeployEnv, /export DEPLOY_SITE_HOST=www\.ping2video\.xyz/);
+assert.match(ping2DeployEnv, /export DEPLOY_SITE_SCHEME=https/);
+assert.match(ping2DeployEnv, /export DEPLOY_SITE_MARKER=\/template\/pingfangvideo\//);
 assert.doesNotMatch(ping2DeployEnv, /DEPLOY_PASSWORD/);
 
 const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "utf8");
@@ -1656,6 +1671,13 @@ assert.match(deployScript, /\$\{DEPLOY_USER/);
 assert.match(deployScript, /\$\{DEPLOY_PORT/);
 assert.match(deployScript, /\$\{DEPLOY_PATH/);
 assert.match(deployScript, /SSHPASS/);
+assert.match(deployScript, /DEPLOY_IDENTITY_FILE/);
+assert.match(deployScript, /IdentitiesOnly=yes/);
+assert.match(deployScript, /DEPLOY_SITE_HOST/);
+assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
+assert.match(deployScript, /DEPLOY_SITE_MARKER/);
+assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
+assert.match(deployScript, /Verified deployed site/);
 assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
@@ -1663,6 +1685,8 @@ assert.match(deployScript, /pingfangvideo\.backup/);
 assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
+assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
+assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);
 assert.match(deployScript, /application\/extra\/addons\.php/);
 assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /php -l "\$php_file"/);
@@ -1677,6 +1701,35 @@ assert.match(deployScript, /view\/_cache/);
 assert.match(deployScript, /find "\$cache_dir" -mindepth 1/);
 assert.doesNotMatch(deployScript, /DEPLOY_PASSWORD=/);
 
+const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SITE_HOST: "https://www.example.com/",
+  },
+});
+assert.notEqual(invalidDeploySiteHost.status, 0);
+assert.match(invalidDeploySiteHost.stderr, /DEPLOY_SITE_HOST must be a hostname/);
+
+const invalidDeploySiteScheme = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SITE_HOST: "www.example.com",
+    DEPLOY_SITE_SCHEME: "ftp",
+  },
+});
+assert.notEqual(invalidDeploySiteScheme.status, 0);
+assert.match(invalidDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
+
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
 assert.match(rollbackScript, /set -euo pipefail/);
@@ -1686,6 +1739,8 @@ assert.match(rollbackScript, /\$\{DEPLOY_PORT/);
 assert.match(rollbackScript, /\$\{DEPLOY_PATH/);
 assert.match(rollbackScript, /ROLLBACK_BACKUP/);
 assert.match(rollbackScript, /SSHPASS/);
+assert.match(rollbackScript, /DEPLOY_IDENTITY_FILE/);
+assert.match(rollbackScript, /IdentitiesOnly=yes/);
 assert.match(rollbackScript, /find \. -maxdepth 1 -type d -name "\$\{THEME_NAME\}\.backup\.\*"/);
 assert.match(rollbackScript, /pingfangvideo\.failed/);
 assert.match(rollbackScript, /cp -a "\$backup" "\$THEME_NAME"/);
@@ -1694,7 +1749,7 @@ assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
 
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
-assert.match(ciWorkflow, /name: Theme CI/);
+assert.match(ciWorkflow, /name: Theme and Addon CI/);
 assert.match(ciWorkflow, /pull_request:/);
 assert.match(ciWorkflow, /actions\/checkout@v4/);
 assert.match(ciWorkflow, /actions\/setup-node@v4/);
@@ -1708,6 +1763,8 @@ assert.match(ciWorkflow, /npm run verify:preview/);
 assert.match(ciWorkflow, /npm run package/);
 assert.match(ciWorkflow, /npm run verify:release/);
 assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
+assert.match(ciWorkflow, /name: pingfangvideo-theme[\s\S]*path: dist\/pingfangvideo\.tar\.gz/);
+assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangdevice\.tar\.gz/);
 
 const deviceAddonInfo = readAddonFile("info.ini");
 assert.match(deviceAddonInfo, /name = pingfangdevice/);
@@ -1725,30 +1782,30 @@ assert.match(deviceAddonHook, /extends Addons/);
 assert.match(deviceAddonHook, /public function appBegin/);
 assert.match(deviceAddonHook, /DeviceSession::syncActiveCookie/);
 
-const deviceBridgeController = readAddonFile("bridge/Pingfangdevice.php");
-assert.match(deviceBridgeController, /namespace app\\index\\controller/);
-assert.match(deviceBridgeController, /class Pingfangdevice extends Base/);
-assert.match(deviceBridgeController, /DeviceSession::registerLogin/);
-assert.match(deviceBridgeController, /DeviceSession::listSessions/);
-assert.match(deviceBridgeController, /DeviceSession::revokeSession/);
-assert.match(deviceBridgeController, /DeviceSession::logoutCurrentDevice/);
-assert.match(deviceBridgeController, /DeviceSession::maxDeviceCount/);
-assert.match(deviceBridgeController, /\$param \+= \['verify' => '', 'openid' => '', 'col' => ''\]/);
-assert.match(deviceBridgeController, /isPost\(\) \|\| !Request\(\)->isAjax\(\)/);
-assert.match(deviceBridgeController, /VodFilterOptions::filters\(input\(\)\)/);
-assert.match(deviceBridgeController, /public function filters\(\)/);
+const deviceApplicationController = readAddonFile("application/index/controller/Pingfangdevice.php");
+assert.match(deviceApplicationController, /namespace app\\index\\controller/);
+assert.match(deviceApplicationController, /class Pingfangdevice extends Base/);
+assert.match(deviceApplicationController, /use DeviceActions/);
+assert.match(deviceApplicationController, /DeviceSession::listSessions/);
+assert.match(deviceApplicationController, /DeviceSession::maxDeviceCount/);
+assert.doesNotMatch(deviceApplicationController, /public function login\(\)/);
+
+const deviceActions = readAddonFile("controller/DeviceActions.php");
+assert.match(deviceActions, /trait DeviceActions/);
+assert.match(deviceActions, /DeviceSession::registerLogin/);
+assert.match(deviceActions, /DeviceSession::revokeSession/);
+assert.match(deviceActions, /DeviceSession::logoutCurrentDevice/);
+assert.match(deviceActions, /\$param \+= \['verify' => '', 'openid' => '', 'col' => ''\]/);
+assert.match(deviceActions, /isPost\(\) \|\| !Request\(\)->isAjax\(\)/);
+assert.match(deviceActions, /VodFilterOptions::filters\(input\(\)\)/);
+assert.match(deviceActions, /public function filters\(\)/);
 
 const deviceAddonController = readAddonFile("controller/Index.php");
-assert.match(deviceAddonController, /model\('User'\)->login\(\$param, \['return_meta' => true\]\)/);
-assert.match(deviceAddonController, /DeviceSession::registerLogin/);
+assert.match(deviceAddonController, /use DeviceActions/);
 assert.match(deviceAddonController, /DeviceSession::listSessions/);
-assert.match(deviceAddonController, /DeviceSession::revokeSession/);
-assert.match(deviceAddonController, /DeviceSession::logoutCurrentDevice/);
 assert.match(deviceAddonController, /DeviceSession::maxDeviceCount/);
-assert.match(deviceAddonController, /\$param \+= \['verify' => '', 'openid' => '', 'col' => ''\]/);
 assert.match(deviceAddonController, /addon_url\('pingfangdevice\/index\/index'\)/);
-assert.match(deviceAddonController, /VodFilterOptions::filters\(input\(\)\)/);
-assert.match(deviceAddonController, /public function filters\(\)/);
+assert.doesNotMatch(deviceAddonController, /public function login\(\)/);
 
 const deviceSessionService = readAddonFile("service/DeviceSession.php");
 assert.match(deviceSessionService, /const DEFAULT_MAX_DEVICES = 3/);

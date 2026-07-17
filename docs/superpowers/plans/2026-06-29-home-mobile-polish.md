@@ -1,5 +1,7 @@
 # Home Mobile Polish Implementation Plan
 
+> 当前状态（2026-07-17）：这是已被后续首页结构取代的历史计划，不应直接按其中的 CSS 数值执行。当前首页不存在 `.hero-stats` 和 `.quick-types`；现行结构与验证方式见 `docs/theme-and-preview.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Improve the `pingfangvideo` homepage mobile CSS so the hero, stats, carousel controls, quick categories, and cards feel stable and touch-friendly on small screens.

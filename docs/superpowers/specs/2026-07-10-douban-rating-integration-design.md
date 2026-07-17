@@ -1,5 +1,9 @@
 # Douban Rating Integration Design
 
+> **历史状态（2026-07-17）：** 这是旧版设计快照。当前仓库没有本文所述的
+> `addons/douban/**`、Douban 桥接控制器或网关，发布链路也未包含这些文件。
+> 请以 `addons/**` 和 `docs/addons.md` 为当前事实源；本文不能证明功能已实现或已部署。
+
 ## Goal
 
 Make the deployed Douban addon usable end to end and make every MacCMS

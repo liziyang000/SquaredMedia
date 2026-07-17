@@ -3,7 +3,10 @@ declare(strict_types=1);
 
 function load_data(): array
 {
-    $path = dirname(__DIR__, 2) . '/preview/data.json';
+    $configuredPath = getenv('PINGFANG_PREVIEW_DATA');
+    $path = is_string($configuredPath) && $configuredPath !== ''
+        ? $configuredPath
+        : dirname(__DIR__, 2) . '/preview/data.json';
     $json = file_get_contents($path);
     if ($json === false) {
         throw new RuntimeException('Unable to read preview data.');

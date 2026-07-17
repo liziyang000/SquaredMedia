@@ -1,5 +1,7 @@
 # GSAP Motion Optimization Implementation Plan
 
+> 当前状态（2026-07-17）：这是已被后续迭代取代的历史计划，不应直接执行。当前测试明确要求不存在 `initRevealMotion`、`IntersectionObserver`、`data-gsap-reveal-*` 和卡片 GSAP hover；现行行为见 `docs/theme-and-preview.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Polish the homepage GSAP motion and add lightweight all-site reveal motion for the MacCMS `pingfangvideo` theme.

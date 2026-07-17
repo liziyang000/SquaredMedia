@@ -1,5 +1,6 @@
 {include file="public/head" seo_title="$obj.vod_name" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
 <section class="detail-hero">
+  <span class="detail-backdrop" aria-hidden="true"><img src="{$obj.vod_pic|mac_url_img}" alt=""></span>
   <div class="wrap detail-grid">
     <div class="detail-poster">
       <img src="{$obj.vod_pic|mac_url_img}" alt="{$obj.vod_name}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 44vw, 250px">

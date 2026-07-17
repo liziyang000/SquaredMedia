@@ -12,7 +12,9 @@
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="?route=home" data-route="home" aria-label="平方影视">
-      <img class="brand-logo" src="../template/pingfangvideo/images/site-logo.png" alt="平方影视 logo">
+      <span class="brand-emblem" aria-hidden="true"></span>
+      <span class="brand-wordmark"><strong>平方影视</strong><small>STREAMING EDITION</small></span>
+      <img class="brand-logo" src="../template/pingfangvideo/images/site-logo.png" alt="" hidden aria-hidden="true">
     </a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer">
       <span></span><span></span><span></span>
@@ -69,7 +71,7 @@
   <div class="wrap footer-grid">
     <div>
       <strong>平方影视</strong>
-      <p>每日更新电影、剧集、综艺与动漫内容，支持多端自适应浏览。</p>
+      <p>让每一次打开，都像走进一间只为你亮起的放映厅。</p>
     </div>
     <div class="footer-links">
       <a href="?route=home">首页</a>
@@ -439,6 +441,18 @@ function renderHome() {
   const hot = [...store.videos].sort((a, b) => b.hits - a.hits);
   const banners = hot.slice(0, 5);
   const rankVideos = hot.slice(0, 5);
+  const channelCodes = ["FILM", "SERIES", "SHOW", "ANIME"];
+  const channelDescriptions = ["银幕精选", "追剧现场", "轻松时刻", "次元放映"];
+  const genreDockItems = [
+    { channel: "TOP", label: "热播榜", description: "全站热度", href: url("category", { sort: "hot" }) },
+    ...categories.slice(0, 4).map((category, index) => ({
+      channel: channelCodes[index],
+      label: category,
+      description: channelDescriptions[index],
+      href: url("category", { name: category }),
+    })),
+    { channel: "NEW", label: "今日更新", description: "刚刚上线", href: url("category") },
+  ];
   app.innerHTML = `
     <section class="hero">
       <div class="wrap hero-grid">
@@ -446,13 +460,14 @@ function renderHome() {
           <div class="banner-track">
             ${banners.map(bannerSlide).join("")}
           </div>
+          <span class="liquid-lens" aria-hidden="true"></span>
           <div class="banner-controls">
             <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>
           </div>
         </section>
         <div class="hero-rank" data-rank-react-root data-rank-more-url="${url("category", { sort: "hot" })}">
           <div class="section-head compact">
-            <h2>热搜榜</h2>
+            <span class="rank-heading"><small>TOP 05</small><h2>年度热度榜</h2></span>
             <a class="rank-refresh" href="${url("category", { sort: "hot" })}">查看更多</a>
           </div>
           <div class="rank-list" data-rank-react-list>
@@ -461,9 +476,12 @@ function renderHome() {
         </div>
       </div>
     </section>
+    <nav class="wrap genre-dock" aria-label="频道快捷入口">
+      ${genreDockItems.map((item, index) => `<a class="genre-chip${index === 0 ? " genre-chip-featured" : ""}" data-channel="${escapeHtml(item.channel)}" href="${item.href}"><span>${escapeHtml(item.label)}</span><small>${escapeHtml(item.description)}</small></a>`).join("")}
+    </nav>
     <section class="wrap home-shelf home-shelf-latest">
       <div class="home-shelf-head">
-        <h2>最新上线</h2>
+        <span class="shelf-title"><small>NEW THIS WEEK</small><h2>最新上线</h2></span>
         ${homeShelfTabs(latestTabs)}
         <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
       </div>
@@ -635,6 +653,7 @@ function renderDetail(id) {
   const video = videoById(id);
   app.innerHTML = `
     <section class="detail-hero">
+      <span class="detail-backdrop" aria-hidden="true"><img src="${escapeHtml(video.poster)}" alt=""></span>
       <div class="wrap detail-grid">
         <div class="detail-poster">
           <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="eager" decoding="async" width="380" height="570" sizes="(max-width: 760px) 44vw, 250px">

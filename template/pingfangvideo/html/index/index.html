@@ -21,13 +21,14 @@
         </article>
         {/maccms:vod}
       </div>
+      <span class="liquid-lens" aria-hidden="true"></span>
       <div class="banner-controls">
         <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>
       </div>
     </section>
     <div class="hero-rank" data-rank-react-root data-rank-more-url="{:mac_url('label/hot')}">
       <div class="section-head compact">
-        <h2>年度热播榜</h2>
+        <span class="rank-heading"><small>TOP 05</small><h2>年度热度榜</h2></span>
         <a class="rank-refresh" href="{:mac_url('label/hot')}">查看更多</a>
       </div>
       <div class="rank-list" data-rank-react-list>
@@ -49,9 +50,26 @@
   </div>
 </section>
 
+<nav class="wrap genre-dock" aria-label="频道快捷入口">
+  <a class="genre-chip genre-chip-featured" data-channel="TOP" href="{:mac_url('label/hot')}"><span>热播榜</span><small>全站热度</small></a>
+  {maccms:type ids="42" order="asc" by="sort" num="1" id="type"}
+  <a class="genre-chip" data-channel="FILM" href="{:mac_url_type($type)}"><span>{$type.type_name}</span><small>银幕精选</small></a>
+  {/maccms:type}
+  {maccms:type ids="47" order="asc" by="sort" num="1" id="type"}
+  <a class="genre-chip" data-channel="SERIES" href="{:mac_url_type($type)}"><span>{$type.type_name}</span><small>追剧现场</small></a>
+  {/maccms:type}
+  {maccms:type ids="48" order="asc" by="sort" num="1" id="type"}
+  <a class="genre-chip" data-channel="SHOW" href="{:mac_url_type($type)}"><span>{$type.type_name}</span><small>轻松时刻</small></a>
+  {/maccms:type}
+  {maccms:type ids="57" order="asc" by="sort" num="1" id="type"}
+  <a class="genre-chip" data-channel="ANIME" href="{:mac_url_type($type)}"><span>{$type.type_name}</span><small>次元放映</small></a>
+  {/maccms:type}
+  <a class="genre-chip" data-channel="NEW" href="{:mac_url('label/videos')}"><span>今日更新</span><small>刚刚上线</small></a>
+</nav>
+
 <section class="wrap home-shelf home-shelf-latest" aria-label="本年最新上线">
   <div class="home-shelf-head">
-    <h2>本年最新上线</h2>
+    <span class="shelf-title"><small>NEW THIS YEAR</small><h2>本年最新上线</h2></span>
     <nav class="home-shelf-tabs" role="tablist" aria-label="最新分类">
       <button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all" tabindex="0">推荐</button>
       {maccms:type ids="42" order="asc" by="sort" num="1" id="type"}

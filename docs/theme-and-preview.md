@@ -20,13 +20,13 @@
 
 - `info.ini`：主题元信息，广告目录为 `ads`。
 - `html/public/`：全站公共 include、头尾、分页、卡片、筛选和交互片段。
-- `html/index/index.html`：首页入口，包含热播轮播、年度热播榜和本年最新上线分类标签页。
+- `html/index/index.html`：首页入口，包含沉浸式热播轮播、年度热度榜、频道快捷入口和本年最新上线分类标签页。
 - `html/vod/`：视频分类、筛选、搜索、详情、播放、试看、下载、版权、密码和剧情页面。
 - `html/user/`、`comment/`、`gbook/`、`book/`：用户和反馈相关页面。
 - `html/art/`、`topic/`、`actor/`、`role/`、`plot/`、`website/`：标准模块的页面或兜底页面。
 - `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、站点地图和订阅输出。
 - `css/style.css`：全站样式、语义 token、三套主题和响应式规则。
-- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、轮播和 GSAP banner 动效。
+- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、轮播，以及 GSAP 入场、液态光斑和区块渐入动效。
 - `images/`：站点和品牌图片；生产模板通过 `{$maccms.path_tpl}` 引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
@@ -56,10 +56,10 @@
 
 ## 当前视觉与动效
 
-- 默认主题使用暖色 CTA 与青绿色状态色。
+- 默认主题使用深夜蓝黑底色、紫蓝液态玻璃表面和高亮青色状态色；首页以全宽海报舞台和横向内容货架为主要视觉结构。
 - `blue-pink-purple` 和 `poster-magazine` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
 - `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，默认主题不共用这套重排。
-- `gsap.min.js` 仅由生产首页和静态预览加载。当前 GSAP 范围是首页轮播切换和 banner 虹彩动效，支持减少动态效果，并在可用时读取设备方向；当前实现没有全站 `IntersectionObserver` 入场或卡片 GSAP hover。
+- `gsap.min.js` 由生产首页、静态预览和 PHP 预览加载。当前 GSAP 负责首页入场时间线、轮播切换和指针液态光斑；区块渐入由 `IntersectionObserver` 触发 GSAP，一次播放后即取消观察。卡片 hover 保持为 CSS，并完整支持 `prefers-reduced-motion`。
 
 ## 数据与渲染流
 
@@ -96,7 +96,7 @@ server/index.php
   -> 浏览器加载生产 CSS 与 app.js
 ```
 
-PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。它当前也不加载 GSAP、MacCMS `home.js`、主题切换标记或实验播放器脚本。
+PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。它加载共享 GSAP 与 `app.js` 以复现主题动效，但不加载 MacCMS `home.js`、主题切换标记或实验播放器脚本。
 
 ## 开发约束
 
@@ -157,7 +157,7 @@ npm run verify:release
 ## 历史文档状态
 
 - `docs/superpowers/specs/2026-06-27-cinematic-premium-theme-design.md`：早期视觉基线，部分首页结构已被后续迭代替代。
-- `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md` 与对应 plan：全站 reveal/hover 方案已回退，不能按当前实现理解。
+- `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md` 与对应 plan：其中的全站卡片 hover 方案未启用；当前只保留首页入场、一次性区块渐入、轮播和液态光斑，仍应以 `app.js` 为准。
 - `docs/superpowers/specs/2026-06-29-home-mobile-polish-design.md` 与对应 plan：依赖的 `.hero-stats`、`.quick-types` 等首页结构已不存在。
 - `docs/superpowers/specs/2026-07-01-pingfang-player-design.md`、对应 plan 和 handoff：已更新为“原型保留但禁用”，与当前代码一致。
 - `docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md` 与对应 plan：核心主题切换和 scoped 布局已实现；仍应以当前 CSS、模板和测试为准。

@@ -1190,6 +1190,156 @@
     };
   }
 
+  function initLiquidLens(scope, gsap) {
+    var carousels = scopedElements(scope, ".hero-carousel[data-carousel]");
+    var cleanups = [];
+
+    carousels.forEach(function (carousel) {
+      var lens = carousel.querySelector(".liquid-lens");
+      if (!lens) return;
+
+      var bounds = carousel.getBoundingClientRect();
+      var xTo = gsap.quickTo(lens, "x", { duration: 0.72, ease: "power3.out" });
+      var yTo = gsap.quickTo(lens, "y", { duration: 0.72, ease: "power3.out" });
+      var opacityTo = gsap.quickTo(lens, "opacity", { duration: 0.42, ease: "power2.out" });
+
+      function refreshBounds() {
+        bounds = carousel.getBoundingClientRect();
+      }
+
+      function moveLens(event) {
+        xTo(clampNumber(event.clientX - bounds.left, 0, bounds.width));
+        yTo(clampNumber(event.clientY - bounds.top, 0, bounds.height));
+        opacityTo(0.72);
+      }
+
+      function settleLens() {
+        xTo(bounds.width * 0.72);
+        yTo(bounds.height * 0.34);
+        opacityTo(0.46);
+      }
+
+      gsap.set(lens, {
+        xPercent: -50,
+        yPercent: -50,
+        x: bounds.width * 0.72,
+        y: bounds.height * 0.34,
+        opacity: 0.46
+      });
+      carousel.addEventListener("pointerenter", refreshBounds, { passive: true });
+      carousel.addEventListener("pointermove", moveLens, { passive: true });
+      carousel.addEventListener("pointerleave", settleLens, { passive: true });
+      window.addEventListener("resize", refreshBounds, { passive: true });
+
+      cleanups.push(function () {
+        carousel.removeEventListener("pointerenter", refreshBounds);
+        carousel.removeEventListener("pointermove", moveLens);
+        carousel.removeEventListener("pointerleave", settleLens);
+        window.removeEventListener("resize", refreshBounds);
+        gsap.killTweensOf(lens);
+        gsap.set(lens, { clearProps: "transform,opacity,visibility,willChange" });
+      });
+    });
+
+    return function () {
+      cleanups.forEach(function (cleanup) {
+        cleanup();
+      });
+    };
+  }
+
+  function initPageEntrance(scope, gsap) {
+    var header = scope === document ? document.querySelector(".header-inner") : null;
+    var carousel = (scope || document).querySelector(".hero-carousel");
+    var heroCopy = carousel ? scopedElements(carousel, ".hero-slide.is-active .eyebrow, .hero-slide.is-active .banner-copy strong, .hero-slide.is-active .banner-meta, .hero-slide.is-active .banner-copy small, .hero-slide.is-active .banner-actions") : [];
+    var rankItems = scopedElements(scope, ".hero-rank .rank-item");
+    var timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+    timeline.addLabel("cinema-open", 0);
+    if (header) {
+      timeline.from(header, {
+        autoAlpha: 0,
+        y: -14,
+        duration: 0.46,
+        willChange: "transform,opacity",
+        clearProps: "transform,opacity,visibility,willChange"
+      }, "cinema-open");
+    }
+    if (carousel) {
+      timeline.from(carousel, {
+        autoAlpha: 0,
+        y: 22,
+        scale: 0.988,
+        duration: 0.78,
+        transformOrigin: "50% 60%",
+        willChange: "transform,opacity",
+        clearProps: "transform,opacity,visibility,willChange"
+      }, "cinema-open+=0.08");
+    }
+    if (heroCopy.length) {
+      timeline.from(heroCopy, {
+        autoAlpha: 0,
+        y: 18,
+        duration: 0.56,
+        stagger: 0.055,
+        willChange: "transform,opacity",
+        clearProps: "transform,opacity,visibility,willChange"
+      }, "cinema-open+=0.3");
+    }
+    if (rankItems.length) {
+      timeline.from(rankItems, {
+        autoAlpha: 0,
+        y: 16,
+        duration: 0.48,
+        stagger: 0.045,
+        willChange: "transform,opacity",
+        clearProps: "transform,opacity,visibility,willChange"
+      }, "cinema-open+=0.5");
+    }
+
+    return function () {
+      timeline.kill();
+    };
+  }
+
+  function initSectionMotion(scope, gsap) {
+    var sections = scopedElements(scope, ".genre-dock, .home-shelf, .page-title, .filter-panel, .content-section, .category-index, .history-timeline, .system-page, .detail-grid, .player-page");
+    if (!sections.length) return null;
+
+    if (!("IntersectionObserver" in window)) {
+      return null;
+    }
+
+    gsap.set(sections, { autoAlpha: 0, y: 24, willChange: "transform,opacity" });
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        gsap.to(entry.target, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.72,
+          ease: "power3.out",
+          overwrite: "auto",
+          clearProps: "transform,opacity,visibility,willChange"
+        });
+      });
+    }, {
+      rootMargin: "0px 0px -8% 0px",
+      threshold: 0.08
+    });
+
+    sections.forEach(function (section) {
+      observer.observe(section);
+    });
+
+    return function () {
+      observer.disconnect();
+      gsap.killTweensOf(sections);
+      gsap.set(sections, { clearProps: "transform,opacity,visibility,willChange" });
+    };
+  }
+
   function initGsapMotion(root) {
     var gsap = window.gsap;
     if (!gsap) return;
@@ -1205,12 +1355,17 @@
 
     mm.add({
       reduceMotion: "(prefers-reduced-motion: reduce)",
-      coarsePointer: "(hover: none) and (pointer: coarse)"
+      coarsePointer: "(hover: none) and (pointer: coarse)",
+      finePointer: "(hover: hover) and (pointer: fine)"
     }, function (context) {
       var reduceMotion = context.conditions.reduceMotion;
       var coarsePointer = context.conditions.coarsePointer;
+      var finePointer = context.conditions.finePointer;
       var carousels = scopedElements(scope, "[data-carousel]");
       var iridescenceCleanup = null;
+      var entranceCleanup = null;
+      var sectionCleanup = null;
+      var lensCleanup = null;
 
       if (reduceMotion) {
         carousels.forEach(function (carousel) {
@@ -1218,6 +1373,7 @@
           clearMotionStyles(gsap, scopedElements(carousel, ".hero-slide"));
         });
         clearBannerIridescence(gsap, carousels);
+        clearMotionStyles(gsap, scopedElements(scope, ".genre-dock, .home-shelf, .page-title, .filter-panel, .content-section, .category-index, .history-timeline, .system-page, .detail-grid, .player-page"));
         return;
       }
 
@@ -1225,9 +1381,17 @@
         enableGsapCarousel(carousel);
       });
       iridescenceCleanup = initBannerIridescence(scope, gsap, coarsePointer);
+      entranceCleanup = initPageEntrance(scope, gsap);
+      sectionCleanup = initSectionMotion(scope, gsap);
+      if (finePointer) {
+        lensCleanup = initLiquidLens(scope, gsap);
+      }
 
       return function () {
         if (iridescenceCleanup) iridescenceCleanup();
+        if (entranceCleanup) entranceCleanup();
+        if (sectionCleanup) sectionCleanup();
+        if (lensCleanup) lensCleanup();
       };
     });
   }

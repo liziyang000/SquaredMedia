@@ -52,12 +52,14 @@ function render_layout(array $data, string $title, string $content): string
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>' . e($title) . ' - ' . e($data['siteName']) . '</title>
+  <link rel="icon" href="/template/pingfangvideo/images/brand/favicon.ico">
+  <link rel="icon" type="image/png" sizes="64x64" href="/template/pingfangvideo/images/brand/favicon.png">
   <link rel="stylesheet" href="/template/pingfangvideo/css/style.css">
 </head>
 <body>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="' . e($data['siteName']) . ' logo"></a>
+    <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><span class="brand-emblem" aria-hidden="true"></span><span class="brand-wordmark"><strong>' . e($data['siteName']) . '</strong><small>STREAMING EDITION</small></span><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="" hidden aria-hidden="true"></a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer"><span></span><span></span><span></span></button>
     <nav class="site-nav">' . $nav . '</nav>
     <div class="header-search-wrap">
@@ -86,10 +88,11 @@ function render_layout(array $data, string $title, string $content): string
 <main>' . $content . '</main>
 <footer class="site-footer">
   <div class="wrap footer-grid">
-    <div><strong>' . e($data['siteName']) . '</strong><p>PHP 8.4 后端联动预览，可替换为真实数据库或 MacCMS 数据源。</p></div>
+    <div><strong>' . e($data['siteName']) . '</strong><p>让每一次打开，都像走进一间只为你亮起的放映厅。</p></div>
     <div class="footer-links"><a href="' . e(path_for('home')) . '">首页</a><a href="' . e(path_for('search')) . '">搜索</a></div>
   </div>
 </footer>
+<script src="/template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
 <script src="/template/pingfangvideo/js/app.js"></script>
 </body>
 </html>';
@@ -192,6 +195,7 @@ function render_hero_carousel(array $data, array $videos): string
 
     return '<section class="hero-carousel" data-carousel aria-label="首页热播轮播">
   <div class="banner-track">' . $slides . '</div>
+  <span class="liquid-lens" aria-hidden="true"></span>
   <div class="banner-controls">
     <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>
   </div>
@@ -421,7 +425,7 @@ function render_page(array $data, string $route, array $query): string
             return '<a href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $episode['no']])) . '">' . e($episode['name']) . '</a>';
         }, $video['episodes']));
 
-        return render_layout($data, $video['title'], '<section class="detail-hero"><div class="wrap detail-grid"><div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '"><span>' . e($video['remark']) . '</span></div><div class="detail-main detail-panel"><span class="eyebrow">' . e($video['category']) . '</span><div class="detail-title-row"><h1>' . e($video['title']) . '</h1><span class="score-badge">' . e($video['score']) . '</span></div><p class="meta">' . e($video['year']) . ' / ' . e($video['area']) . ' / ' . e($video['category']) . '</p><p class="summary">' . e($video['summary']) . '</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div></div></section><section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>');
+        return render_layout($data, $video['title'], '<section class="detail-hero"><span class="detail-backdrop" aria-hidden="true"><img src="' . e($video['poster']) . '" alt=""></span><div class="wrap detail-grid"><div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '"><span>' . e($video['remark']) . '</span></div><div class="detail-main detail-panel"><span class="eyebrow">' . e($video['category']) . '</span><div class="detail-title-row"><h1>' . e($video['title']) . '</h1><span class="score-badge">' . e($video['score']) . '</span></div><p class="meta">' . e($video['year']) . ' / ' . e($video['area']) . ' / ' . e($video['category']) . '</p><p class="summary">' . e($video['summary']) . '</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div></div></section><section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>');
     }
 
     if ($route === 'copyright') {
@@ -491,9 +495,17 @@ function render_page(array $data, string $route, array $query): string
     }
     $tabLinks .= '</nav>';
 
-    $latestShelf = '<section class="wrap home-shelf home-shelf-latest"><div class="home-shelf-head"><h2>最新上线</h2>' . $tabLinks . '<a class="home-shelf-more" href="' . e(path_for('category')) . '">全部影片</a></div>' . $tabRails . '</section>';
+    $latestShelf = '<section class="wrap home-shelf home-shelf-latest"><div class="home-shelf-head"><span class="shelf-title"><small>NEW THIS WEEK</small><h2>最新上线</h2></span>' . $tabLinks . '<a class="home-shelf-more" href="' . e(path_for('category')) . '">全部影片</a></div>' . $tabRails . '</section>';
     $hotUrl = path_for('category', ['sort' => 'hot']);
-    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank" data-rank-react-root data-rank-more-url="' . e($hotUrl) . '"><div class="section-head compact"><h2>热搜榜</h2><a class="rank-refresh" href="' . e($hotUrl) . '">查看更多</a></div><div class="rank-list" data-rank-react-list>' . $rank . '</div></div></div></section>' . $latestShelf;
+    $channelCategories = array_slice(array_values(array_filter($preferredTabs, static fn (string $category): bool => in_array($category, $data['categories'], true))), 0, 4);
+    $channelCodes = ['FILM', 'SERIES', 'SHOW', 'ANIME'];
+    $channelDescriptions = ['银幕精选', '追剧现场', '轻松时刻', '次元放映'];
+    $genreDock = '<nav class="wrap genre-dock" aria-label="频道快捷入口"><a class="genre-chip genre-chip-featured" data-channel="TOP" href="' . e($hotUrl) . '"><span>热播榜</span><small>全站热度</small></a>';
+    foreach ($channelCategories as $index => $category) {
+        $genreDock .= '<a class="genre-chip" data-channel="' . e($channelCodes[$index]) . '" href="' . e(path_for('category', ['name' => $category])) . '"><span>' . e($category) . '</span><small>' . e($channelDescriptions[$index]) . '</small></a>';
+    }
+    $genreDock .= '<a class="genre-chip" data-channel="NEW" href="' . e(path_for('category')) . '"><span>今日更新</span><small>刚刚上线</small></a></nav>';
+    $content = '<section class="hero"><div class="wrap hero-grid">' . render_hero_carousel($data, $hot) . '<div class="hero-rank" data-rank-react-root data-rank-more-url="' . e($hotUrl) . '"><div class="section-head compact"><span class="rank-heading"><small>TOP 05</small><h2>年度热度榜</h2></span><a class="rank-refresh" href="' . e($hotUrl) . '">查看更多</a></div><div class="rank-list" data-rank-react-list>' . $rank . '</div></div></div></section>' . $genreDock . $latestShelf;
 
     return render_layout($data, '首页', $content);
 }

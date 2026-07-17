@@ -13,6 +13,9 @@ const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
 const requiredFiles = [
   "info.ini",
   "css/style.css",
+  "images/brand/favicon.ico",
+  "images/brand/favicon.png",
+  "images/brand/ios_fav.png",
   "images/site-logo.png",
   "js/gsap.min.js",
   "js/react.production.min.js",
@@ -200,6 +203,9 @@ assert.match(readme, /\/template\/pingfangvideo\/player\/preload\.html/);
 assert.match(readme, /\/template\/pingfangvideo\/player\/buffering\.html/);
 
 const include = readThemeFile("html/public/include.html");
+assert.match(include, /<link rel="icon" href="\{\$maccms\.path_tpl\}images\/brand\/favicon\.ico">/);
+assert.match(include, /<link rel="icon" type="image\/png" sizes="64x64" href="\{\$maccms\.path_tpl\}images\/brand\/favicon\.png">/);
+assert.match(include, /<link rel="apple-touch-icon" sizes="512x512" href="\{\$maccms\.path_tpl\}images\/brand\/ios_fav\.png">/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/home\.js/);
 assert.match(include, /css\/style\.css\?v=/);

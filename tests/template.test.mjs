@@ -651,7 +651,7 @@ assert.doesNotMatch(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
 assert.doesNotMatch(index, /<a href="\{:mac_url\('vod\/show'\)\}">全部影片<\/a>/);
 
 const detail = readThemeFile("html/vod/detail.html");
-assert.match(detail, /\{include file="public\/head" seo_title="\{\$obj\.vod_name\}" seo_keywords="\{\$obj\.vod_tag\}" seo_description="\{\$obj\.vod_blurb\}" \/\}/);
+assert.match(detail, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
 assert.match(detail, /\{\$obj\.vod_pic\|mac_url_img\}/);
 assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/);
 assert.match(detail, /mac_url_vod_play/);
@@ -676,7 +676,7 @@ const searchImagePage = readThemeFile("html/vod/search.html");
 assert.equal((searchImagePage.match(/sizes="96px"/g) || []).length, 2);
 
 const play = readThemeFile("html/vod/play.html");
-assert.match(play, /\{include file="public\/head" seo_title="\{\$obj\.vod_name\}" seo_keywords="\{\$obj\.vod_tag\}" seo_description="\{\$obj\.vod_blurb\}" \/\}/);
+assert.match(play, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
 assert.match(play, /\{\$player_data\}/);
 assert.match(play, /\{\$player_js\}/);
 assert.doesNotMatch(play, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -709,7 +709,7 @@ assert.match(vodDetailPwdPage, /name="pwd"/);
 assert.match(vodDetailPwdPage, /验证码/);
 
 const playerPage = readThemeFile("html/vod/player.html");
-assert.match(playerPage, /\{include file="public\/head" seo_title="\{\$obj\.vod_name\} \u8bd5\u770b\u64ad\u653e" seo_keywords="\{\$obj\.vod_tag\}" seo_description="\{\$obj\.vod_blurb\}" \/\}/);
+assert.match(playerPage, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
 assert.match(playerPage, /\{\$player_data\}/);
 assert.match(playerPage, /\{\$player_js\}/);
 assert.doesNotMatch(playerPage, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -756,7 +756,7 @@ assert.match(playerPwdPage, /name="pwd"/);
 assert.match(playerPwdPage, /验证码/);
 
 const downPage = readThemeFile("html/vod/down.html");
-assert.match(downPage, /seo_title="\$obj\.vod_name 下载"/);
+assert.match(downPage, /seo_title="\$obj\.vod_name"/);
 assert.match(downPage, /obj\.vod_down_list/);
 assert.match(downPage, /download-list/);
 assert.match(downPage, /mac_url_vod_down/);
@@ -772,7 +772,7 @@ assert.match(copyrightPage, /版权限制/);
 assert.match(copyrightPage, /mac_url_vod_detail/);
 
 const plotPage = readThemeFile("html/vod/plot.html");
-assert.match(plotPage, /seo_title="\$obj\.vod_name 分集剧情"/);
+assert.match(plotPage, /seo_title="\$obj\.vod_name"/);
 assert.match(plotPage, /plot-list/);
 assert.match(plotPage, /obj\.vod_plot_list/);
 

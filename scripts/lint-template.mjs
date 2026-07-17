@@ -88,6 +88,8 @@ for (const filePath of files) {
   assert.doesNotMatch(content, /action="#"/, `${file} should not use dead form action links`);
   assert.doesNotMatch(content, /action="javascript:/, `${file} should not use javascript form actions`);
   assert.doesNotMatch(content, /__ROOT__/, `${file} should use MacCMS runtime path variables instead of __ROOT__`);
+  assert.doesNotMatch(content, /\{include[^\n]*="\{\$/, `${file} should pass include variables without nested template braces`);
+  assert.doesNotMatch(content, /\bseo_(?:title|keywords|description)="\$[^"]*\s+[^"]*"/, `${file} should pass dynamic SEO include values as bare variable paths`);
 
   if (file === "public/include.html") {
     assert.match(

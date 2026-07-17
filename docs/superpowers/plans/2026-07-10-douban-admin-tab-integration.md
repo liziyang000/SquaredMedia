@@ -1,5 +1,9 @@
 # 豆瓣评分后台标签页集成实施计划
 
+> **历史状态（2026-07-17）：** 本文保留首次实现步骤。当前后台控制器源码位于
+> `addons/douban/application/admin/controller/Douban.php`，不再使用 `bridge/` 目录；
+> 下方旧路径、断言和提交命令只用于追溯。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **目标：** 让自定义菜单项 `豆瓣评分,admin/douban/index` 在 MacCMS 后台右侧标签页中打开完整豆瓣管理功能。

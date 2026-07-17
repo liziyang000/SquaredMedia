@@ -1,11 +1,11 @@
 <?php
 
-namespace app\index\controller;
+namespace app\admin\controller;
 
-use addons\douban\controller\Index as AddonIndex;
+use addons\douban\backend\DoubanController;
 use think\Request;
 
-class Douban extends AddonIndex
+class Douban extends DoubanController
 {
     public function __construct(?Request $request = null)
     {

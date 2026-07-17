@@ -16,12 +16,12 @@
 
 | 命令 | 作用 | 是否写入仓库生成目录 |
 | --- | --- | --- |
-| `npm test` | 运行模板契约测试、设备会话与控制器 PHP 测试、海报修复单元测试 | 否；测试只使用系统临时目录 |
+| `npm test` | 运行模板契约、设备会话与控制器、海报修复及 Douban 数据/网关/匹配测试 | 否；测试只使用系统临时目录 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
-| `npm run package` | 重建主题和 `pingfangdevice` 插件发布包 | 是，重建整个 `dist/` |
-| `npm run verify:release` | 解包检查两个归档的结构、生产边界、资源版本和插件表结构 | 只读 `dist/` |
+| `npm run package` | 重建主题、`pingfangdevice` 和 `douban` 发布包 | 是，重建整个 `dist/` |
+| `npm run verify:release` | 解包检查三个归档的结构、生产边界、资源版本和插件表结构 | 只读 `dist/` |
 
 提交主题相关修改前，至少执行：
 
@@ -62,17 +62,19 @@ dist/
 ├── pingfangvideo/
 ├── pingfangvideo.tar.gz
 ├── pingfangdevice/
-└── pingfangdevice.tar.gz
+├── pingfangdevice.tar.gz
+├── douban/
+└── douban.tar.gz
 ```
 
 打包过程有以下固定行为：
 
-- `pingfangvideo` 来自 `template/pingfangvideo/`，`pingfangdevice` 来自 `addons/pingfangdevice/`。
-- `pingfangdevice/application/` 保留 MacCMS 标准插件应用载荷结构；SSH 部署会把其中的兼容控制器复制到对应 CMS 应用目录。
+- `pingfangvideo` 来自 `template/pingfangvideo/`，两个插件分别来自 `addons/pingfangdevice/` 和 `addons/douban/`。
+- 两个插件的 `application/` 都保留 MacCMS 标准应用载荷结构；`pingfangdevice` 安装前台兼容控制器，`douban` 只安装后台控制器。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
 - 主题 HTML 中的 `__PINGFANG_ASSET_VERSION__` 会替换为 12 位内容摘要；当前摘要输入为 `css/style.css`、`js/rank-react.js`、`js/app.js` 和 `player/prompt.css`。新增需要同一版本策略的资源时，应同步维护该输入列表和发布验证。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
-- 当前自动化只打包主题和 `pingfangdevice`，不会自动打包或部署其他 `addons/` 子目录。
+- 当前自动化只打包主题、`pingfangdevice` 和 `douban`，不会自动打包或部署其他 `addons/` 子目录。
 
 `dist/` 已被 `.gitignore` 忽略，是可重复生成的发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
@@ -97,15 +99,20 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
+只发布 Douban 后台插件时使用 `DEPLOY_SCOPE=douban npm run deploy`。该模式仍执行全部本地门禁、Douban 备份、数据库增量、后台控制器安装、缓存清理和站点回环验证，但不会上传或替换主题与 `pingfangdevice`。
+
 发布顺序如下：
 
 1. 在本地重新执行测试、模板检查、兼容验证和预览验证。
-2. 重建 `dist/`，再验证两个发布归档。
-3. 上传主题与 `pingfangdevice` 归档到远端临时路径。
+2. 重建 `dist/`，再验证三个发布归档。
+3. 上传主题、`pingfangdevice` 与 `douban` 归档到远端临时路径。
 4. 先安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
-5. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
-6. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
-7. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
+5. 安装并验证 `douban`：备份旧插件，替换插件目录，只复制后台 `application/` 控制器载荷，备份后移除旧前台兼容控制器，并执行 `install.sql`。默认 `internal` 数据源直接调用插件内置网关，不再部署根目录 `extend/douban.php`。
+6. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
+7. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
+8. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
+
+结构升级会备份并移除明确属于旧插件的 `application/index/controller/Douban.php`；不会自动删除服务器上历史部署的 `extend/douban.php`。确认没有外部调用方后，应先备份再单独清理该根目录文件。
 
 需要保留缓存时可设置 `DEPLOY_CLEAR_CACHE=0`，但只能用于明确的维护场景。站点回环验证能识别 PHP/Nginx 错误页、错误虚拟主机和缓存重建失败，但不会检查浏览器登录流程、外部 DNS/CDN 可达性，因此脚本成功仍不等于完整线上验收。
 
@@ -113,6 +120,7 @@ npm run deploy
 
 - 首页、分类、详情、播放及用户入口返回预期页面，没有 PHP 运行时错误。
 - `pingfangdevice` 管理页可访问，登录、设备登记和撤销流程按预期工作。
+- Douban 后台菜单打开标准后台控制器，任务生成、同步和评分校准操作返回预期结果。
 - MacCMS 缓存目录仍可由 Web 进程写入。
 - 远端实际主题和插件文件来自本次归档，并记录本次生成的备份目录名。
 
@@ -125,7 +133,7 @@ npm run deploy
 - 发布脚本会替换远端目录、修改 `application/extra/addons.php` 并执行数据库 DDL。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
 - 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
 - 站点回环验证发生在文件、hook 和数据库更新之后；验证失败会让部署命令返回非零，但不会自动回滚已经应用的变化，应先检查响应和备份，再决定修复或执行明确回滚。
-- 脚本会为插件目录、应用兼容控制器和 hook 配置创建备份，但不会自动执行插件回滚。
+- 脚本会为两个插件目录、应用控制器、被清理的旧 Douban 前台控制器和 hook 配置创建备份，但不会自动执行插件回滚。
 
 ## 回滚
 
@@ -147,7 +155,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 
 回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并默认清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
 
-此命令只回滚主题，不回滚 `pingfangdevice` 插件、应用兼容控制器、hook 配置或数据库表结构。若故障来自插件发布，必须基于部署时留下的备份和数据库审计结果制定单独恢复方案。主题回滚后仍需完成与发布后相同的线上验证。
+此命令只回滚主题，不回滚 `pingfangdevice`、`douban`、应用兼容控制器、hook 配置或数据库表结构。若故障来自插件发布，必须基于部署时留下的备份和数据库审计结果制定单独恢复方案。主题回滚后仍需完成与发布后相同的线上验证。
 
 ## 数据维护工具
 
@@ -199,6 +207,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 ```text
 pingfangvideo-theme  -> dist/pingfangvideo.tar.gz
 pingfangdevice-addon -> dist/pingfangdevice.tar.gz
+douban-addon         -> dist/douban.tar.gz
 ```
 
 CI 只构建和保存归档，不连接生产服务器，也不执行部署、回滚或数据库维护。下载 CI 产物后仍应核对对应提交和归档内容，再进入有授权的发布流程。

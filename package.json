@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/template.test.mjs && php tests/device-session.test.php && php tests/device-controller.test.php && php tests/poster-repair.test.php && php tests/douban-data.test.php && php tests/douban-gateway.test.php && php tests/douban-matcher.test.php",
+    "test": "node tests/template.test.mjs && php tests/device-session.test.php && php tests/device-controller.test.php && php tests/poster-repair.test.php && php tests/douban-controller.test.php && php tests/douban-data.test.php && php tests/douban-worker.test.php && php tests/douban-gateway.test.php && php tests/douban-matcher.test.php",
     "lint:template": "node scripts/lint-template.mjs",
     "verify:compat": "node scripts/verify-compat.mjs",
     "verify:preview": "node scripts/verify-preview.mjs",

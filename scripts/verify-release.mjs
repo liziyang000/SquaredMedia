@@ -117,11 +117,9 @@ const requiredAddonEntries = [
 ];
 const requiredDoubanAddonEntries = [
   "douban/Douban.php",
-  "douban/bridge/Douban.php",
-  "douban/bridge/DoubanAdmin.php",
-  "douban/bridge/DoubanEndpoint.php",
+  "douban/application/admin/controller/Douban.php",
+  "douban/backend/DoubanController.php",
   "douban/config.php",
-  "douban/controller/Index.php",
   "douban/info.ini",
   "douban/install.sql",
   "douban/service/DoubanData.php",
@@ -257,12 +255,57 @@ const doubanAddonEntries = doubanAddonTarList.stdout
 for (const entry of requiredDoubanAddonEntries) {
   assert.ok(doubanAddonEntries.includes(entry), `${entry} should be included in the douban addon archive`);
 }
+assert.ok(
+  !doubanAddonEntries.some((entry) => entry.startsWith("douban/bridge/")),
+  "Legacy Douban bridge files should not be included in the addon archive"
+);
+assert.ok(
+  !doubanAddonEntries.some((entry) => entry.startsWith("douban/application/index/")),
+  "Douban addon should not install an index-module controller"
+);
+assert.ok(
+  !doubanAddonEntries.some((entry) => entry.startsWith("douban/controller/")),
+  "Douban addon should not expose a public addon controller"
+);
+
+const doubanAddonInfo = execFileSync("tar", ["-xOf", doubanAddonArchive, "douban/info.ini"], { encoding: "utf8" });
+assert.match(doubanAddonInfo, /^url\s*=\s*$/m);
+assert.doesNotMatch(doubanAddonInfo, /index\.php\/douban|addons\/douban/);
 
 const doubanAddonSql = execFileSync("tar", ["-xOf", doubanAddonArchive, "douban/install.sql"], { encoding: "utf8" });
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_vod_meta`/);
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_task`/);
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_log`/);
+assert.match(doubanAddonSql, /idx_task_type_status_attempts/);
+assert.match(doubanAddonSql, /information_schema\.STATISTICS/);
+assert.match(doubanAddonSql, /PREPARE douban_task_stats_index_stmt/);
+assert.match(doubanAddonSql, /\('douban_endpoint', 'internal'/);
+assert.match(doubanAddonSql, /\('max_attempts', '5'/);
+assert.match(doubanAddonSql, /\('rate_limit_next_at', '0'/);
+assert.match(doubanAddonSql, /WHERE `config_key` = 'douban_endpoint'\s+AND `config_value` = '\/extend\/douban\.php'/);
 assert.doesNotMatch(doubanAddonSql, /DROP\s+TABLE/i);
+
+const doubanAddonService = execFileSync("tar", ["-xOf", doubanAddonArchive, "douban/service/DoubanData.php"], { encoding: "utf8" });
+assert.match(doubanAddonService, /public static function retryFailed/);
+assert.match(doubanAddonService, /public static function previewTargetedTasks/);
+assert.match(doubanAddonService, /public static function enqueueTargeted/);
+assert.match(doubanAddonService, /public static function listTasks/);
+assert.match(doubanAddonService, /NOT EXISTS/);
+assert.match(doubanAddonService, /public static function previewScoreCalibration/);
+assert.match(doubanAddonService, /public static function calibrateScoresByType/);
+assert.match(doubanAddonService, /const RATE_LIMIT_STATE_KEY = 'rate_limit_next_at'/);
+assert.match(doubanAddonService, /private static function candidatesForVodIds/);
+
+const doubanAddonView = execFileSync("tar", ["-xOf", doubanAddonArchive, "douban/view/index/index.html"], { encoding: "utf8" });
+assert.match(doubanAddonView, /data-douban-action="retry-failed"/);
+assert.match(doubanAddonView, /data-douban-action="select-candidate"/);
+assert.match(doubanAddonView, /data-douban-action="preview-calibrate-category"/);
+assert.match(doubanAddonView, /data-douban-action="preview-targeted"/);
+assert.match(doubanAddonView, /待执行任务明细/);
+assert.match(doubanAddonView, /douban\/previewTargeted/);
+assert.match(doubanAddonView, /douban\/enqueueTargeted/);
+assert.match(doubanAddonView, /douban\/previewCalibration/);
+assert.match(doubanAddonView, /douban\/calibrateByType/);
 
 console.log(`Verified ${archive}`);
 console.log(`Verified ${addonArchive}`);

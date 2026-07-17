@@ -1,5 +1,9 @@
 # 豆瓣评分后台标签页集成设计
 
+> **历史状态（2026-07-17）：** 本文记录首次后台接入设计。当前后台控制器源码位于
+> `addons/douban/application/admin/controller/Douban.php`，不再使用 `bridge/` 目录；
+> 当前实现与安装说明以代码和 `docs/addons.md` 为准。
+
 ## 目标
 
 让现有自定义菜单项 `豆瓣评分,admin/douban/index` 能够通过 `lbk-admin.php`

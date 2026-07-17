@@ -11,7 +11,8 @@
 - 主题目录：`template/pingfangvideo/`
 - 主题发布包：`dist/pingfangvideo.tar.gz`
 - 登录设备插件：`addons/pingfangdevice/`
-- 插件发布包：`dist/pingfangdevice.tar.gz`
+- 豆瓣数据插件：`addons/douban/`
+- 插件发布包：`dist/pingfangdevice.tar.gz`、`dist/douban.tar.gz`
 
 这些名称会参与 MacCMS 配置、远端目录、路由、数据库表和部署脚本，不应仅因仓库名称不同而单独重命名。若要迁移运行时标识，需要同时核对模板配置、插件钩子、数据库、发布脚本和线上安装状态。
 
@@ -21,6 +22,7 @@
 SquaredMedia/
 ├── .github/workflows/ci.yml      # GitHub Actions 验证与发布包构建
 ├── addons/                       # MacCMS 插件源码
+│   ├── douban/                   # 豆瓣评分同步与后台管理
 │   ├── pingfangdevice/           # 登录设备与会话管理
 │   └── videolint/                # 视频库质量扫描与问题导出
 ├── docker/                       # PHP 8.4 + Apache 开发镜像
@@ -45,6 +47,7 @@ SquaredMedia/
 | `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
 | `addons/pingfangdevice/` | 将 MacCMS 登录态纳入设备会话管理，提供设备查看与撤销能力 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
+| `addons/douban/` | 同步、匹配和校准豆瓣评分，提供后台管理页与任务队列 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `addons/videolint/` | 扫描视频库缺失字段、播放源、封面和重复数据，支持导出问题清单 | 否，当前需单独安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
@@ -77,7 +80,7 @@ npm run package
 npm run verify:release
 ```
 
-当前打包脚本只生成 `pingfangvideo` 主题和 `pingfangdevice` 插件两个归档；`videolint` 不在自动打包或部署范围内。部署与回滚的环境变量、远端备份和缓存处理见 [开发、发布与运维](development-and-operations.md)。
+当前打包脚本生成 `pingfangvideo` 主题、`pingfangdevice` 插件和 `douban` 插件三个归档；`videolint` 不在自动打包或部署范围内。部署与回滚的环境变量、远端备份和缓存处理见 [开发、发布与运维](development-and-operations.md)。
 
 ### 数据维护
 

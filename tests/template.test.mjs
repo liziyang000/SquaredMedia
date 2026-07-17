@@ -127,11 +127,9 @@ const requiredRootFiles = [
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
   "addons/douban/Douban.php",
-  "addons/douban/bridge/Douban.php",
-  "addons/douban/bridge/DoubanAdmin.php",
-  "addons/douban/bridge/DoubanEndpoint.php",
+  "addons/douban/application/admin/controller/Douban.php",
+  "addons/douban/backend/DoubanController.php",
   "addons/douban/config.php",
-  "addons/douban/controller/Index.php",
   "addons/douban/info.ini",
   "addons/douban/install.sql",
   "addons/douban/service/DoubanData.php",
@@ -158,6 +156,10 @@ for (const file of requiredRootFiles) {
 assert.ok(
   !existsSync(path.join(addonRoot, "bridge/Pingfangdevice.php")),
   "The frontend compatibility controller should use the standard addon application payload"
+);
+assert.ok(
+  !existsSync(path.join(doubanAddonRoot, "bridge")),
+  "Douban controllers should use the standard addon application payload"
 );
 
 for (const file of requiredFiles) {
@@ -230,7 +232,8 @@ assert.match(readme, /MacCMS/);
 assert.match(readme, /\/template\/pingfangvideo\/player\/preload\.html/);
 assert.match(readme, /\/template\/pingfangvideo\/player\/buffering\.html/);
 assert.match(readme, /豆瓣评分,admin\/douban\/index/);
-assert.match(readme, /\/lbk-admin\.php\/admin\/douban\/index\.html/);
+assert.match(readme, /<admin-entry>\.php\/admin\/douban\/index\.html/);
+assert.doesNotMatch(readme, /lbk-admin\.php/);
 assert.doesNotMatch(readme, /豆瓣评分,douban\/index/);
 
 const include = readThemeFile("html/public/include.html");
@@ -1686,10 +1689,10 @@ assert.match(ping2DeployEnv, /export DEPLOY_SITE_MARKER=\/template\/pingfangvide
 assert.doesNotMatch(ping2DeployEnv, /DEPLOY_PASSWORD/);
 
 const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "utf8");
-const installSimpleAddonStart = deployScript.indexOf("install_simple_addon() {");
-const installSimpleAddonEnd = deployScript.indexOf('\n}\n\nif [[ ! -d "$DEPLOY_PATH" ]]', installSimpleAddonStart);
-assert.ok(installSimpleAddonStart >= 0 && installSimpleAddonEnd > installSimpleAddonStart);
-const installSimpleAddonScript = deployScript.slice(installSimpleAddonStart, installSimpleAddonEnd);
+const installDoubanAddonStart = deployScript.indexOf("install_douban_addon() {");
+const installDoubanAddonEnd = deployScript.indexOf('\n}\n\nif [[ ! -d "$DEPLOY_PATH" ]]', installDoubanAddonStart);
+assert.ok(installDoubanAddonStart >= 0 && installDoubanAddonEnd > installDoubanAddonStart);
+const installDoubanAddonScript = deployScript.slice(installDoubanAddonStart, installDoubanAddonEnd);
 assert.match(deployScript, /^#!\/usr\/bin\/env bash/);
 assert.match(deployScript, /set -euo pipefail/);
 assert.match(deployScript, /npm test/);
@@ -1709,6 +1712,11 @@ assert.match(deployScript, /IdentitiesOnly=yes/);
 assert.match(deployScript, /DEPLOY_SITE_HOST/);
 assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
 assert.match(deployScript, /DEPLOY_SITE_MARKER/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
+assert.match(deployScript, /DEPLOY_SCOPE must be all or douban/);
+assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "all" \]\]; then[\s\S]*"\$\{scp_command\[@\]\}" "\$ARCHIVE"/);
+assert.match(deployScript, /"DEPLOY_SCOPE=\$\(printf "%q" "\$DEPLOY_SCOPE"\)"/);
+assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "douban" \]\]; then[\s\S]*install_douban_addon[\s\S]*verify_deployed_site[\s\S]*exit 0/);
 assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
 assert.match(deployScript, /Verified deployed site/);
 assert.match(deployScript, /scp/);
@@ -1719,25 +1727,24 @@ assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
 assert.match(deployScript, /DOUBAN_ADDON_NAME="douban"/);
 assert.match(deployScript, /douban\.tar\.gz/);
-assert.match(deployScript, /bridge\/DoubanAdmin\.php/);
 assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
 assert.match(deployScript, /application\/admin\/controller\/Douban\.php/);
-assert.match(deployScript, /extend\/douban\.php/);
-assert.match(installSimpleAddonScript, /admin_controller_source="\$addon_dir\/bridge\/DoubanAdmin\.php"/);
-assert.match(installSimpleAddonScript, /admin_controller_target="\$maccms_root\/application\/admin\/controller\/Douban\.php"/);
-assert.match(installSimpleAddonScript, /for target in "\$bridge_controller_target" "\$admin_controller_target" "\$gateway_target"/);
-assert.match(installSimpleAddonScript, /cp -a "\$admin_controller_source" "\$admin_controller_target"/);
-assert.match(installSimpleAddonScript, /"\$tmp_dir\/\$addon_name\/bridge\/Douban\.php"/);
-assert.match(installSimpleAddonScript, /"\$tmp_dir\/\$addon_name\/bridge\/DoubanAdmin\.php"/);
-assert.match(installSimpleAddonScript, /"\$tmp_dir\/\$addon_name\/bridge\/DoubanEndpoint\.php"/);
-const extractedAdminBridgePreflight = installSimpleAddonScript.indexOf('"$tmp_dir/$addon_name/bridge/DoubanAdmin.php"');
-const existingAddonBackup = installSimpleAddonScript.indexOf('if [[ -d "$addon_dir" ]]');
-const destructiveAddonReplacement = installSimpleAddonScript.indexOf('rm -rf "$addon_dir"');
+assert.doesNotMatch(deployScript, /extend\/douban\.php/);
+assert.doesNotMatch(deployScript, /bridge\/Douban/);
+assert.match(installDoubanAddonScript, /admin_controller_source="\$addon_dir\/application\/admin\/controller\/Douban\.php"/);
+assert.match(installDoubanAddonScript, /cp -a "\$admin_controller_source" "\$admin_controller_target"/);
+assert.doesNotMatch(installDoubanAddonScript, /index_controller_source=/);
+assert.doesNotMatch(installDoubanAddonScript, /cp -a "\$index_controller_source"/);
+assert.match(installDoubanAddonScript, /rm -f "\$legacy_index_controller_target"/);
+assert.match(installDoubanAddonScript, /"\$tmp_dir\/\$DOUBAN_ADDON_NAME\/application\/admin\/controller\/Douban\.php"/);
+const extractedAdminPayloadPreflight = installDoubanAddonScript.indexOf('"$tmp_dir/$DOUBAN_ADDON_NAME/application/admin/controller/Douban.php"');
+const existingAddonBackup = installDoubanAddonScript.indexOf('if [[ -d "$addon_dir" ]]');
+const destructiveAddonReplacement = installDoubanAddonScript.indexOf('rm -rf "$addon_dir"');
 assert.ok(
-  extractedAdminBridgePreflight >= 0
-    && extractedAdminBridgePreflight < existingAddonBackup
-    && extractedAdminBridgePreflight < destructiveAddonReplacement,
-  "Douban admin bridge should be validated before backing up or replacing the existing addon",
+  extractedAdminPayloadPreflight >= 0
+    && extractedAdminPayloadPreflight < existingAddonBackup
+    && extractedAdminPayloadPreflight < destructiveAddonReplacement,
+  "Douban application payload should be validated before backing up or replacing the existing addon",
 );
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
@@ -1932,55 +1939,83 @@ assert.match(deviceAddonView, /"X-Requested-With": "XMLHttpRequest"/);
 const doubanAddonInfo = readDoubanAddonFile("info.ini");
 assert.match(doubanAddonInfo, /name = douban/);
 assert.match(doubanAddonInfo, /title = 豆瓣数据/);
+assert.match(doubanAddonInfo, /^url\s*=\s*$/m);
+assert.doesNotMatch(doubanAddonInfo, /index\.php\/douban|addons\/douban/);
 
 const doubanAddonConfig = readDoubanAddonFile("config.php");
 assert.match(doubanAddonConfig, /douban_endpoint/);
+assert.match(doubanAddonConfig, /'value'\s*=>\s*'internal'/);
 assert.match(doubanAddonConfig, /auto_confirm_score/);
 assert.match(doubanAddonConfig, /request_per_minute/);
+assert.match(doubanAddonConfig, /max_attempts/);
 
 const doubanAddonHook = readDoubanAddonFile("Douban.php");
 assert.match(doubanAddonHook, /namespace addons\\douban/);
 assert.match(doubanAddonHook, /extends Addons/);
 
-const doubanBridgeController = readDoubanAddonFile("bridge/Douban.php");
-assert.match(doubanBridgeController, /namespace app\\index\\controller/);
-assert.match(doubanBridgeController, /extends AddonIndex/);
-assert.match(doubanBridgeController, /__construct\(\?Request \$request = null\)/);
+assert.ok(
+  !existsSync(path.join(doubanAddonRoot, "application/index/controller/Douban.php")),
+  "Douban should not install an index-module controller",
+);
+assert.ok(
+  !existsSync(path.join(doubanAddonRoot, "controller/Index.php")),
+  "Douban should not expose a public addon controller",
+);
 
-const doubanAdminBridgeController = readDoubanAddonFile("bridge/DoubanAdmin.php");
-assert.match(doubanAdminBridgeController, /namespace app\\admin\\controller/);
-assert.match(doubanAdminBridgeController, /class Douban\b/);
-assert.match(doubanAdminBridgeController, /extends AddonIndex/);
-assert.match(doubanAdminBridgeController, /__construct\(\?Request \$request = null\)/);
-assert.match(doubanAdminBridgeController, /'addon'\s*=>\s*'douban'/);
-assert.match(doubanAdminBridgeController, /'controller'\s*=>\s*'index'/);
-assert.match(doubanAdminBridgeController, /'action'\s*=>\s*\$request->action\(\)\s*\?:\s*'index'/);
-assert.match(doubanAdminBridgeController, /parent::__construct\(\$request\)/);
+const doubanAdminApplicationController = readDoubanAddonFile("application/admin/controller/Douban.php");
+assert.match(doubanAdminApplicationController, /namespace app\\admin\\controller/);
+assert.match(doubanAdminApplicationController, /class Douban\b/);
+assert.match(doubanAdminApplicationController, /use addons\\douban\\backend\\DoubanController/);
+assert.match(doubanAdminApplicationController, /extends DoubanController/);
+assert.match(doubanAdminApplicationController, /__construct\(\?Request \$request = null\)/);
+assert.match(doubanAdminApplicationController, /'addon'\s*=>\s*'douban'/);
+assert.match(doubanAdminApplicationController, /'controller'\s*=>\s*'index'/);
+assert.match(doubanAdminApplicationController, /'action'\s*=>\s*\$request->action\(\)\s*\?:\s*'index'/);
+assert.match(doubanAdminApplicationController, /parent::__construct\(\$request\)/);
 
-const doubanGatewayBridge = readDoubanAddonFile("bridge/DoubanEndpoint.php");
-assert.match(doubanGatewayBridge, /DoubanGateway/);
-assert.match(doubanGatewayBridge, /REMOTE_ADDR/);
-assert.match(doubanGatewayBridge, /429/);
-
-const doubanAddonController = readDoubanAddonFile("controller/Index.php");
-assert.match(doubanAddonController, /DoubanData::dashboard/);
-assert.match(doubanAddonController, /DoubanData::saveConfig/);
-assert.match(doubanAddonController, /DoubanData::enqueueDue/);
-assert.match(doubanAddonController, /DoubanData::runPending/);
-assert.match(doubanAddonController, /DoubanData::syncVod/);
-assert.match(doubanAddonController, /DoubanData::calibrateScores/);
-assert.match(doubanAddonController, /model\('Admin'\)->checkLogin\(\)/);
-assert.doesNotMatch(doubanAddonController, /session\('admin_id'\)/);
+const doubanBackendController = readDoubanAddonFile("backend/DoubanController.php");
+assert.match(doubanBackendController, /namespace addons\\douban\\backend/);
+assert.match(doubanBackendController, /class DoubanController extends Controller/);
+assert.match(doubanBackendController, /DoubanData::dashboard/);
+assert.match(doubanBackendController, /DoubanData::saveConfig/);
+assert.match(doubanBackendController, /DoubanData::enqueueDue/);
+assert.match(doubanBackendController, /DoubanData::previewTargetedTasks/);
+assert.match(doubanBackendController, /DoubanData::enqueueTargeted/);
+assert.match(doubanBackendController, /DoubanData::listTasks/);
+assert.match(doubanBackendController, /DoubanData::runPending/);
+assert.match(doubanBackendController, /DoubanData::retryFailed/);
+assert.match(doubanBackendController, /DoubanData::syncVod/);
+assert.match(doubanBackendController, /DoubanData::calibrateScores/);
+assert.match(doubanBackendController, /DoubanData::previewScoreCalibration/);
+assert.match(doubanBackendController, /DoubanData::calibrateScoresByType/);
+assert.match(doubanBackendController, /assign\('categories', \$dashboard\['categories'\]\)/);
+assert.match(doubanBackendController, /input\('type_ids\/a', \[\]\)/);
+assert.match(doubanBackendController, /input\('include_children\/d', 1\)/);
+assert.match(doubanBackendController, /input\('confirm\/d', 0\)/);
+assert.match(doubanBackendController, /model\('Admin'\)->checkLogin\(\)/);
+assert.doesNotMatch(doubanBackendController, /session\('admin_id'\)/);
 
 const doubanDataService = readDoubanAddonFile("service/DoubanData.php");
 assert.match(doubanDataService, /const VOD_TABLE = 'vod'/);
+assert.match(doubanDataService, /const TYPE_TABLE = 'type'/);
 assert.match(doubanDataService, /const META_TABLE = 'douban_vod_meta'/);
 assert.match(doubanDataService, /const TASK_TABLE = 'douban_task'/);
 assert.match(doubanDataService, /const LOG_TABLE = 'douban_log'/);
+assert.match(doubanDataService, /const STATS_CACHE_SECONDS = 60/);
+assert.match(doubanDataService, /const RATE_LIMIT_STATE_KEY = 'rate_limit_next_at'/);
+assert.match(doubanDataService, /const MANUAL_RETRY_AT = 2147483647/);
 assert.match(doubanDataService, /public static function dashboard/);
 assert.match(doubanDataService, /public static function listVideos/);
 assert.match(doubanDataService, /public static function enqueueDue/);
+assert.match(doubanDataService, /public static function previewTargetedTasks/);
+assert.match(doubanDataService, /public static function enqueueTargeted/);
+assert.match(doubanDataService, /public static function listTasks/);
+assert.match(doubanDataService, /private static function normalizeTargetedFilters/);
+assert.match(doubanDataService, /private static function targetedWhere/);
+assert.match(doubanDataService, /ENQUEUE_TARGETED/);
+assert.match(doubanDataService, /NOT EXISTS/);
 assert.match(doubanDataService, /public static function runPending/);
+assert.match(doubanDataService, /public static function retryFailed/);
 assert.match(doubanDataService, /public static function syncVod/);
 assert.match(doubanDataService, /douban_id_locked/);
 assert.match(doubanDataService, /douban_next_sync_at/);
@@ -1989,20 +2024,42 @@ assert.match(doubanDataService, /AUTO_SYNC/);
 assert.match(doubanDataService, /SYNC_DOUBAN/);
 assert.match(doubanDataService, /MATCH_DOUBAN_ID/);
 assert.match(doubanDataService, /public static function calibrateScores/);
+assert.match(doubanDataService, /public static function calibrationCategories/);
+assert.match(doubanDataService, /public static function previewScoreCalibration/);
+assert.match(doubanDataService, /public static function calibrateScoresByType/);
+assert.match(doubanDataService, /private static function resolveCalibrationTypeIds/);
+assert.match(doubanDataService, /private static function categoryOptionsFromRows/);
+assert.match(doubanDataService, /private static function scoreCalibrationPreview/);
+assert.match(doubanDataService, /private static function applyScoreCalibration/);
+assert.match(doubanDataService, /private static function scoreCalibrationScopeSql/);
+assert.match(doubanDataService, /array_fill\(0, count\(\$typeIds\), '\?'\)/);
+assert.match(doubanDataService, /model\('Type'\)->getCache\('type_list'\)/);
+assert.match(doubanDataService, /Db::name\(self::TYPE_TABLE\)/);
+assert.match(doubanDataService, /type_id,type_pid,type_mid,type_name,type_sort/);
+assert.match(doubanDataService, /\$typeMid !== 1/);
+assert.match(doubanDataService, /type_id IN \(/);
+assert.match(doubanDataService, /SUM\(CASE WHEN vod_douban_score/);
+assert.match(doubanDataService, /请至少选择一个分类/);
+assert.match(doubanDataService, /所选分类不存在/);
 assert.match(doubanDataService, /vod_douban_score/);
 assert.doesNotMatch(doubanDataService, /'vod_score_all' => \[/);
 assert.doesNotMatch(doubanDataService, /'vod_score_num' => \[/);
 assert.match(doubanDataService, /vod_douban_score > 0 AND vod_douban_score <= 10/);
 assert.match(doubanDataService, /'invalid_reset'/);
 assert.match(doubanDataService, /豆瓣评分必须在 0 到 10 之间/);
-assert.match(doubanDataService, /self::calibrateScores\(\$operatorId\)/);
 assert.match(doubanDataService, /where\('status', 'RUNNING'\)/);
 assert.match(doubanDataService, /where\('status', 'PENDING'\)/);
 assert.match(doubanDataService, /vod_douban_id'\s*=>\s*\$doubanId/);
 assert.match(doubanDataService, /request_per_minute/);
+assert.match(doubanDataService, /\$endpoint === 'internal'/);
+assert.match(doubanDataService, /\$endpoint === '\/extend\/douban\.php'/);
+assert.match(doubanDataService, /未配置豆瓣数据接口/);
+assert.doesNotMatch(doubanDataService, /douban\.php (?:接口|无响应|返回)/);
+assert.doesNotMatch(doubanDataService, /(?:调用|相对) douban\.php/);
 assert.match(doubanDataService, /DoubanMatcher::rank/);
 assert.match(doubanDataService, /DoubanGateway::subject/);
 assert.match(doubanDataService, /DoubanGateway::search/);
+assert.doesNotMatch(doubanDataService, /review_score/);
 assert.match(doubanDataService, /\$maccms\['site'\]\['site_url'\]/);
 assert.match(doubanDataService, /information_schema\.COLUMNS/);
 assert.doesNotMatch(doubanDataService, /SHOW COLUMNS FROM \{\$tableName\} LIKE \?/);
@@ -2012,6 +2069,59 @@ assert.match(doubanDataService, /v\.vod_time/);
 assert.match(doubanDataService, /\$vod\['vod_time'\]/);
 assert.doesNotMatch(doubanDataService, /v\.update_time/);
 assert.doesNotMatch(doubanDataService, /\$vod\['update_time'\]/);
+
+const enqueueDueStart = doubanDataService.indexOf("public static function enqueueDue");
+const runPendingStart = doubanDataService.indexOf("public static function runPending", enqueueDueStart);
+const syncVodStart = doubanDataService.indexOf("public static function syncVod", runPendingStart);
+const runTaskStart = doubanDataService.indexOf("private static function runTask", syncVodStart);
+const saveCandidatesStart = doubanDataService.indexOf("private static function saveCandidates", runTaskStart);
+const statsStart = doubanDataService.indexOf("private static function stats", saveCandidatesStart);
+const taskStatsStart = doubanDataService.indexOf("private static function taskStats", statsStart);
+assert.ok(enqueueDueStart >= 0 && runPendingStart > enqueueDueStart);
+assert.ok(syncVodStart > runPendingStart && runTaskStart > syncVodStart);
+assert.ok(saveCandidatesStart > runTaskStart && statsStart > saveCandidatesStart && taskStatsStart > statsStart);
+const enqueueDueMethod = doubanDataService.slice(enqueueDueStart, runPendingStart);
+const runPendingMethod = doubanDataService.slice(runPendingStart, syncVodStart);
+const workerMethods = doubanDataService.slice(runTaskStart, saveCandidatesStart);
+const statsMethod = doubanDataService.slice(statsStart, taskStatsStart);
+assert.doesNotMatch(enqueueDueMethod, /calibrateScores/);
+assert.doesNotMatch(enqueueDueMethod, /taskExists\(/);
+assert.match(enqueueDueMethod, /insertMissingMetaRows\(/);
+assert.match(enqueueDueMethod, /activeTaskKeys\(/);
+assert.match(enqueueDueMethod, /insertTaskRows\(/);
+assert.match(runPendingMethod, /self::runTask\(\$task, \$operatorId, \$config\)/);
+assert.match(runPendingMethod, /where\('status', 'PENDING'\)/);
+assert.match(runPendingMethod, /if \(\(int\) \$claimed !== 1\)/);
+assert.match(runPendingMethod, /\$claimedAt = time\(\)/);
+assert.match(runPendingMethod, /where\('run_after', '<=', \$claimedAt\)/);
+assert.match(runPendingMethod, /taskFailureUpdate\(\$attempts, \(int\) \$config\['max_attempts'\]/);
+assert.match(runPendingMethod, /'status'\s*=>\s*'RUNNING'/);
+assert.match(runPendingMethod, /where\('attempts', \$attempts\)/);
+assert.match(runPendingMethod, /if \(\(int\) \$completed !== 1\)/);
+assert.match(runPendingMethod, /if \(\(int\) \$failed !== 1\)/);
+assert.match(runPendingMethod, /Worker 超时，已重新入队/);
+assert.match(doubanDataService, /'douban_next_sync_at'\s*=>\s*\$terminal \? self::MANUAL_RETRY_AT/);
+assert.match(doubanDataService, /return '等待手动重试'/);
+assert.match(doubanDataService, /private static function syncVodWithConfig/);
+assert.doesNotMatch(workerMethods, /self::config\(\)/);
+assert.match(workerMethods, /syncVodWithConfig\(\$vodId, \$operatorId, \$config\)/);
+assert.match(statsMethod, /SUM\(CASE WHEN/);
+assert.match(statsMethod, /cache\(self::STATS_CACHE_KEY\)/);
+assert.match(statsMethod, /cache\(self::STATS_CACHE_KEY, \$stats, self::STATS_CACHE_SECONDS\)/);
+assert.doesNotMatch(statsMethod, /countMetaStatus/);
+assert.match(runPendingMethod, /forgetStatsCache\(\)/);
+assert.match(enqueueDueMethod, /forgetStatsCache\(\)/);
+assert.doesNotMatch(doubanDataService, /private static function taskExists/);
+assert.doesNotMatch(doubanDataService, /private static function countMetaStatus/);
+assert.match(doubanDataService, /activeTaskKeys\(array \$vodIds, array \$statuses = \['PENDING', 'RUNNING', 'FAILED'\]\)/);
+assert.match(doubanDataService, /private static function requestReservation/);
+assert.match(doubanDataService, /Db::startTrans\(\)/);
+assert.match(doubanDataService, /where\('config_key', self::RATE_LIMIT_STATE_KEY\)->lock\(true\)/);
+assert.match(doubanDataService, /if \(\(int\) \$updated !== 1\)/);
+assert.match(doubanDataService, /private static function candidateForView/);
+assert.match(doubanDataService, /private static function candidatesForVodIds/);
+assert.match(doubanDataService, /candidate_title/);
+assert.match(doubanDataService, /candidate_year/);
 
 const doubanGateway = readDoubanAddonFile("service/DoubanGateway.php");
 assert.match(doubanGateway, /rexxar\/api\/v2\/movie/);
@@ -2027,10 +2137,22 @@ assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_vod_m
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_task`/);
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_log`/);
 assert.match(doubanAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__douban_review_candidate`/);
+assert.match(doubanAddonSql, /idx_task_type_status_attempts/);
+assert.match(doubanAddonSql, /information_schema\.STATISTICS/);
+assert.match(doubanAddonSql, /PREPARE douban_task_stats_index_stmt/);
+assert.match(doubanAddonSql, /\('max_attempts', '5'/);
+assert.match(doubanAddonSql, /\('rate_limit_next_at', '0'/);
+assert.match(doubanAddonSql, /UPDATE `__PREFIX__douban_config`/);
+assert.match(doubanAddonSql, /WHERE `config_key` = 'douban_endpoint'\s+AND `config_value` = '\/extend\/douban\.php'/);
+assert.doesNotMatch(doubanAddonSql, /'review_score'/);
 assert.doesNotMatch(doubanAddonSql, /DROP\s+TABLE/i);
 
 const doubanAddonView = readDoubanAddonFile("view/index/index.html");
 assert.match(doubanAddonView, /<!doctype html>/i);
+assert.match(doubanAddonView, /douban_endpoint\|mac_default='internal'/);
+assert.match(doubanAddonView, /<label>豆瓣数据接口/);
+assert.doesNotMatch(doubanAddonView, /douban\.php 接口/);
+assert.doesNotMatch(doubanAddonView, /name="review_score"/);
 assert.doesNotMatch(doubanAddonView, /include file="public\/head"/);
 assert.doesNotMatch(doubanAddonView, /include file="public\/foot"/);
 assert.match(doubanAddonView, /豆瓣数据/);
@@ -2041,6 +2163,32 @@ assert.match(doubanAddonView, /任务监控与日志/);
 assert.match(doubanAddonView, /data-douban-action/);
 assert.match(doubanAddonView, /url\('douban\/sync'\)/);
 assert.match(doubanAddonView, /data-douban-action="calibrate"/);
+assert.match(doubanAddonView, /name="type_ids\[\]"/);
+assert.match(doubanAddonView, /name="include_children"/);
+assert.match(doubanAddonView, /data-douban-action="preview-calibrate-category"/);
+assert.match(doubanAddonView, /url\('douban\/previewCalibration'\)/);
+assert.match(doubanAddonView, /url\('douban\/calibrateByType'\)/);
+assert.match(doubanAddonView, /预览分类校准/);
+assert.match(doubanAddonView, /未选择分类/);
+assert.match(doubanAddonView, /data-douban-action="retry-failed"/);
+assert.match(doubanAddonView, /url\('douban\/retryFailed'\)/);
+assert.match(doubanAddonView, /id="doubanTargetedForm"/);
+assert.match(doubanAddonView, /name="target"/);
+assert.match(doubanAddonView, /name="year_from"/);
+assert.match(doubanAddonView, /name="year_to"/);
+assert.match(doubanAddonView, /data-douban-action="preview-targeted"/);
+assert.match(doubanAddonView, /url\('douban\/previewTargeted'\)/);
+assert.match(doubanAddonView, /url\('douban\/enqueueTargeted'\)/);
+assert.match(doubanAddonView, /定向生成豆瓣任务/);
+assert.match(doubanAddonView, /待执行任务明细/);
+assert.match(doubanAddonView, /task_type_label/);
+assert.match(doubanAddonView, /run_after_label/);
+assert.match(doubanAddonView, /data-douban-action="select-candidate"/);
+assert.match(doubanAddonView, /candidate_title/);
+assert.match(doubanAddonView, /candidate_year/);
+assert.match(doubanAddonView, /\['SYNC_DOUBAN'\]\['FAILED'\]/);
+assert.match(doubanAddonView, /window\.confirm\(/);
+assert.match(doubanAddonView, /formData\.append\("confirm", "1"\)/);
 
 const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);
@@ -2130,9 +2278,11 @@ assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /douban\/service\/DoubanData\.php/);
-assert.match(releaseVerifier, /douban\/bridge\/Douban\.php/);
-assert.match(releaseVerifier, /douban\/bridge\/DoubanAdmin\.php/);
-assert.match(releaseVerifier, /douban\/bridge\/DoubanEndpoint\.php/);
+assert.match(releaseVerifier, /douban\/application\/admin\/controller\/Douban\.php/);
+assert.match(releaseVerifier, /douban\/backend\/DoubanController\.php/);
+assert.match(releaseVerifier, /entry\.startsWith\("douban\/application\/index\/"\)/);
+assert.match(releaseVerifier, /entry\.startsWith\("douban\/controller\/"\)/);
+assert.match(releaseVerifier, /entry\.startsWith\("douban\/bridge\/"\)/);
 assert.match(releaseVerifier, /douban\/service\/DoubanGateway\.php/);
 assert.match(releaseVerifier, /douban\/service\/DoubanMatcher\.php/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
@@ -2140,7 +2290,43 @@ assert.match(releaseVerifier, /pingfangvideo\/js\/react-dom\.production\.min\.js
 assert.match(releaseVerifier, /pingfangvideo\/js\/rank-react\.js/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /douban_vod_meta/);
+assert.match(releaseVerifier, /idx_task_type_status_attempts/);
+assert.match(releaseVerifier, /\('max_attempts', '5'/);
+assert.match(releaseVerifier, /\('rate_limit_next_at', '0'/);
+assert.match(releaseVerifier, /public static function retryFailed/);
+assert.match(releaseVerifier, /public static function previewTargetedTasks/);
+assert.match(releaseVerifier, /public static function enqueueTargeted/);
+assert.match(releaseVerifier, /public static function listTasks/);
+assert.match(releaseVerifier, /public static function previewScoreCalibration/);
+assert.match(releaseVerifier, /public static function calibrateScoresByType/);
+assert.match(releaseVerifier, /data-douban-action=\"retry-failed\"/);
+assert.match(releaseVerifier, /data-douban-action=\"select-candidate\"/);
+assert.match(releaseVerifier, /data-douban-action=\"preview-calibrate-category\"/);
+assert.match(releaseVerifier, /data-douban-action=\"preview-targeted\"/);
+assert.match(releaseVerifier, /douban\\\/previewTargeted/);
+assert.match(releaseVerifier, /douban\\\/enqueueTargeted/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
+
+const addonsDoc = readFileSync(path.join(root, "docs/addons.md"), "utf8");
+assert.match(addonsDoc, /\| `douban` \|/);
+assert.match(addonsDoc, /application\/admin\/controller\/Douban\.php/);
+assert.match(addonsDoc, /仅提供后台管理入口/);
+assert.doesNotMatch(addonsDoc, /前台模块兼容控制器，用于目标站点保留/);
+assert.match(addonsDoc, /生成任务不会触发全表评分校准/);
+assert.match(addonsDoc, /批量写入元数据和任务/);
+assert.match(addonsDoc, /概况统计缓存 60 秒/);
+assert.match(addonsDoc, /跨 Worker 共享限流/);
+assert.match(addonsDoc, /达到最大次数后进入 `FAILED`/);
+assert.match(addonsDoc, /候选项采用/);
+assert.match(addonsDoc, /按分类校准/);
+assert.match(addonsDoc, /默认包含全部后代分类/);
+assert.match(addonsDoc, /只展示 `type_mid=1` 的视频分类/);
+assert.match(addonsDoc, /预览不会写入数据库/);
+assert.doesNotMatch(addonsDoc, /当前仓库没有本文所述的 `addons\/douban/);
+
+const operationsDoc = readFileSync(path.join(root, "docs/development-and-operations.md"), "utf8");
+assert.match(operationsDoc, /dist\/douban\.tar\.gz/);
+assert.match(operationsDoc, /主题、`pingfangdevice` 和 `douban`/);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 assert.doesNotMatch(preview, /href="#"/);

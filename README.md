@@ -104,14 +104,18 @@ Add the following exact entry to the MacCMS custom admin menu:
 豆瓣评分,admin/douban/index
 ```
 
-The backend URL is `<admin-entry>.php/admin/douban/index.html`; `ping2.my` uses
-`/lbk-admin.php/admin/douban/index.html`, which opens as a MacCMS admin tab.
-`/index.php/douban/index.html` remains available as a compatibility route.
-Deployment installs both controller bridges and a self-hosted
-`/extend/douban.php` gateway because the target site does not enable generic
-addon routes. It does not modify MacCMS core menu templates or the custom menu
-configuration. The addon stores sync metadata, task state, review candidates,
-and operation logs in addon-owned tables.
+The backend URL is `<admin-entry>.php/admin/douban/index.html`, using the
+site's current randomized MacCMS admin entry, and opens as a MacCMS admin tab.
+The addon only packages an admin-module controller and leaves `info.ini` without
+a public URL; it does not provide an index-module or generic addon controller.
+The default `internal` data source calls the addon's `DoubanGateway` directly; a
+compatible external endpoint can still be configured when needed.
+Deployment does not install a root `extend/douban.php` script or modify MacCMS
+core menu templates and custom menu configuration. The addon stores sync
+metadata, task state, review candidates, and operation logs in addon-owned
+tables. Upgrading does not automatically delete an older server-side
+`extend/douban.php`; back it up and remove it separately only after confirming
+that no external caller still depends on it.
 
 MacCMS only exposes `by="score"` as its native score sort. This addon therefore
 keeps the original value in `vod_douban_score` and mirrors it to `vod_score`.
@@ -126,6 +130,12 @@ due tasks, and run the Pending Worker in limited batches. Existing
 `vod_douban_id` values sync directly. Videos without an ID are searched by title;
 a unique exact title and year match is confirmed automatically, while ambiguous
 results remain in 待核查豆瓣ID for manual confirmation.
+
+For a controlled backfill, use **定向生成豆瓣任务**: select one or more video
+categories, optionally include descendants, then narrow the scope by missing
+score/ID, year, title, or video ID. Preview first, confirm the task count, inspect
+the **待执行任务明细** list, and only then run the Pending Worker. Previewing does
+not write video data or call Douban, and active or failed tasks are not duplicated.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
@@ -152,6 +162,14 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
+To deploy only the backend Douban addon while leaving the theme and device addon
+unchanged, set the narrow deployment scope:
+
+```bash
+source scripts/deploy-ping2.env
+DEPLOY_SCOPE=douban npm run deploy
+```
+
 `DEPLOY_PATH` must point to the remote MacCMS `template` directory. The deploy
 script runs the full local verification sequence, uploads `dist/pingfangvideo.tar.gz`,
 backs up any existing remote `pingfangvideo` directory as `pingfangvideo.backup.*`,
@@ -173,8 +191,9 @@ back.
 
 The deploy script also installs the `pingfangdevice` and `douban` addons under
 the remote MacCMS `addons` directory and applies each addon's `install.sql`.
-For `douban`, it also installs `application/index/controller/Douban.php` and
-`application/admin/controller/Douban.php`, plus `extend/douban.php`.
+For `douban`, it installs `application/admin/controller/Douban.php` from the
+addon's standard `application/` payload and backs up then removes the obsolete
+`application/index/controller/Douban.php` frontend compatibility controller.
 For `pingfangdevice`, it also adds the addon's `app_begin` hook to
 `application/extra/addons.php`. This hook keeps valid device sessions
 synchronized with MacCMS `user_check` cookies and lets revoked devices fall

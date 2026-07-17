@@ -27,6 +27,11 @@
     th, td { padding: 10px; border: 1px solid #e3e7ec; text-align: left; vertical-align: top; }
     th { background: #f8fafc; white-space: nowrap; }
     .douban-id-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .candidate-list { display: grid; gap: 6px; margin-top: 8px; }
+    .candidate-list button { height: auto; min-height: 32px; padding: 5px 8px; text-align: left; white-space: normal; }
+    .calibration-form select[multiple], .targeted-form select[multiple] { min-width: min(520px, 100%); min-height: 180px; }
+    .calibration-note { margin: 8px 0 0; color: #667085; }
+    .task-error { max-width: 360px; color: #b42318; white-space: normal; word-break: break-word; }
     .module-fallback h1 { margin: 8px 0; font-size: 18px; }
     @media (max-width: 820px) {
       .favorite-list { grid-template-columns: 1fr; }
@@ -44,7 +49,8 @@
     <div class="device-meta">
       <button class="primary-btn" type="button" data-douban-action="enqueue">生成到期任务</button>
       <button class="ghost-btn" type="button" data-douban-action="run">执行 Pending Worker</button>
-      <button class="ghost-btn" type="button" data-douban-action="calibrate">校准豆瓣评分</button>
+      <button class="ghost-btn" type="button" data-douban-action="retry-failed">重试失败任务</button>
+      <button class="ghost-btn" type="button" data-douban-action="calibrate">全量校准豆瓣评分</button>
     </div>
   </div>
 
@@ -66,8 +72,14 @@
       <h2 class="record-title">任务监控与日志</h2>
       <div class="device-meta">
         <span>同步待执行：{:intval($task_stats['SYNC_DOUBAN']['PENDING'] ?? 0)}</span>
+        <span>同步重试中：{:intval($task_stats['SYNC_DOUBAN']['RETRYING'] ?? 0)}</span>
+        <span>同步运行中：{:intval($task_stats['SYNC_DOUBAN']['RUNNING'] ?? 0)}</span>
+        <span>同步失败：{:intval($task_stats['SYNC_DOUBAN']['FAILED'] ?? 0)}</span>
         <span>同步成功：{:intval($task_stats['SYNC_DOUBAN']['SUCCESS'] ?? 0)}</span>
         <span>匹配待执行：{:intval($task_stats['MATCH_DOUBAN_ID']['PENDING'] ?? 0)}</span>
+        <span>匹配重试中：{:intval($task_stats['MATCH_DOUBAN_ID']['RETRYING'] ?? 0)}</span>
+        <span>匹配运行中：{:intval($task_stats['MATCH_DOUBAN_ID']['RUNNING'] ?? 0)}</span>
+        <span>匹配失败：{:intval($task_stats['MATCH_DOUBAN_ID']['FAILED'] ?? 0)}</span>
         <span>匹配跳过：{:intval($task_stats['MATCH_DOUBAN_ID']['SKIP'] ?? 0)}</span>
       </div>
     </article>
@@ -76,8 +88,8 @@
   <div class="system-box" style="margin-top: 12px;">
     <span class="eyebrow">自动更新设置</span>
     <form id="doubanConfigForm" method="post" action="{:url('douban/saveConfig')}" class="tool-form">
-      <label>douban.php 接口
-        <input type="text" name="douban_endpoint" value="{$config.douban_endpoint|mac_default='/extend/douban.php'}">
+      <label>豆瓣数据接口
+        <input type="text" name="douban_endpoint" value="{$config.douban_endpoint|mac_default='internal'}">
       </label>
       <label>排除分类ID
         <input type="text" name="exclude_type_ids" value="{$config.exclude_type_ids|mac_default=''}" placeholder="42,47">
@@ -91,11 +103,11 @@
       <label>每分钟请求数
         <input type="number" name="request_per_minute" value="{:intval($config['request_per_minute'] ?? 30)}" min="1" max="300">
       </label>
+      <label>最大尝试次数
+        <input type="number" name="max_attempts" value="{:intval($config['max_attempts'] ?? 5)}" min="1" max="10">
+      </label>
       <label>自动确认阈值
         <input type="number" name="auto_confirm_score" value="{:intval($config['auto_confirm_score'] ?? 85)}" min="0" max="100">
-      </label>
-      <label>待核查阈值
-        <input type="number" name="review_score" value="{:intval($config['review_score'] ?? 70)}" min="0" max="100">
       </label>
       <label>候选TopN
         <input type="number" name="candidate_topn" value="{:intval($config['candidate_topn'] ?? 5)}" min="1" max="10">
@@ -105,8 +117,117 @@
   </div>
 
   <div class="system-box">
+    <span class="eyebrow">定向生成豆瓣任务</span>
+    <form id="doubanTargetedForm" class="tool-form targeted-form">
+      <label>选择分类（可多选）
+        <select name="type_ids[]" multiple size="8">
+          {volist name="categories" id="category"}
+          <option value="{$category.type_id}">{$category.display_name}</option>
+          {/volist}
+        </select>
+      </label>
+      <label style="display:inline-flex; grid-auto-flow:column; align-items:center; gap:6px;">
+        <input type="checkbox" name="include_children" value="1" checked>包含全部后代分类
+      </label>
+      <label>数据范围
+        <select name="target">
+          <option value="missing_score">无豆瓣评分</option>
+          <option value="missing_id">无豆瓣ID</option>
+          <option value="has_id_missing_score">已有豆瓣ID但无评分</option>
+          <option value="due">已到同步时间</option>
+          <option value="all">所选范围全部视频</option>
+        </select>
+      </label>
+      <label>起始年份
+        <input type="number" name="year_from" min="1800" max="2100" placeholder="不限">
+      </label>
+      <label>结束年份
+        <input type="number" name="year_to" min="1800" max="2100" placeholder="不限">
+      </label>
+      <label>影片名或视频ID
+        <input type="text" name="q" maxlength="100" placeholder="可选">
+      </label>
+      <label>本批上限
+        <input type="number" name="limit" value="{:intval($config['batch_size'] ?? 100)}" min="1" max="500">
+      </label>
+      <button class="primary-btn" type="button" data-douban-action="preview-targeted">预览并生成任务</button>
+    </form>
+    <p class="calibration-note">预览不会写入数据库；确认后只生成匹配或同步任务，不会立即请求豆瓣。全局排除分类、忽略期限、ID锁定和已有活动任务仍会生效。</p>
+  </div>
+
+  <div class="system-box">
+    <span class="eyebrow">按分类校准豆瓣评分</span>
+    <form id="doubanCalibrationForm" class="tool-form calibration-form">
+      <label>选择分类（可多选）
+        <select name="type_ids[]" multiple size="8">
+          {volist name="categories" id="category"}
+          <option value="{$category.type_id}">{$category.display_name}</option>
+          {/volist}
+        </select>
+      </label>
+      <label style="display:inline-flex; grid-auto-flow:column; align-items:center; gap:6px;">
+        <input type="checkbox" name="include_children" value="1" checked>包含全部后代分类
+      </label>
+      <button class="primary-btn" type="button" data-douban-action="preview-calibrate-category">预览分类校准</button>
+    </form>
+    <p class="calibration-note">预览不会写入数据库；确认后只更新所选分类范围。未选择分类时不会执行校准。</p>
+  </div>
+
+  <div class="system-box">
+    <span class="eyebrow">待执行任务明细</span>
+    <form method="get" action="{:url('douban/index')}" class="tool-form">
+      <input type="hidden" name="status" value="{$status}">
+      <input type="hidden" name="q" value="{$q}">
+      <label>任务状态
+        <select name="task_status">
+          <option value="PENDING" {if condition="$task_status eq 'PENDING'"}selected{/if}>待执行</option>
+          <option value="RUNNING" {if condition="$task_status eq 'RUNNING'"}selected{/if}>执行中</option>
+          <option value="FAILED" {if condition="$task_status eq 'FAILED'"}selected{/if}>失败</option>
+          <option value="SUCCESS" {if condition="$task_status eq 'SUCCESS'"}selected{/if}>成功</option>
+          <option value="SKIP" {if condition="$task_status eq 'SKIP'"}selected{/if}>已跳过</option>
+          <option value="ALL" {if condition="$task_status eq 'ALL'"}selected{/if}>全部</option>
+        </select>
+      </label>
+      <button class="ghost-btn" type="submit">查看任务</button>
+    </form>
+    {if condition="empty($tasks)"}
+    <p class="calibration-note">当前筛选状态下没有任务。</p>
+    {else/}
+    <table class="user-records">
+      <thead>
+        <tr>
+          <th>任务ID</th>
+          <th>视频</th>
+          <th>分类 / 年份</th>
+          <th>任务类型</th>
+          <th>状态</th>
+          <th>尝试次数</th>
+          <th>计划执行</th>
+          <th>最近错误</th>
+        </tr>
+      </thead>
+      <tbody>
+        {volist name="tasks" id="task"}
+        <tr>
+          <td>{$task.task_id}</td>
+          <td>#{$task.vod_id} {$task.vod_name|mac_default='影片已删除'}</td>
+          <td>{$task.type_name|mac_default='-'} / {$task.vod_year|mac_default='-'}</td>
+          <td>{$task.task_type_label|mac_default='-'}</td>
+          <td>{$task.status_label|mac_default='-'}</td>
+          <td>{:intval($task['attempts'] ?? 0)}</td>
+          <td>{$task.run_after_label|mac_default='-'}</td>
+          <td class="task-error">{$task.last_error|mac_default='-'}</td>
+        </tr>
+        {/volist}
+      </tbody>
+    </table>
+    {/if}
+  </div>
+
+  <div class="system-box">
     <form method="get" action="{:url('douban/index')}">
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="hidden" name="task_status" value="{$task_status}">
         <select name="status">
           <option value="review" {if condition="$status eq 'review'"}selected{/if}>待核查豆瓣ID</option>
           <option value="not_found" {if condition="$status eq 'not_found'"}selected{/if}>无豆瓣ID</option>
@@ -156,6 +277,15 @@
             </label>
             <button class="ghost-btn" type="submit">保存</button>
           </form>
+          {if condition="!empty($vo['candidates'])"}
+          <div class="candidate-list">
+            {volist name="vo.candidates" id="candidate"}
+            <button class="ghost-btn" type="button" data-douban-action="select-candidate" data-vod-id="{$vo.vod_id}" data-douban-id="{$candidate.douban_id}">
+              采用 {$candidate.douban_id} · {$candidate.candidate_title|mac_default='未记录标题'}{if condition="!empty($candidate['candidate_year'])"} ({$candidate.candidate_year}){/if} · 匹配分 {:intval($candidate['score_total'] ?? 0)}
+            </button>
+            {/volist}
+          </div>
+          {/if}
         </td>
         <td>{$vo.douban_review_status|mac_default='-'}</td>
         <td>{$vo.douban_review_reason|mac_default='-'}</td>
@@ -190,7 +320,7 @@
 </section>
 <script>
   (function () {
-    function post(url, data, button) {
+    function post(url, data, button, onSuccess) {
       if (button) button.disabled = true;
       return fetch(url, {
         method: "POST",
@@ -200,6 +330,11 @@
         return response.json();
       }).then(function (result) {
         if (result && result.code === 1) {
+          if (typeof onSuccess === "function") {
+            if (button) button.disabled = false;
+            onSuccess(result);
+            return;
+          }
           window.location.reload();
           return;
         }
@@ -230,11 +365,80 @@
       } else if (action === "run") {
         url = "{:url('douban/run')}";
         formData.append("limit", "{:intval($config['worker_limit'] ?? 20)}");
+      } else if (action === "retry-failed") {
+        if (!window.confirm("将失败任务清零尝试次数并重新入队，是否继续？")) return;
+        url = "{:url('douban/retryFailed')}";
+        formData.append("limit", "{:intval($config['batch_size'] ?? 100)}");
       } else if (action === "sync") {
         url = "{:url('douban/sync')}";
         formData.append("vod_id", button.getAttribute("data-vod-id"));
+      } else if (action === "select-candidate") {
+        url = "{:url('douban/setDoubanId')}";
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+        formData.append("douban_id", button.getAttribute("data-douban-id"));
+        formData.append("lock", "0");
       } else if (action === "calibrate") {
+        if (!window.confirm("全量校准会扫描视频表，仅建议在评分字段异常时执行。是否继续？")) return;
         url = "{:url('douban/calibrate')}";
+        formData.append("confirm", "1");
+      } else if (action === "preview-targeted") {
+        var targetedForm = document.getElementById("doubanTargetedForm");
+        var targetedSelect = targetedForm.querySelector("select[name='type_ids[]']");
+        if (targetedSelect.selectedOptions.length === 0) {
+          alert("未选择分类，请至少选择一个分类");
+          return;
+        }
+        var targetedData = new FormData(targetedForm);
+        targetedData.set("include_children", targetedForm.querySelector("input[name='include_children']").checked ? "1" : "0");
+        post("{:url('douban/previewTargeted')}", targetedData, button, function (result) {
+          var preview = result.data || {};
+          var names = Array.isArray(preview.type_names) ? preview.type_names : [];
+          var scopeLabel = names.slice(0, 5).join("、");
+          if (names.length > 5) scopeLabel += " 等 " + names.length + " 个分类";
+          var message = "分类：" + scopeLabel + "\n" +
+            "数据范围：" + (preview.target_label || "-") + "\n" +
+            "筛选命中视频：" + (preview.total || 0) + "\n" +
+            "可新建匹配任务：" + (preview.match_tasks || 0) + "\n" +
+            "可新建同步任务：" + (preview.sync_tasks || 0) + "\n" +
+            "已有活动任务：" + (preview.existing_tasks || 0) + "\n" +
+            "本批预计入队：" + (preview.will_enqueue || 0) + "\n\n" +
+            "确认生成任务？生成后仍需执行 Pending Worker。";
+          if (!window.confirm(message)) return;
+          var enqueueData = new FormData(targetedForm);
+          enqueueData.set("include_children", targetedForm.querySelector("input[name='include_children']").checked ? "1" : "0");
+          enqueueData.append("confirm", "1");
+          post("{:url('douban/enqueueTargeted')}", enqueueData, button);
+        });
+        return;
+      } else if (action === "preview-calibrate-category") {
+        var calibrationForm = document.getElementById("doubanCalibrationForm");
+        var selectedOptions = Array.prototype.slice.call(calibrationForm.querySelector("select[name='type_ids[]']").selectedOptions);
+        if (selectedOptions.length === 0) {
+          alert("未选择分类，请至少选择一个分类");
+          return;
+        }
+        var selectedTypeIds = selectedOptions.map(function (option) { return option.value; });
+        var includeChildren = calibrationForm.querySelector("input[name='include_children']").checked ? "1" : "0";
+        selectedTypeIds.forEach(function (typeId) { formData.append("type_ids[]", typeId); });
+        formData.append("include_children", includeChildren);
+        post("{:url('douban/previewCalibration')}", formData, button, function (result) {
+          var preview = result.data || {};
+          var names = Array.isArray(preview.type_names) ? preview.type_names : [];
+          var scopeLabel = names.slice(0, 5).join("、");
+          if (names.length > 5) scopeLabel += " 等 " + names.length + " 个分类";
+          var message = "分类：" + scopeLabel + "\n" +
+            "范围内视频：" + (preview.total || 0) + "\n" +
+            "异常评分归零：" + (preview.invalid_reset || 0) + "\n" +
+            "评分镜像：" + (preview.mirrored || 0) + "\n" +
+            "无豆瓣评分清零：" + (preview.reset || 0) + "\n\n确认执行？";
+          if (!window.confirm(message)) return;
+          var applyData = new FormData();
+          selectedTypeIds.forEach(function (typeId) { applyData.append("type_ids[]", typeId); });
+          applyData.append("include_children", includeChildren);
+          applyData.append("confirm", "1");
+          post("{:url('douban/calibrateByType')}", applyData, button);
+        });
+        return;
       } else if (action === "lock-id" || action === "lock-intro") {
         url = "{:url('douban/lock')}";
         formData.append("vod_id", button.getAttribute("data-vod-id"));

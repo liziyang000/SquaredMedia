@@ -1,8 +1,9 @@
 # Douban Rating Integration Implementation Plan
 
-> **历史状态（2026-07-17）：** 这是旧版实施计划。当前仓库没有本文所述的
-> `addons/douban/**`、Douban 桥接控制器或网关，发布链路也未包含这些文件。
-> 请以 `addons/**` 和 `docs/addons.md` 为当前事实源；本文不能证明功能已实现或已部署。
+> **历史状态（2026-07-17）：** 这是首次落地时的实施计划。当前控制器源码已迁入
+> 标准 `application/` 载荷，默认数据源改为插件内置 `internal` 网关，不再部署
+> 根目录 `extend/douban.php`。下方旧路径和提交步骤只用于追溯，请以代码和
+> `docs/addons.md` 为当前事实源。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

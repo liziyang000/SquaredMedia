@@ -44,6 +44,7 @@
 - 首页数据由 `maccms:vod` 和 `maccms:type` 在 MacCMS 运行时查询，内部字段使用 `$vo`，链接使用 `mac_url_vod_detail`、`mac_url_vod_play` 等 helper。
 - `vod/type.html` 和 `vod/show.html` 复用 `public/vod_filter_common.html`、`public/vod_grid_results.html`、`public/vod_card.html` 和 `public/paging.html`。
 - 排序只走 `time`、`hits`、`score` 三个固定分支，避免把原始请求参数直接放入查询形状。
+- 主题的评分排序与展示读取 MacCMS 原生 `vod_score`；`douban` 插件把已校验的 `vod_douban_score` 镜像到该字段，未同步影片使用 `0`，本地预览不能证明线上评分已完成校准。
 - `app.js` 会向 `pingfangdevice/filters` 请求动态可用筛选项；失败时保留服务端输出的筛选，不阻断页面。
 
 ### 详情与播放

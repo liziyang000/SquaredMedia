@@ -9,6 +9,7 @@ deploy_tmp_dir=""
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
+DEPLOY_SCOPE="${DEPLOY_SCOPE:-all}"
 DEPLOY_SITE_HOST="${DEPLOY_SITE_HOST:-}"
 DEPLOY_SITE_SCHEME="${DEPLOY_SITE_SCHEME:-https}"
 DEPLOY_SITE_MARKER="${DEPLOY_SITE_MARKER:-}"
@@ -29,6 +30,10 @@ if [[ -n "$DEPLOY_SITE_HOST" && ! "$DEPLOY_SITE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; th
 fi
 if [[ "$DEPLOY_SITE_SCHEME" != "http" && "$DEPLOY_SITE_SCHEME" != "https" ]]; then
   echo "DEPLOY_SITE_SCHEME must be http or https." >&2
+  exit 1
+fi
+if [[ "$DEPLOY_SCOPE" != "all" && "$DEPLOY_SCOPE" != "douban" ]]; then
+  echo "DEPLOY_SCOPE must be all or douban." >&2
   exit 1
 fi
 
@@ -65,8 +70,10 @@ npm run verify:preview
 npm run package
 npm run verify:release
 
-"${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
-"${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
+if [[ "$DEPLOY_SCOPE" == "all" ]]; then
+  "${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
+  "${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
+fi
 "${scp_command[@]}" "$DOUBAN_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_DOUBAN_ADDON_TMP}"
 
 remote_env=(
@@ -78,6 +85,7 @@ remote_env=(
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
   "DOUBAN_ADDON_NAME=$(printf "%q" "$DOUBAN_ADDON_NAME")"
   "DEPLOY_CLEAR_CACHE=$(printf "%q" "$DEPLOY_CLEAR_CACHE")"
+  "DEPLOY_SCOPE=$(printf "%q" "$DEPLOY_SCOPE")"
   "DEPLOY_SITE_HOST=$(printf "%q" "$DEPLOY_SITE_HOST")"
   "DEPLOY_SITE_SCHEME=$(printf "%q" "$DEPLOY_SITE_SCHEME")"
   "DEPLOY_SITE_MARKER=$(printf "%q" "$DEPLOY_SITE_MARKER")"
@@ -316,64 +324,55 @@ PHP_SQL
   echo "Installed and verified ${ADDON_NAME} addon under ${addon_dir}"
 }
 
-install_simple_addon() {
-  local addon_name remote_tmp maccms_root addon_dir backup tmp_dir bridge_controller_source bridge_controller_target admin_controller_source admin_controller_target gateway_source gateway_target target_backup
+install_douban_addon() {
+  local maccms_root addon_dir backup tmp_dir legacy_index_controller_target admin_controller_source admin_controller_target target_backup
 
-  addon_name="$1"
-  remote_tmp="$2"
   maccms_root="$(dirname "$DEPLOY_PATH")"
-  addon_dir="$maccms_root/addons/$addon_name"
+  addon_dir="$maccms_root/addons/$DOUBAN_ADDON_NAME"
+  legacy_index_controller_target="$maccms_root/application/index/controller/Douban.php"
+  admin_controller_target="$maccms_root/application/admin/controller/Douban.php"
   mkdir -p "$maccms_root/addons"
 
-  tmp_dir="$deploy_tmp_dir/$addon_name"
+  tmp_dir="$deploy_tmp_dir/$DOUBAN_ADDON_NAME"
   mkdir -p "$tmp_dir"
 
-  tar -xzf "$remote_tmp" -C "$tmp_dir"
-  if [[ ! -f "$tmp_dir/$addon_name/info.ini" || ! -f "$tmp_dir/$addon_name/install.sql" ]]; then
-    echo "Uploaded addon archive does not contain $addon_name/info.ini and install.sql" >&2
+  tar -xzf "$REMOTE_DOUBAN_ADDON_TMP" -C "$tmp_dir"
+  if [[ ! -f "$tmp_dir/$DOUBAN_ADDON_NAME/info.ini" || ! -f "$tmp_dir/$DOUBAN_ADDON_NAME/install.sql" ]]; then
+    echo "Uploaded addon archive does not contain $DOUBAN_ADDON_NAME/info.ini and install.sql" >&2
     exit 1
   fi
-  if [[ "$addon_name" == "$DOUBAN_ADDON_NAME" ]]; then
-    if [[ ! -f "$tmp_dir/$addon_name/bridge/Douban.php" || ! -f "$tmp_dir/$addon_name/bridge/DoubanAdmin.php" || ! -f "$tmp_dir/$addon_name/bridge/DoubanEndpoint.php" ]]; then
-      echo "Uploaded Douban addon archive does not contain required bridge files" >&2
-      exit 1
-    fi
+  if [[ ! -f "$tmp_dir/$DOUBAN_ADDON_NAME/application/admin/controller/Douban.php" ]]; then
+    echo "Uploaded Douban addon archive does not contain the required admin application payload" >&2
+    exit 1
   fi
+  while IFS= read -r -d '' php_file; do
+    php -l "$php_file" >/dev/null
+  done < <(find "$tmp_dir/$DOUBAN_ADDON_NAME" -type f -name '*.php' -print0)
 
   if [[ -d "$addon_dir" ]]; then
-    backup="${addon_name}.backup.$(date +%Y%m%d%H%M%S)"
+    backup="${DOUBAN_ADDON_NAME}.backup.$(date +%Y%m%d%H%M%S)"
     cp -a "$addon_dir" "$maccms_root/addons/$backup"
   fi
 
   rm -rf "$addon_dir"
-  mv "$tmp_dir/$addon_name" "$addon_dir"
-  apply_addon_sql "$maccms_root" "$addon_name"
+  mv "$tmp_dir/$DOUBAN_ADDON_NAME" "$addon_dir"
+  apply_addon_sql "$maccms_root" "$DOUBAN_ADDON_NAME"
 
-  if [[ "$addon_name" == "$DOUBAN_ADDON_NAME" ]]; then
-    bridge_controller_source="$addon_dir/bridge/Douban.php"
-    bridge_controller_target="$maccms_root/application/index/controller/Douban.php"
-    admin_controller_source="$addon_dir/bridge/DoubanAdmin.php"
-    admin_controller_target="$maccms_root/application/admin/controller/Douban.php"
-    gateway_source="$addon_dir/bridge/DoubanEndpoint.php"
-    gateway_target="$maccms_root/extend/douban.php"
-    if [[ ! -f "$bridge_controller_source" || ! -f "$admin_controller_source" || ! -f "$gateway_source" ]]; then
-      echo "Douban addon archive does not contain required bridge files" >&2
-      exit 1
-    fi
-    mkdir -p "$(dirname "$bridge_controller_target")" "$(dirname "$admin_controller_target")" "$(dirname "$gateway_target")"
-    for target in "$bridge_controller_target" "$admin_controller_target" "$gateway_target"
-    do
-      if [[ -f "$target" ]]; then
-        target_backup="${target}.backup.$(date +%Y%m%d%H%M%S)"
-        cp -a "$target" "$target_backup"
-      fi
-    done
-    cp -a "$bridge_controller_source" "$bridge_controller_target"
-    cp -a "$admin_controller_source" "$admin_controller_target"
-    cp -a "$gateway_source" "$gateway_target"
+  admin_controller_source="$addon_dir/application/admin/controller/Douban.php"
+  mkdir -p "$(dirname "$admin_controller_target")"
+  if [[ -f "$admin_controller_target" ]]; then
+    target_backup="${admin_controller_target}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -a "$admin_controller_target" "$target_backup"
+  fi
+  cp -a "$admin_controller_source" "$admin_controller_target"
+  php -l "$admin_controller_target" >/dev/null
+  if [[ -f "$legacy_index_controller_target" ]]; then
+    target_backup="${legacy_index_controller_target}.backup.$(date +%Y%m%d%H%M%S)"
+    cp -a "$legacy_index_controller_target" "$target_backup"
+    rm -f "$legacy_index_controller_target"
   fi
 
-  echo "Installed ${addon_name} addon under ${addon_dir}"
+  echo "Installed and verified ${DOUBAN_ADDON_NAME} addon under ${addon_dir}"
 }
 
 if [[ ! -d "$DEPLOY_PATH" ]]; then
@@ -384,8 +383,17 @@ fi
 deploy_tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$deploy_tmp_dir" "$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_DOUBAN_ADDON_TMP"' EXIT
 
+if [[ "$DEPLOY_SCOPE" == "douban" ]]; then
+  install_douban_addon
+  if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
+    clear_maccms_cache
+  fi
+  verify_deployed_site
+  exit 0
+fi
+
 install_device_addon
-install_simple_addon "$DOUBAN_ADDON_NAME" "$REMOTE_DOUBAN_ADDON_TMP"
+install_douban_addon
 
 cd "$DEPLOY_PATH"
 
@@ -414,4 +422,8 @@ fi
 verify_deployed_site
 REMOTE_SCRIPT
 
-echo "Deployed ${THEME_NAME} to ${REMOTE}:${DEPLOY_PATH}/${THEME_NAME}"
+if [[ "$DEPLOY_SCOPE" == "douban" ]]; then
+  echo "Deployed ${DOUBAN_ADDON_NAME} addon to ${REMOTE}:$(dirname "$DEPLOY_PATH")/addons/${DOUBAN_ADDON_NAME}"
+else
+  echo "Deployed ${THEME_NAME} to ${REMOTE}:${DEPLOY_PATH}/${THEME_NAME}"
+fi

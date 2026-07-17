@@ -50,8 +50,25 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__douban_task` (
   `updated_at` int(10) unsigned NOT NULL DEFAULT 0,
   PRIMARY KEY (`task_id`),
   KEY `idx_task_poll` (`status`,`run_after`,`priority`),
-  KEY `idx_task_vod_type` (`vod_id`,`task_type`,`status`)
+  KEY `idx_task_vod_type` (`vod_id`,`task_type`,`status`),
+  KEY `idx_task_type_status_attempts` (`task_type`,`status`,`attempts`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+SET @douban_task_stats_index_exists = (
+  SELECT COUNT(*)
+  FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = '__PREFIX__douban_task'
+    AND INDEX_NAME = 'idx_task_type_status_attempts'
+);
+SET @douban_task_stats_index_sql = IF(
+  @douban_task_stats_index_exists = 0,
+  'ALTER TABLE `__PREFIX__douban_task` ADD INDEX `idx_task_type_status_attempts` (`task_type`,`status`,`attempts`)',
+  'SET @douban_task_stats_index_noop = 1'
+);
+PREPARE douban_task_stats_index_stmt FROM @douban_task_stats_index_sql;
+EXECUTE douban_task_stats_index_stmt;
+DEALLOCATE PREPARE douban_task_stats_index_stmt;
 
 CREATE TABLE IF NOT EXISTS `__PREFIX__douban_log` (
   `log_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -83,11 +100,17 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__douban_review_candidate` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 INSERT IGNORE INTO `__PREFIX__douban_config` (`config_key`, `config_value`, `updated_at`) VALUES
-('douban_endpoint', '/extend/douban.php', UNIX_TIMESTAMP()),
+('douban_endpoint', 'internal', UNIX_TIMESTAMP()),
 ('exclude_type_ids', '', UNIX_TIMESTAMP()),
 ('batch_size', '100', UNIX_TIMESTAMP()),
 ('worker_limit', '20', UNIX_TIMESTAMP()),
 ('request_per_minute', '30', UNIX_TIMESTAMP()),
+('max_attempts', '5', UNIX_TIMESTAMP()),
 ('auto_confirm_score', '85', UNIX_TIMESTAMP()),
-('review_score', '70', UNIX_TIMESTAMP()),
-('candidate_topn', '5', UNIX_TIMESTAMP());
+('candidate_topn', '5', UNIX_TIMESTAMP()),
+('rate_limit_next_at', '0', UNIX_TIMESTAMP());
+
+UPDATE `__PREFIX__douban_config`
+SET `config_value` = 'internal', `updated_at` = UNIX_TIMESTAMP()
+WHERE `config_key` = 'douban_endpoint'
+  AND `config_value` = '/extend/douban.php';

@@ -60,6 +60,7 @@
 - `blue-pink-purple` 和 `poster-magazine` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
 - `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，默认主题不共用这套重排。
 - `gsap.min.js` 由生产首页、静态预览和 PHP 预览加载。当前 GSAP 负责首页入场时间线、轮播切换和指针液态光斑；区块渐入由 `IntersectionObserver` 触发 GSAP，一次播放后即取消观察。卡片 hover 保持为 CSS，并完整支持 `prefers-reduced-motion`。
+- 轮播背景只在图片预加载成功后写入 CSS；海报或背景请求失败时切换到主题内置玻璃渐变，避免破图图标和动态层重复请求。
 
 ## 数据与渲染流
 

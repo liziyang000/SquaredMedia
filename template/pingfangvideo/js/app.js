@@ -1413,14 +1413,54 @@
     });
   }
 
+  function markMissingImage(image) {
+    if (!image || image.dataset.mediaFallbackState === "missing") return;
+    image.dataset.mediaFallbackState = "missing";
+    image.hidden = true;
+    if (image.parentElement) {
+      image.parentElement.classList.add("is-image-missing");
+    }
+  }
+
+  function initMediaFallbacks(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var images = scopedElements(scope, ".rank-thumb img, .home-shelf-poster img, .poster img, .detail-poster img, .detail-backdrop img, .list-item > img");
+
+    images.forEach(function (image) {
+      if (image.dataset.mediaFallbackReady === "true") return;
+      image.dataset.mediaFallbackReady = "true";
+      image.addEventListener("error", function () {
+        markMissingImage(image);
+      }, { once: true });
+      if (image.complete && image.naturalWidth === 0) {
+        markMissingImage(image);
+      }
+    });
+  }
+
   function ensureHeroSlideBackground(slide) {
-    if (!slide || slide.dataset.bannerBgReady === "true") return;
+    if (!slide || slide.dataset.bannerBgReady) return;
 
     var backdrop = slide.getAttribute("data-banner-bg");
-    if (!backdrop) return;
+    if (!backdrop) {
+      slide.dataset.bannerBgReady = "missing";
+      slide.classList.add("has-missing-background");
+      return;
+    }
 
-    slide.style.setProperty("--banner-bg", "url(\"" + backdrop.replace(/"/g, "%22") + "\")");
-    slide.dataset.bannerBgReady = "true";
+    var image = new window.Image();
+    slide.dataset.bannerBgReady = "loading";
+    image.onload = function () {
+      slide.style.setProperty("--banner-bg", "url(" + JSON.stringify(backdrop) + ")");
+      slide.dataset.bannerBgReady = "true";
+      slide.classList.remove("has-missing-background");
+    };
+    image.onerror = function () {
+      slide.style.removeProperty("--banner-bg");
+      slide.dataset.bannerBgReady = "missing";
+      slide.classList.add("has-missing-background");
+    };
+    image.src = backdrop;
   }
 
   function initHeroCarousel(root) {
@@ -1584,7 +1624,9 @@
   window.PingFangVideo = window.PingFangVideo || {};
   window.PingFangVideo.initHeroCarousel = initHeroCarousel;
   window.PingFangVideo.initGsapMotion = initGsapMotion;
+  window.PingFangVideo.initMediaFallbacks = initMediaFallbacks;
   initHeroCarousel(document);
+  initMediaFallbacks(document);
   initGsapMotion(document);
 
   function escapeHtml(value) {

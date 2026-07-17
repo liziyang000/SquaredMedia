@@ -210,12 +210,11 @@ function rankItem(video, index) {
 function bannerSlide(video, index) {
   const active = index === 0 ? " is-active" : "";
   const backdrop = video.backdrop || video.poster;
-  const bannerBgStyle = index === 0 ? ` style="--banner-bg: url('${escapeHtml(backdrop)}');"` : "";
   const duration = video.duration || "时长待定";
   const version = video.version || video.remark || "高清";
   return `
     <article class="hero-slide${active}" data-carousel-slide data-banner-bg="${escapeHtml(backdrop)}">
-      <span class="banner-bg"${bannerBgStyle}></span>
+      <span class="banner-bg"></span>
       <span class="banner-content">
         <span class="banner-copy">
           <em class="eyebrow">热播推荐</em>
@@ -756,6 +755,7 @@ function render() {
   window.PingFangRankReact?.mountAll?.(app);
   window.PingFangVideo?.initHomeLatestTabs?.();
   window.PingFangVideo?.initHeroCarousel?.(app);
+  window.PingFangVideo?.initMediaFallbacks?.(app);
   window.PingFangVideo?.initGsapMotion?.(app);
 }
 

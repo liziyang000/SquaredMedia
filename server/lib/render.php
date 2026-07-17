@@ -176,11 +176,10 @@ function render_hero_carousel(array $data, array $videos): string
     foreach ($banners as $index => $video) {
         $active = $index === 0 ? ' is-active' : '';
         $backdrop = $video['backdrop'] ?? $video['poster'];
-        $bannerBgStyle = $index === 0 ? ' style="--banner-bg: url(\'' . e($backdrop) . '\');"' : '';
         $duration = $video['duration'] ?? '时长待定';
         $version = $video['version'] ?? ($video['remark'] ?? '高清');
         $slides .= '<article class="hero-slide' . $active . '" data-carousel-slide data-banner-bg="' . e($backdrop) . '">
-  <span class="banner-bg"' . $bannerBgStyle . '></span>
+  <span class="banner-bg"></span>
   <span class="banner-content">
     <span class="banner-copy">
       <em class="eyebrow">热播推荐</em>

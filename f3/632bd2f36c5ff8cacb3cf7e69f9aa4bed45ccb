@@ -1,0 +1,33 @@
+docs/theme-and-preview.md
+  s_bbd9aa5e235dfd::t_6a5ada39b3cb7e 63
+preview/index.html
+  s_bbd9aa5e235dfd::t_5d2e986c425e95 217,758
+server/lib/render.php
+  s_bbd9aa5e235dfd::t_f233e721fdb7e9 182
+template/pingfangvideo/css/style.css
+  s_bbd9aa5e235dfd::t_27c8a57728fd9b 5177-5180,5398-5413
+template/pingfangvideo/html/index/index.html
+  s_bbd9aa5e235dfd::t_39510c82d11c7c 8
+template/pingfangvideo/js/app.js
+  s_bbd9aa5e235dfd::t_ba227f3b9b70fd 1416-1440,1442,1445-1449,1451-1463,1627,1629
+tests/template.test.mjs
+  s_bbd9aa5e235dfd::t_386cb9745cdd74 574,1999,2414-2422
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f3632bd2f36c5ff8cacb3cf7e69f9aa4bed45ccb",
+  "prompts": {},
+  "sessions": {
+    "s_bbd9aa5e235dfd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6fc4-06ee-7751-b6e7-6eb7b32855d7",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

@@ -1,0 +1,37 @@
+README.md
+  s_bcc7c85a738848::t_c3eaec214eecf1 104,107-108
+docs/superpowers/plans/2026-07-10-douban-admin-tab-integration.md
+  s_bcc7c85a738848::t_c31747db00a4af 5,180,183,241,270,274-276
+docs/superpowers/specs/2026-07-10-douban-admin-tab-integration-design.md
+  s_bcc7c85a738848::t_5dc0edbac17cb9 5,20,24,49,53
+scripts/deploy-theme.sh
+  s_ce797463d55219::t_a54e2816d824c1 320,355-356,359,363-364,372
+tests/template.test.mjs
+  s_ce797463d55219::t_b67f38c7defece 232-234,1726-1729
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c64294ce390881b13702168c42065b732ecccca6",
+  "prompts": {},
+  "sessions": {
+    "s_bcc7c85a738848": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6ec5-29c2-7411-a1a9-00eec2b9f38f",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_ce797463d55219": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6eb0-ac68-73c0-a880-72309c315c6f",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

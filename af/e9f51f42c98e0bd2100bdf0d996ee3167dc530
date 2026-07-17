@@ -1,0 +1,27 @@
+scripts/verify-preview.mjs
+  s_f3fe8802271844::t_77e80e04f4565e 5,18-19,40-45,55-72
+server/lib/render.php
+  s_f3fe8802271844::t_afab183d2b910f 111,117,238,240-273,454,488-489
+template/pingfangvideo/css/style.css
+  s_f3fe8802271844::t_e455285f7f9314 3913-3914,4596-4597
+template/pingfangvideo/js/app.js
+  s_f3fe8802271844::t_a5820823da53d8 1277,1315,1373-1376,1379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "afe9f51f42c98e0bd2100bdf0d996ee3167dc530",
+  "prompts": {},
+  "sessions": {
+    "s_f3fe8802271844": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6700-f378-7643-b8d1-4eda8c7e4f7b",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

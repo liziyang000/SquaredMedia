@@ -1,0 +1,23 @@
+addons/pingfangdevice/service/DeviceSession.php
+  s_e91cce74ebd8b2::t_72765cfd62e406 104,266,300,363,376,389-411,424-466
+tests/device-session.test.php
+  s_e91cce74ebd8b2::t_cde168e0790ef3 159,227-231,262,265,278,303-372,423
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ad97b939a61b7a95f4253123bcfd90ccca422f4b",
+  "prompts": {},
+  "sessions": {
+    "s_e91cce74ebd8b2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6b46-2c97-79d1-bdec-1f41673488c9",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

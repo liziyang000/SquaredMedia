@@ -1,0 +1,39 @@
+docs/theme-and-preview.md
+  s_bbd9aa5e235dfd::t_a33ae347344a2e 23,29,59,62,99,160
+preview/index.html
+  s_bbd9aa5e235dfd::t_6c804f7035f4ed 15-17,74,444-455,463,470,479-481,484,656
+server/lib/render.php
+  s_bbd9aa5e235dfd::t_a2bf485d764965 55-56,62,91,95,198,428,498,500-508
+template/pingfangvideo/css/style.css
+  s_bbd9aa5e235dfd::t_5724dc9e424e75 4882-6240
+template/pingfangvideo/html/index/index.html
+  s_bbd9aa5e235dfd::t_c1e2c2da8e32af 24,31,53-69,72
+template/pingfangvideo/html/public/foot.html
+  s_bbd9aa5e235dfd::t_f27c025dcb23c7 6
+template/pingfangvideo/html/public/head.html
+  s_bbd9aa5e235dfd::t_3299bc82df0c38 14-16,40,44,48,105,109,113
+template/pingfangvideo/html/vod/detail.html
+  s_bbd9aa5e235dfd::t_521613f36bd2bf 3
+template/pingfangvideo/js/app.js
+  s_bbd9aa5e235dfd::t_ed27bae1454c73 1193-1342,1358-1359,1363,1366-1368,1376,1384-1388,1392-1394
+tests/template.test.mjs
+  s_bbd9aa5e235dfd::t_b0406e45edc77d 247-249,255-257,580,603,609-612,619,646,666,1462-1464,2040,2050,2066-2068,2081,2083-2084,2193,2204-2206,2209,2213-2216,2375-2379,2391-2392,2399-2400,2487-2488
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "aa18159b949d89da344b72d9e47e699f32dbc4fb",
+  "prompts": {},
+  "sessions": {
+    "s_bbd9aa5e235dfd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6fc4-06ee-7751-b6e7-6eb7b32855d7",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

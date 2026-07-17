@@ -1,0 +1,65 @@
+README.md
+  s_ce797463d55219::t_ade2ce734ab16a 107-118,134-139,165-172,194-196
+addons/douban/application/admin/controller/Douban.php
+  s_ce797463d55219::t_a7fda7e1e05397 3,5,8
+addons/douban/backend/DoubanController.php
+  s_ce797463d55219::t_7c6e562ff3cf23 3,8,18-21,26,32,34,37,79-115,134-151,174-176,189-232
+addons/douban/config.php
+  s_ce797463d55219::t_67b8a67026f004 6,9,12,52-63
+addons/douban/info.ini
+  s_ce797463d55219::t_80badf45bec9ad 8
+addons/douban/install.sql
+  s_ce797463d55219::t_9f23437a019437 53-54,57-72,103,108,110-116
+addons/douban/service/DoubanData.php
+  s_ce797463d55219::t_630ad7cbeaa8a0 10,16-19,24-25,30,35,87,101,104,109,121-247,268,277,280-281,283-293,298,302-304,314,329,334,338,342,349,351-363,372-391,397-398,402-404,409-470,472-482,501,523,563-564,593,614,621-801,804-837,839-840,843-844,848-850,854-855,858-958,961-1023,1028,1031,1037,1044-1046,1085,1108-1110,1115,1123-1158,1161-1166,1171-1187,1189-1194,1196-1207,1213,1227-1229,1308,1310-1316,1344-1368,1370-1447,1449-1485,1492,1495,1508,1511,1534,1538,1541,1557,1561,1571-1572,1576-1641,1739,1744,1748-1766,1864,1965-1968
+addons/douban/view/index/index.html
+  s_ce797463d55219::t_ea243b897896f9 30-34,52-53,75-77,80-82,91-92,106-108,119-226,230,280-288,323,333-337,368-371,375-379,381,383-441
+docs/addons.md
+  s_ce797463d55219::t_d3bee7fcfb37f1 11,14,78-156,195
+docs/development-and-operations.md
+  s_ce797463d55219::t_d41f6ba9fe63ca 19,23-24,65-67,72-73,77,102-103,107-108,110-115,123,136,158,210
+docs/overview.md
+  s_ce797463d55219::t_ddb9431c33156a 14-15,25,50,83
+docs/superpowers/plans/2026-07-10-douban-admin-tab-integration.md
+  s_ce797463d55219::t_d565b5e180eb38 3-6
+docs/superpowers/plans/2026-07-10-douban-rating-integration.md
+  s_ce797463d55219::t_3dc7beb6e30679 3-6
+docs/superpowers/specs/2026-07-10-douban-admin-tab-integration-design.md
+  s_ce797463d55219::t_625899226bf938 3-6
+docs/superpowers/specs/2026-07-10-douban-rating-integration-design.md
+  s_ce797463d55219::t_e27909e3af8565 3-6
+docs/theme-and-preview.md
+  s_ce797463d55219::t_004dceb0007739 47
+package.json
+  s_ce797463d55219::t_2dfefeebe3df8e 7
+scripts/deploy-theme.sh
+  s_ce797463d55219::t_45f59a50d8a4d2 12,35-38,73-76,88,327-328,331-333,336,339-341,344-346,348-350,353,358-372,375,386-394,396,425-429
+scripts/verify-release.mjs
+  s_ce797463d55219::t_f7026fb04c49d4 120-121,258-273,279-285,288-309
+tests/douban-controller.test.php
+  s_ce797463d55219::t_7a1cbf2cb215a8 1-90
+tests/douban-data.test.php
+  s_ce797463d55219::t_4bbcb3d74213fc 7-16,67-289
+tests/douban-worker.test.php
+  s_ce797463d55219::t_52fcea6417f3d0 1-257
+tests/template.test.mjs
+  s_ce797463d55219::t_fd5cfca4498f85 130-131,160-163,235-236,1692-1695,1715-1719,1732-1742,1744-1747,1942-1943,1947,1950,1956-1996,2000,2004-2006,2010-2016,2018,2027-2043,2054-2058,2062,2073-2125,2140-2147,2152-2155,2166-2191,2281-2285,2293-2307,2310-2330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "83d6946445f2e4959a87e83c07beb4aba84dc5d0",
+  "prompts": {},
+  "sessions": {
+    "s_ce797463d55219": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6eb0-ac68-73c0-a880-72309c315c6f",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

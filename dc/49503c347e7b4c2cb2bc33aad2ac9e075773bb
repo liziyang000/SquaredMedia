@@ -1,0 +1,87 @@
+.github/workflows/ci.yml
+  s_ce797463d55219::t_bda5dbfcffb09b 1,51-57
+AGENTS.md
+  s_761573c772ed9f::t_2a0f3ae511cb74 24-32
+addons/pingfangdevice/application/index/controller/Pingfangdevice.php
+  s_ce797463d55219::t_0acada7ba4ea0c 1-25
+addons/pingfangdevice/controller/DeviceActions.php
+  s_ce797463d55219::t_ee39ec86516985 3,8
+addons/pingfangdevice/controller/Index.php
+  s_ce797463d55219::t_74bbc32a12e426 10-11
+docker-compose.yml
+  s_ce797463d55219::t_5ecb8b5d1ba587 15
+docs/addons.md
+  s_ce797463d55219::t_998aacac0bf6cd 1-124
+docs/maccms-theme-development-spec.md
+  s_6e613780a742a8::t_f2894f78c010d1 3
+docs/maccms-vod-category-maintenance.md
+  s_761573c772ed9f::t_287d7c34b77774 56,62
+docs/overview.md
+  s_ce797463d55219::t_d89e9ff1f62740 1-105
+docs/superpowers/plans/2026-06-27-gsap-motion-optimization.md
+  s_6e613780a742a8::t_9e63941cf88c6d 3-4
+docs/superpowers/plans/2026-06-29-home-mobile-polish.md
+  s_6e613780a742a8::t_f439948e3abf13 3-4
+docs/superpowers/plans/2026-07-10-douban-rating-integration.md
+  s_071689f2fb6c83::t_8ae6058c54ee9d 3-6
+docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md
+  s_6e613780a742a8::t_32b4d8893ba183 5-6
+docs/superpowers/specs/2026-06-29-home-mobile-polish-design.md
+  s_6e613780a742a8::t_f51b91fee0da3d 5-6
+docs/superpowers/specs/2026-07-10-douban-rating-integration-design.md
+  s_071689f2fb6c83::t_444c712a8cb120 3-6
+docs/theme-and-preview.md
+  s_ce797463d55219::t_1fab11c77c9fff 1-163
+ops/security/gptbot-ip-rules.json
+  s_ce797463d55219::t_c8fc6d541942a0 2
+scripts/rollback-theme.sh
+  s_ce797463d55219::t_9ba553e87edc98 16-23
+scripts/verify-release.mjs
+  s_ce797463d55219::t_5d3bbe5edb9057 107,109,221-224
+server/lib/data.php
+  s_ce797463d55219::t_2389cf1fe7409a 6-9
+tests/device-controller.test.php
+  s_ce797463d55219::t_e2b78b37608905 69-74,147-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "dc49503c347e7b4c2cb2bc33aad2ac9e075773bb",
+  "prompts": {},
+  "sessions": {
+    "s_071689f2fb6c83": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6eb2-c758-7a40-b50b-ee0c69ef88df",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_6e613780a742a8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6eb2-ac39-77b0-a6be-45a7a9c0b955",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_761573c772ed9f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6eb2-e87f-7e30-a406-a0252fdeec46",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_ce797463d55219": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6eb0-ac68-73c0-a880-72309c315c6f",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

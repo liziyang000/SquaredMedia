@@ -101,7 +101,7 @@ class DeviceSession
             }
             if (!hash_equals((string) $session['token_hash'], $tokenHash)
                 || intval($session['revoked_time']) > 0) {
-                self::invalidateCurrentLogin();
+                self::adoptNativeLogin($userId);
                 return;
             }
             if (self::isExpired($session)) {
@@ -263,7 +263,7 @@ class DeviceSession
 
     public static function currentUser()
     {
-        $res = model('User')->checkLogin();
+        $res = model('common/User')->checkLogin();
         if (($res['code'] ?? 0) != 1) {
             return null;
         }
@@ -297,7 +297,7 @@ class DeviceSession
         $groupId = 2;
         $groupName = '';
         $groupIds = explode(',', (string) ($user['group_id'] ?? '2'));
-        $groupList = model('Group')->getCache('group_list');
+        $groupList = model('common/Group')->getCache('group_list');
 
         foreach ($groupIds as $id) {
             $id = intval($id);
@@ -360,7 +360,7 @@ class DeviceSession
     {
         self::clearDeviceCookie();
         try {
-            model('User')->logout();
+            model('common/User')->logout();
             return;
         } catch (\Throwable $e) {
             self::logFailure('clear native user session', $e);
@@ -373,7 +373,7 @@ class DeviceSession
 
     private static function adoptNativeLogin($userId)
     {
-        $res = model('User')->checkLogin();
+        $res = model('common/User')->checkLogin();
         $user = $res['info'] ?? [];
         if (($res['code'] ?? 0) != 1 || intval($user['user_id'] ?? 0) !== intval($userId)) {
             self::invalidateCurrentLogin();
@@ -389,6 +389,29 @@ class DeviceSession
         $managed = Db::name(self::TABLE)->where([
             'user_id' => intval($userId),
             'login_check_hash' => $loginCheckHash,
+            'revoked_time' => 0,
+        ])->find();
+        if (!empty($managed)) {
+            if (self::isExpired($managed)) {
+                Db::name(self::TABLE)->where([
+                    'session_id' => intval($managed['session_id']),
+                    'revoked_time' => 0,
+                ])->update([
+                    'revoked_time' => time(),
+                    'revoked_reason' => 'session_expired',
+                ]);
+                self::invalidateCurrentLogin();
+                return;
+            }
+            if (!self::rebindManagedLogin($managed)) {
+                self::invalidateCurrentLogin();
+            }
+            return;
+        }
+
+        $managed = Db::name(self::TABLE)->where([
+            'user_id' => intval($userId),
+            'login_check_hash' => $loginCheckHash,
         ])->find();
         if (!empty($managed)) {
             self::invalidateCurrentLogin();
@@ -396,6 +419,49 @@ class DeviceSession
         }
 
         self::registerLogin($user);
+    }
+
+    private static function rebindManagedLogin(array $session)
+    {
+        $sessionId = intval($session['session_id'] ?? 0);
+        $userId = intval($session['user_id'] ?? 0);
+        if ($sessionId < 1 || $userId < 1) {
+            return false;
+        }
+
+        $token = self::newToken();
+        $tokenHash = self::hashToken($token);
+        $updated = Db::name(self::TABLE)->where([
+            'session_id' => $sessionId,
+            'user_id' => $userId,
+            'revoked_time' => 0,
+        ])->update([
+            'token_hash' => $tokenHash,
+            'device_label' => self::deviceLabel(),
+            'user_agent' => self::userAgent(),
+            'ip_address' => self::ipAddress(),
+            'last_seen_time' => time(),
+        ]);
+        if ($updated < 1) {
+            return false;
+        }
+
+        try {
+            self::setDeviceCookie($token);
+        } catch (\Throwable $e) {
+            Db::name(self::TABLE)->where([
+                'session_id' => $sessionId,
+                'user_id' => $userId,
+                'token_hash' => $tokenHash,
+                'revoked_time' => 0,
+            ])->update([
+                'revoked_time' => time(),
+                'revoked_reason' => 'cookie_write_failed',
+            ]);
+            throw $e;
+        }
+
+        return true;
     }
 
     private static function expireOldSessions($userId)

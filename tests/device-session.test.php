@@ -156,6 +156,7 @@ namespace {
 
     $deviceCookies = [];
     $deviceConfig = [];
+    $deviceModelRequests = [];
     $deviceRequest = new class {
         public function server($name)
         {
@@ -223,7 +224,11 @@ namespace {
 
     function model($name)
     {
-        global $deviceUserModel, $deviceGroupModel;
+        global $deviceUserModel, $deviceGroupModel, $deviceModelRequests;
+        $deviceModelRequests[] = $name;
+        if ($name === 'User' || $name === 'Group') {
+            throw new \RuntimeException('Relative model resolution is unavailable during app_begin.');
+        }
         return stripos($name, 'Group') !== false ? $deviceGroupModel : $deviceUserModel;
     }
 
@@ -254,9 +259,10 @@ namespace {
             $fail($message);
         }
     };
-    $reset = static function () use (&$deviceCookies, &$deviceConfig, $deviceUserModel) {
+    $reset = static function () use (&$deviceCookies, &$deviceConfig, &$deviceModelRequests, $deviceUserModel) {
         $deviceCookies = [];
         $deviceConfig = [];
+        $deviceModelRequests = [];
         $deviceUserModel->logoutCalls = 0;
         Db::$tables = ['pingfang_device_session' => [], 'user' => []];
         Db::$throwOnSelect = false;
@@ -269,6 +275,7 @@ namespace {
         'user_check' => 'native-check',
     ];
     DeviceSession::syncActiveCookie();
+    $assertSame(false, in_array('User', $deviceModelRequests, true), 'Device session hooks must resolve the common User model explicitly.');
     $assertSame(0, $deviceUserModel->logoutCalls, 'A valid first-party native login should be adopted into device management.');
     $assertTrue(!empty($deviceCookies['pfv_device_token']), 'Adopting a native login must create a device token.');
     $assertSame(1, count(Db::$tables['pingfang_device_session']), 'Adopting a native login must create one server session.');
@@ -293,8 +300,76 @@ namespace {
         'revoked_reason' => '',
     ];
     DeviceSession::syncActiveCookie();
-    $assertSame(1, $deviceUserModel->logoutCalls, 'Removing the token from an already managed login must fail closed.');
-    $assertSame(null, $deviceCookies['user_id'] ?? null, 'Fail-closed validation must clear the native user cookie.');
+    $reboundToken = $deviceCookies['pfv_device_token'] ?? '';
+    $assertSame(0, $deviceUserModel->logoutCalls, 'A valid managed login must survive a missing device token.');
+    $assertTrue($reboundToken !== '', 'A valid managed login must receive a replacement device token.');
+    $assertSame(hash('sha256', $reboundToken), Db::$tables['pingfang_device_session'][0]['token_hash'], 'Rebinding must rotate the token on the existing session.');
+    $assertSame(1, count(Db::$tables['pingfang_device_session']), 'Rebinding must not create a duplicate device session.');
+
+    $reset();
+    $deviceCookies = [
+        'user_id' => '42',
+        'user_name' => 'alice',
+        'user_check' => 'revoked-check',
+    ];
+    Db::$tables['pingfang_device_session'][] = [
+        'session_id' => 1,
+        'user_id' => 42,
+        'token_hash' => hash('sha256', 'revoked-token'),
+        'login_check_hash' => hash('sha256', 'revoked-check'),
+        'device_label' => 'Revoked',
+        'user_agent' => 'Test Browser',
+        'ip_address' => '127.0.0.1',
+        'login_time' => time(),
+        'last_seen_time' => time(),
+        'revoked_time' => time(),
+        'revoked_reason' => 'manual',
+    ];
+    DeviceSession::syncActiveCookie();
+    $assertSame(1, $deviceUserModel->logoutCalls, 'A revoked managed login must remain logged out when its token is missing.');
+    $assertSame(null, $deviceCookies['user_id'] ?? null, 'Revoked session validation must clear the native user cookie.');
+
+    $reset();
+    $deviceCookies = [
+        'user_id' => '42',
+        'user_name' => 'alice',
+        'user_check' => 'new-check',
+        'pfv_device_token' => 'stale-token',
+    ];
+    Db::$tables['pingfang_device_session'] = [
+        [
+            'session_id' => 1,
+            'user_id' => 42,
+            'token_hash' => hash('sha256', 'stale-token'),
+            'login_check_hash' => hash('sha256', 'old-check'),
+            'device_label' => 'Old',
+            'user_agent' => 'Test Browser',
+            'ip_address' => '127.0.0.1',
+            'login_time' => time() - 60,
+            'last_seen_time' => time() - 60,
+            'revoked_time' => time(),
+            'revoked_reason' => 'login_replaced',
+        ],
+        [
+            'session_id' => 2,
+            'user_id' => 42,
+            'token_hash' => hash('sha256', 'missing-new-token'),
+            'login_check_hash' => hash('sha256', 'new-check'),
+            'device_label' => 'Current',
+            'user_agent' => 'Test Browser',
+            'ip_address' => '127.0.0.1',
+            'login_time' => time(),
+            'last_seen_time' => time(),
+            'revoked_time' => 0,
+            'revoked_reason' => '',
+        ],
+    ];
+    DeviceSession::syncActiveCookie();
+    $reboundToken = $deviceCookies['pfv_device_token'] ?? '';
+    $assertSame(0, $deviceUserModel->logoutCalls, 'A stale token must not cancel a newer valid native login.');
+    $assertTrue($reboundToken !== '' && $reboundToken !== 'stale-token', 'A stale token must be replaced when a newer managed login is active.');
+    $assertSame(hash('sha256', $reboundToken), Db::$tables['pingfang_device_session'][1]['token_hash'], 'A stale token must rebind to the current managed session.');
+    $assertSame(2, count(Db::$tables['pingfang_device_session']), 'Stale-token recovery must not create another device session.');
 
     $reset();
     $deviceCookies['pfv_device_token'] = 'stale-token';
@@ -345,6 +420,7 @@ namespace {
         'group_id' => '2',
     ];
     DeviceSession::syncActiveCookie();
+    $assertTrue(in_array('common/Group', $deviceModelRequests, true), 'Restoring a managed login must resolve the common Group model explicitly.');
     $assertSame(md5('random-value-alice-42-'), $deviceCookies['user_check'] ?? null, 'A valid device session must restore the native login check.');
     $assertTrue(Db::$tables['pingfang_device_session'][0]['last_seen_time'] >= $now, 'Stale activity timestamps must be refreshed.');
 

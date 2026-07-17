@@ -1,0 +1,27 @@
+README.md
+  s_15e6d4986d7320::t_4dd921c67bfd9e 35-48
+scripts/package-theme.mjs
+  s_15e6d4986d7320::t_75e1841af823ac 21
+scripts/verify-release.mjs
+  s_15e6d4986d7320::t_6a1822c4c0ec49 20-22,198-207
+tests/template.test.mjs
+  s_15e6d4986d7320::t_acbdc9c60324e6 22-24,199-200,696-723,1590
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0085838eb754cadfc5c2a0bfe97e639b43a18097",
+  "prompts": {},
+  "sessions": {
+    "s_15e6d4986d7320": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f69ee-2fee-7cd2-b357-f7c0a70eb2db",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

@@ -547,34 +547,46 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
           <button type="submit">搜索</button>
         </form>
       </div>
-      <div>
+      <div class="filter-row">
         <strong>类型</strong>
-        <a href="${filterUrl({ name: "" })}">全部</a>
-        ${store.categories.map((category) => `<a href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
+        <div class="filter-options">
+          <a href="${filterUrl({ name: "" })}">全部</a>
+          ${store.categories.map((category) => `<a href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
+        </div>
       </div>
-      <div>
+      <div class="filter-row">
         <strong>地区</strong>
-        <a href="${filterUrl({ area: "" })}">全部</a>
-        ${areas.map((item) => `<a class="${item === area ? "is-active" : ""}" href="${filterUrl({ area: item })}">${escapeHtml(item)}</a>`).join("")}
+        <div class="filter-options">
+          <a href="${filterUrl({ area: "" })}">全部</a>
+          ${areas.map((item) => `<a class="${item === area ? "is-active" : ""}" href="${filterUrl({ area: item })}">${escapeHtml(item)}</a>`).join("")}
+        </div>
       </div>
-      <div>
+      <div class="filter-row">
         <strong>年份</strong>
-        <a href="${filterUrl({ year: "" })}">全部</a>
-        ${years.map((item) => `<a class="${item === year ? "is-active" : ""}" href="${filterUrl({ year: item })}">${escapeHtml(item)}</a>`).join("")}
+        <div class="filter-options">
+          <a href="${filterUrl({ year: "" })}">全部</a>
+          ${years.map((item) => `<a class="${item === year ? "is-active" : ""}" href="${filterUrl({ year: item })}">${escapeHtml(item)}</a>`).join("")}
+        </div>
       </div>
-      <div>
+      <div class="filter-row">
         <strong>语言</strong>
-        <a href="${filterUrl({ lang: "" })}">全部</a>
-        ${langs.map((item) => `<a class="${item === lang ? "is-active" : ""}" href="${filterUrl({ lang: item })}">${escapeHtml(item)}</a>`).join("")}
+        <div class="filter-options">
+          <a href="${filterUrl({ lang: "" })}">全部</a>
+          ${langs.map((item) => `<a class="${item === lang ? "is-active" : ""}" href="${filterUrl({ lang: item })}">${escapeHtml(item)}</a>`).join("")}
+        </div>
       </div>
-      <div>
+      <div class="filter-row">
         <strong>字母</strong>
-        <a href="${filterUrl({ letter: "" })}">全部</a>
-        ${letters.map((item) => `<a class="${item === letter ? "is-active" : ""}" href="${filterUrl({ letter: item })}">${escapeHtml(item)}</a>`).join("")}
+        <div class="filter-options letter-options">
+          <a href="${filterUrl({ letter: "" })}">全部</a>
+          ${letters.map((item) => `<a class="${item === letter ? "is-active" : ""}" href="${filterUrl({ letter: item })}">${escapeHtml(item)}</a>`).join("")}
+        </div>
       </div>
-      <div>
+      <div class="filter-row">
         <strong>排序</strong>
-        ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${filterUrl({ sort: value })}">${escapeHtml(label)}</a>`).join("")}
+        <div class="filter-options">
+          ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${filterUrl({ sort: value })}">${escapeHtml(label)}</a>`).join("")}
+        </div>
       </div>
       <div class="filter-actions">
         <a class="filter-reset" href="${url(routeName, name ? { name } : {})}">重置筛选</a>

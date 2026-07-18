@@ -143,7 +143,7 @@ assert.doesNotMatch(tarList.stderr, /LIBARCHIVE\.xattr/, "Release archive should
 
 const entries = tarList.stdout
   .trim()
-  .split("\n")
+  .split(/\r?\n/)
   .filter(Boolean);
 
 for (const entry of requiredEntries) {
@@ -212,7 +212,7 @@ assert.doesNotMatch(addonTarList.stderr, /LIBARCHIVE\.xattr/, "Addon release arc
 
 const addonEntries = addonTarList.stdout
   .trim()
-  .split("\n")
+  .split(/\r?\n/)
   .filter(Boolean);
 
 for (const entry of requiredAddonEntries) {

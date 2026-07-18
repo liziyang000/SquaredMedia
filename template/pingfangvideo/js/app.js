@@ -1310,18 +1310,23 @@
       return null;
     }
 
-    gsap.set(sections, { autoAlpha: 0, y: 24, willChange: "transform,opacity" });
+    var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    var animatedSections = sections.filter(function (section) {
+      return section.getBoundingClientRect().top >= viewportHeight * 0.82;
+    });
+    if (!animatedSections.length) return null;
+
+    gsap.set(animatedSections, { y: 16, willChange: "transform" });
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
         observer.unobserve(entry.target);
         gsap.to(entry.target, {
-          autoAlpha: 1,
           y: 0,
-          duration: 0.72,
+          duration: 0.36,
           ease: "power3.out",
           overwrite: "auto",
-          clearProps: "transform,opacity,visibility,willChange"
+          clearProps: "transform,willChange"
         });
       });
     }, {
@@ -1329,14 +1334,14 @@
       threshold: 0.08
     });
 
-    sections.forEach(function (section) {
+    animatedSections.forEach(function (section) {
       observer.observe(section);
     });
 
     return function () {
       observer.disconnect();
-      gsap.killTweensOf(sections);
-      gsap.set(sections, { clearProps: "transform,opacity,visibility,willChange" });
+      gsap.killTweensOf(animatedSections);
+      gsap.set(animatedSections, { clearProps: "transform,willChange" });
     };
   }
 

@@ -11,3 +11,8 @@
     {include file="public/vod_card" /}
     {/maccms:vod}
     {/if}
+    <div class="content-empty-state" data-empty-state hidden role="status">
+      <strong>暂无符合条件的影片</strong>
+      <span>试试清除筛选条件，或浏览其他频道。</span>
+      <a href="{:mac_url('label/videos')}">浏览影片库</a>
+    </div>

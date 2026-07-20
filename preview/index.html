@@ -5,43 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PingFang Video Preview</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=__PINGFANG_ASSET_VERSION__">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=__PINGFANG_STYLE_VERSION__">
 </head>
 <body>
-<a class="sr-only" href="#app" aria-label="跳转到内容区">跳转到内容</a>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="?route=home" data-route="home" aria-label="平方影视">
       <span class="brand-emblem" aria-hidden="true"></span>
       <span class="brand-wordmark"><strong>平方影视</strong><small>STREAMING EDITION</small></span>
-      <img class="brand-logo" src="../template/pingfangvideo/images/site-logo.png" alt="" hidden aria-hidden="true">
+      <img class="brand-logo" src="../template/pingfangvideo/images/site-logo.png" alt="" width="58" height="58" decoding="async" hidden aria-hidden="true">
     </a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer">
       <span></span><span></span><span></span>
     </button>
-    <nav class="site-nav" id="siteNav"></nav>
+    <nav class="site-nav" id="siteNav" aria-label="主导航"></nav>
     <div class="header-search-wrap">
       <form class="header-search" id="headerSearch">
         <label class="sr-only" for="previewSearch">站内搜索</label>
-        <input id="previewSearch" type="search" name="wd" placeholder="搜索影片、演员、导演">
+        <input id="previewSearch" type="search" name="wd" placeholder="搜索影片、演员或导演…" autocomplete="off">
         <button type="submit">搜索</button>
       </form>
+    </div>
+    <div class="theme-switcher" data-theme-switcher>
+      <button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu">主题</button>
+      <div class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden>
+        <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
+          <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
+          <span>液态影院</span>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="blue-pink-purple" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-aurora" aria-hidden="true"></span>
+          <span>极光夜幕</span>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
+          <span>海报画廊</span>
+        </button>
+      </div>
     </div>
     <a class="history-link" href="?route=history">观看记录</a>
   </div>
 </header>
 <div class="mobile-drawer-backdrop" data-mobile-nav-close hidden></div>
-<aside class="mobile-drawer" id="mobileDrawer" aria-label="移动端分类菜单" aria-hidden="true">
+<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>
   <div class="mobile-drawer-head">
-    <strong>分类导航</strong>
+    <strong id="mobileDrawerTitle">分类导航</strong>
     <button class="mobile-drawer-close" type="button" data-mobile-nav-close aria-label="关闭菜单">×</button>
   </div>
+  <form class="mobile-drawer-search" role="search">
+    <label class="sr-only" for="previewMobileSearch">站内搜索</label>
+    <input id="previewMobileSearch" type="search" name="wd" placeholder="搜索影片、演员或导演…" autocomplete="off">
+    <button type="submit">搜索</button>
+  </form>
   <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
-    <a href="?route=home" data-route="home">首页</a>
-    <a href="?route=categories" data-route="categories">视频</a>
-    <a href="?route=comics" data-route="comics">漫画</a>
-    <a href="?route=articles" data-route="articles">文章</a>
-    <a href="?route=games" data-route="games">游戏</a>
+    <a href="?route=home" data-route="home" data-nav-section="home">首页</a>
+    <a href="?route=categories" data-route="categories" data-nav-section="videos">视频</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
     <span>账号</span>
@@ -49,12 +67,29 @@
       <a class="mobile-drawer-login" href="?route=login" data-route="login">登录</a>
     </div>
   </div>
+  <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>
+    <span>主题</span>
+    <div class="theme-option-grid">
+      <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
+        <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
+        <span>液态影院</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="blue-pink-purple" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-aurora" aria-hidden="true"></span>
+        <span>极光夜幕</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
+        <span>海报画廊</span>
+      </button>
+    </div>
+  </div>
   <div class="mobile-drawer-section">
     <span>影片分类</span>
     <div class="mobile-drawer-cats" id="mobileDrawerCats"></div>
   </div>
 </aside>
-<main id="app">
+<main id="app" tabindex="-1">
   <section class="wrap system-page">
     <div class="system-box">
       <span class="eyebrow">加载中</span>
@@ -67,21 +102,7 @@
   <span data-route="detail"></span>
   <span data-route="play"></span>
 </template>
-<footer class="site-footer">
-  <div class="wrap footer-grid">
-    <div>
-      <strong>平方影视</strong>
-      <p>让每一次打开，都像走进一间只为你亮起的放映厅。</p>
-    </div>
-    <div class="footer-links">
-      <a href="?route=home">首页</a>
-      <a href="?route=search">搜索</a>
-      <a href="?route=rss">RSS</a>
-    </div>
-  </div>
-</footer>
-<script src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0"></script>
-<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_ASSET_VERSION__"></script>
+<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_APP_VERSION__"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -168,8 +189,9 @@ function homeShelfTabs(tabs) {
 
 function homeShelfPanel(tab) {
   return `
-    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="latest-panel-${escapeHtml(tab.key)}" role="tabpanel" aria-hidden="${tab.isActive ? "false" : "true"}"${tab.isActive ? "" : " hidden"}>
+    <div class="home-shelf-rail" data-home-tab="${escapeHtml(tab.key)}" id="latest-panel-${escapeHtml(tab.key)}" role="tabpanel" aria-hidden="${tab.isActive ? "false" : "true"}"${tab.isActive ? "" : " hidden"} data-home-empty-container data-empty-item=".home-shelf-card">
       ${tab.videos.map((video) => homeShelfCard(video)).join("")}
+      <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>${tab.key === "all" ? "有新影片上线后会显示在这里。" : "此频道有新内容后会显示在这里。"}</span><a href="${url("category")}" data-route="category">浏览全部影片</a></div>
     </div>`;
 }
 
@@ -232,11 +254,8 @@ function bannerSlide(video, index) {
 
 function renderNav() {
   nav.innerHTML = [
-    `<a href="${url("home")}" data-route="home">首页</a>`,
-    `<a href="${url("categories")}" data-route="categories">视频</a>`,
-    `<a href="${url("comics")}" data-route="comics">漫画</a>`,
-    `<a href="${url("articles")}" data-route="articles">文章</a>`,
-    `<a href="${url("games")}" data-route="games">游戏</a>`
+    `<a href="${url("home")}" data-route="home" data-nav-section="home">首页</a>`,
+    `<a href="${url("categories")}" data-route="categories" data-nav-section="videos">视频</a>`
   ].join("");
 }
 
@@ -364,13 +383,52 @@ function renderArticlesPage() {
 
 function renderLoginPage() {
   app.innerHTML = `
-    <section class="wrap system-page">
-      <div class="system-box module-fallback">
-        <span class="eyebrow">账号</span>
-        <h1>登录入口</h1>
-        <p>正式模板会跳转到 MacCMS 登录页，本地预览仅展示入口位置。</p>
-        <div class="detail-actions"><a class="primary-btn" href="${url("history")}" data-route="history">观看记录</a><a class="ghost-btn" href="${url("home")}" data-route="home">返回首页</a></div>
-      </div>
+    <section class="login-page" aria-labelledby="previewLoginTitle">
+      <form class="login-panel verify-form" action="${url("login")}" method="post" data-login-glass>
+        <span class="login-edge-glow" aria-hidden="true"></span>
+        <span class="login-glass-highlight" aria-hidden="true"></span>
+        <div class="login-heading">
+          <span class="login-kicker">MEMBER LOGIN</span>
+          <h1 id="previewLoginTitle">欢迎回来</h1>
+          <p id="previewLoginSubtitle">登录账号以继续享受精彩内容</p>
+        </div>
+        <div class="login-fields" aria-describedby="previewLoginSubtitle">
+          <div class="login-field">
+            <label class="login-label" for="previewLoginAccount">账号</label>
+            <span class="login-control">
+              <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"></path></svg>
+              <input id="previewLoginAccount" type="text" name="user_name" autocomplete="username" placeholder="用户名或邮箱" required>
+            </span>
+          </div>
+          <div class="login-field">
+            <label class="login-label" for="previewLoginPassword">密码</label>
+            <span class="login-control">
+              <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3"></path></svg>
+              <input id="previewLoginPassword" type="password" name="user_pwd" autocomplete="current-password" placeholder="登录密码" required>
+              <button class="login-password-toggle" type="button" data-password-toggle aria-controls="previewLoginPassword" aria-label="显示密码" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+              </button>
+            </span>
+          </div>
+          <div class="login-field">
+            <label class="login-label" for="previewLoginVerify">验证码</label>
+            <div class="login-captcha-row">
+              <span class="login-control">
+                <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Zm0 6v4m0 3h.01"></path></svg>
+                <input id="previewLoginVerify" type="text" name="verify" autocomplete="off" placeholder="输入验证码" required>
+              </span>
+              <span class="login-captcha-preview" aria-label="验证码 6 B 8 Y">6B8Y</span>
+              <button class="login-captcha-refresh" type="button" data-verify-refresh aria-label="换一张验证码">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m9.2-3A7 7 0 0 0 6.7 6.4L4 9m16 6-2.7 2.6A7 7 0 0 1 5.8 15"></path></svg>
+                <span>换一张</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="login-options"><span>安全登录 · 设备保护已启用</span><a href="${url("login")}">忘记密码？</a></div>
+        <button class="primary-btn login-submit" type="button">登录</button>
+        <div class="login-register"><span>还没有账号？</span><a href="${url("login")}">注册会员</a></div>
+      </form>
     </section>`;
 }
 
@@ -418,12 +476,14 @@ function renderHistoryPage() {
 function renderHome() {
   const preferred = ["电影", "剧集", "电视剧", "综艺", "动漫", "纪录", "纪录片", "直播"];
   const categories = preferred.filter((category) => store.categories.includes(category)).slice(0, 6);
+  const currentYear = String(new Date().getFullYear());
+  const currentYearVideos = store.videos.filter((video) => String(video.year) === currentYear);
   const latestTabs = [
     {
       key: "all",
       label: "推荐",
       isActive: true,
-      videos: sortVideos([...store.videos], "latest").slice(0, 6),
+      videos: sortVideos([...currentYearVideos], "latest").slice(0, 6),
     }
   ];
 
@@ -432,14 +492,13 @@ function renderHome() {
       key: `category-${index}`,
       label: category,
       isActive: false,
-      videos: sortVideos(filterVideos(category), "latest").slice(0, 6),
+      videos: sortVideos(currentYearVideos.filter((video) => video.category === category), "latest").slice(0, 6),
     });
   });
 
-  const latest = [...store.videos].sort((a, b) => b.updated.localeCompare(a.updated));
   const hot = [...store.videos].sort((a, b) => b.hits - a.hits);
   const banners = hot.slice(0, 5);
-  const rankVideos = hot.slice(0, 5);
+  const rankVideos = sortVideos([...currentYearVideos], "hot").slice(0, 5);
   const channelCodes = ["FILM", "SERIES", "SHOW", "ANIME"];
   const channelDescriptions = ["银幕精选", "追剧现场", "轻松时刻", "次元放映"];
   const genreDockItems = [
@@ -453,7 +512,8 @@ function renderHome() {
     { channel: "NEW", label: "今日更新", description: "刚刚上线", href: url("category") },
   ];
   app.innerHTML = `
-    <section class="hero">
+    <h1 class="sr-only">平方影视首页</h1>
+    <section class="hero" data-home-gsap-src="../template/pingfangvideo/js/gsap.min.js?v=3.15.0">
       <div class="wrap hero-grid">
         <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
           <div class="banner-track">
@@ -461,6 +521,7 @@ function renderHome() {
           </div>
           <span class="liquid-lens" aria-hidden="true"></span>
           <div class="banner-controls">
+            <button class="banner-autoplay-toggle" type="button" data-carousel-autoplay-toggle aria-pressed="false" aria-label="暂停自动轮播"><span aria-hidden="true"></span></button>
             <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>
           </div>
         </section>
@@ -469,8 +530,9 @@ function renderHome() {
             <span class="rank-heading"><small>TOP 05</small><h2>年度热度榜</h2></span>
             <a class="rank-refresh" href="${url("category", { sort: "hot" })}">查看更多</a>
           </div>
-          <div class="rank-list" data-rank-react-list>
+          <div class="rank-list" data-rank-react-list data-home-empty-container data-empty-item=".rank-item">
             ${rankVideos.map(rankItem).join("")}
+            <div class="home-empty-state home-rank-empty" data-home-empty-state hidden role="status"><strong>本年度暂无上榜内容</strong><span>新内容产生热度后会显示在这里。</span><a href="${url("category")}" data-route="category">浏览全部影片</a></div>
           </div>
         </div>
       </div>
@@ -478,9 +540,16 @@ function renderHome() {
     <nav class="wrap genre-dock" aria-label="频道快捷入口">
       ${genreDockItems.map((item, index) => `<a class="genre-chip${index === 0 ? " genre-chip-featured" : ""}" data-channel="${escapeHtml(item.channel)}" href="${item.href}"><span>${escapeHtml(item.label)}</span><small>${escapeHtml(item.description)}</small></a>`).join("")}
     </nav>
-    <section class="wrap home-shelf home-shelf-latest">
+    <section class="wrap home-shelf home-continue" data-home-continue hidden aria-labelledby="homeContinueTitle">
       <div class="home-shelf-head">
-        <span class="shelf-title"><small>NEW THIS WEEK</small><h2>最新上线</h2></span>
+        <span class="shelf-title"><small>KEEP WATCHING</small><h2 id="homeContinueTitle">继续观看</h2></span>
+        <a class="home-shelf-more" href="${url("history")}" data-route="history">全部记录</a>
+      </div>
+      <div class="home-continue-rail" data-home-continue-list aria-live="polite"></div>
+    </section>
+    <section class="wrap home-shelf home-shelf-latest" aria-label="本年最新上线">
+      <div class="home-shelf-head">
+        <span class="shelf-title"><small>NEW THIS YEAR</small><h2>本年最新上线</h2></span>
         ${homeShelfTabs(latestTabs)}
         <a class="home-shelf-more" href="${url("category")}" data-route="category">全部影片</a>
       </div>
@@ -542,43 +611,44 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
       <div class="filter-row filter-search-row">
         <strong>搜索</strong>
         <form class="channel-search" method="get" action="${url("search")}" role="search">
+          <label class="sr-only" for="previewCategorySearch">在${escapeHtml(name || "影片库")}中搜索</label>
           <input type="hidden" name="type" value="${escapeHtml(name || "")}">
-          <input type="search" name="wd" placeholder="在${escapeHtml(name || "影片库")}中搜索">
+          <input id="previewCategorySearch" type="search" name="wd" placeholder="在${escapeHtml(name || "影片库")}中搜索…" autocomplete="off">
           <button type="submit">搜索</button>
         </form>
       </div>
       <div class="filter-row">
         <strong>类型</strong>
         <div class="filter-options">
-          <a href="${filterUrl({ name: "" })}">全部</a>
-          ${store.categories.map((category) => `<a href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
+          <a class="${name ? "" : "is-active"}" href="${filterUrl({ name: "" })}">全部</a>
+          ${store.categories.map((category) => `<a class="${category === name ? "is-active" : ""}" href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
         </div>
       </div>
       <div class="filter-row">
         <strong>地区</strong>
         <div class="filter-options">
-          <a href="${filterUrl({ area: "" })}">全部</a>
+          <a class="${area ? "" : "is-active"}" href="${filterUrl({ area: "" })}">全部</a>
           ${areas.map((item) => `<a class="${item === area ? "is-active" : ""}" href="${filterUrl({ area: item })}">${escapeHtml(item)}</a>`).join("")}
         </div>
       </div>
       <div class="filter-row">
         <strong>年份</strong>
         <div class="filter-options">
-          <a href="${filterUrl({ year: "" })}">全部</a>
+          <a class="${year ? "" : "is-active"}" href="${filterUrl({ year: "" })}">全部</a>
           ${years.map((item) => `<a class="${item === year ? "is-active" : ""}" href="${filterUrl({ year: item })}">${escapeHtml(item)}</a>`).join("")}
         </div>
       </div>
       <div class="filter-row">
         <strong>语言</strong>
         <div class="filter-options">
-          <a href="${filterUrl({ lang: "" })}">全部</a>
+          <a class="${lang ? "" : "is-active"}" href="${filterUrl({ lang: "" })}">全部</a>
           ${langs.map((item) => `<a class="${item === lang ? "is-active" : ""}" href="${filterUrl({ lang: item })}">${escapeHtml(item)}</a>`).join("")}
         </div>
       </div>
       <div class="filter-row">
         <strong>字母</strong>
         <div class="filter-options letter-options">
-          <a href="${filterUrl({ letter: "" })}">全部</a>
+          <a class="${letter ? "" : "is-active"}" href="${filterUrl({ letter: "" })}">全部</a>
           ${letters.map((item) => `<a class="${item === letter ? "is-active" : ""}" href="${filterUrl({ letter: item })}">${escapeHtml(item)}</a>`).join("")}
         </div>
       </div>
@@ -597,7 +667,14 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
         <h2>${escapeHtml(sortLabel(currentSort))}影片</h2>
         <span>共 ${list.length} 部</span>
       </div>
-      <div class="vod-grid">${pagedList.map(card).join("")}</div>
+      <div class="vod-grid" data-empty-container data-empty-item=".vod-card">
+        ${pagedList.map(card).join("")}
+        <div class="content-empty-state" data-empty-state hidden role="status">
+          <strong>暂无符合条件的影片</strong>
+          <span>试试清除筛选条件，或浏览其他频道。</span>
+          <a href="${url(routeName, name ? { name } : {})}">重置筛选</a>
+        </div>
+      </div>
       ${renderPagination(routeName, pageParams, currentPage, totalPages)}
     </section>`;
 }
@@ -645,7 +722,7 @@ function renderSearch(keyword, type = "", genre = "") {
     </section>
     <section class="wrap content-section">
       ${selectedType ? `<div class="section-head compact"><h2>${escapeHtml(selectedType)}</h2><span>搜索结果</span></div>` : ""}
-      <div class="vod-list">
+      <div class="vod-list" data-empty-container data-empty-item=".list-item">
         ${list.map((video) => `
           <a class="list-item" href="${url("detail", { id: video.id })}" data-route="detail">
             <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="96" height="144" sizes="96px">
@@ -656,6 +733,11 @@ function renderSearch(keyword, type = "", genre = "") {
               <em>${escapeHtml(video.summary)}</em>
             </span>
           </a>`).join("")}
+        <div class="content-empty-state" data-empty-state hidden role="status">
+          <strong>没有找到相关影片</strong>
+          <span>换个关键词或清除频道筛选后再试。</span>
+          <a href="${url("videos")}">浏览影片库</a>
+        </div>
       </div>
     </section>`;
 }
@@ -764,11 +846,17 @@ function render() {
   else if (route === "play") renderPlay(params.get("id"), params.get("episode"));
   else renderHome();
   bindSearchForms();
+  window.PingFangVideo?.markCurrentNav?.();
+  window.PingFangVideo?.syncActiveSelectionSemantics?.(app);
   window.PingFangRankReact?.mountAll?.(app);
+  window.PingFangVideo?.initHomeEmptyStates?.(app);
   window.PingFangVideo?.initHomeLatestTabs?.();
+  window.PingFangVideo?.initHomeContinueWatching?.(app);
+  window.PingFangVideo?.initLoginControls?.(app);
+  window.PingFangVideo?.initLoginGlass?.(app);
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initMediaFallbacks?.(app);
-  window.PingFangVideo?.initGsapMotion?.(app);
+  window.PingFangVideo?.initHomeMotion?.(app);
 }
 
 function bindSearchForms() {

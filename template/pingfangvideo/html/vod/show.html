@@ -39,7 +39,7 @@
     <h2 id="libraryListTitle">筛选结果</h2>
     <span>按当前条件更新</span>
   </div>
-  <div class="vod-grid">
+  <div class="vod-grid" data-empty-container data-empty-item=".vod-card">
     {include file="public/vod_grid_results" pageurl="vod/show" vod_type="42,47,48,57,111" /}
   </div>
   {include file="public/paging" /}

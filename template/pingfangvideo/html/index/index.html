@@ -1,5 +1,6 @@
 {include file="public/head" seo_title="首页" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
-<section class="hero">
+<h1 class="sr-only">{$maccms.site_name}首页</h1>
+<section class="hero" data-home-gsap-src="{$maccms.path_tpl}js/gsap.min.js?v=3.15.0">
   <div class="wrap hero-grid">
     <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
       <div class="banner-track">
@@ -23,6 +24,7 @@
       </div>
       <span class="liquid-lens" aria-hidden="true"></span>
       <div class="banner-controls">
+        <button class="banner-autoplay-toggle" type="button" data-carousel-autoplay-toggle aria-pressed="false" aria-label="暂停自动轮播"><span aria-hidden="true"></span></button>
         <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>
       </div>
     </section>
@@ -31,7 +33,7 @@
         <span class="rank-heading"><small>TOP 05</small><h2>年度热度榜</h2></span>
         <a class="rank-refresh" href="{:mac_url('label/hot')}">查看更多</a>
       </div>
-      <div class="rank-list" data-rank-react-list>
+      <div class="rank-list" data-rank-react-list data-home-empty-container data-empty-item=".rank-item">
       {maccms:vod type="42,47,48,57,111" num="5" year="'.date('Y').'" order="desc" by="hits" cachetime="300" id="vo" key="key"}
       <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item data-rank-title="{$vo.vod_name}" data-rank-meta="{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}" data-rank-score="{$vo.vod_score|mac_default='8.0'}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
         <span class="rank-thumb">
@@ -45,6 +47,11 @@
         <span class="rank-score">{$vo.vod_score|mac_default='8.0'}</span>
       </a>
       {/maccms:vod}
+        <div class="home-empty-state home-rank-empty" data-home-empty-state hidden role="status">
+          <strong>本年度暂无上榜内容</strong>
+          <span>新内容产生热度后会显示在这里。</span>
+          <a href="{:mac_url('label/videos')}">浏览全部影片</a>
+        </div>
       </div>
     </div>
   </div>
@@ -66,6 +73,18 @@
   {/maccms:type}
   <a class="genre-chip" data-channel="NEW" href="{:mac_url('label/videos')}"><span>今日更新</span><small>刚刚上线</small></a>
 </nav>
+
+<section class="wrap home-shelf home-continue" data-home-continue hidden aria-labelledby="homeContinueTitle">
+  <div class="home-shelf-head">
+    <span class="shelf-title"><small>KEEP WATCHING</small><h2 id="homeContinueTitle">继续观看</h2></span>
+    {if condition="$user.user_id gt 0"}
+    <a class="home-shelf-more" href="{:mac_url('user/plays')}">全部记录</a>
+    {else/}
+    <a class="home-shelf-more" href="{:mac_url('label/history')}">全部记录</a>
+    {/if}
+  </div>
+  <div class="home-continue-rail" data-home-continue-list aria-live="polite"></div>
+</section>
 
 <section class="wrap home-shelf home-shelf-latest" aria-label="本年最新上线">
   <div class="home-shelf-head">
@@ -90,7 +109,7 @@
     </nav>
     <a class="home-shelf-more" href="{:mac_url('label/videos')}">全部影片</a>
   </div>
-  <div class="home-shelf-rail" data-home-tab="all" id="latest-panel-all" role="tabpanel" aria-hidden="false">
+  <div class="home-shelf-rail" data-home-tab="all" id="latest-panel-all" role="tabpanel" aria-hidden="false" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="42,47,48,57,111" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
@@ -104,8 +123,9 @@
       <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
     </a>
     {/maccms:vod}
+    <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>有新影片上线后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
-  <div class="home-shelf-rail" data-home-tab="category-1" id="latest-panel-category-1" role="tabpanel" hidden aria-hidden="true">
+  <div class="home-shelf-rail" data-home-tab="category-1" id="latest-panel-category-1" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="42" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
@@ -119,8 +139,9 @@
       <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
     </a>
     {/maccms:vod}
+    <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
-  <div class="home-shelf-rail" data-home-tab="category-2" id="latest-panel-category-2" role="tabpanel" hidden aria-hidden="true">
+  <div class="home-shelf-rail" data-home-tab="category-2" id="latest-panel-category-2" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="47" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
@@ -134,8 +155,9 @@
       <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
     </a>
     {/maccms:vod}
+    <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
-  <div class="home-shelf-rail" data-home-tab="category-3" id="latest-panel-category-3" role="tabpanel" hidden aria-hidden="true">
+  <div class="home-shelf-rail" data-home-tab="category-3" id="latest-panel-category-3" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="48" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
@@ -149,8 +171,9 @@
       <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
     </a>
     {/maccms:vod}
+    <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
-  <div class="home-shelf-rail" data-home-tab="category-4" id="latest-panel-category-4" role="tabpanel" hidden aria-hidden="true">
+  <div class="home-shelf-rail" data-home-tab="category-4" id="latest-panel-category-4" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="57" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
@@ -164,8 +187,9 @@
       <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
     </a>
     {/maccms:vod}
+    <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
-  <div class="home-shelf-rail" data-home-tab="category-5" id="latest-panel-category-5" role="tabpanel" hidden aria-hidden="true">
+  <div class="home-shelf-rail" data-home-tab="category-5" id="latest-panel-category-5" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="111" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
     <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
       <span class="home-shelf-poster">
@@ -179,7 +203,7 @@
       <span class="home-shelf-score">{$vo.vod_score|mac_default='8.0'}</span>
     </a>
     {/maccms:vod}
+    <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
 </section>
-<script src="{$maccms.path_tpl}js/gsap.min.js?v=3.15.0"></script>
 {include file="public/foot" /}

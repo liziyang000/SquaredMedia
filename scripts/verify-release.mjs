@@ -6,15 +6,16 @@ import path from "node:path";
 const root = process.cwd();
 const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
 const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
-const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
+const assetVersionPlaceholders = [
+  "__PINGFANG_STYLE_VERSION__",
+  "__PINGFANG_APP_VERSION__",
+  "__PINGFANG_PROMPT_VERSION__",
+];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
   "pingfangvideo/info.ini",
   "pingfangvideo/css/style.css",
   "pingfangvideo/js/gsap.min.js",
-  "pingfangvideo/js/react.production.min.js",
-  "pingfangvideo/js/react-dom.production.min.js",
-  "pingfangvideo/js/rank-react.js",
   "pingfangvideo/js/app.js",
   "pingfangvideo/images/site-logo.png",
   "pingfangvideo/player/preload.html",
@@ -92,6 +93,13 @@ const requiredEntries = [
   "pingfangvideo/html/map/baidu.html",
   "pingfangvideo/html/map/google.html",
 ];
+const excludedEntries = [
+  "pingfangvideo/js/hls.min.js",
+  "pingfangvideo/js/pingfang-player.js",
+  "pingfangvideo/js/react.production.min.js",
+  "pingfangvideo/js/react-dom.production.min.js",
+  "pingfangvideo/js/rank-react.js",
+];
 const forbiddenProductionPatterns = [
   /preview\/data\.json/,
   /preview\/index\.html/,
@@ -149,6 +157,9 @@ const entries = tarList.stdout
 for (const entry of requiredEntries) {
   assert.ok(entries.includes(entry), `${entry} should be included in the release archive`);
 }
+for (const entry of excludedEntries) {
+  assert.ok(!entries.includes(entry), `${entry} should stay out of the production release archive`);
+}
 
 const hiddenDotfiles = entries.filter((entry) => entry.split("/").some((part) => part.startsWith(".") && part !== "."));
 assert.deepEqual(hiddenDotfiles, [], "No hidden dotfiles should be included in the release archive");
@@ -167,7 +178,9 @@ for (const entry of htmlEntries) {
     assert.doesNotMatch(content, pattern, `${entry} should not reference local development or preview resources`);
   }
 
-  assert.doesNotMatch(content, new RegExp(assetVersionPlaceholder, "g"), `${entry} should have generated asset version values`);
+  for (const placeholder of assetVersionPlaceholders) {
+    assert.doesNotMatch(content, new RegExp(placeholder, "g"), `${entry} should have generated asset version values`);
+  }
   assert.doesNotMatch(content, /href="#"/, `${entry} should not contain dead href links`);
   assert.doesNotMatch(content, /href="javascript:history/, `${entry} should not depend on history javascript links`);
   assert.doesNotMatch(content, /action="#"/, `${entry} should not use dead form action links`);
@@ -191,6 +204,10 @@ assert.match(includeHtml, new RegExp(`css/style\\.css${assetVersionPattern.sourc
 
 const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/foot.html"], { encoding: "utf8" });
 assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
+const styleVersion = includeHtml.match(/css\/style\.css\?v=([a-f0-9]{12})/)?.[1];
+const appVersion = footHtml.match(/js\/app\.js\?v=([a-f0-9]{12})/)?.[1];
+assert.ok(styleVersion && appVersion, "Active assets should include generated versions");
+assert.notEqual(styleVersion, appVersion, "CSS and app.js should use independent content versions");
 
 const appJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/app.js"], { encoding: "utf8" });
 assert.match(appJs, /fallbackHistoryUrl/);
@@ -202,7 +219,9 @@ const playerPromptStyle = execFileSync("tar", ["-xOf", archive, "pingfangvideo/p
 for (const prompt of [preloadPrompt, bufferingPrompt]) {
   assert.match(prompt, new RegExp(`prompt\\.css${assetVersionPattern.source}`));
   assert.doesNotMatch(prompt, /<script\b/);
-  assert.doesNotMatch(prompt, new RegExp(assetVersionPlaceholder, "g"));
+  for (const placeholder of assetVersionPlaceholders) {
+    assert.doesNotMatch(prompt, new RegExp(placeholder, "g"));
+  }
 }
 assert.match(playerPromptStyle, /prefers-reduced-motion: reduce/);
 

@@ -49,7 +49,7 @@
 
 <section class="wrap content-section">
   {if condition="$param['type'] eq ''"}
-  <div class="vod-list">
+  <div class="vod-list" data-empty-container data-empty-item=".list-item">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
@@ -60,6 +60,11 @@
       </span>
     </a>
     {/maccms:vod}
+    <div class="content-empty-state" data-empty-state hidden role="status">
+      <strong>没有找到相关影片</strong>
+      <span>换个关键词或清除频道筛选后再试。</span>
+      <a href="{:mac_url('label/videos')}">浏览影片库</a>
+    </div>
   </div>
   {else/}
   {maccms:type ids="'.$param['type'].'" id="current"}
@@ -67,7 +72,7 @@
     <h2>{$current.type_name}</h2>
     <span>搜索结果</span>
   </div>
-  <div class="vod-list">
+  <div class="vod-list" data-empty-container data-empty-item=".list-item">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
     <a class="list-item" href="{:mac_url_vod_detail($vo)}">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
@@ -78,6 +83,11 @@
       </span>
     </a>
     {/maccms:vod}
+    <div class="content-empty-state" data-empty-state hidden role="status">
+      <strong>没有找到相关影片</strong>
+      <span>换个关键词或清除频道筛选后再试。</span>
+      <a href="{:mac_url('label/videos')}">浏览影片库</a>
+    </div>
   </div>
   {/maccms:type}
   {/if}

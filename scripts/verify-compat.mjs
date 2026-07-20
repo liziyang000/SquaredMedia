@@ -152,9 +152,12 @@ assert.match(head, /\[seo_keywords\]/);
 assert.match(head, /\[seo_description\]/);
 
 const foot = readThemeFile("html/public/foot.html");
-assert.match(foot, /mac_url\('map\/google'\)/);
-assert.match(foot, /mac_url\('map\/rss'\)/);
-assert.match(foot, /mac_url\('gbook\/index'\)/);
+assert.doesNotMatch(foot, /class="site-footer"/);
+assert.doesNotMatch(foot, /mac_url\('map\/google'\)/);
+assert.doesNotMatch(foot, /mac_url\('map\/rss'\)/);
+assert.doesNotMatch(foot, /mac_url\('gbook\/index'\)/);
+assert.match(foot, /class="mac_timming"/);
+assert.match(foot, /js\/app\.js\?v=__PINGFANG_APP_VERSION__/);
 
 for (const filePath of walk(htmlRoot).filter((file) => file.endsWith(".html"))) {
   const content = readFileSync(filePath, "utf8");

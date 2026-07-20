@@ -70,7 +70,7 @@ dist/
 - `pingfangvideo` 来自 `template/pingfangvideo/`，`pingfangdevice` 来自 `addons/pingfangdevice/`。
 - `pingfangdevice/application/` 保留 MacCMS 标准插件应用载荷结构；SSH 部署会把其中的兼容控制器复制到对应 CMS 应用目录。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
-- 主题 HTML 中的 `__PINGFANG_ASSET_VERSION__` 会替换为 12 位内容摘要；当前摘要输入为 `css/style.css`、`js/rank-react.js`、`js/app.js` 和 `player/prompt.css`。新增需要同一版本策略的资源时，应同步维护该输入列表和发布验证。
+- 主题 HTML 中的 `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__` 和 `__PINGFANG_PROMPT_VERSION__` 会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。新增需要内容版本的资源时，应同步维护打包映射和发布验证。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - 当前自动化只打包主题和 `pingfangdevice`，不会自动打包或部署其他 `addons/` 子目录。
 

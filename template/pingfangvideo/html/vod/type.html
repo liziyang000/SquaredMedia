@@ -30,9 +30,9 @@
 <section class="wrap content-section" aria-labelledby="categoryListTitle">
   <div class="section-head">
     <h2 id="categoryListTitle">影片列表</h2>
-    <span>共 {:mac_data_count($obj.type_id,'all')} 部</span>
+    <span>按当前条件更新</span>
   </div>
-  <div class="vod-grid">
+  <div class="vod-grid" data-empty-container data-empty-item=".vod-card">
     {include file="public/vod_grid_results" pageurl="vod/type" vod_type="current" /}
   </div>
   {include file="public/paging" /}

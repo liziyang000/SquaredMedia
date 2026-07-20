@@ -13,40 +13,48 @@ const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
 const addonPackageRoot = path.join(dist, addonName);
 const addonArchive = path.join(dist, `${addonName}.tar.gz`);
-const assetVersionPlaceholder = "__PINGFANG_ASSET_VERSION__";
-const assetVersionInputs = [
-  "css/style.css",
+const assetVersionInputs = {
+  __PINGFANG_STYLE_VERSION__: "css/style.css",
+  __PINGFANG_APP_VERSION__: "js/app.js",
+  __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
+};
+const excludedThemePackageFiles = new Set([
+  "js/hls.min.js",
+  "js/pingfang-player.js",
+  "js/react.production.min.js",
+  "js/react-dom.production.min.js",
   "js/rank-react.js",
-  "js/app.js",
-  "player/prompt.css",
-];
+]);
 
-function assetVersion() {
+function assetVersion(relativePath) {
   const hash = createHash("sha256");
-  for (const relativePath of assetVersionInputs) {
-    const filePath = path.join(source, relativePath);
-    hash.update(relativePath);
-    hash.update("\0");
-    hash.update(readFileSync(filePath));
-    hash.update("\0");
-  }
+  hash.update(readFileSync(path.join(source, relativePath)));
   return hash.digest("hex").slice(0, 12);
 }
 
-function replaceAssetVersionPlaceholders(directory, version) {
+function replaceAssetVersionPlaceholders(directory, versions) {
   for (const entry of readdirSync(directory)) {
     const filePath = path.join(directory, entry);
     const stats = statSync(filePath);
     if (stats.isDirectory()) {
-      replaceAssetVersionPlaceholders(filePath, version);
+      replaceAssetVersionPlaceholders(filePath, versions);
       continue;
     }
     if (!stats.isFile() || !filePath.endsWith(".html")) continue;
 
     const content = readFileSync(filePath, "utf8");
-    if (!content.includes(assetVersionPlaceholder)) continue;
-    writeFileSync(filePath, content.replaceAll(assetVersionPlaceholder, version));
+    let nextContent = content;
+    for (const [placeholder, version] of Object.entries(versions)) {
+      nextContent = nextContent.replaceAll(placeholder, version);
+    }
+    if (nextContent !== content) writeFileSync(filePath, nextContent);
   }
+}
+
+function shouldCopyThemePath(sourcePath) {
+  if (path.basename(sourcePath).startsWith(".")) return false;
+  const relativePath = path.relative(source, sourcePath).split(path.sep).join("/");
+  return !excludedThemePackageFiles.has(relativePath);
 }
 
 function normalizePackagePermissions(directory) {
@@ -68,14 +76,16 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(source, packageRoot, {
   recursive: true,
-  filter: (sourcePath) => !path.basename(sourcePath).startsWith("."),
+  filter: shouldCopyThemePath,
 });
 cpSync(addonSource, addonPackageRoot, {
   recursive: true,
   filter: (sourcePath) => !path.basename(sourcePath).startsWith("."),
 });
-const version = assetVersion();
-replaceAssetVersionPlaceholders(packageRoot, version);
+const versions = Object.fromEntries(
+  Object.entries(assetVersionInputs).map(([placeholder, relativePath]) => [placeholder, assetVersion(relativePath)]),
+);
+replaceAssetVersionPlaceholders(packageRoot, versions);
 normalizePackagePermissions(packageRoot);
 normalizePackagePermissions(addonPackageRoot);
 execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", dist, themeName], {
@@ -93,5 +103,5 @@ execFileSync("tar", ["--no-xattrs", "-czf", addonArchive, "-C", dist, addonName]
   stdio: "inherit",
 });
 
-console.log(`Created ${archive} with asset version ${version}`);
+console.log(`Created ${archive} with per-file asset versions`);
 console.log(`Created ${addonArchive}`);

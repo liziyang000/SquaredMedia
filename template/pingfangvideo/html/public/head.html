@@ -7,7 +7,6 @@
   <meta name="description" content="[seo_description]">
 </head>
 <body>
-<a class="skip-link" href="#mainContent">跳到主要内容</a>
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="{$maccms.path}" aria-label="{$maccms.site_name}">
@@ -19,22 +18,19 @@
       <span></span><span></span><span></span>
     </button>
     <nav class="site-nav" id="siteNav" aria-label="主导航">
-      <a href="{$maccms.path}">首页</a>
-      <a href="{:mac_url('label/categories')}">视频</a>
-      <a href="{:mac_url('label/comics')}">漫画</a>
-      <a href="{:mac_url('art/index')}">文章</a>
-      <a href="{:mac_url('website/index')}">游戏</a>
+      <a href="{$maccms.path}" data-nav-section="home">首页</a>
+      <a href="{:mac_url('label/categories')}" data-nav-section="videos">视频</a>
     </nav>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="{:mac_url('vod/search')}">
         <label class="sr-only" for="globalSearch">站内搜索</label>
-        <input id="globalSearch" type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员、导演">
+        <input id="globalSearch" type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员或导演…" autocomplete="off">
         <button type="submit">搜索</button>
       </form>
     </div>
     <div class="theme-switcher" data-theme-switcher>
-      <button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-haspopup="true" aria-expanded="false">主题</button>
-      <div class="theme-switcher-menu" data-theme-switcher-menu hidden>
+      <button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu">主题</button>
+      <div class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden>
         <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
           <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
           <span>液态影院</span>
@@ -69,17 +65,19 @@
   </div>
 </header>
 <div class="mobile-drawer-backdrop" data-mobile-nav-close hidden></div>
-<aside class="mobile-drawer" id="mobileDrawer" aria-label="移动端分类菜单" aria-hidden="true">
+<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>
   <div class="mobile-drawer-head">
     <strong id="mobileDrawerTitle">分类导航</strong>
     <button class="mobile-drawer-close" type="button" data-mobile-nav-close aria-label="关闭菜单">×</button>
   </div>
+  <form class="mobile-drawer-search" method="get" action="{:mac_url('vod/search')}" role="search">
+    <label class="sr-only" for="mobileDrawerSearch">站内搜索</label>
+    <input id="mobileDrawerSearch" type="search" name="wd" value="{$param.wd}" placeholder="搜索影片、演员或导演…" autocomplete="off">
+    <button type="submit">搜索</button>
+  </form>
   <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
-    <a href="{$maccms.path}">首页</a>
-    <a href="{:mac_url('label/categories')}">视频</a>
-    <a href="{:mac_url('label/comics')}">漫画</a>
-    <a href="{:mac_url('art/index')}">文章</a>
-    <a href="{:mac_url('website/index')}">游戏</a>
+    <a href="{$maccms.path}" data-nav-section="home">首页</a>
+    <a href="{:mac_url('label/categories')}" data-nav-section="videos">视频</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
     <span>账号</span>

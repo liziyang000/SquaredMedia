@@ -1,0 +1,55 @@
+.github/workflows/ci.yml
+  s_81cd2a8853e76a::t_6d568fe6cfb71b 22-25,36-38
+.prettierignore
+  s_81cd2a8853e76a::t_0002889ce25983 1-6
+AGENTS.md
+  s_81cd2a8853e76a::t_093d5c31d07944 20
+README.md
+  s_81cd2a8853e76a::t_44989b7dbc60ba 58-59,181-182,189-193,266-267
+docs/development-and-operations.md
+  s_81cd2a8853e76a::t_476fcc793d3751 7,19-21,32-33,43-44,56,203
+docs/maccms-theme-development-spec.md
+  s_81cd2a8853e76a::t_d657500c3a8068 178
+docs/overview.md
+  s_81cd2a8853e76a::t_423da459895e37 68
+docs/theme-and-preview.md
+  s_81cd2a8853e76a::t_5d424fdf80eeea 138
+eslint.config.js
+  s_81cd2a8853e76a::t_760d881b04e998 1-21
+package-lock.json
+  s_81cd2a8853e76a::t_570563c9f44db0 1-2479
+package.json
+  s_81cd2a8853e76a::t_7ba3158c156eff 7-10,13-14,21-28
+prettier.config.js
+  s_81cd2a8853e76a::t_dba4bcc449c398 1-4
+scripts/deploy-theme.sh
+  s_81cd2a8853e76a::t_8470720dfde335 59
+stylelint.config.js
+  s_81cd2a8853e76a::t_fc91e032282477 1-11
+template/pingfangvideo/js/app.js
+  s_81cd2a8853e76a::t_7786b2abb93382 25-34,46-54,178-192,493-499,512,566-579,581-587,625,653-659,675-676,731,733-746,761-768,1045,1080,1172-1180,1290,1293-1303,1345-1354,1383-1406,1424,1570-1577,1579,1582-1600,1678-1687,1740-1749,1751,1790-1795,1801-1811,1814-1826,1829-1840,1843-1854,1863-1866,1880-1892,1894-1899,1925-1953,1955,1957-1965,1967,1993,2001-2003,2028-2034,2098-2104,2132-2135,2252-2266,2303,2336-2356,2358-2372,2410-2434
+template/pingfangvideo/js/pingfang-player.js
+  s_81cd2a8853e76a::t_a18e7c8f3d79ad 26-29
+template/pingfangvideo/js/rank-react.js
+  s_81cd2a8853e76a::t_91d847ec7bf90f 70,106-112
+tests/template.test.mjs
+  s_81cd2a8853e76a::t_527ee9ecfa87a1 114,116,121-123,210,1860-1863,1886,1983,1985,2618-2619,2692,2764,2779-2780
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2545a61f061eda316be145eea7ff4f76a94661b1",
+  "prompts": {},
+  "sessions": {
+    "s_81cd2a8853e76a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f827b-c114-77a2-a6a4-56b702d2707b",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

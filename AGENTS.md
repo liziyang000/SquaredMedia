@@ -17,6 +17,7 @@ Run the relevant verification before claiming a theme change is complete:
 
 ```bash
 npm test
+npm run lint
 npm run lint:template
 npm run verify:compat
 npm run verify:preview

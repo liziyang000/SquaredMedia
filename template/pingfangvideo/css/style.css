@@ -4795,7 +4795,6 @@ html[data-theme="poster-magazine"] .player-page {
   .brand-logo {
     width: 48px;
     height: 48px;
-    flex-basis: 48px;
     flex: 0 0 48px;
   }
 

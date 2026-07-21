@@ -67,12 +67,7 @@
           : null,
         createElement("span", { className: "rank-index" }, position)
       ),
-      createElement(
-        "span",
-        { className: "rank-body" },
-        createElement("strong", null, item.title),
-        createElement("em", { className: "rank-meta" }, item.meta)
-      ),
+      createElement("span", { className: "rank-body" }, createElement("strong", null, item.title), createElement("em", { className: "rank-meta" }, item.meta)),
       createElement("span", { className: "rank-score" }, item.score)
     );
   }
@@ -108,11 +103,13 @@
     var title = readText(root, ".section-head h2") || root.getAttribute("data-rank-title") || "热搜榜";
     var moreUrl = root.getAttribute("data-rank-more-url") || "#";
     root.__pingfangRankRoot = ReactDOM.createRoot(root);
-    root.__pingfangRankRoot.render(createElement(RankPanel, {
-      initialItems: items,
-      title: title,
-      moreUrl: moreUrl
-    }));
+    root.__pingfangRankRoot.render(
+      createElement(RankPanel, {
+        initialItems: items,
+        title: title,
+        moreUrl: moreUrl
+      })
+    );
     root.setAttribute("data-rank-react-mounted", "true");
   }
 

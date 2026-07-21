@@ -111,11 +111,16 @@ const requiredFiles = [
 ];
 
 const requiredRootFiles = [
+  ".prettierignore",
   "docker-compose.yml",
+  "eslint.config.js",
   "docker/php/Dockerfile",
   "docker/php/php.ini",
   "ops/security/gptbot-ip-rules.json",
   "README.md",
+  "package-lock.json",
+  "prettier.config.js",
+  "stylelint.config.js",
   ".github/workflows/ci.yml",
   "addons/pingfangdevice/Pingfangdevice.php",
   "addons/pingfangdevice/application/index/controller/Pingfangdevice.php",
@@ -202,6 +207,7 @@ assert.match(previewDataLoader, /dirname\(__DIR__, 2\) \. '\/preview\/data\.json
 
 const readme = readFileSync(path.join(root, "README.md"), "utf8");
 assert.match(readme, /PHP 8\.4/);
+assert.match(readme, /npm run lint/);
 assert.match(readme, /npm run lint:template/);
 assert.match(readme, /npm run package/);
 assert.match(readme, /npm run verify:release/);
@@ -1851,6 +1857,10 @@ assert.match(packageScript, /COPYFILE_DISABLE/);
 assert.match(packageScript, /--no-xattrs/);
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
+assert.equal(packageJson.scripts.lint, "npm run lint:frontend");
+assert.match(packageJson.scripts["lint:frontend"], /npm run lint:js/);
+assert.match(packageJson.scripts["lint:frontend"], /npm run lint:css/);
+assert.match(packageJson.scripts["lint:frontend"], /npm run format:check/);
 assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.mjs");
 assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");
 assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
@@ -1873,6 +1883,7 @@ const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "u
 assert.match(deployScript, /^#!\/usr\/bin\/env bash/);
 assert.match(deployScript, /set -euo pipefail/);
 assert.match(deployScript, /npm test/);
+assert.match(deployScript, /npm run lint/);
 assert.match(deployScript, /npm run lint:template/);
 assert.match(deployScript, /npm run verify:compat/);
 assert.match(deployScript, /npm run verify:preview/);
@@ -1969,7 +1980,9 @@ assert.match(ciWorkflow, /actions\/setup-node@v4/);
 assert.match(ciWorkflow, /node-version: 22/);
 assert.match(ciWorkflow, /shivammathur\/setup-php@v2/);
 assert.match(ciWorkflow, /php-version: "8\.4"/);
+assert.match(ciWorkflow, /npm ci/);
 assert.match(ciWorkflow, /npm test/);
+assert.match(ciWorkflow, /npm run lint/);
 assert.match(ciWorkflow, /npm run lint:template/);
 assert.match(ciWorkflow, /npm run verify:compat/);
 assert.match(ciWorkflow, /npm run verify:preview/);
@@ -2602,8 +2615,8 @@ assert.match(appJs, /\(hover: hover\) and \(pointer: fine\)/);
 assert.match(appJs, /window\.addEventListener\("pointermove", trackPointer, \{ passive: true \}\)/);
 assert.match(appJs, /document\.documentElement\.addEventListener\("pointerleave", hideHighlight\)/);
 assert.match(appJs, /event\.pointerType && event\.pointerType !== "mouse"/);
-assert.match(appJs, /pointerPosition\.x - bounds\.left - panel\.clientLeft - \(highlightSize \/ 2\)/);
-assert.match(appJs, /pointerPosition\.y - bounds\.top - panel\.clientTop - \(highlightSize \/ 2\)/);
+assert.match(appJs, /pointerPosition\.x\s*-\s*bounds\.left\s*-\s*panel\.clientLeft\s*-\s*(?:\(\s*)?highlightSize\s*\/\s*2(?:\s*\))?/);
+assert.match(appJs, /pointerPosition\.y\s*-\s*bounds\.top\s*-\s*panel\.clientTop\s*-\s*(?:\(\s*)?highlightSize\s*\/\s*2(?:\s*\))?/);
 assert.doesNotMatch(appJs, /panel\.addEventListener\("pointerleave"/);
 assert.doesNotMatch(appJs, /highlight\.style\.removeProperty\("transform"\)/);
 assert.match(appJs, /data-password-toggle/);
@@ -2676,7 +2689,7 @@ assert.match(appJs, /MAC\.Ulog\.Get\(4, 1, 12/);
 assert.match(appJs, /function initAutoNextPlayback/);
 assert.match(appJs, /\[data-next-play-url\]/);
 assert.match(appJs, /MacPlayer\.PlayLinkNext/);
-assert.match(appJs, /addEventListener\("ended"/);
+assert.match(appJs, /addEventListener\(\s*"ended"/);
 assert.match(appJs, /contentDocument/);
 assert.match(appJs, /window\.top\.location\.href = nextUrl/);
 assert.match(appJs, /function initLogoutLinks/);
@@ -2748,7 +2761,7 @@ assert.match(appJs, /document\.createElement\("button"\)/);
 assert.match(appJs, /function ensureHeroSlideBackground\(slide, priority\)/);
 assert.match(appJs, /data-banner-bg/);
 assert.match(appJs, /new window\.Image\(\)/);
-assert.match(appJs, /image\.decode\(\)/);
+assert.match(appJs, /image\s*\.decode\(\)/);
 assert.match(appJs, /function scheduleHeroBackgroundPreload/);
 assert.match(appJs, /requestIdleCallback/);
 assert.match(appJs, /image\.onerror/);
@@ -2763,8 +2776,8 @@ assert.match(appJs, /var carouselHasFocus = false/);
 assert.match(appJs, /prefersReducedMotion\(\) \|\| carouselHasFocus/);
 assert.match(appJs, /carousel\.addEventListener\("focusin", function \(\) \{[\s\S]*carouselHasFocus = true;[\s\S]*stop\(\)/);
 assert.match(appJs, /carousel\.addEventListener\("focusout", function \(event\) \{[\s\S]*carouselHasFocus = false;[\s\S]*start\(\)/);
-assert.match(appJs, /carousel\.addEventListener\("touchstart"/);
-assert.match(appJs, /carousel\.addEventListener\("touchend"/);
+assert.match(appJs, /carousel\.addEventListener\(\s*"touchstart"/);
+assert.match(appJs, /carousel\.addEventListener\(\s*"touchend"/);
 assert.match(appJs, /Math\.abs\(deltaX\) > 44/);
 assert.match(appJs, /document\.addEventListener\("visibilitychange"/);
 assert.match(appJs, /initRandomAvatars/);

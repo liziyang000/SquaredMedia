@@ -23,7 +23,10 @@
   }
 
   function getSourceKind(url) {
-    var cleanUrl = String(url || "").split("#")[0].split("?")[0].toLowerCase();
+    var cleanUrl = String(url || "")
+      .split("#")[0]
+      .split("?")[0]
+      .toLowerCase();
     if (/\.m3u8$/i.test(cleanUrl)) return "hls";
     if (/\.mp4$/i.test(cleanUrl)) return "mp4";
     return "";

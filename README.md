@@ -55,6 +55,8 @@ under `/static/player`.
 Create a deployable archive:
 
 ```bash
+npm ci
+npm run lint
 npm run lint:template
 npm run verify:compat
 npm run verify:preview
@@ -176,12 +178,18 @@ remove a security migration; deploy-created addon and application-controller
 backups remain on the server for an explicit manual addon rollback if one is
 required.
 
-GitHub Actions runs the same release gate on pushes and pull requests: `npm test`,
+GitHub Actions installs the pinned npm dependencies with `npm ci`, then runs the
+same release gate on pushes and pull requests: `npm test`, `npm run lint`,
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,
 `npm run package`, and `npm run verify:release`. After verification, the CI
 workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
 `dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, keeping theme and addon
 release units separate.
+
+`npm run lint` checks first-party browser JavaScript with ESLint, theme CSS with
+Stylelint, and JavaScript/config formatting with Prettier. Vendored minified
+libraries are excluded. Run `npm run format` to format the covered JavaScript
+and configuration files.
 
 `npm run lint:template` checks local MacCMS template structure before packaging:
 includes must point to existing files, common MacCMS loop tags must be balanced,
@@ -255,6 +263,8 @@ For backend-rendered route verification, run `npm run verify:preview`. It invoke
 ## Verify
 
 ```bash
+npm ci
+npm run lint
 npm test
 npm run lint:template
 npm run verify:compat

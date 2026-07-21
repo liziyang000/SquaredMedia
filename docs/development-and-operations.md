@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- Node.js：CI 使用 Node.js 22；仓库没有第三方 npm 依赖，命令直接调用 Node.js 标准库。
+- Node.js：CI 使用 Node.js 22；先用 `npm ci` 安装锁定版本的 ESLint、Stylelint 和 Prettier 开发依赖。
 - PHP：目标版本为 PHP 8.4。完整测试会调用 PHP CLI；海报修复工具还要求 `curl`、`mbstring`、`pdo_mysql` 扩展。
 - 打包：需要系统 `tar`，且当前脚本使用 `--no-xattrs`。
 - 部署：本机需要 `bash`、`ssh`、`scp`；使用密码认证时还需要 `sshpass`，日常发布优先使用 SSH 密钥。
@@ -16,6 +16,9 @@
 
 | 命令 | 作用 | 是否写入仓库生成目录 |
 | --- | --- | --- |
+| `npm ci` | 按 `package-lock.json` 安装前端检查工具 | 只写入已忽略的 `node_modules/` |
+| `npm run lint` | 依次检查一方浏览器 JavaScript、主题 CSS 和 Prettier 格式 | 否 |
+| `npm run format` | 用 Prettier 格式化一方 JavaScript 与配置文件 | 是，直接修改被覆盖的源码与配置 |
 | `npm test` | 运行模板契约测试、设备会话与控制器 PHP 测试、海报修复单元测试 | 否；测试只使用系统临时目录 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
@@ -26,6 +29,8 @@
 提交主题相关修改前，至少执行：
 
 ```bash
+npm ci
+npm run lint
 npm test
 npm run lint:template
 npm run verify:compat
@@ -35,6 +40,8 @@ npm run verify:preview
 准备发布时再执行完整发布门禁：
 
 ```bash
+npm ci
+npm run lint
 npm test
 npm run lint:template
 npm run verify:compat
@@ -46,6 +53,7 @@ npm run verify:release
 各层验证的关注点不同，不能互相替代：
 
 - `tests/template.test.mjs` 是仓库级静态与预览契约测试，也会约束发布脚本、CI 配置和数据库维护文档中的关键入口。
+- `npm run lint` 用 ESLint 检查一方浏览器脚本、用 Stylelint 检查主题 CSS，并用 Prettier 验证 JavaScript 与配置格式；压缩第三方库不在检查范围内。
 - `scripts/lint-template.mjs` 面向源模板结构，阻止本地预览、`localhost`、死链接或错误资源路径进入生产主题。
 - `scripts/verify-compat.mjs` 面向 MacCMS 页面和目录兼容面。
 - `scripts/verify-preview.mjs` 从仓库根目录调用 PHP CLI，验证本地模拟数据能够渲染主要路由；它不连接真实 MacCMS 数据库。
@@ -192,7 +200,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 
 ## CI
 
-`.github/workflows/ci.yml` 在每次 push 和 pull request 上运行，环境为 Node.js 22 和 PHP 8.4。顺序与本地完整发布门禁一致：测试、模板检查、兼容验证、预览验证、打包、发布包验证。
+`.github/workflows/ci.yml` 在每次 push 和 pull request 上运行，环境为 Node.js 22 和 PHP 8.4。CI 先执行 `npm ci`，再按本地完整发布门禁运行测试、前端检查、模板检查、兼容验证、预览验证、打包和发布包验证。
 
 验证通过后，CI 按独立发布单元上传：
 

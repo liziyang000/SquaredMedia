@@ -56,6 +56,7 @@ else
 fi
 
 npm test
+npm run lint
 npm run lint:template
 npm run verify:compat
 npm run verify:preview

@@ -1,0 +1,23 @@
+docs/theme-and-preview.md
+  s_78c195b64c732e::t_a5c83165bd4cb6 29,62,161
+template/pingfangvideo/js/app.js
+  s_78c195b64c732e::t_0effe8baa04129 1818
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "66ea67224d6de788a723b2202b142f888e7cad9d",
+  "prompts": {},
+  "sessions": {
+    "s_78c195b64c732e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8252-6ef2-7371-b6e8-d611616ab24e",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

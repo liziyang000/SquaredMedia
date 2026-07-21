@@ -2154,21 +2154,11 @@ textarea:focus-visible,
 
 .filter-options {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
+  overflow-x: visible;
   padding-bottom: 2px;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.filter-options::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
 }
 
 .filter-panel strong {
@@ -2186,7 +2176,6 @@ textarea:focus-visible,
   flex: 0 0 auto;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.025);
-  scroll-snap-align: start;
 }
 
 .filter-panel a.is-active {
@@ -4571,8 +4560,6 @@ html[data-theme="poster-magazine"] .player-page {
   }
 
   .filter-options {
-    margin-right: -14px;
-    padding-right: 14px;
     padding-bottom: 4px;
   }
 
@@ -4883,11 +4870,6 @@ html[data-theme="poster-magazine"] .player-page {
 
   .filter-panel {
     padding: 12px;
-  }
-
-  .filter-options {
-    margin-right: -12px;
-    padding-right: 12px;
   }
 
   .vod-grid,
@@ -5419,26 +5401,6 @@ body::before {
   color: #f3f5ff;
   -webkit-backdrop-filter: blur(18px) saturate(1.2);
   backdrop-filter: blur(18px) saturate(1.2);
-}
-
-.liquid-lens {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 4;
-  display: block;
-  width: clamp(170px, 18vw, 280px);
-  aspect-ratio: 1.12;
-  border: 1px solid rgba(224, 229, 255, 0.3);
-  border-radius: 44% 56% 62% 38% / 42% 36% 64% 58%;
-  background:
-    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.3), transparent 20%),
-    conic-gradient(from 205deg, rgba(110, 231, 249, 0.1), rgba(139, 124, 255, 0.28), rgba(255, 170, 233, 0.16), rgba(110, 231, 249, 0.1));
-  box-shadow: inset 0 0 42px rgba(255, 255, 255, 0.08), 0 0 48px rgba(115, 95, 232, 0.14);
-  filter: blur(0.2px) saturate(1.2);
-  mix-blend-mode: screen;
-  opacity: 0;
-  pointer-events: none;
 }
 
 .banner-controls {
@@ -6479,10 +6441,6 @@ body::before {
     padding-left: 12px;
   }
 
-  .liquid-lens {
-    width: 150px;
-  }
-
   .hero-rank {
     margin-top: 4px;
     border-radius: 20px;
@@ -6811,12 +6769,6 @@ body::before {
 
 @media (max-width: 1180px) and (orientation: landscape) and (max-height: 520px) {
   .site-header .header-search-wrap {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .liquid-lens {
     display: none;
   }
 }

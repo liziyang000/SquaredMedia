@@ -1702,90 +1702,6 @@
     };
   }
 
-  function initLiquidLens(scope, gsap) {
-    var carousels = scopedElements(scope, ".hero-carousel[data-carousel]");
-    var cleanups = [];
-
-    carousels.forEach(function (carousel) {
-      var lens = carousel.querySelector(".liquid-lens");
-      if (!lens) return;
-
-      var bounds = carousel.getBoundingClientRect();
-      var lensMotionTimer = null;
-      var xTo = gsap.quickTo(lens, "x", { duration: 0.72, ease: "power3.out" });
-      var yTo = gsap.quickTo(lens, "y", { duration: 0.72, ease: "power3.out" });
-      var opacityTo = gsap.quickTo(lens, "opacity", { duration: 0.42, ease: "power2.out" });
-
-      function startLensMotion() {
-        if (lensMotionTimer) {
-          window.clearTimeout(lensMotionTimer);
-          lensMotionTimer = null;
-        }
-        lens.style.willChange = "transform, opacity";
-      }
-
-      function finishLensMotion() {
-        lensMotionTimer = null;
-        lens.style.removeProperty("will-change");
-      }
-
-      function scheduleLensMotionEnd() {
-        if (lensMotionTimer) {
-          window.clearTimeout(lensMotionTimer);
-        }
-        lensMotionTimer = window.setTimeout(finishLensMotion, 760);
-      }
-
-      function refreshBounds() {
-        bounds = carousel.getBoundingClientRect();
-      }
-
-      function moveLens(event) {
-        startLensMotion();
-        xTo(clampNumber(event.clientX - bounds.left, 0, bounds.width));
-        yTo(clampNumber(event.clientY - bounds.top, 0, bounds.height));
-        opacityTo(0.72);
-        scheduleLensMotionEnd();
-      }
-
-      function settleLens() {
-        startLensMotion();
-        xTo(bounds.width * 0.72);
-        yTo(bounds.height * 0.34);
-        opacityTo(0.46);
-        scheduleLensMotionEnd();
-      }
-
-      gsap.set(lens, {
-        xPercent: -50,
-        yPercent: -50,
-        x: bounds.width * 0.72,
-        y: bounds.height * 0.34,
-        opacity: 0.46
-      });
-      carousel.addEventListener("pointerenter", refreshBounds, { passive: true });
-      carousel.addEventListener("pointermove", moveLens, { passive: true });
-      carousel.addEventListener("pointerleave", settleLens, { passive: true });
-      window.addEventListener("resize", refreshBounds, { passive: true });
-
-      cleanups.push(function () {
-        carousel.removeEventListener("pointerenter", refreshBounds);
-        carousel.removeEventListener("pointermove", moveLens);
-        carousel.removeEventListener("pointerleave", settleLens);
-        window.removeEventListener("resize", refreshBounds);
-        if (lensMotionTimer) window.clearTimeout(lensMotionTimer);
-        gsap.killTweensOf(lens);
-        gsap.set(lens, { clearProps: "transform,opacity,visibility,willChange" });
-      });
-    });
-
-    return function () {
-      cleanups.forEach(function (cleanup) {
-        cleanup();
-      });
-    };
-  }
-
   function initPageEntrance(scope, gsap) {
     var header = scope === document ? document.querySelector(".header-inner") : null;
     var carousel = (scope || document).querySelector(".hero-carousel");
@@ -1899,17 +1815,14 @@
 
     mm.add({
       reduceMotion: "(prefers-reduced-motion: reduce)",
-      coarsePointer: "(hover: none) and (pointer: coarse)",
-      finePointer: "(hover: hover) and (pointer: fine)"
+      coarsePointer: "(hover: none) and (pointer: coarse)"
     }, function (context) {
       var reduceMotion = context.conditions.reduceMotion;
       var coarsePointer = context.conditions.coarsePointer;
-      var finePointer = context.conditions.finePointer;
       var carousels = scopedElements(scope, "[data-carousel]");
       var iridescenceCleanup = null;
       var entranceCleanup = null;
       var sectionCleanup = null;
-      var lensCleanup = null;
 
       if (reduceMotion) {
         carousels.forEach(function (carousel) {
@@ -1927,15 +1840,11 @@
       iridescenceCleanup = initBannerIridescence(scope, gsap, coarsePointer);
       entranceCleanup = initPageEntrance(scope, gsap);
       sectionCleanup = initSectionMotion(scope, gsap);
-      if (finePointer) {
-        lensCleanup = initLiquidLens(scope, gsap);
-      }
 
       return function () {
         if (iridescenceCleanup) iridescenceCleanup();
         if (entranceCleanup) entranceCleanup();
         if (sectionCleanup) sectionCleanup();
-        if (lensCleanup) lensCleanup();
       };
     });
   }

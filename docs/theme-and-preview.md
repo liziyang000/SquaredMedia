@@ -26,7 +26,7 @@
 - `html/art/`、`topic/`、`actor/`、`role/`、`plot/`、`website/`：标准模块的页面或兜底页面。
 - `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、站点地图和订阅输出。
 - `css/style.css`：全站样式、语义 token、三套主题和响应式规则。
-- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、轮播，以及 GSAP 入场、液态光斑和区块渐入动效。
+- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、轮播，以及 GSAP 入场和区块渐入动效。
 - `images/`：站点和品牌图片；生产模板通过 `{$maccms.path_tpl}` 引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
@@ -59,7 +59,7 @@
 - 默认主题使用深夜蓝黑星空底色、紫蓝液态玻璃表面和高亮青色状态色；首页以全宽海报舞台和横向内容货架为主要视觉结构。
 - `blue-pink-purple` 和 `poster-magazine` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
 - `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，默认主题不共用这套重排。
-- `gsap.min.js` 仅在首页、桌面精细指针且未启用 `prefers-reduced-motion` 时由 `app.js` 按需加载。GSAP 负责首页入场时间线、轮播切换和指针液态光斑；其他设备使用 CSS 轮播回退，卡片 hover 保持为 CSS。
+- `gsap.min.js` 仅在首页、桌面精细指针且未启用 `prefers-reduced-motion` 时由 `app.js` 按需加载。GSAP 负责首页入场时间线和轮播切换；其他设备使用 CSS 轮播回退，卡片 hover 保持为 CSS。
 - 轮播背景只在图片预加载成功后写入 CSS；海报或背景请求失败时切换到主题内置玻璃渐变，避免破图图标和动态层重复请求。
 
 ## 数据与渲染流
@@ -158,7 +158,7 @@ npm run verify:release
 ## 历史文档状态
 
 - `docs/superpowers/specs/2026-06-27-cinematic-premium-theme-design.md`：早期视觉基线，部分首页结构已被后续迭代替代。
-- `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md` 与对应 plan：其中的全站卡片 hover 方案未启用；当前只保留首页入场、一次性区块渐入、轮播和液态光斑，仍应以 `app.js` 为准。
+- `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md` 与对应 plan：其中的全站卡片 hover 方案未启用，指针液态光斑也已移除；当前只保留首页入场、一次性区块渐入和轮播，仍应以 `app.js` 为准。
 - `docs/superpowers/specs/2026-06-29-home-mobile-polish-design.md` 与对应 plan：依赖的 `.hero-stats`、`.quick-types` 等首页结构已不存在。
 - `docs/superpowers/specs/2026-07-01-pingfang-player-design.md`、对应 plan 和 handoff：已更新为“原型保留但禁用”，与当前代码一致。
 - `docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md` 与对应 plan：核心主题切换和 scoped 布局已实现；仍应以当前 CSS、模板和测试为准。

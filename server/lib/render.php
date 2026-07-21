@@ -224,7 +224,6 @@ function render_hero_carousel(array $data, array $videos): string
 
     return '<section class="hero-carousel" data-carousel aria-label="首页热播轮播">
   <div class="banner-track">' . $slides . '</div>
-  <span class="liquid-lens" aria-hidden="true"></span>
   <div class="banner-controls">
     <button class="banner-autoplay-toggle" type="button" data-carousel-autoplay-toggle aria-pressed="false" aria-label="暂停自动轮播"><span aria-hidden="true"></span></button>
     <div class="banner-dots" role="tablist" aria-label="轮播分页"></div>

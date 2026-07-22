@@ -5,6 +5,7 @@ namespace think {
     {
         public static $tables = [];
         public static $throwOnSelect = false;
+        public static $failUpdate = false;
         private static $snapshot;
 
         public static function name($name)
@@ -108,6 +109,9 @@ namespace think {
 
         public function update(array $data)
         {
+            if (Db::$failUpdate) {
+                return false;
+            }
             $updated = 0;
             foreach (Db::$tables[$this->table] ?? [] as $index => $row) {
                 if (!$this->matches($row)) {
@@ -266,6 +270,7 @@ namespace {
         $deviceUserModel->logoutCalls = 0;
         Db::$tables = ['pingfang_device_session' => [], 'user' => []];
         Db::$throwOnSelect = false;
+        Db::$failUpdate = false;
     };
 
     $reset();
@@ -460,6 +465,38 @@ namespace {
         $assertSame(null, $deviceCookies['pfv_device_token'] ?? null, 'A failed registration must not leave a device cookie behind.');
         $assertSame([], Db::$tables['pingfang_device_session'], 'A failed registration must roll back the inserted session.');
     }
+
+    $reset();
+    $token = 'logout-failure-token';
+    $deviceCookies['pfv_device_token'] = $token;
+    Db::$tables['pingfang_device_session'][] = [
+        'session_id' => 9,
+        'user_id' => 42,
+        'token_hash' => hash('sha256', $token),
+        'revoked_time' => 0,
+        'revoked_reason' => '',
+    ];
+    Db::$failUpdate = true;
+    try {
+        DeviceSession::logoutCurrentDevice(42);
+        $fail('A failed server-side device revocation must fail logout.');
+    } catch (\RuntimeException $e) {
+        $assertSame($token, $deviceCookies['pfv_device_token'] ?? null, 'A failed revocation must retain the device cookie so logout can be retried.');
+        $assertSame(0, Db::$tables['pingfang_device_session'][0]['revoked_time'], 'A failed revocation must not claim the server session was revoked.');
+    }
+
+    $reset();
+    Db::$tables['pingfang_device_session'][] = [
+        'session_id' => 10,
+        'user_id' => 42,
+        'token_hash' => hash('sha256', 'other-device-token'),
+        'revoked_time' => 0,
+        'revoked_reason' => '',
+    ];
+    Db::$failUpdate = true;
+    $result = DeviceSession::revokeSession(42, 10);
+    $assertSame(1004, $result['code'], 'A failed manual revocation must return an explicit failure.');
+    $assertSame(0, Db::$tables['pingfang_device_session'][0]['revoked_time'], 'A failed manual revocation must not claim the device was revoked.');
 
     $reset();
     $token = 'display-token';

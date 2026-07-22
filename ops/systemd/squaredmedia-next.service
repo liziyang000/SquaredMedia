@@ -1,0 +1,28 @@
+[Unit]
+Description=SquaredMedia Next.js staging frontend
+After=network.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/react_squared_media/current
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3100
+Environment=NEXT_TELEMETRY_DISABLED=1
+EnvironmentFile=-/www/wwwroot/react_squared_media/current/release.env
+ExecStart=/usr/bin/node apps/web/server.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+SuccessExitStatus=143
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/www/wwwroot/react_squared_media/current/apps/web/.next/cache
+
+[Install]
+WantedBy=multi-user.target

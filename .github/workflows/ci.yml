@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.22.0
           cache: npm
 
       - name: Install frontend tooling
@@ -30,11 +30,26 @@ jobs:
           php-version: "8.4"
           extensions: mbstring, mysqli, pdo_mysql, gd, zip, opcache
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Run unit tests
         run: npm test
 
       - name: Lint frontend assets
         run: npm run lint
+
+      - name: Type-check Next.js frontend
+        run: npm run typecheck:web
+
+      - name: Run Next.js browser acceptance
+        run: npm run test:e2e
+
+      - name: Build Next.js frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: /index.php/pingfangapi/index
+          NEXT_PUBLIC_HOME_API_URL: /index.php/pingfangapi/index
+        run: npm run build:web
 
       - name: Lint MacCMS templates
         run: npm run lint:template
@@ -62,3 +77,9 @@ jobs:
         with:
           name: pingfangdevice-addon
           path: dist/pingfangdevice.tar.gz
+
+      - name: Upload production API addon package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pingfangapi-addon
+          path: dist/pingfangapi.tar.gz

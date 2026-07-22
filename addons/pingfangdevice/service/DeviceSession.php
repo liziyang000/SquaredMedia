@@ -228,13 +228,18 @@ class DeviceSession
             return ['code' => 1, 'msg' => '设备已下线'];
         }
 
-        Db::name(self::TABLE)->where([
+        $where = [
             'session_id' => $sessionId,
             'user_id' => $userId,
-        ])->update([
+            'revoked_time' => 0,
+        ];
+        $updated = Db::name(self::TABLE)->where($where)->update([
             'revoked_time' => time(),
             'revoked_reason' => 'manual',
         ]);
+        if ($updated === false || !empty(Db::name(self::TABLE)->where($where)->find())) {
+            return ['code' => 1004, 'msg' => '设备撤销失败，请重试'];
+        }
 
         return ['code' => 1, 'msg' => '设备已踢下线'];
     }
@@ -242,23 +247,23 @@ class DeviceSession
     public static function logoutCurrentDevice($userId = 0)
     {
         $tokenHash = self::currentTokenHash();
-        try {
-            if ($tokenHash !== '') {
-                $query = Db::name(self::TABLE)->where([
-                    'token_hash' => $tokenHash,
-                    'revoked_time' => 0,
-                ]);
-                if (intval($userId) > 0) {
-                    $query->where('user_id', intval($userId));
-                }
-                $query->update([
-                    'revoked_time' => time(),
-                    'revoked_reason' => 'logout',
-                ]);
+        if ($tokenHash !== '') {
+            $where = [
+                'token_hash' => $tokenHash,
+                'revoked_time' => 0,
+            ];
+            if (intval($userId) > 0) {
+                $where['user_id'] = intval($userId);
             }
-        } finally {
-            self::clearDeviceCookie();
+            $updated = Db::name(self::TABLE)->where($where)->update([
+                'revoked_time' => time(),
+                'revoked_reason' => 'logout',
+            ]);
+            if ($updated === false || !empty(Db::name(self::TABLE)->where($where)->find())) {
+                throw new \RuntimeException('Failed to revoke current device session.');
+            }
         }
+        self::clearDeviceCookie();
     }
 
     public static function currentUser()

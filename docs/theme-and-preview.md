@@ -1,17 +1,19 @@
 # 主题与本地预览
 
-本文说明 `pingfangvideo` MacCMS V10 主题及两套本地预览工具的当前边界。当前代码是实现事实源；`docs/superpowers/**` 主要保存历史设计和实施计划，不能替代本说明、`docs/maccms-theme-development-spec.md` 或 [MacCMS 官方主题文档](https://www.maccms.la/theme)。
+本文说明 `pingfangvideo` MacCMS V10 主题、两套本地预览工具、独立 Next.js 前台与 Figma 产品基准的当前边界。当前代码是实现事实源；`docs/superpowers/**` 主要保存历史设计和实施计划，不能替代本说明、`docs/maccms-theme-development-spec.md` 或 [MacCMS 官方主题文档](https://www.maccms.la/theme)。
 
 ## 模块职责与边界
 
 | 路径 | 职责 | 是否进入生产主题包 |
 | --- | --- | --- |
 | `template/pingfangvideo/**` | MacCMS 生产主题、共享前端资源和播放器提示页 | 是 |
+| `apps/web/**` | Next.js 前台、App Router、本地同源 rewrite、API 客户端与前端测试 | 独立发布到 staging，不进入 MacCMS 主题包 |
 | `maccms-player/**` | 独立的 HLS 性能版播放器源码 | 否；单独生成播放器归档 |
 | `preview/index.html` | 浏览器端路由与渲染的静态交互预览 | 否 |
 | `preview/data.json` | 两套本地预览共用的样例数据 | 否 |
 | `server/**` | PHP 8.4 后端渲染预览，不是 MacCMS 模板引擎 | 否 |
 | `docker/**`、`docker-compose.yml` | PHP 8.4 + Apache 的预览运行环境 | 否 |
+| `scripts/figma-product-baseline/**` | 代码对齐的 Figma 产品基准生成、校验和本地插件 | 否；不进入任何运行时发布包 |
 
 主题目录名和 MacCMS 模板标识当前仍是 `pingfangvideo`。修改这个标识会同时影响后台模板选择、资源路径、打包和部署，不能只改 `info.ini`。
 
@@ -117,6 +119,22 @@ PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。�
 
 ## 本地使用与验证
 
+当前首选的本地前台入口是 Next.js：
+
+```bash
+npm run dev:local
+```
+
+访问 `http://127.0.0.1:5173/`。该命令同时在 `8084` 启动 PHP 预览后端；Next.js development rewrites 将 `/react-api.php` 指向本地 `server/react-api.php`，并代理保留的 PHP、模板和静态资源路径，所以 App Router 深层 URL 可直接刷新，`/index.php?route=home` 仍可用于核对旧 PHP 渲染链。退出命令会停止两个进程。此切换仅用于本地开发，生产主题选择和部署脚本保持不变。
+
+Next.js 本地前台已覆盖首页、目录、分类、搜索、榜单、详情、剧情、下载授权入口、播放/试看外壳、既有会员登录、用户中心、收藏、记录、设备、评论、留言、报错、挑战、状态与 `404` 页面。新会员注册和账号找回明确退场，新旧页面地址返回 HTTP `410`。页面导入 `template/pingfangvideo/css/style.css` 与品牌资源，但不加载 `template/pingfangvideo/js/app.js`；交互状态由 React 管理。MacCMS 主题共有五套视觉，当前 React `SiteHeader` 只注册液态影院、极光夜幕和海报画廊三套，敦煌流光与像素蛙尚不能视为 React 已支持。`src/proxy.ts` 对已知旧公开 URL 返回单跳 `301`，对明确退场的模块返回真实 HTTP `410`，未知页面由 Next.js 返回真实 `404`。79 个旧模板逐项归属见 [React 模板迁移矩阵](react-template-migration-matrix.md)。
+
+`server/react-api.php` 是本地验收适配器，不是生产 MacCMS 接口。它从 `preview/data.json` 生成首页和内容白名单 DTO；列表、搜索和详情不返回 `episodes[].src`，只有 `playback` action 返回当前单集媒体描述。写操作只接受 JSON，使用真实 PHP session、HttpOnly/Lax Cookie 和 CSRF Token，并在 session 内保存收藏、记录、设备撤销、反馈、评论与评分。公开首页响应不携带用户历史：匿名记录来自经过 URL 与结构校验的浏览器存储，登录账号记录通过私有接口获取；收藏和账号历史支持选择、删除和清空。公开响应使用短 TTL，用户和播放响应为 `private, no-store`。本地账号为 `demo` / `demo123`。
+
+production build 必须通过 `NEXT_PUBLIC_API_BASE_URL` 指向经过真实 MacCMS 版本、权限、Cookie、播放器线路与字段验证的同源端点；也可用 `NEXT_PUBLIC_HOME_API_URL` 单独覆盖首页端点。`deploy-next-web.sh` 在构建时固定注入 `/index.php/pingfangapi/index`，浏览器 Cookie 不离开 `react.ping2.my`。staging 已具备 systemd、健康检查、Nginx 反向代理和版本回滚链；普通/VIP/付费/试看/密码/版权等真实授权矩阵仍需单独完成，不能仅以首页 200 表述为业务验收完成。
+
+`npm run build:web` 生成 standalone `.next` 产物，而不是可直接交给静态服务器的 `dist/`。任意 `/vod/*`、`/watch/*` 路由、Cookie 会话和 Proxy 都要求 Next.js runtime。`ops/nginx/react.ping2.my.conf` 保留 MacCMS PHP、播放器、上传和主题资源的优先级，其余路径反代 `127.0.0.1:3100`；`/react-api.php` 与 `/preview` 不进入 staging。该配置只供 `react.ping2.my` 使用，不修改主站。
+
 静态预览必须通过 HTTP 提供，不能直接用 `file://` 打开：
 
 ```bash
@@ -147,6 +165,19 @@ npm run verify:preview
 ```
 
 该命令通过 PHP CLI 渲染固定路由并检查 HTML，不会启动浏览器、验证 Docker 挂载或发起真实线路检测。线路检测的本地行为回归由 `php tests/vod-source-quality.test.php` 覆盖；完整端到端结果仍需在装有 `pingfangdevice` 的 MacCMS 环境中验证。
+
+Next.js 本地浏览器验收使用：
+
+```bash
+npm run typecheck:web
+npx playwright install chromium
+npm run test:e2e
+npm run build:web
+```
+
+E2E 会启动或复用本地 Next.js/PHP 服务，检查状态码、直达刷新、筛选、播放、历史与账号交互、响应式边界和控制台错误；报告与失败截图写入被忽略的 `output/playwright/`。
+
+Figma 基准工具位于 `scripts/figma-product-baseline/`，其 Raw Evidence 与正式 MacCMS 原型继续保持受保护和可追溯。当前计划文件仍以 MacCMS 四个 source roots 为事实源，并把 `apps/web` 记为历史 archive；合入本轮 React 前台后，应先更新该映射和验证器，再用它同步 Figma，不能把旧 Final QA 当作当前 React 覆盖证明。
 
 每次主题修改至少运行：
 

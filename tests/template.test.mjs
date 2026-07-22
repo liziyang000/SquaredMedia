@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const addonRoot = path.join(root, "addons", "pingfangdevice");
-const vodopsAddonRoot = path.join(root, "addons", "vodops");
+const apiAddonRoot = path.join(root, "addons", "pingfangapi");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
@@ -157,6 +157,8 @@ const requiredFiles = [
   "html/user/plays.html",
   "html/user/reg.html",
   "html/user/findpass.html",
+  "js/hls.min.js",
+  "js/pingfang-player.js"
 ];
 
 const requiredRootFiles = [
@@ -182,31 +184,30 @@ const requiredRootFiles = [
   "addons/pingfangdevice/service/GameAccessTicket.php",
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
-  "addons/vodops/Vodops.php",
-  "addons/vodops/application/admin/controller/Douban.php",
-  "addons/vodops/application/admin/controller/Vodops.php",
-  "addons/vodops/application/admin/view_new/vodops/index.html",
-  "addons/vodops/backend/DoubanController.php",
-  "addons/vodops/bin/vodops-worker.php",
-  "addons/vodops/config.php",
-  "addons/vodops/info.ini",
-  "addons/vodops/install.sql",
-  "addons/vodops/service/DoubanAiReviewer.php",
-  "addons/vodops/service/DoubanData.php",
-  "addons/vodops/service/DoubanGateway.php",
-  "addons/vodops/service/DoubanMatcher.php",
-  "addons/vodops/service/VodQualityAnalyzer.php",
-  "addons/vodops/service/VodQualityRepair.php",
-  "addons/vodops/service/VodQualityScanner.php",
-  "addons/vodops/view/index/index.html",
+  "addons/pingfangapi/Pingfangapi.php",
+  "addons/pingfangapi/application/index/controller/Pingfangapi.php",
+  "addons/pingfangapi/config.php",
+  "addons/pingfangapi/info.ini",
+  "addons/pingfangapi/service/AccountService.php",
+  "addons/pingfangapi/service/ApiException.php",
+  "addons/pingfangapi/service/ApiRequest.php",
+  "addons/pingfangapi/service/ContentService.php",
+  "apps/web/.env.example",
+  "apps/web/next.config.ts",
+  "apps/web/src/app/healthz/route.ts",
+  "ops/nginx/react.ping2.my.conf",
+  "ops/systemd/squaredmedia-next.service",
   "preview/data.json",
-  "preview/qixi.html",
+  "scripts/deploy-next-web.sh",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
   "scripts/deploy-theme.sh",
+  "scripts/next-artifact-cache.mjs",
+  "scripts/release-input-fingerprint.mjs",
   "scripts/rollback-theme.sh",
   "scripts/package-player.mjs",
   "scripts/package-game-server.mjs",
+  "scripts/rollback-next-web.sh",
   "scripts/package-theme.mjs",
   "scripts/verify-compat.mjs",
   "scripts/verify-preview.mjs",
@@ -220,7 +221,7 @@ const requiredRootFiles = [
   "services/game-server/package.json",
   "services/game-server/src/game-service.mjs",
   "services/game-server/src/server.mjs",
-  "services/game-server/src/ticket.mjs",
+  "services/game-server/src/ticket.mjs"
 ];
 
 for (const file of requiredRootFiles) {
@@ -242,6 +243,10 @@ function readThemeFile(file) {
 
 function readAddonFile(file) {
   return readFileSync(path.join(addonRoot, file), "utf8");
+}
+
+function readApiAddonFile(file) {
+  return readFileSync(path.join(apiAddonRoot, file), "utf8");
 }
 
 for (const file of requiredFiles.filter((file) => file.startsWith("html/"))) {
@@ -294,6 +299,8 @@ assert.match(readme, /npm run rollback/);
 assert.match(readme, /DEPLOY_HOST/);
 assert.match(readme, /DEPLOY_PATH/);
 assert.match(readme, /DEPLOY_CLEAR_CACHE/);
+assert.match(readme, /DEPLOY_SCOPE=api npm run deploy/);
+assert.match(readme, /DEPLOY_SCOPE=backend npm run deploy/);
 assert.match(readme, /scripts\/deploy-ping2\.env/);
 assert.match(readme, /ROLLBACK_BACKUP/);
 assert.match(readme, /GitHub Actions/);
@@ -345,7 +352,10 @@ assert.match(head, /class="brand-logo"[^>]*hidden aria-hidden="true"/);
 assert.doesNotMatch(head, /brand-mark">PF/);
 assert.doesNotMatch(head, /brand-text/);
 assert.match(head, /class="theme-switcher" data-theme-switcher/);
-assert.match(head, /<button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu">主题<\/button>/);
+assert.match(
+  head,
+  /<button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu">主题<\/button>/
+);
 assert.match(head, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
 assert.doesNotMatch(head, /aria-haspopup=/);
 assert.match(head, /data-theme-option="default" aria-pressed="true"[\s\S]*?<span>液态影院<\/span>/);
@@ -376,7 +386,10 @@ assert.match(mobileDrawerLinks, /data-nav-section="qixi">七夕花束<\/a>/);
 assert.doesNotMatch(mobileDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(head, /aria-controls="mobileDrawer"/);
 assert.match(head, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
-assert.match(head, /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/);
+assert.match(
+  head,
+  /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/
+);
 assert.match(head, /<strong id="mobileDrawerTitle">分类导航<\/strong>/);
 assert.match(head, /class="mobile-drawer-close"[^>]*data-mobile-nav-close/);
 assert.match(head, /<form class="mobile-drawer-search" method="get" action="\{:mac_url\('vod\/search'\)\}" role="search">/);
@@ -577,6 +590,7 @@ assert.match(gamesPage, /mac_url\('user\/login'\)/);
 assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
 
 const game2048Page = readThemeFile("html/label/game-2048.html");
+const game2048AuthBranch = game2048Page.slice(game2048Page.indexOf('{if condition="$user.user_id gt 0"}'), game2048Page.indexOf("{else/}"));
 assert.match(game2048Page, /seo_title="2048"/);
 assert.doesNotMatch(game2048Page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
 assert.match(game2048Page, /data-game-authenticated[^>]*data-auth-member hidden/);
@@ -589,6 +603,7 @@ assert.match(game2048Page, /mac_url\('user\/login'\)/);
 assert.match(game2048Page, /\{include file="public\/foot" \/\}/);
 
 const gameBlockrainPage = readThemeFile("html/label/game-blockrain.html");
+const gameBlockrainAuthBranch = gameBlockrainPage.slice(gameBlockrainPage.indexOf('{if condition="$user.user_id gt 0"}'), gameBlockrainPage.indexOf("{else/}"));
 assert.match(gameBlockrainPage, /seo_title="俄罗斯方块"/);
 assert.doesNotMatch(gameBlockrainPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
 assert.match(gameBlockrainPage, /data-game-authenticated[^>]*data-auth-member hidden/);
@@ -639,7 +654,7 @@ assert.doesNotMatch(bambooCicadaJs, /https?:\/\//);
 
 for (const [file, game, marker, loginText] of [
   ["html/label/game-gomoku.html", "gomoku", "data-gomoku-board", "登录后才能联机对弈"],
-  ["html/label/game-drawguess.html", "drawguess", "data-draw-canvas", "登录后才能加入画室"],
+  ["html/label/game-drawguess.html", "drawguess", "data-draw-canvas", "登录后才能加入画室"]
 ]) {
   const page = readThemeFile(file);
   assert.doesNotMatch(page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
@@ -708,7 +723,10 @@ const hotLabelPage = readThemeFile("html/label/hot.html");
 const currentYearVodAttr = String.raw`year="'\.date\('Y'\)\.'"`;
 assert.match(hotLabelPage, /seo_title="年度热播榜"/);
 assert.match(hotLabelPage, /本年最多播放/);
-assert.match(hotLabelPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/hot" type="${nonAdultVodTypeScope}" ${currentYearVodAttr} order="desc" by="hits" id="vo"\\}`));
+assert.match(
+  hotLabelPage,
+  new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/hot" type="${nonAdultVodTypeScope}" ${currentYearVodAttr} order="desc" by="hits" id="vo"\\}`)
+);
 assert.doesNotMatch(hotLabelPage, /\{maccms:vod[^}]*type="all"[^}]*by="hits"/);
 assert.match(hotLabelPage, /include file="public\/vod_card"/);
 assert.match(hotLabelPage, /include file="public\/paging"/);
@@ -716,7 +734,10 @@ assert.match(hotLabelPage, /\{include file="public\/foot" \/\}/);
 
 const videosLabelPage = readThemeFile("html/label/videos.html");
 assert.match(videosLabelPage, /seo_title="影片库"/);
-assert.match(videosLabelPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/videos" type="${nonAdultVodTypeScope}" order="desc" by="time" id="vo"\\}`));
+assert.match(
+  videosLabelPage,
+  new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/videos" type="${nonAdultVodTypeScope}" order="desc" by="time" id="vo"\\}`)
+);
 assert.doesNotMatch(videosLabelPage, /\{maccms:vod[^}]*type="all"[^}]*by="time"/);
 assert.match(videosLabelPage, /include file="public\/vod_card"/);
 assert.match(videosLabelPage, /include file="public\/paging"/);
@@ -771,7 +792,10 @@ assert.match(devicePage, /url\('pingfangdevice\/revoke'\)/);
 assert.match(devicePage, /"X-Requested-With": "XMLHttpRequest"/);
 assert.match(devicePage, /window\.confirm\(/);
 assert.match(devicePage, /确定要将/);
-assert.ok(devicePage.indexOf("window.confirm") < devicePage.indexOf("button.disabled = true"), "device revoke confirmation should happen before the request starts");
+assert.ok(
+  devicePage.indexOf("window.confirm") < devicePage.indexOf("button.disabled = true"),
+  "device revoke confirmation should happen before the request starts"
+);
 assert.match(devicePage, /\{include file="public\/foot" \/\}/);
 
 const userPlaysPage = readThemeFile("html/user/plays.html");
@@ -843,7 +867,7 @@ const fallbackPages = [
   ["html/website/detail.html", "游戏"],
   ["html/website/search.html", "游戏"],
   ["html/website/show.html", "游戏"],
-  ["html/website/type.html", "游戏"],
+  ["html/website/type.html", "游戏"]
 ];
 
 for (const [file, label] of fallbackPages) {
@@ -885,7 +909,10 @@ assert.doesNotMatch(index, /hero-gradient-strips/);
 assert.doesNotMatch(index, /data-gradient-strips?/);
 assert.match(index, /hero-slide/);
 assert.match(index, /banner-content/);
-assert.match(index, /data-banner-bg="\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}"/);
+assert.match(
+  index,
+  /data-banner-bg="\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}"/
+);
 assert.doesNotMatch(index, /style="--banner-bg:/);
 assert.match(index, /class="primary-btn" href="\{:mac_url_vod_play\(\$vo\)\}">立即播放<\/a>/);
 assert.match(index, /class="ghost-btn" href="\{:mac_url_vod_detail\(\$vo\)\}">详情介绍<\/a>/);
@@ -905,13 +932,19 @@ assert.match(index, /data-rank-react-root/);
 assert.doesNotMatch(index, /data-rank-visible-count/);
 assert.match(index, /data-rank-react-list/);
 assert.match(index, /data-rank-item/);
-assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" ${currentYearVodAttr} order="desc" by="hits" cachetime="300" id="vo" key="key"\\}`));
+assert.match(
+  index,
+  new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" ${currentYearVodAttr} order="desc" by="hits" cachetime="300" id="vo" key="key"\\}`)
+);
 assert.doesNotMatch(index, /is-rank-extra/);
 assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
 assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
 assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='0\.0'\}"/);
 assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
-assert.match(index, /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/);
+assert.match(
+  index,
+  /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/
+);
 assert.match(index, /rank-body/);
 assert.match(index, /rank-meta/);
 assert.match(index, /rank-score/);
@@ -942,7 +975,10 @@ assert.match(index, /aria-label="最新分类"/);
 assert.match(index, /data-home-tab="all"/);
 assert.match(index, /data-home-tab="category-1"/);
 assert.match(index, /data-home-tab="category-5"/);
-assert.match(index, /<button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all" tabindex="0">推荐<\/button>/);
+assert.match(
+  index,
+  /<button class="is-active" type="button" data-home-tab="all" role="tab" aria-selected="true" aria-controls="latest-panel-all" tabindex="0">推荐<\/button>/
+);
 assert.match(index, /<button type="button" data-home-tab="category-1" role="tab" aria-selected="false" aria-controls="latest-panel-category-1" tabindex="-1">/);
 assert.match(index, /<button type="button" data-home-tab="category-5" role="tab" aria-selected="false" aria-controls="latest-panel-category-5" tabindex="-1">/);
 assert.doesNotMatch(index, /href="#home-latest-/);
@@ -956,9 +992,14 @@ for (const [tabIndex, typeId] of [
   ["2", "47"],
   ["3", "48"],
   ["4", "57"],
-  ["5", "111"],
+  ["5", "111"]
 ]) {
-  assert.match(index, new RegExp(`id="latest-panel-category-${tabIndex}"[\\s\\S]*?\\{maccms:vod type="${typeId}" num="6" ${currentYearVodAttr} order="desc" by="time" cachetime="300" id="vo"\\}`));
+  assert.match(
+    index,
+    new RegExp(
+      `id="latest-panel-category-${tabIndex}"[\\s\\S]*?\\{maccms:vod type="${typeId}" num="6" ${currentYearVodAttr} order="desc" by="time" cachetime="300" id="vo"\\}`
+    )
+  );
 }
 for (const vodTag of index.match(/\{maccms:vod[^}]+\}/g) || []) {
   assert.doesNotMatch(vodTag, /\stype="[^"]*\{/, `${vodTag} should not use dynamic template syntax in type attribute`);
@@ -973,7 +1014,10 @@ assert.doesNotMatch(index, /class="wrap quick-types"/);
 assert.doesNotMatch(index, /\{maccms:type ids="parent" order="asc" by="sort" num="10" id="type"\}/);
 assert.doesNotMatch(index, /\{maccms:type ids="parent" order="asc" by="sort" num="4" id="type"\}/);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" order="desc" by="hits"`, "g")) || []).length, 1);
-assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" ${currentYearVodAttr} order="desc" by="hits"`, "g")) || []).length, 1);
+assert.equal(
+  (index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" ${currentYearVodAttr} order="desc" by="hits"`, "g")) || []).length,
+  1
+);
 assert.equal((index.match(/data-carousel-dot/g) || []).length, 0);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="12" order="desc" by="rnd"`, "g")) || []).length, 0);
 assert.equal((index.match(new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="6" order="desc" by="hits"`, "g")) || []).length, 0);
@@ -985,7 +1029,10 @@ const detail = readThemeFile("html/vod/detail.html");
 assert.match(detail, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
 assert.match(detail, /\{\$obj\.vod_pic\|mac_url_img\}/);
 assert.match(detail, /class="detail-backdrop" aria-hidden="true"><img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="">/);
-assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/);
+assert.match(
+  detail,
+  /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/
+);
 assert.match(detail, /mac_url_vod_play/);
 assert.match(detail, /mac_history_set/);
 assert.match(detail, /obj\.vod_play_list/);
@@ -1012,7 +1059,10 @@ assert.match(detail, /data-source-quality-result/);
 assert.doesNotMatch(detail, /\{\$vo2\.url\}/);
 
 const vodCard = readThemeFile("html/public/vod_card.html");
-assert.match(vodCard, /<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" loading="lazy" decoding="async" width="300" height="450" sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px">/);
+assert.match(
+  vodCard,
+  /<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" loading="lazy" decoding="async" width="300" height="450" sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px">/
+);
 
 const searchImagePage = readThemeFile("html/vod/search.html");
 assert.equal((searchImagePage.match(/sizes="96px"/g) || []).length, 2);
@@ -1052,7 +1102,12 @@ assert.match(vodConfirmPage, /确认继续/);
 const vodDetailPwdPage = readThemeFile("html/vod/detail_pwd.html");
 assert.match(vodDetailPwdPage, /seo_title="访问验证"/);
 assert.match(vodDetailPwdPage, /name="pwd"/);
-assert.match(vodDetailPwdPage, /验证码/);
+assert.match(vodDetailPwdPage, /onclick="MAC\.Pwd\.Check\(this\)"/);
+assert.match(vodDetailPwdPage, /type="button"/);
+assert.match(vodDetailPwdPage, /data-mid="1"/);
+assert.match(vodDetailPwdPage, /data-id="\{\$obj\.vod_id\}"/);
+assert.match(vodDetailPwdPage, /data-type="1"/);
+assert.doesNotMatch(vodDetailPwdPage, /method="post"|name="verify"|\{\$verify\}|验证码/);
 
 const playerPage = readThemeFile("html/vod/player.html");
 assert.match(playerPage, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
@@ -1066,6 +1121,14 @@ assert.doesNotMatch(playerPage, /data-player-fullscreen/);
 assert.doesNotMatch(playerPage, /横屏全屏/);
 assert.match(playerPage, /\$obj\['vod_play_list'\]\[\$param\['sid'\]\]\['urls'\]\[\$param\['nid'\]\]\['name'\]/);
 assert.doesNotMatch(playerPage, /<h1>\{\$obj\.vod_name\}<\/h1>/);
+assert.match(playerPage, /\{if condition="\$popedom\.code gt 1 and \$popedom\.trysee gt 0"\}/);
+assert.match(playerPage, /data-player-trial-ended/);
+assert.match(playerPage, /var tryseeSeconds = \{\$popedom\.trysee\} \* 60/);
+assert.match(playerPage, /addEventListener\("timeupdate"/);
+assert.match(playerPage, /addEventListener\("seeking"/);
+assert.match(playerPage, /currentTime >= tryseeSeconds/);
+assert.match(playerPage, /Math\.max\(tryseeSeconds - 1, 0\)/);
+assert.match(playerPage, /window\.setTimeout\(endTrysee, tryseeSeconds \* 1000\)/);
 assert.match(playerPage, /\{include file="public\/foot" \/\}/);
 
 const preloadPrompt = readThemeFile("player/preload.html");
@@ -1099,7 +1162,12 @@ assert.doesNotMatch(playerPromptStyle, /transition:\s*all/);
 const playerPwdPage = readThemeFile("html/vod/player_pwd.html");
 assert.match(playerPwdPage, /seo_title="播放验证"/);
 assert.match(playerPwdPage, /name="pwd"/);
-assert.match(playerPwdPage, /验证码/);
+assert.match(playerPwdPage, /onclick="MAC\.Pwd\.Check\(this\)"/);
+assert.match(playerPwdPage, /type="button"/);
+assert.match(playerPwdPage, /data-mid="1"/);
+assert.match(playerPwdPage, /data-id="\{\$obj\.vod_id\}"/);
+assert.match(playerPwdPage, /data-type="4"/);
+assert.doesNotMatch(playerPwdPage, /method="post"|name="verify"|\{\$verify\}|验证码/);
 
 const downPage = readThemeFile("html/vod/down.html");
 assert.match(downPage, /seo_title="\$obj\.vod_name"/);
@@ -1110,7 +1178,12 @@ assert.match(downPage, /mac_url_vod_down/);
 const downerPwdPage = readThemeFile("html/vod/downer_pwd.html");
 assert.match(downerPwdPage, /seo_title="下载验证"/);
 assert.match(downerPwdPage, /name="pwd"/);
-assert.match(downerPwdPage, /验证码/);
+assert.match(downerPwdPage, /onclick="MAC\.Pwd\.Check\(this\)"/);
+assert.match(downerPwdPage, /type="button"/);
+assert.match(downerPwdPage, /data-mid="1"/);
+assert.match(downerPwdPage, /data-id="\{\$obj\.vod_id\}"/);
+assert.match(downerPwdPage, /data-type="5"/);
+assert.doesNotMatch(downerPwdPage, /method="post"|name="verify"|\{\$verify\}|验证码/);
 
 const copyrightPage = readThemeFile("html/vod/copyright.html");
 assert.match(copyrightPage, /seo_title="版权提示"/);
@@ -1300,7 +1373,10 @@ assert.match(showPageSource, /class="vod-grid" data-empty-container data-empty-i
 assert.match(vodGridResultsPartial, /class="content-empty-state" data-empty-state hidden role="status"/);
 assert.match(vodGridResultsPartial, /暂无符合条件的影片/);
 for (const sortField of ["hits", "score", "time"]) {
-  assert.match(showPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="vod/show" type="${nonAdultVodTypeScope}"[\\s\\S]*order="desc" by="${sortField}" id="vo"\\}`));
+  assert.match(
+    showPage,
+    new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="vod/show" type="${nonAdultVodTypeScope}"[\\s\\S]*order="desc" by="${sortField}" id="vo"\\}`)
+  );
 }
 assert.doesNotMatch(showPage, /\{maccms:vod[^}]*pageurl="vod\/show"[^}]*type="all"/);
 
@@ -1389,13 +1465,14 @@ const pixelAssets = [
 const pixelFontLicense = readThemeFile("css/fonts/FUSION-PIXEL-OFL-1.1.txt");
 const canvasConfettiLicense = readThemeFile("js/CANVAS-CONFETTI-ISC.txt");
 const canvasConfettiScript = readThemeFile("js/canvas-confetti.min.js");
-const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)]
-  .map((match) => match[0])
-  .find((rule) => /--cinema-canvas/.test(rule)) || "";
+const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)].map((match) => match[0]).find((rule) => /--cinema-canvas/.test(rule)) || "";
 const pageStarsRule = extractCssRule(style, "body::before");
 const headerSearchInputFocusRule = extractCssRule(style, ".header-search input:focus-visible");
 const filterOptionsRule = extractCssRule(style, ".filter-options");
-const sharedGlassSurfaceRule = style.match(/\.filter-panel,\n\.episode-box,\n\.detail-panel,\n\.system-box,\n\.device-panel,\n\.favorite-toolbar,\n\.record-toolbar,\n\.comment-layout \.system-box\s*\{[^}]*\}/)?.[0] || "";
+const sharedGlassSurfaceRule =
+  style.match(
+    /\.filter-panel,\n\.episode-box,\n\.detail-panel,\n\.system-box,\n\.device-panel,\n\.favorite-toolbar,\n\.record-toolbar,\n\.comment-layout \.system-box\s*\{[^}]*\}/
+  )?.[0] || "";
 const auroraCinemaRule = style.match(/html\[data-theme="blue-pink-purple"\],\nhtml\[data-theme="aurora-glass"\]\s*\{[^}]*\}/)?.[0] || "";
 const posterRootRule = extractCssRule(style, 'html[data-theme="poster-magazine"]');
 const posterHeroGridRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-grid');
@@ -1491,10 +1568,10 @@ const homeShelfTitleRule = style.match(/\.home-shelf-body strong\s*\{[\s\S]*?\}/
 const homeShelfMetaRule = style.match(/\.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfScoreRule = style.match(/\.home-shelf-score\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfFeaturedBodyRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body\s*\{[\s\S]*?\}/)?.[0] || "";
-const homeShelfFeaturedTextRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body strong,\n\.home-shelf-card\.is-featured \.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
-const mobilePlayerToolbarButtonRule = [...style.matchAll(/\.player-toolbar-actions \.ghost-btn\s*\{[^}]*\}/g)]
-  .map((match) => match[0])
-  .find((rule) => /text-align: center/.test(rule)) || "";
+const homeShelfFeaturedTextRule =
+  style.match(/\.home-shelf-card\.is-featured \.home-shelf-body strong,\n\.home-shelf-card\.is-featured \.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
+const mobilePlayerToolbarButtonRule =
+  [...style.matchAll(/\.player-toolbar-actions \.ghost-btn\s*\{[^}]*\}/g)].map((match) => match[0]).find((rule) => /text-align: center/.test(rule)) || "";
 assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
@@ -1626,7 +1703,10 @@ assert.match(rootRule, /--selected-compact-shadow: inset 0 0 0 1px rgba\(38, 212
 assert.match(rootRule, /--selected-shadow: 0 0 0 1px rgba\(38, 212, 175, 0\.2\), 0 10px 24px rgba\(38, 212, 175, 0\.08\)/);
 assert.match(rootRule, /--focus-field-shadow: 0 0 0 1px rgba\(38, 212, 175, 0\.2\)/);
 assert.match(navigationBorderRule, /border: 1px solid transparent/);
-assert.match(navigationBorderRule, /transition: border-color 0\.18s ease, background 0\.18s ease, color 0\.18s ease, box-shadow 0\.18s ease, transform 0\.18s ease/);
+assert.match(
+  navigationBorderRule,
+  /transition: border-color 0\.18s ease, background 0\.18s ease, color 0\.18s ease, box-shadow 0\.18s ease, transform 0\.18s ease/
+);
 assert.match(interactiveHoverRule, /border-color: var\(--line-strong\)/);
 assert.match(selectedBorderRule, /\.filter-panel a\.is-active/);
 assert.match(selectedBorderRule, /\.episode-grid a\.is-active/);
@@ -1688,7 +1768,10 @@ assert.match(heroCarouselRule, /min-height: 0/);
 assert.match(heroCarouselRule, /display: grid/);
 assert.match(heroCarouselRule, /background: linear-gradient\(145deg, rgba\(24, 27, 34, 0\.88\), rgba\(8, 10, 14, 0\.94\)\)/);
 assert.match(heroCarouselRule, /transform-style: preserve-3d/);
-assert.match(heroCarouselRule, /box-shadow: 0 34px 110px rgba\(0, 0, 0, 0\.48\), 0 0 48px rgba\(38, 212, 175, 0\.14\), inset 0 1px 0 rgba\(255, 255, 255, 0\.08\)/);
+assert.match(
+  heroCarouselRule,
+  /box-shadow: 0 34px 110px rgba\(0, 0, 0, 0\.48\), 0 0 48px rgba\(38, 212, 175, 0\.14\), inset 0 1px 0 rgba\(255, 255, 255, 0\.08\)/
+);
 assert.match(heroCarouselAfterRule, /pointer-events: none/);
 assert.match(heroCarouselAfterRule, /linear-gradient\(90deg, transparent, rgba\(255, 255, 255, 0\.18\), transparent\)/);
 assert.match(heroCarouselAfterRule, /mix-blend-mode: screen/);
@@ -1869,12 +1952,7 @@ assert.match(bannerDotActiveAfterRule, /width: 36px/);
 assert.match(bannerDotActiveRule, /background: transparent/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
-for (const chipRule of [
-  posterRemarkRule,
-  vodCardMetaChipRule,
-  categoryChildLinkRule,
-  homeShelfBadgeRule,
-]) {
+for (const chipRule of [hotSearchTermRule, posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
   assert.match(chipRule, /white-space: normal/);
   assert.match(chipRule, /overflow-wrap: anywhere/);
   assert.doesNotMatch(chipRule, /text-overflow: ellipsis/);
@@ -1887,7 +1965,7 @@ for (const titleRule of [
   episodeLinkRule,
   playerToolbarTextRule,
   downloadTitleRule,
-  recordTitleRule,
+  recordTitleRule
 ]) {
   assert.match(titleRule, /white-space: normal/);
   assert.match(titleRule, /overflow-wrap: anywhere/);
@@ -2031,7 +2109,10 @@ assert.match(appScript, /window\.scrollY > compactHeaderEnterY/);
 assert.doesNotMatch(appScript, /classList\.toggle\("is-compact", mobileHeaderQuery\.matches && window\.scrollY > 72\)/);
 assert.doesNotMatch(style, /\.site-header\.is-compact:not\(:focus-within\) \.header-search-wrap\s*\{/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*?\.hero-carousel,[\s\S]*?\.hero-slide\s*\{[\s\S]*?min-height: min\(520px, 68dvh\)/);
-assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.rank-list::-webkit-scrollbar,[\s\S]*?\.genre-dock::-webkit-scrollbar\s*\{[\s\S]*?display: block[\s\S]*?height: 4px/);
+assert.match(
+  style,
+  /@media \(max-width: 760px\)[\s\S]*?\.rank-list::-webkit-scrollbar,[\s\S]*?\.genre-dock::-webkit-scrollbar\s*\{[\s\S]*?display: block[\s\S]*?height: 4px/
+);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.genre-chip\s*\{[\s\S]*?flex: 0 0 clamp\(160px, 42vw, 176px\)/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.rank-meta\s*\{[\s\S]*?font-size: 12px/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.genre-chip small\s*\{[\s\S]*?font-size: 12px/);
@@ -2094,7 +2175,9 @@ const loginPageRule = extractCssRule(style, ".login-page");
 const loginPanelRule = extractCssRule(style, ".login-panel");
 const loginPanelEdgeRule = extractCssRule(style, ".login-panel::before");
 const loginEdgePropertyRule = style.match(/@property --login-edge-angle\s*\{[^}]*\}/)?.[0] || "";
-const loginEdgeLengthProperties = ["start", "core-start", "core-end", "end"].map((name) => style.match(new RegExp(`@property --login-edge-${name}\\s*\\{[^}]*\\}`))?.[0] || "");
+const loginEdgeLengthProperties = ["start", "core-start", "core-end", "end"].map(
+  (name) => style.match(new RegExp(`@property --login-edge-${name}\\s*\\{[^}]*\\}`))?.[0] || ""
+);
 const loginEdgeGlowRule = extractCssRule(style, ".login-edge-glow");
 const loginEdgeGlowSourceRule = extractCssRule(style, ".login-edge-glow::before");
 const loginEdgeGlowPlacementRule = extractCssRule(style, ".login-panel > .login-edge-glow");
@@ -2147,7 +2230,10 @@ assert.match(style, /\.login-captcha-image,[\s\S]*#d8dae6/);
 assert.doesNotMatch(style, /\.(?:skip-link|user-compat-note)\b/);
 assert.match(style, /@property --login-edge-angle/);
 assert.match(style, /@keyframes login-edge-flow/);
-assert.match(style, /@keyframes login-edge-breathe\s*\{[\s\S]*--login-edge-start: 53%;[\s\S]*--login-edge-core-start: 67%;[\s\S]*--login-edge-core-end: 79%;[\s\S]*--login-edge-end: 97%/);
+assert.match(
+  style,
+  /@keyframes login-edge-breathe\s*\{[\s\S]*--login-edge-start: 53%;[\s\S]*--login-edge-core-start: 67%;[\s\S]*--login-edge-core-end: 79%;[\s\S]*--login-edge-end: 97%/
+);
 assert.match(style, /\.login-glass-highlight\s*\{/);
 assert.match(style, /\.login-panel\[data-login-motion="paused"\]/);
 assert.match(style, /\.login-page\[data-login-motion="paused"\]::before/);
@@ -2246,10 +2332,12 @@ assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web ser
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
-assert.match(packageScript, /vodops/);
+assert.match(packageScript, /pingfangapi/);
 assert.match(packageScript, /dist/);
 assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
+assert.match(packageScript, /lstatSync/);
+assert.match(packageScript, /Unsupported release entry type/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionInputs/);
 assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
@@ -2292,18 +2380,134 @@ assert.match(packageJson.scripts["verify:release"], /verify:game-server-release/
 assert.equal(packageJson.dependencies.ws, "8.21.1");
 assert.match(packageJson.scripts.deploy, /deploy-theme\.sh/);
 assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
-assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh");
-for (const testFile of [
-  "douban-gateway.test.php",
-  "douban-matcher.test.php",
-  "douban-ai-reviewer.test.php",
-  "douban-data.test.php",
-  "douban-controller.test.php",
-  "douban-worker.test.php",
+assert.match(packageJson.scripts["test:api"], /pingfang-api\.test\.php/);
+assert.match(packageJson.scripts["test:api"], /pingfang-api-controller\.test\.php/);
+assert.match(packageJson.scripts["test:api"], /device-session\.test\.php/);
+for (const releaseTest of [
+  "release-scope.test.mjs",
+  "release-input-fingerprint.test.mjs",
+  "release-cache.test.mjs",
+  "next-deploy-cache-hardening.test.mjs",
+  "deploy-rollback.test.mjs"
 ]) {
-  assert.match(packageJson.scripts.test, new RegExp(testFile.replace(".", "\\.")));
+  assert.match(packageJson.scripts.test, new RegExp(releaseTest.replaceAll(".", "\\.")));
 }
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
+assert.equal(packageJson.scripts["deploy:web"], "bash scripts/deploy-next-web.sh");
+assert.equal(packageJson.scripts["rollback:web"], "bash scripts/rollback-next-web.sh");
+const nextPackageJson = JSON.parse(readFileSync(path.join(root, "apps/web/package.json"), "utf8"));
+const nextDeployPackageJson = JSON.parse(readFileSync(path.join(root, "apps/web/deploy/package.json"), "utf8"));
+assert.deepEqual(nextDeployPackageJson.dependencies, nextPackageJson.dependencies);
+assert.equal(nextDeployPackageJson.devDependencies, undefined);
+assert.ok(readFileSync(path.join(root, "apps/web/deploy/package-lock.json"), "utf8").includes('"lockfileVersion": 3'));
+
+const nextConfig = readFileSync(path.join(root, "apps/web/next.config.ts"), "utf8");
+assert.match(nextConfig, /output: "standalone"/);
+assert.match(nextConfig, /outputFileTracingRoot: repositoryRoot/);
+assert.match(nextConfig, /NEXT_PUBLIC_API_BASE_URL|MACCMS_ORIGIN/);
+assert.match(nextConfig, /SQUAREDMEDIA_LOW_MEMORY_BUILD/);
+assert.match(nextConfig, /cpus: 1/);
+
+const healthRoute = readFileSync(path.join(root, "apps/web/src/app/healthz/route.ts"), "utf8");
+assert.match(healthRoute, /status: "ok"/);
+assert.match(healthRoute, /SQUAREDMEDIA_RELEASE_ID/);
+assert.match(healthRoute, /private, no-store/);
+
+const nextNginx = readFileSync(path.join(root, "ops/nginx/react.ping2.my.conf"), "utf8");
+assert.match(nextNginx, /proxy_pass http:\/\/127\.0\.0\.1:3100/);
+assert.match(nextNginx, /location \^~ \/_next\/static\//);
+assert.match(nextNginx, /location ~ \^\/index\\\.php/);
+assert.match(nextNginx, /location ~ \^\/index\\\.php[\s\S]*?fastcgi_intercept_errors off;/);
+assert.match(nextNginx, /root \/www\/wwwroot\/squaredMedia/);
+assert.match(nextNginx, /location = \/favicon\.ico/);
+assert.match(nextNginx, /alias \/www\/wwwroot\/squaredMedia\/template\/pingfangvideo\/images\/brand\/favicon\.ico/);
+assert.match(nextNginx, /location ~ \^\/index\\\.php\/user\/\(\?:reg\|findpass\)[^\n]*\{\s*return 410;/);
+assert.match(nextNginx, /return 404/);
+assert.doesNotMatch(nextNginx, /try_files \/index\.html/);
+
+const nextService = readFileSync(path.join(root, "ops/systemd/squaredmedia-next.service"), "utf8");
+assert.match(nextService, /User=www/);
+assert.match(nextService, /HOSTNAME=127\.0\.0\.1/);
+assert.match(nextService, /PORT=3100/);
+assert.match(nextService, /ExecStart=\/usr\/bin\/node apps\/web\/server\.js/);
+assert.match(nextService, /NoNewPrivileges=true/);
+assert.match(nextService, /ProtectSystem=strict/);
+assert.match(nextService, /ReadWritePaths=\/www\/wwwroot\/react_squared_media\/current\/apps\/web\/\.next\/cache/);
+assert.doesNotMatch(nextService, /ReadWritePaths=\/www\/wwwroot\/react_squared_media\s*$/m);
+
+for (const script of ["scripts/deploy-next-web.sh", "scripts/rollback-next-web.sh"]) {
+  const syntax = spawnSync("bash", ["-n", script], { cwd: root, encoding: "utf8" });
+  assert.equal(syntax.status, 0, `${script} must contain valid Bash: ${syntax.stderr}`);
+}
+
+const nextDeployScript = readFileSync(path.join(root, "scripts/deploy-next-web.sh"), "utf8");
+assert.match(nextDeployScript, /NEXT_PUBLIC_API_BASE_URL=\/index\.php\/pingfangapi\/index/);
+assert.match(nextDeployScript, /npm run build:web/);
+assert.match(nextDeployScript, /npm run test:e2e/);
+assert.match(nextDeployScript, /npm ci --no-audit --no-fund/);
+assert.match(nextDeployScript, /release-input-fingerprint\.mjs next/);
+assert.match(nextDeployScript, /next-artifact-cache\.mjs verify/);
+assert.match(nextDeployScript, /Reusing verified Next\.js Linux artifact/);
+assert.match(nextDeployScript, /NEXT_DEPLOY_FORCE_REBUILD/);
+assert.match(nextDeployScript, /validate_artifact_archive/);
+assert.match(nextDeployScript, /scope=library&sort=latest&page=1&page_size=24&include_facets=1/);
+assert.match(nextDeployScript, /exceeded its 10s browser budget/);
+assert.match(nextDeployScript, /Next\.js deploy lock drift/);
+assert.match(nextDeployScript, /NODE_OPTIONS=--max-old-space-size=192 npm ci/);
+assert.match(nextDeployScript, /--workspaces=false/);
+assert.match(nextDeployScript, /--omit=dev/);
+assert.doesNotMatch(nextDeployScript, /--include=dev/);
+assert.match(nextDeployScript, /--maxsockets=1/);
+assert.match(nextDeployScript, /--os=linux/);
+assert.match(nextDeployScript, /--cpu=x64/);
+assert.match(nextDeployScript, /--libc=glibc/);
+assert.match(nextDeployScript, /sharp-linux-x64 sharp-libvips-linux-x64/);
+assert.match(nextDeployScript, /Linux sharp runtime package versions/);
+assert.match(nextDeployScript, /ELF 64-bit LSB/);
+assert.match(nextDeployScript, /uname -m/);
+assert.match(nextDeployScript, /getconf GNU_LIBC_VERSION/);
+assert.match(nextDeployScript, /runuser -u www -- \/usr\/bin\/node -e/);
+assert.doesNotMatch(nextDeployScript, /export NODE_OPTIONS/);
+assert.match(nextDeployScript, /apps\/web\/\.next\/standalone/);
+assert.match(nextDeployScript, /apps\/web\/\.next\/static/);
+assert.match(nextDeployScript, /SQUAREDMEDIA_RELEASE_ID/);
+assert.match(nextDeployScript, /mv -Tf/);
+assert.match(nextDeployScript, /nginx -t/);
+assert.match(nextDeployScript, /restoring the previous staging release/);
+assert.match(nextDeployScript, /artifactSha256/);
+assert.match(nextDeployScript, /chown -R root:root/);
+assert.match(nextDeployScript, /install -d -o www -g www -m 0750/);
+assert.match(nextDeployScript, /chown -R www:www "\$target\/apps\/web\/\.next\/cache"/);
+assert.doesNotMatch(nextDeployScript, /chown -R www:www "\$target"/);
+assert.match(nextDeployScript, /rm -f -- "\$NEXT_ROOT\/current"/);
+assert.match(nextDeployScript, /old_nginx_exists/);
+assert.match(nextDeployScript, /old_service_enabled/);
+assert.match(nextDeployScript, /for route in \/ \/status \/vod\/371745 \/favicon\.ico "\$asset_path"/);
+assert.match(nextDeployScript, /for route in \/register \/forgot-password/);
+assert.match(nextDeployScript, /\/index\.php\/user\/reg\.html/);
+assert.match(nextDeployScript, /wait_for_http_status/);
+assert.match(nextDeployScript, /--head/);
+assert.match(nextDeployScript, /transport-error/);
+assert.match(nextDeployScript, /after Nginx reload/);
+assert.match(nextDeployScript, /for retired_action in register registration\.code recover/);
+assert.doesNotMatch(nextDeployScript, /DEPLOY_PASSWORD=/);
+const nextRemoteDeployScript = nextDeployScript.match(/<<'REMOTE_DEPLOY'\n([\s\S]*?)\nREMOTE_DEPLOY/);
+assert.ok(nextRemoteDeployScript, "Remote Next.js deploy script should exist");
+assert.doesNotMatch(nextRemoteDeployScript[1], /npm ci|npm run build/);
+const nextRemoteDeploySyntax = spawnSync("bash", ["-n"], { input: nextRemoteDeployScript[1], encoding: "utf8" });
+assert.equal(nextRemoteDeploySyntax.status, 0, nextRemoteDeploySyntax.stderr || "Remote Next.js deploy script must be valid Bash");
+
+const nextRollbackScript = readFileSync(path.join(root, "scripts/rollback-next-web.sh"), "utf8");
+assert.match(nextRollbackScript, /NEXT_ROLLBACK_RELEASE/);
+assert.match(nextRollbackScript, /pre-next-react-spa\.conf/);
+assert.match(nextRollbackScript, /untrusted writable path/);
+assert.match(nextRollbackScript, /unit_backup/);
+assert.match(nextRollbackScript, /nginx_existed/);
+assert.match(nextRollbackScript, /service_was_enabled/);
+assert.match(nextRollbackScript, /rm -f -- "\$NEXT_UNIT_PATH"/);
+assert.match(nextRollbackScript, /mv -Tf/);
+assert.match(nextRollbackScript, /nginx -t/);
+assert.doesNotMatch(nextRollbackScript, /DEPLOY_PASSWORD=/);
 
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
 assert.match(ping2DeployEnv, /export DEPLOY_HOST=144\.34\.184\.95/);
@@ -2328,6 +2532,11 @@ assert.match(deployScript, /npm run lint/);
 assert.match(deployScript, /npm run lint:template/);
 assert.match(deployScript, /npm run verify:compat/);
 assert.match(deployScript, /npm run verify:preview/);
+assert.match(deployScript, /npm run test:api/);
+assert.match(deployScript, /DEPLOY_SCOPE=api npm run package/);
+assert.match(deployScript, /release-input-fingerprint\.mjs repository/);
+assert.match(deployScript, /previously verified release inputs/);
+assert.match(deployScript, /Release inputs changed after local verification/);
 assert.match(deployScript, /npm run package/);
 assert.match(deployScript, /npm run verify:release/);
 assert.match(deployScript, /dist\/pingfangvideo\.tar\.gz/);
@@ -2341,53 +2550,88 @@ assert.match(deployScript, /IdentitiesOnly=yes/);
 assert.match(deployScript, /DEPLOY_SITE_HOST/);
 assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
 assert.match(deployScript, /DEPLOY_SITE_MARKER/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
+assert.match(deployScript, /DEPLOY_SCOPE must be all, backend, or api/);
 assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
 assert.match(deployScript, /Verified deployed site/);
-assert.match(deployScript, /for attempt in 1 2/);
-assert.match(deployScript, /Deployed site warm-up request failed; retrying/);
+assert.match(deployScript, /index\.php\/pingfangapi\/index\?\$\{query\}/);
+assert.match(deployScript, /Production API response is not a valid home envelope/);
+assert.match(deployScript, /API_WARMUP_TIMEOUT_SECONDS=10/);
+assert.match(deployScript, /API_WARMUP_TOTAL_TIMEOUT_SECONDS=30/);
+assert.match(deployScript, /API_WARMUP_MAX_ENDPOINTS=5/);
+assert.match(deployScript, /api_warmup_count >= API_WARMUP_MAX_ENDPOINTS/);
+assert.match(deployScript, /remaining=\$\(\(API_WARMUP_TOTAL_TIMEOUT_SECONDS - elapsed\)\)/);
+assert.match(deployScript, /--max-time "\$request_timeout"/);
+assert.match(deployScript, /action=home_v2&compact=1/);
+assert.match(deployScript, /action=navigation/);
+assert.match(deployScript, /action=content&compact=1&scope=library&sort=latest&page=1&page_size=24&include_facets=1/);
+assert.match(deployScript, /action=content&compact=1&page=1&page_size=1&include_category_totals=1/);
+assert.match(deployScript, /type_id=\$\{type_id\}&sort=latest&page=1&page_size=24&include_facets=1/);
+assert.match(deployScript, /count\(\$seen\) === 1/);
+assert.match(deployScript, /Completed bounded production API warmup/);
+assert.match(deployScript, /API_HTTP_STATUS/);
+assert.match(deployScript, /当前地区不可访问/);
+assert.match(deployScript, /exact regional policy HTTP 403 was verified; no API cache was warmed/);
+const warmupValidatorPhp = deployScript.match(/if API_RESPONSE_FILE="\$response_file"[\s\S]*?php -r '\n([\s\S]*?)\n  '; then/);
+assert.ok(warmupValidatorPhp, "API warmup envelope validator should exist");
+const warmupValidatorSyntax = spawnSync("php", ["-r", `if (false) {\n${warmupValidatorPhp[1]}\n}`], {
+  encoding: "utf8"
+});
+assert.equal(warmupValidatorSyntax.status, 0, warmupValidatorSyntax.stderr || "API warmup envelope validator must be valid PHP");
+const warmupSequence = [
+  '"action=home_v2&compact=1"',
+  '"action=navigation"',
+  '"action=content&compact=1&scope=library&sort=latest&page=1&page_size=24&include_facets=1"',
+  '"action=content&compact=1&page=1&page_size=1&include_category_totals=1"',
+  '"action=content&compact=1&type_id=${type_id}&sort=latest&page=1&page_size=24&include_facets=1"'
+];
+for (let index = 1; index < warmupSequence.length; index += 1) {
+  assert.ok(
+    deployScript.indexOf(warmupSequence[index - 1]) < deployScript.indexOf(warmupSequence[index]),
+    `API warmup endpoint ${warmupSequence[index]} must keep its bounded order`
+  );
+}
 assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
 assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
-assert.match(deployScript, /VODOPS_ADDON_NAME="vodops"/);
-assert.match(deployScript, /dist\/vodops\.tar\.gz/);
-assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
-assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]/);
-assert.match(deployScript, /application\/admin\/controller\/Vodops\.php/);
-assert.match(deployScript, /application\/admin\/controller\/Douban\.php/);
-assert.match(deployScript, /application\/admin\/view_new\/vodops\/index\.html/);
-assert.match(deployScript, /legacy_douban_dir="\$maccms_root\/addons\/douban"/);
-assert.match(deployScript, /\.vodops-deploy-state/);
-assert.match(deployScript, /cp -a "\$legacy_douban_dir" "\$state_dir\/addons\/douban"/);
-assert.match(deployScript, /rm -rf "\$legacy_douban_dir"/);
-assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
-assert.match(deployScript, /rm -f "\$legacy_index_controller_target"/);
-assert.match(deployScript, /application\/extra\/quickmenu\.php/);
-assert.match(deployScript, /\$singleWorkbenchRoutes[\s\S]*?vodops\/index[\s\S]*?admin\/vodops\/index[\s\S]*?douban\/index[\s\S]*?admin\/douban\/index/);
-assert.match(deployScript, /count\(array_keys\(\$verified, \$entry, true\)\) !== 1/);
-assert.match(deployScript, /workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/index\/index[\s\S]*?Vodops single-workbench verification failed/);
-assert.match(deployScript, /vodops_lock/);
-assert.match(deployScript, /vodops_scan/);
-assert.match(deployScript, /vodops_issue/);
-assert.match(deployScript, /vodops_fingerprint/);
-assert.match(deployScript, /vodops_repair_log/);
-assert.match(deployScript, /douban_vod_meta/);
-assert.match(deployScript, /douban_task/);
-assert.match(deployScript, /douban_log/);
-assert.match(deployScript, /douban_review_candidate/);
-assert.match(deployScript, /douban_scan_issue/);
-assert.match(deployScript, /response_end/);
-assert.match(deployScript, /array_filter/);
-assert.match(deployScript, /Vodops response_end hook removal failed/);
-assert.match(deployScript, /bin\/vodops-worker\.php/);
-assert.match(deployScript, /crontab -l/);
-assert.match(deployScript, /flock/);
-assert.match(deployScript, /install_vodops_worker_cron preflight/);
-assert.match(deployScript, /execution_mode/);
-assert.match(deployScript, /lease_until/);
-assert.match(deployScript, /next_run_at/);
+assert.match(deployScript, /API_ADDON_NAME="pingfangapi"/);
+assert.match(deployScript, /pingfangapi\.tar\.gz/);
+assert.match(deployScript, /validate_remote_archive_path/);
+assert.match(deployScript, /REMOTE_TMP_PREFLIGHT/);
+assert.match(deployScript, /Remote upload target already exists/);
+assert.match(deployScript, /application\/index\/controller\/Pingfangapi\.php/);
+assert.match(deployScript, /ulog_point/);
+assert.match(deployScript, /ulog_duration/);
+assert.match(deployScript, /DEVICE_SESSION_HASH/);
+assert.match(deployScript, /DEVICE_HOOK_HASH/);
+assert.match(deployScript, /Installed \$ADDON_NAME service is not compatible with this API-only release/);
+assert.match(deployScript, /Installed pingfangdevice app_begin hook is not enabled/);
+assert.match(deployScript, /Installed pingfangdevice database schema is not compatible with API-only deployment/);
+assert.ok(
+  deployScript.indexOf("install_api_addon()") > deployScript.indexOf("PHP_SQL"),
+  "The API installer must stay in shell scope after the device installer heredocs"
+);
+for (const marker of ["PHP_CONFIG", "PHP_SQL", "PHP_DEVICE_HOOK", "PHP_API_SCHEMA"]) {
+  const heredoc = deployScript.match(new RegExp(`<<'${marker}'\\n([\\s\\S]*?)\\n${marker}`));
+  assert.ok(heredoc, `${marker} deploy heredoc should exist`);
+  const lint = spawnSync("php", ["-l"], { input: heredoc[1], encoding: "utf8" });
+  assert.equal(lint.status, 0, `${marker} must contain valid PHP: ${lint.stderr || lint.stdout}`);
+}
+const remoteTmpPreflight = deployScript.match(/<<'REMOTE_TMP_PREFLIGHT'\n([\s\S]*?)\nREMOTE_TMP_PREFLIGHT/);
+assert.ok(remoteTmpPreflight, "Remote upload preflight should exist");
+const remoteTmpPreflightSyntax = spawnSync("bash", ["-n"], { input: remoteTmpPreflight[1], encoding: "utf8" });
+assert.equal(remoteTmpPreflightSyntax.status, 0, remoteTmpPreflightSyntax.stderr || "Remote upload preflight must be valid Bash");
+const remoteUploadCleanup = deployScript.match(/<<'REMOTE_UPLOAD_CLEANUP'\n([\s\S]*?)\nREMOTE_UPLOAD_CLEANUP/);
+assert.ok(remoteUploadCleanup, "Interrupted uploads should have a remote cleanup script");
+const remoteUploadCleanupSyntax = spawnSync("bash", ["-n"], { input: remoteUploadCleanup[1], encoding: "utf8" });
+assert.equal(remoteUploadCleanupSyntax.status, 0, remoteUploadCleanupSyntax.stderr || "Remote upload cleanup must be valid Bash");
+const remoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/);
+assert.ok(remoteDeployScript, "Remote deploy script should exist");
+const remoteDeploySyntax = spawnSync("bash", ["-n"], { input: remoteDeployScript[1], encoding: "utf8" });
+assert.equal(remoteDeploySyntax.status, 0, remoteDeploySyntax.stderr || "Remote deploy script must be valid Bash");
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
 assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);
@@ -2396,9 +2640,7 @@ assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /php -l "\$php_file"/);
 assert.doesNotMatch(deployScript, /str_starts_with/);
 assert.match(deployScript, /Addon app_begin hook verification failed/);
-assert.match(deployScript, /opcache_invalidate\(\$path, true\)/);
-assert.doesNotMatch(deployScript, /fwrite\(STDERR/);
-assert.match(deployScript, /COLUMN_NAME = \?/);
+assert.match(deployScript, /COLUMN_NAME IN \(/);
 assert.match(deployScript, /Device session schema verification failed/);
 assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
 assert.match(deployScript, /maccms_root="\$\(dirname "\$DEPLOY_PATH"\)"/);
@@ -2509,8 +2751,8 @@ const invalidGameDeploySiteHost = spawnSync("bash", ["scripts/deploy-game-server
     DEPLOY_HOST: "example.invalid",
     DEPLOY_USER: "deploy",
     DEPLOY_PATH: "/tmp/maccms/template",
-    DEPLOY_SITE_HOST: "https://www.example.com/",
-  },
+    DEPLOY_SITE_HOST: "https://www.example.com/"
+  }
 });
 assert.notEqual(invalidGameDeploySiteHost.status, 0);
 assert.match(invalidGameDeploySiteHost.stderr, /DEPLOY_SITE_HOST must be a hostname/);
@@ -2524,8 +2766,8 @@ const invalidGameDeploySiteScheme = spawnSync("bash", ["scripts/deploy-game-serv
     DEPLOY_USER: "deploy",
     DEPLOY_PATH: "/tmp/maccms/template",
     DEPLOY_SITE_HOST: "www.example.com",
-    DEPLOY_SITE_SCHEME: "ftp",
-  },
+    DEPLOY_SITE_SCHEME: "ftp"
+  }
 });
 assert.notEqual(invalidGameDeploySiteScheme.status, 0);
 assert.match(invalidGameDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
@@ -2539,11 +2781,169 @@ const invalidGameDeployOrigin = spawnSync("bash", ["scripts/deploy-game-server.s
     DEPLOY_USER: "deploy",
     DEPLOY_PATH: "/tmp/maccms/template",
     DEPLOY_SITE_HOST: "www.example.com",
-    DEPLOY_GAME_ALLOWED_ORIGINS: "https://www.example.com/path",
-  },
+    DEPLOY_GAME_ALLOWED_ORIGINS: "https://www.example.com/path"
+  }
 });
 assert.notEqual(invalidGameDeployOrigin.status, 0);
 assert.match(invalidGameDeployOrigin.stderr, /DEPLOY_GAME_ALLOWED_ORIGINS must contain exact HTTP origins/);
+
+assert.match(deployScript, /readlink -f -- "\$DEPLOY_PATH"/);
+assert.match(deployScript, /application\/database\.php is missing next to DEPLOY_PATH/);
+assert.match(deployScript, /cleanup_deploy_files/);
+assert.match(deployScript, /snapshot_release/);
+assert.match(deployScript, /restore_release/);
+assert.match(deployScript, /Deployment failed; restoring the pre-deploy filesystem snapshot/);
+assert.match(deployScript, /release_committed=1/);
+assert.doesNotMatch(deployScript, /rm -rf "\$deploy_tmp_dir" "\$REMOTE_TMP"/);
+
+const deployHarnessRoot = mkdtempSync(path.join(tmpdir(), "pingfang-deploy-test-"));
+const deployHarnessLog = path.join(deployHarnessRoot, "commands.log");
+const fakeDeployCommand = [
+  "#!/usr/bin/env bash",
+  "set -euo pipefail",
+  'command_name="$(basename "$0")"',
+  'printf "%s" "$command_name" >> "$DEPLOY_TEST_LOG"',
+  'printf "\\t%s" "$@" >> "$DEPLOY_TEST_LOG"',
+  'printf "\\n" >> "$DEPLOY_TEST_LOG"',
+  'if [[ "$command_name" == "scp" && -n "${DEPLOY_TEST_FAIL_SCP_MATCH:-}" && "$*" == *"$DEPLOY_TEST_FAIL_SCP_MATCH"* ]]; then',
+  "  exit 73",
+  "fi",
+  'if [[ "$command_name" == "ssh" ]]; then',
+  '  if [[ -n "${DEPLOY_TEST_FAIL_SSH_MATCH:-}" && "$*" == *"$DEPLOY_TEST_FAIL_SSH_MATCH"* ]]; then',
+  "    exit 74",
+  "  fi",
+  '  cat >> "$DEPLOY_TEST_LOG"',
+  "fi",
+  ""
+].join("\n");
+for (const command of ["npm", "ssh", "scp"]) {
+  const commandPath = path.join(deployHarnessRoot, command);
+  writeFileSync(commandPath, fakeDeployCommand);
+  chmodSync(commandPath, 0o755);
+}
+
+try {
+  const deployHarnessEnv = {
+    ...process.env,
+    PATH: deployHarnessRoot + ":" + process.env.PATH,
+    DEPLOY_TEST_LOG: deployHarnessLog,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_IDENTITY_FILE: "",
+    DEPLOY_PASSWORD: "",
+    DEPLOY_SITE_HOST: "",
+    DEPLOY_GATE_CACHE_ROOT: path.join(deployHarnessRoot, "gate-cache"),
+    DEPLOY_TEST_FAIL_SCP_MATCH: "",
+    DEPLOY_TEST_FAIL_SSH_MATCH: ""
+  };
+  const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: "theme"
+    }
+  });
+  assert.notEqual(invalidDeployScope.status, 0);
+  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, or api/);
+
+  writeFileSync(deployHarnessLog, "");
+  const apiOnlyDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: "api"
+    }
+  });
+  assert.equal(apiOnlyDeploy.status, 0, apiOnlyDeploy.stderr);
+  const apiOnlyDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(apiOnlyDeployLog, /npm\ttest\n/);
+  assert.match(apiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
+  assert.doesNotMatch(apiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangvideo\.tar\.gz/);
+  assert.doesNotMatch(apiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangdevice\.tar\.gz/);
+  assert.match(apiOnlyDeployLog, /ssh[\s\S]*DEPLOY_SCOPE=api/);
+
+  writeFileSync(deployHarnessLog, "");
+  const repeatedApiOnlyDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: "api"
+    }
+  });
+  assert.equal(repeatedApiOnlyDeploy.status, 0, repeatedApiOnlyDeploy.stderr);
+  const repeatedApiOnlyDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(repeatedApiOnlyDeployLog, /npm\trun\ttest:api/);
+  assert.doesNotMatch(repeatedApiOnlyDeployLog, /npm\ttest\n/);
+  assert.match(repeatedApiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
+
+  writeFileSync(deployHarnessLog, "");
+  const backendDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: "backend"
+    }
+  });
+  assert.equal(backendDeploy.status, 0, backendDeploy.stderr);
+  const backendDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.doesNotMatch(backendDeployLog, /scp[^\n]*\tdist\/pingfangvideo\.tar\.gz/);
+  assert.match(backendDeployLog, /scp[^\n]*\tdist\/pingfangdevice\.tar\.gz/);
+  assert.match(backendDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
+  assert.match(backendDeployLog, /ssh[\s\S]*DEPLOY_SCOPE=backend/);
+
+  writeFileSync(deployHarnessLog, "");
+  const fullDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: ""
+    }
+  });
+  assert.equal(fullDeploy.status, 0, fullDeploy.stderr);
+  const fullDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(fullDeployLog, /scp[^\n]*\tdist\/pingfangvideo\.tar\.gz/);
+  assert.match(fullDeployLog, /scp[^\n]*\tdist\/pingfangdevice\.tar\.gz/);
+  assert.match(fullDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
+  assert.match(fullDeployLog, /ssh[\s\S]*DEPLOY_SCOPE=all/);
+
+  writeFileSync(deployHarnessLog, "");
+  const interruptedScp = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: "api",
+      DEPLOY_TEST_FAIL_SCP_MATCH: "pingfangapi.tar.gz"
+    }
+  });
+  assert.equal(interruptedScp.status, 73, interruptedScp.stderr);
+  const interruptedScpLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(interruptedScpLog, /scp[^\n]*pingfangapi\.tar\.gz/);
+  assert.match(interruptedScpLog, /rm -f -- "\$archive"/);
+
+  writeFileSync(deployHarnessLog, "");
+  const interruptedRemoteDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...deployHarnessEnv,
+      DEPLOY_SCOPE: "api",
+      DEPLOY_TEST_FAIL_SSH_MATCH: "DEVICE_SESSION_HASH="
+    }
+  });
+  assert.equal(interruptedRemoteDeploy.status, 74, interruptedRemoteDeploy.stderr);
+  const interruptedRemoteDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(interruptedRemoteDeployLog, /ssh[^\n]*DEVICE_SESSION_HASH=/);
+  assert.match(interruptedRemoteDeployLog, /rm -f -- "\$archive"/);
+} finally {
+  rmSync(deployHarnessRoot, { recursive: true, force: true });
+}
 
 const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy-theme.sh"], {
   cwd: root,
@@ -2553,8 +2953,8 @@ const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy-theme.sh"], {
     DEPLOY_HOST: "example.invalid",
     DEPLOY_USER: "deploy",
     DEPLOY_PATH: "/tmp/maccms/template",
-    DEPLOY_SITE_HOST: "https://www.example.com/",
-  },
+    DEPLOY_SITE_HOST: "https://www.example.com/"
+  }
 });
 assert.notEqual(invalidDeploySiteHost.status, 0);
 assert.match(invalidDeploySiteHost.stderr, /DEPLOY_SITE_HOST must be a hostname/);
@@ -2568,13 +2968,26 @@ const invalidDeploySiteScheme = spawnSync("bash", ["scripts/deploy-theme.sh"], {
     DEPLOY_USER: "deploy",
     DEPLOY_PATH: "/tmp/maccms/template",
     DEPLOY_SITE_HOST: "www.example.com",
-    DEPLOY_SITE_SCHEME: "ftp",
-  },
+    DEPLOY_SITE_SCHEME: "ftp"
+  }
 });
 assert.notEqual(invalidDeploySiteScheme.status, 0);
 assert.match(invalidDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
 
-const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+const invalidDeployPath = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/"
+  }
+});
+assert.notEqual(invalidDeployPath.status, 0);
+assert.match(invalidDeployPath.stderr, /DEPLOY_PATH must be an absolute MacCMS template directory/);
+
+const invalidRemoteArchivePath = spawnSync("bash", ["scripts/deploy-theme.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2582,11 +2995,11 @@ const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
     DEPLOY_HOST: "example.invalid",
     DEPLOY_USER: "deploy",
     DEPLOY_PATH: "/tmp/maccms/template",
-    DEPLOY_SCOPE: "theme-only",
-  },
+    DEPLOY_REMOTE_API_ADDON_TMP: "/tmp"
+  }
 });
-assert.notEqual(invalidDeployScope.status, 0);
-assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all or vodops/);
+assert.notEqual(invalidRemoteArchivePath.status, 0);
+assert.match(invalidRemoteArchivePath.stderr, /DEPLOY_REMOTE_API_ADDON_TMP must be a single \.tar\.gz file directly under \/tmp/);
 
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
@@ -2712,6 +3125,7 @@ assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangd
 assert.match(ciWorkflow, /name: vodops-addon[\s\S]*path: dist\/vodops\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangplayer-player[\s\S]*path: dist\/pingfangplayer-player\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfanggames-server[\s\S]*path: dist\/pingfanggames-server\.tar\.gz/);
+assert.match(ciWorkflow, /name: pingfangapi-addon[\s\S]*path: dist\/pingfangapi\.tar\.gz/);
 
 const deviceAddonInfo = readAddonFile("info.ini");
 assert.match(deviceAddonInfo, /name = pingfangdevice/);
@@ -2800,6 +3214,72 @@ assert.match(deviceActions, /DeviceSession::revokeSession/);
 assert.match(deviceActions, /DeviceSession::logoutCurrentDevice/);
 assert.match(deviceActions, /\$param \+= \['verify' => '', 'openid' => '', 'col' => ''\]/);
 assert.match(deviceActions, /isPost\(\) \|\| !Request\(\)->isAjax\(\)/);
+
+const apiAddonInfo = readApiAddonFile("info.ini");
+assert.match(apiAddonInfo, /name = pingfangapi/);
+assert.match(apiAddonInfo, /pingfangapi\/index\?action=home/);
+const apiRequestService = readApiAddonFile("service/ApiRequest.php");
+assert.match(apiRequestService, /MAX_BODY_BYTES = 32768/);
+assert.match(apiRequestService, /x-csrf-token/);
+assert.match(apiRequestService, /private, no-store/);
+assert.match(apiRequestService, /assertSameOrigin/);
+assert.match(apiRequestService, /x-pingfang-request-scheme/);
+assert.doesNotMatch(apiRequestService, /Access-Control-Allow-Origin/i);
+const apiContentService = readApiAddonFile("service/ContentService.php");
+assert.match(apiContentService, /url\('pingfangapi\/player'/);
+assert.doesNotMatch(apiContentService, /url\('vod\/player'/);
+assert.match(apiContentService, /vod_recycle_time/);
+assert.match(apiContentService, /mac_get_popedom_filter/);
+assert.match(apiContentService, /vod_play_url/);
+assert.match(apiContentService, /shouldUsePrimaryScan/);
+assert.match(
+  apiContentService,
+  /private function facetOptions[\s\S]*?\$configured = \$this->configuredFacet[\s\S]*?if \(!empty\(\$configured\)\)[\s\S]*?return array_slice\(\$configured, 0, 80\)/
+);
+assert.doesNotMatch(apiContentService, /preview\/data\.json|demo123/);
+const apiApplicationController = readApiAddonFile("application/index/controller/Pingfangapi.php");
+assert.match(apiApplicationController, /use app\\common\\controller\\All/);
+assert.match(apiApplicationController, /class Pingfangapi extends All/);
+assert.doesNotMatch(apiApplicationController, /class Pingfangapi extends Base/);
+assert.equal(
+  (apiApplicationController.match(/\$this->label_user\(\);/g) || []).length,
+  2,
+  "API index and player actions must initialize the native MacCMS user context before checking permissions"
+);
+assert.equal(
+  (apiApplicationController.match(/\$this->label_maccms\(\);/g) || []).length,
+  1,
+  "The player action must initialize native MacCMS template variables before rendering player HTML"
+);
+assert.match(apiApplicationController, /ApiRequest::decodeJson/);
+assert.match(apiApplicationController, /requestHeaders/);
+assert.match(apiApplicationController, /assertApiAccess/);
+assert.match(apiApplicationController, /public function player\(\)/);
+assert.match(apiApplicationController, /check_user_popedom/);
+assert.match(apiApplicationController, /label_vod_play/);
+assert.match(apiApplicationController, /public function _empty\(\)/);
+assert.match(apiApplicationController, /return json\(\$response\['body'\], \$response\['status'\], \$response\['headers'\]\)/);
+const apiAccountService = readApiAddonFile("service/AccountService.php");
+assert.match(apiAccountService, /'ulog_points' => 0/);
+assert.match(
+  apiAccountService,
+  /public function saveHistory[\s\S]*?'ulog_sid' => intval\(\$sourceId\),[\s\S]*?'ulog_nid' => intval\(\$episodeId\),[\s\S]*?field\('ulog_id'\)->where\(\$where\)->find\(\)[\s\S]*?'ulog_points' => 0/
+);
+assert.match(
+  apiAccountService,
+  /public function history[\s\S]*?'ulog_type' => 4,[\s\S]*?where\('ulog_sid', 'gt', 0\)[\s\S]*?where\('ulog_nid', 'gt', 0\)[\s\S]*?public function saveHistory/
+);
+assert.match(apiAccountService, /DeviceSession::registerLogin/);
+assert.match(
+  apiAccountService,
+  /public function logout\(\)[\s\S]*?DeviceSession::logoutCurrentDevice[\s\S]*?catch \(\\Throwable \$e\)[\s\S]*?logFailure\('revoke logout device'[\s\S]*?model\('User'\)->logout\(\)[\s\S]*?rotateSession\(\)/
+);
+assert.doesNotMatch(apiAccountService, /token_hash.*=>/);
+assert.match(apiAccountService, /public function requirements\(\)/);
+assert.doesNotMatch(apiAccountService, /public function (?:register|recover|sendRegistrationCode)\b/);
+assert.match(apiAccountService, /config\('blacks'\)/);
+assert.match(apiAccountService, /'comment_ip' => function_exists\('mac_get_ip_long'\)/);
+assert.match(apiAccountService, /\$model->getLastInsID\(\)/);
 assert.match(deviceActions, /VodFilterOptions::filters\(input\(\)\)/);
 assert.match(deviceActions, /public function filters\(\)/);
 assert.match(deviceActions, /public function gameTicket\(\)/);
@@ -2821,6 +3301,8 @@ assert.match(deviceSessionService, /public static function registerLogin/);
 assert.match(deviceSessionService, /public static function syncActiveCookie/);
 assert.match(deviceSessionService, /public static function enforceDeviceLimit/);
 assert.match(deviceSessionService, /public static function revokeSession/);
+assert.match(deviceSessionService, /Failed to revoke current device session/);
+assert.match(deviceSessionService, /设备撤销失败，请重试/);
 assert.match(deviceSessionService, /hash_equals/);
 assert.match(deviceSessionService, /syncCookie\('user_check'/);
 assert.match(deviceSessionService, /revoked_reason' => 'device_limit'/);
@@ -2950,7 +3432,9 @@ assert.match(previewVerifier, /Preview verification passed/);
 const releaseVerifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
 assert.match(releaseVerifier, /pingfangvideo\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
-assert.match(releaseVerifier, /vodops\.tar\.gz/);
+assert.match(releaseVerifier, /pingfangapi\.tar\.gz/);
+assert.match(releaseVerifier, /API addon archive must contain only regular files and directories/);
+assert.match(releaseVerifier, /must contain valid PHP/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -2969,19 +3453,14 @@ assert.match(releaseVerifier, /html\/label\/qixi\.html/);
 assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
 assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
-assert.match(releaseVerifier, /requiredVodopsEntries/);
-assert.match(releaseVerifier, /vodops\/application\/admin\/view_new\/vodops\/index\.html/);
-assert.match(releaseVerifier, /vodops\/application\/admin\/controller\/Douban\.php/);
-assert.match(releaseVerifier, /vodops\/service\/DoubanData\.php/);
-assert.match(releaseVerifier, /Douban must be packaged inside vodops/);
-assert.match(releaseVerifier, /scope_json/);
+assert.match(releaseVerifier, /requiredApiAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);
 assert.match(releaseVerifier, /excludedEntries/);
 assert.doesNotMatch(releaseVerifier, /react\.production|pingfang-player|rank-react|pingfangvideo\/js\/hls\.min/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
-assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 3);
+assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 4);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");
@@ -3044,7 +3523,10 @@ assert.equal((preview.match(/data-theme-option="dunhuang-caisson"/g) || []).leng
 assert.equal((preview.match(/data-theme-option="digital-particles"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(preview, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
-assert.match(preview, /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/);
+assert.match(
+  preview,
+  /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/
+);
 assert.match(preview, /class="mobile-drawer-section mobile-drawer-account"/);
 assert.match(preview, /<span>账号<\/span>/);
 assert.match(preview, /class="mobile-drawer-login" href="\?route=login" data-route="login">登录<\/a>/);
@@ -3112,9 +3594,15 @@ assert.match(preview, /class="shelf-title"><small>NEW THIS YEAR<\/small><h2>本�
 assert.match(preview, /home-shelf home-shelf-latest/);
 assert.doesNotMatch(preview, /home-shelf home-shelf-hot/);
 assert.match(preview, /aria-label="最新分类"/);
-assert.match(preview, /<button type="button" data-home-tab="\$\{escapeHtml\(tab\.key\)\}" role="tab" aria-selected="\$\{tab\.isActive \? "true" : "false"\}" aria-controls="latest-panel-\$\{escapeHtml\(tab\.key\)\}" tabindex="\$\{tab\.isActive \? "0" : "-1"\}"/);
+assert.match(
+  preview,
+  /<button type="button" data-home-tab="\$\{escapeHtml\(tab\.key\)\}" role="tab" aria-selected="\$\{tab\.isActive \? "true" : "false"\}" aria-controls="latest-panel-\$\{escapeHtml\(tab\.key\)\}" tabindex="\$\{tab\.isActive \? "0" : "-1"\}"/
+);
 assert.doesNotMatch(preview, /href="#home-latest-/);
-assert.match(preview, /home-shelf-rail"\s+data-home-tab="\$\{escapeHtml\(tab\.key\)\}"\s+id="latest-panel-\$\{escapeHtml\(tab\.key\)\}"\s+role="tabpanel"\s+aria-hidden="\$\{tab\.isActive \? "false" : "true"\}"\$\{tab\.isActive \? "" : " hidden"\}/);
+assert.match(
+  preview,
+  /home-shelf-rail"\s+data-home-tab="\$\{escapeHtml\(tab\.key\)\}"\s+id="latest-panel-\$\{escapeHtml\(tab\.key\)\}"\s+role="tabpanel"\s+aria-hidden="\$\{tab\.isActive \? "false" : "true"\}"\$\{tab\.isActive \? "" : " hidden"\}/
+);
 assert.doesNotMatch(preview, /homeShelfCard\(video, true\)/);
 assert.match(preview, /latestTabs\.map\(\(tab\) => homeShelfPanel\(tab\)\)\.join\(""\)/);
 assert.doesNotMatch(preview, /<div class="vod-grid">\$\{latest\.map\(card\)\.join\(""\)\}<\/div>/);
@@ -3184,7 +3672,10 @@ assert.match(preview, /<a class="category-hit" href="\$\{url\("category", \{ nam
 assert.match(preview, /aria-label="进入\$\{escapeHtml\(category\)\}"/);
 assert.match(preview, /sortUrl\(category, "latest"\)/);
 assert.match(preview, /sortUrl\(category, "hot"\)/);
-assert.match(preview, /function renderCategory\(name, sort = "latest", area = "", year = "", genre = "", page = 1, lang = "", letter = "", routeName = "category"\)/);
+assert.match(
+  preview,
+  /function renderCategory\(name, sort = "latest", area = "", year = "", genre = "", page = 1, lang = "", letter = "", routeName = "category"\)/
+);
 assert.match(preview, /return url\(routeName, params\)/);
 assert.match(preview, /renderPagination\(routeName, pageParams/);
 assert.match(preview, /sortUrl\(category, "score"\)/);
@@ -3208,12 +3699,24 @@ assert.doesNotMatch(preview, /renderNav\(\)[\s\S]{0,180}store\.categories\.slice
 const previewData = JSON.parse(readFileSync(path.join(root, "preview/data.json"), "utf8"));
 assert.ok(Array.isArray(previewData.videos), "preview data should include videos");
 assert.ok(previewData.videos.length >= 6, "preview data should include enough videos");
-assert.ok(previewData.videos.every((video) => video.id && video.title && video.category && video.episodes?.length), "preview videos should be navigable");
-assert.ok(previewData.videos.every((video) => typeof video.score === "number"), "preview videos should include scores");
-assert.ok(previewData.videos.every((video) => video.area && video.year && video.class && video.lang && video.letter), "preview videos should include filter metadata");
+assert.ok(
+  previewData.videos.every((video) => video.id && video.title && video.category && video.episodes?.length),
+  "preview videos should be navigable"
+);
+assert.ok(
+  previewData.videos.every((video) => typeof video.score === "number"),
+  "preview videos should include scores"
+);
+assert.ok(
+  previewData.videos.every((video) => video.area && video.year && video.class && video.lang && video.letter),
+  "preview videos should include filter metadata"
+);
 assert.ok(Array.isArray(previewData.history), "preview data should include history");
 assert.ok(previewData.history.length >= 4, "preview history should include timeline entries");
-assert.ok(previewData.history.every((entry) => entry.videoId && entry.watchedAt && entry.progress), "preview history should include usable timeline metadata");
+assert.ok(
+  previewData.history.every((entry) => entry.videoId && entry.watchedAt && entry.progress),
+  "preview history should include usable timeline metadata"
+);
 
 const phpEntry = readFileSync(path.join(root, "server/index.php"), "utf8");
 assert.match(phpEntry, /declare\(strict_types=1\)/);
@@ -3309,7 +3812,10 @@ assert.match(phpRender, /tabindex="' \. \$tabIndexValue \. '"/);
 assert.doesNotMatch(phpRender, /href="#home-latest-/);
 assert.match(phpRender, /\$currentYear = date\('Y'\)/);
 assert.match(phpRender, /\$currentYearVideos = filter_videos\(\$data, null, null, null, \$currentYear\)/);
-assert.match(phpRender, /\$latestShelf = '<section class="wrap home-shelf home-shelf-latest" aria-label="本年最新上线">[\s\S]*<span class="shelf-title"><small>NEW THIS YEAR<\/small><h2>本年最新上线<\/h2><\/span>' \. \$tabLinks \. '<a class="home-shelf-more" href="' \. e\(path_for\('category'\)\) \. '">全部影片<\/a>/);
+assert.match(
+  phpRender,
+  /\$latestShelf = '<section class="wrap home-shelf home-shelf-latest" aria-label="本年最新上线">[\s\S]*<span class="shelf-title"><small>NEW THIS YEAR<\/small><h2>本年最新上线<\/h2><\/span>' \. \$tabLinks \. '<a class="home-shelf-more" href="' \. e\(path_for\('category'\)\) \. '">全部影片<\/a>/
+);
 assert.match(phpRender, /class="wrap home-shelf home-continue" data-home-continue hidden/);
 assert.match(phpRender, /data-home-empty-container data-empty-item="\.home-shelf-card"/);
 assert.match(phpRender, /\$genreDock = '<nav class="wrap genre-dock" aria-label="频道快捷入口"/);
@@ -3731,7 +4237,10 @@ assert.match(homePreview, /role="tab" aria-selected="true" aria-controls="latest
 assert.match(homePreview, /role="tab" aria-selected="false" aria-controls="latest-panel-category-1" tabindex="-1"/);
 
 const playPreview = renderPreview("route=play&id=2&episode=2");
-assert.ok(playPreview.indexOf('class="player-shell"') < playPreview.indexOf('class="player-toolbar"'), "PHP play preview should render the player before controls");
+assert.ok(
+  playPreview.indexOf('class="player-shell"') < playPreview.indexOf('class="player-toolbar"'),
+  "PHP play preview should render the player before controls"
+);
 assert.match(playPreview, /class="player-shell" role="region" aria-label="视频播放器"/);
 assert.match(playPreview, /<video controls preload="metadata" playsinline/);
 assert.match(playPreview, /rel="prev">上一集<\/a>/);
@@ -3749,7 +4258,10 @@ assert.match(lastEpisodePreview, /rel="prev">上一集<\/a>/);
 assert.doesNotMatch(lastEpisodePreview, /rel="next">下一集<\/a>/);
 
 const trialPreview = renderPreview("route=player&id=2&episode=2");
-assert.ok(trialPreview.indexOf('class="player-shell"') < trialPreview.indexOf('class="player-toolbar"'), "PHP trial preview should render the player before controls");
+assert.ok(
+  trialPreview.indexOf('class="player-shell"') < trialPreview.indexOf('class="player-toolbar"'),
+  "PHP trial preview should render the player before controls"
+);
 assert.match(trialPreview, /class="player-shell" role="region" aria-label="试看播放器"/);
 assert.match(trialPreview, />完整播放<\/a>/);
 assert.doesNotMatch(trialPreview, /id="episodeList"/);

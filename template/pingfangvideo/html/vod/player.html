@@ -12,6 +12,76 @@
       {$player_data}
       {$player_js}
     </div>
+    {if condition="$popedom.code gt 1 and $popedom.trysee gt 0"}
+    <div class="player-trial-ended" data-player-trial-ended hidden>
+      <div class="system-box" role="status">
+        <span class="eyebrow">试看结束</span>
+        <h2>试看已结束</h2>
+        <p>本次可试看 {$popedom.trysee} 分钟，完整观看需要通过会员或付费权限验证。</p>
+        <div class="detail-actions">
+          <a class="primary-btn" href="{:url('user/upgrade')}" target="_blank" rel="noopener">升级会员</a>
+          <a class="ghost-btn" href="{:url('user/index')}" target="_blank" rel="noopener">会员中心</a>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var tryseeSeconds = {$popedom.trysee} * 60;
+        var ended = false;
+        var watchTimer = null;
+
+        function endTrysee() {
+          if (ended) {
+            return;
+          }
+          ended = true;
+          if (watchTimer) {
+            window.clearTimeout(watchTimer);
+          }
+
+          var video = document.querySelector(".MacPlayer video") || document.querySelector("video");
+          if (video) {
+            video.pause();
+          }
+
+          var player = document.querySelector(".MacPlayer") || document.querySelector(".player-shell");
+          var prompt = document.querySelector("[data-player-trial-ended]");
+          if (player && prompt) {
+            player.innerHTML = prompt.innerHTML;
+          }
+        }
+
+        function watchVideo() {
+          if (ended) {
+            return;
+          }
+
+          var video = document.querySelector(".MacPlayer video") || document.querySelector("video");
+          if (!video) {
+            watchTimer = window.setTimeout(watchVideo, 500);
+            return;
+          }
+
+          video.addEventListener("timeupdate", function () {
+            if (this.currentTime >= tryseeSeconds) {
+              this.pause();
+              endTrysee();
+            }
+          });
+          video.addEventListener("seeking", function () {
+            if (this.currentTime >= tryseeSeconds) {
+              this.currentTime = Math.max(tryseeSeconds - 1, 0);
+              this.pause();
+              endTrysee();
+            }
+          });
+        }
+
+        watchVideo();
+        window.setTimeout(endTrysee, tryseeSeconds * 1000);
+      })();
+    </script>
+    {/if}
     <div class="player-toolbar" role="group" aria-label="播放控制">
       <span>{$obj.vod_name} / {$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']}</span>
       <div class="player-toolbar-actions">

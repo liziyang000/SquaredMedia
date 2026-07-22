@@ -1,26 +1,42 @@
-import { rmSync, mkdirSync, cpSync, readFileSync, readdirSync, statSync, writeFileSync, chmodSync } from "node:fs";
+import { rmSync, mkdirSync, cpSync, readFileSync, readdirSync, statSync, lstatSync, writeFileSync, chmodSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
 
 const root = process.cwd();
+const scope = process.env.DEPLOY_SCOPE || "all";
+if (!["all", "backend", "api"].includes(scope)) {
+  throw new Error("DEPLOY_SCOPE must be all, backend, or api");
+}
+const includeTheme = scope === "all";
+const includeDevice = scope !== "api";
 const themeName = "pingfangvideo";
-const addonNames = ["pingfangdevice", "vodops"];
+const addonName = "pingfangdevice";
+const apiAddonName = "pingfangapi";
 const source = path.join(root, "template", themeName);
+const addonSource = path.join(root, "addons", addonName);
+const apiAddonSource = path.join(root, "addons", apiAddonName);
 const dist = path.join(root, "dist");
 const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
+const addonPackageRoot = path.join(dist, addonName);
+const addonArchive = path.join(dist, `${addonName}.tar.gz`);
+const apiAddonPackageRoot = path.join(dist, apiAddonName);
+const apiAddonArchive = path.join(dist, `${apiAddonName}.tar.gz`);
 const assetVersionInputs = {
   __PINGFANG_STYLE_VERSION__: "css/style.css",
   __PINGFANG_APP_VERSION__: "js/app.js",
   __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
   __PINGFANG_GAME_VERSION__: "games/init.js",
-  __PINGFANG_BAMBOO_CICADA_VERSION__: "games/bamboo-cicada.js",
-  __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js",
-  __PINGFANG_QIXI_VERSION__: "js/qixi-particle-rose.js",
+  __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js"
 };
 const excludedThemePackageFiles = new Set([
-  "games/blockrain/jquery-1.11.1.min.js",
+  "js/hls.min.js",
+  "js/pingfang-player.js",
+  "js/react.production.min.js",
+  "js/react-dom.production.min.js",
+  "js/rank-react.js",
+  "games/blockrain/jquery-1.11.1.min.js"
 ]);
 
 function assetVersion(relativePath) {
@@ -50,8 +66,21 @@ function replaceAssetVersionPlaceholders(directory, versions) {
 
 function shouldCopyThemePath(sourcePath) {
   if (path.basename(sourcePath).startsWith(".")) return false;
+  const stats = lstatSync(sourcePath);
+  if (stats.isSymbolicLink() || (!stats.isDirectory() && !stats.isFile())) {
+    throw new Error(`Unsupported release entry type: ${sourcePath}`);
+  }
   const relativePath = path.relative(source, sourcePath).split(path.sep).join("/");
   return !excludedThemePackageFiles.has(relativePath);
+}
+
+function shouldCopyAddonPath(sourcePath) {
+  if (path.basename(sourcePath).startsWith(".")) return false;
+  const stats = lstatSync(sourcePath);
+  if (stats.isSymbolicLink() || (!stats.isDirectory() && !stats.isFile())) {
+    throw new Error(`Unsupported release entry type: ${sourcePath}`);
+  }
+  return true;
 }
 
 function normalizePackagePermissions(directory) {
@@ -71,40 +100,55 @@ function normalizePackagePermissions(directory) {
 
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
-cpSync(source, packageRoot, {
-  recursive: true,
-  filter: shouldCopyThemePath,
-});
-for (const addonName of addonNames) {
-  cpSync(path.join(root, "addons", addonName), path.join(dist, addonName), {
+if (includeTheme) {
+  cpSync(source, packageRoot, {
     recursive: true,
-    filter: (sourcePath) => !path.basename(sourcePath).startsWith("."),
+    filter: shouldCopyThemePath
   });
 }
-const versions = Object.fromEntries(
-  Object.entries(assetVersionInputs).map(([placeholder, relativePath]) => [placeholder, assetVersion(relativePath)]),
-);
-replaceAssetVersionPlaceholders(packageRoot, versions);
-normalizePackagePermissions(packageRoot);
-for (const addonName of addonNames) {
-  normalizePackagePermissions(path.join(dist, addonName));
+if (includeDevice) {
+  cpSync(addonSource, addonPackageRoot, {
+    recursive: true,
+    filter: shouldCopyAddonPath
+  });
 }
-execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", dist, themeName], {
-  env: {
-    ...process.env,
-    COPYFILE_DISABLE: "1",
-  },
-  stdio: "inherit",
+cpSync(apiAddonSource, apiAddonPackageRoot, {
+  recursive: true,
+  filter: shouldCopyAddonPath
 });
-console.log(`Created ${archive} with per-file asset versions`);
-for (const addonName of addonNames) {
-  const addonArchive = path.join(dist, `${addonName}.tar.gz`);
+if (includeTheme) {
+  const versions = Object.fromEntries(Object.entries(assetVersionInputs).map(([placeholder, relativePath]) => [placeholder, assetVersion(relativePath)]));
+  replaceAssetVersionPlaceholders(packageRoot, versions);
+  normalizePackagePermissions(packageRoot);
+}
+if (includeDevice) normalizePackagePermissions(addonPackageRoot);
+normalizePackagePermissions(apiAddonPackageRoot);
+if (includeTheme) {
+  execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", dist, themeName], {
+    env: {
+      ...process.env,
+      COPYFILE_DISABLE: "1"
+    },
+    stdio: "inherit"
+  });
+}
+if (includeDevice) {
   execFileSync("tar", ["--no-xattrs", "-czf", addonArchive, "-C", dist, addonName], {
     env: {
       ...process.env,
-      COPYFILE_DISABLE: "1",
+      COPYFILE_DISABLE: "1"
     },
-    stdio: "inherit",
+    stdio: "inherit"
   });
-  console.log(`Created ${addonArchive}`);
 }
+execFileSync("tar", ["--no-xattrs", "-czf", apiAddonArchive, "-C", dist, apiAddonName], {
+  env: {
+    ...process.env,
+    COPYFILE_DISABLE: "1"
+  },
+  stdio: "inherit"
+});
+
+if (includeTheme) console.log(`Created ${archive} with per-file asset versions`);
+if (includeDevice) console.log(`Created ${addonArchive}`);
+console.log(`Created ${apiAddonArchive}`);

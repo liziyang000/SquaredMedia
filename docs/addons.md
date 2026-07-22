@@ -8,10 +8,11 @@
 | 插件 | 当前职责 | 持久化表 | 钩子 | 仓库发布链路 |
 | --- | --- | --- | --- | --- |
 | `pingfangdevice` | 管理会员设备会话；为主题提供动态筛选、线路检测和联机游戏短票据 | `__PREFIX__pingfang_device_session` | `app_begin` | 已纳入打包、发布校验和 SSH 部署 |
-| `vodops` | 通用质量扫描与单条修复；豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检和日志 | 五张 `vodops_*` 表及七张兼容保留的 `douban_*` 表 | 无前台钩子；质量扫描由 CLI/Cron Worker 执行，豆瓣外部请求由管理员动作或任务 Worker 明确触发 | 已作为一个插件纳入打包、发布校验和 SSH 部署 |
+| `pingfangapi` | 为 React 提供 MacCMS 内容、播放、会话、收藏、历史和设备 JSON API | 复用 `vod`、`user`、`ulog` 与设备会话表 | 无 | 已纳入打包、发布校验和 SSH 部署 |
+| `videolint` | 扫描视频库质量，记录、筛选、导出并人工标记问题 | `__PREFIX__pingfang_video_lint_scan`、`__PREFIX__pingfang_video_lint_issue` | 无 | 当前未纳入自动打包或部署 |
 
-两个插件主类的 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
-仓库部署脚本会执行对应的 `install.sql`；其他安装方式必须确认安装器已导入 SQL。卸载代码不会自动删除历史数据。
+三个插件的主类 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
+有 `install.sql` 的插件必须由部署环境另行执行；卸载代码不会自动删除历史数据。
 
 ## `pingfangdevice`
 
@@ -85,7 +86,71 @@
 - `tests/vod-source-quality.test.php`：覆盖指定集数跨源映射、HLS/直链多样本中位速度、健康线路排序和唯一推荐、过期分片容错、主清单分辨率排序与回退、异常/未知分辨率、样本不足、超时、伪媒体内容、失败/缺集/解析型地址状态、私网拒绝和响应地址脱敏。
 - 仓库的 `npm test` 会执行以上 PHP 测试。当前没有 `VodFilterOptions` 的专门行为测试。
 
-## `vodops` 统一视频数据中心
+## `pingfangapi`
+
+### 路由与职责
+
+生产入口是 `/index.php/pingfangapi/index?action=<action>`。`application/index/controller/Pingfangapi.php` 继承无页面渲染副作用的 MacCMS `All` 控制器，使用 JSON 表达站点关闭、地区限制和未知 action；它负责读取 ThinkPHP Request、解析严格 JSON 和生成 JSON Response。动作分发、安全校验和 DTO 组装分别在 `ApiRequest`、`AccountService`、`ContentService` 中完成。
+
+逐 action 的请求字段、响应 DTO、安全、缓存、React 调用和部署说明见
+[PingFang API 详细说明](pingfangapi.md)。
+
+当前开放的动作如下：
+
+| Method | Action                            | 登录要求             | 数据来源或行为                                                                   |
+| ------ | --------------------------------- | -------------------- | -------------------------------------------------------------------------------- |
+| GET    | `home`                            | 否                   | 旧 React 发布包的兼容首页池，保留用于回滚                                        |
+| GET    | `home_v2`                         | 否                   | 按轮播、年度榜、最新及分类区块返回有界精简 DTO；复用 MacCMS `Vod::listCacheData` |
+| GET    | `navigation`                      | 否                   | 从 MacCMS 分类缓存返回站点名和当前用户组可见的首页频道，不扫描影片表             |
+| GET    | `content`                         | 否                   | 服务端筛选、搜索、排序和分页；compact 模式按需返回分类总数与筛选元数据           |
+| GET    | `detail`                          | 否                   | 按 `vod_id` 返回单个影片、剧集标识和最多 6 条同类推荐                            |
+| GET    | `playback`                        | 否                   | 校验影片、线路和集数，只返回同源受控 `pingfangapi/player` iframe URL             |
+| GET    | `session`                         | 否                   | 当前 MacCMS 用户、白名单资料、会话 CSRF Token 和公开表单要求                     |
+| GET    | `comments`                        | 否                   | 只返回已审核评论的纯文本白名单 DTO                                               |
+| GET    | `favorites`、`history`、`devices` | 是                   | 当前用户的 Ulog 和活动设备会话                                                   |
+| POST   | `login`、`logout`                 | 登录不要求；退出要求 | 原生 `User` 登录/退出并同步 `DeviceSession`                                      |
+| POST   | `favorite`、`favorites.delete`    | 是                   | 当前用户、`mid=1`、`type=2` 的收藏记录                                           |
+| POST   | `history.save`、`history.delete`  | 是                   | 当前用户、`mid=1`、`type=4` 的播放进度；按原生 Ulog 记录精确更新或删除           |
+| POST   | `device.revoke`                   | 是                   | 仅撤销当前用户拥有的非当前设备会话                                               |
+| POST   | `feedback`、`report`、`comment`   | 是                   | 复用原生验证码、审核、内容过滤、评论黑名单、Cookie 限频和回复通知规则            |
+| POST   | `reaction`、`rating`              | 是                   | 校验目标内容权限后原子更新原生顶踩与评分计数                                     |
+
+所有写操作都使用当前会话用户；API 有意比原生公开表单更严格，留言、报错、评论、顶踩和评分均要求登录。`session.requirements` 只公开 `loginCaptcha`、`feedbackEnabled`、`feedbackCaptcha`、`feedbackAudit`、`commentEnabled`、`commentCaptcha`、`commentAudit` 和同源 `captchaUrl`，React 据此显示可用表单、验证码和审核状态。新会员注册、注册验证码与账号找回不在公开 action 白名单中，请求均返回 404；前端只保留既有会员登录和账号管理。
+
+### 内容与播放边界
+
+当前 React 为 `home_v2`、`content` 和 `detail` 显式传 `compact=1`；旧形状继续保留给缓存中的旧静态资源。compact 目录和相关推荐只查询并返回 7 字段卡片，搜索额外增加 `typeName/actor/summary`，都不解析播放列表；完整剧集仅由详情读取。`home_v2` 按区块调用 MacCMS `Vod::listCacheData`，Hero 与普通卡片分别传精确字段白名单和独立原生缓存命名空间：轮播和年度榜各最多 5 条，本年最新及每个可见频道各最多 6 条。首页、目录、收藏、历史和评论响应均不返回原始播放地址。playback 响应也不返回源站媒体地址，而是返回 `url('pingfangapi/player', id/sid/nid)` 生成的同源 iframe。该受控入口重新执行站点/地区策略和 `check_user_popedom`，允许时复用 `label_vod_play` 与原生播放器模板；付费或无权限时渲染原生受限播放页，不把可复制的直接 `vod/player` 地址交给 React。
+
+`content` 不返回完整目录。除筛选、排序和分页白名单外，compact 模式还接受 `include_category_totals` 与 `include_facets`。普通目录分类名直接来自 MacCMS 类型缓存；只有分类索引显式请求时才执行并返回分类总数，只有需要剧情筛选的页面才读取剧情选项。响应中的 `videos` 是当前页，`total`、`page`、`totalPages` 来自服务端查询；组合筛选与搜索的精确计数按条件缓存。详情页通过独立 `detail&compact=1` 动作读取，不依赖当前目录页。
+
+`home_limit` 默认 120、允许 24～300，只约束兼容 `home` 的最新内容池，不参与 `home_v2` 或目录分页。首页内容缓存默认 300 秒；分类与筛选总数缓存由 `summary_cache_seconds` 控制，默认 1800 秒、允许 0～86400 秒。缓存键包含用户组权限边界，HTTP 响应仍不允许共享缓存。普通内容响应不暴露 `vod_play_url`；关键词对影片名、演员和导演执行索引友好的前缀匹配，不执行会导致全表扫描的任意位置匹配，`%` 和 `_` 按普通字符处理。所有查询值继续由数据库参数绑定。
+
+### 会话与写入安全
+
+- 所有 POST 只接受不超过 32 KiB 的 JSON 对象，并按 action 拒绝未知字段；资源 ID 必须是正整数，批量删除最多 100 个。
+- 所有 POST，包括登录，必须同时通过站内 `Origin`/`Referer`、`X-Requested-With`、`X-CSRF-Token` 和请求频率检查。插件不发送 CORS 允许头；React 客户端也拒绝绝对或协议相对 API 地址。
+- 登录强制 `openid=''`、`col=''`，内部 `return_meta` 只用于创建设备会话，不进入响应。设备注册失败会撤销设备 Token 并回滚原生登录；登录和退出后轮换 PHP Session 与 CSRF。
+- 注册、注册验证码和找回密码不在公开 action 白名单中；评论和留言复用原生审核、验证码、内容过滤、黑名单、Cookie 限频及通知行为。新增记录 ID 从同一数据库连接读取，避免写入成功却返回失败。
+- 账户查询和写入的 `user_id` 永远来自服务端当前会话，不接受客户端用户 ID。设备响应不会输出 Token 摘要、原始 User-Agent 或 IP。
+- `ulog_type=4` 同时可能保存付费播放凭证。历史读取沿用旧播放记录页的完整 type 4 范围；更新按影片、线路和剧集匹配现有记录并保留其 `ulog_points`，只有新增记录默认写入 0；删除按前端拿到的原生 `ulog_id` 精确执行。
+- `home`、`home_v2`、分类统计、筛选总数和剧情筛选项只在服务端内部使用按权限隔离的可配置缓存；所有 HTTP 响应统一使用 `private, no-store`，避免 MacCMS Session Cookie 进入共享缓存。
+
+### 安装、配置与验收
+
+`npm run package` 生成 `dist/pingfangapi.tar.gz`。`npm run deploy` 会先安装 `pingfangdevice`，再备份并安装 `pingfangapi`，把应用控制器复制到 `application/index/controller/Pingfangapi.php`，检查 PHP 语法、设备插件依赖及 `ulog_point`、`ulog_duration` 数据列。插件不创建表、不修改 hook，也不会部署 React 静态文件。
+
+首次建立生产 API、但不切换主题时，使用 `DEPLOY_SCOPE=backend npm run deploy` 安装并验证 `pingfangdevice` 与 `pingfangapi`。服务器已经具备这套依赖基线后，可使用 `DEPLOY_SCOPE=api npm run deploy` 只上传和替换 `pingfangapi` 及其应用控制器。API-only 会在修改前核对设备服务和 hook 文件摘要、`app_begin` 登记及设备会话表结构；不匹配时拒绝部署，不会自动更新设备插件。
+
+React 生产构建可从 `apps/web/.env.example` 复制同源配置：
+
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=/index.php/pingfangapi/index
+NEXT_PUBLIC_HOME_API_URL=/index.php/pingfangapi/index
+```
+
+`tests/pingfang-api.test.php`、`tests/pingfang-api-controller.test.php` 与发布包校验覆盖分页参数、详情路由、服务、控制器 JSON 策略和静态安全边界，但不连接真实数据库。宣称生产可用前仍必须在 staging 完成：分页总数与跨页去重、组合筛选和关键词查询计划、详情字段对照、Cookie/CSRF 轮换、真实账号和设备撤销、收藏/历史用户隔离、付费记录保护，以及匿名/试看/付费/密码/版权播放器 iframe 验收。
+
+## `videolint`
 
 ### 扫描边界与显式修复
 
@@ -124,7 +189,7 @@
 - 只有已完成或已结束的任务可由管理员确认后删除；该操作仅删除对应的 `vodops_issue`、`vodops_fingerprint` 和 `vodops_scan` 记录，不触碰视频、分类或其他 MacCMS 表，已经形成的 `vodops_repair_log` 继续保留，并以管理员 ID、任务 ID、状态和异常数写入服务端日志。插件不自动执行历史保留期清理，页面可选择最近 50 次任务。
 - 列表支持异常类型、完整视频 ID 或视频名称筛选，每条异常可打开 MacCMS 原生视频编辑页；父分类期望值和播放空组位置等脱敏结构化依据直接显示在判定说明下方。CSV 导出沿用当前筛选，最多 50000 条，并处理电子表格公式前缀；进行中的任务不能导出，任务不存在或结果过多会返回可操作提示，其他数据库或文件异常只在服务端记录。导出不包含原始播放地址。
 
-### 豆瓣匹配、同步与专项体检
+插件需要将 `addons/videolint` 放入可加载目录并执行 `install.sql`。当前插件打包、发布校验、SSH 部署和 CI 产物只覆盖 `pingfangdevice` 与 `pingfangapi`，没有为 `videolint` 提供自动安装或桥接控制器；其入口依赖 MacCMS 插件路由 `/addons/videolint/index/index`。
 
 原豆瓣插件已整体吸收到 `addons/vodops`，不是删减版。以下能力继续保留：
 

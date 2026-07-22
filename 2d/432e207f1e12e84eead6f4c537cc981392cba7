@@ -1,0 +1,367 @@
+.github/workflows/ci.yml
+  s_9b4d385d88a8aa::t_d8edb87fbb781d 21,33-35,42-53,80-85
+.gitignore
+  s_9b4d385d88a8aa::t_ae745f3517f361 28-30,34
+.prettierignore
+  s_9b4d385d88a8aa::t_b9e7c5b8a18211 3
+README.md
+  s_9b4d385d88a8aa::t_0aff546c47510c 31-159,189-193,214,218,229-231,262-295,305-317,327-344,370-375,377-379,381-384,461-464,472,475-476
+addons/pingfangapi/Pingfangapi.php
+  s_9b4d385d88a8aa::t_74f86e5eb0661e 1-18
+addons/pingfangapi/application/index/controller/Pingfangapi.php
+  s_9b4d385d88a8aa::t_7b582bad7f4b06 1-161
+addons/pingfangapi/config.php
+  s_9b4d385d88a8aa::t_0cdf4c6336b9b3 1-52
+addons/pingfangapi/info.ini
+  s_9b4d385d88a8aa::t_a2d2b2b94007e7 1-8
+addons/pingfangapi/service/AccountService.php
+  s_0a3ce98831218d::t_cc59c55e667b76 1-922
+addons/pingfangapi/service/ApiException.php
+  s_9b4d385d88a8aa::t_da476fe6942d90 1-19
+addons/pingfangapi/service/ApiRequest.php
+  s_0a3ce98831218d::t_8d5f096c2a56b3 1-690
+addons/pingfangapi/service/ContentService.php
+  s_9b4d385d88a8aa::t_7c6d68ecdfca9f 1-2177
+addons/pingfangdevice/service/DeviceSession.php
+  s_9b4d385d88a8aa::t_6693c95d79bb2e 231,234-236,240-242,250-263,266
+apps/web/.env.example
+  s_9b4d385d88a8aa::t_c0a9be0a8e4257 1-2
+apps/web/deploy/package-lock.json
+  s_9b4d385d88a8aa::t_f42c31c50ee951 1-1048
+apps/web/deploy/package.json
+  s_9b4d385d88a8aa::t_ebfcfd9f76264f 1-17
+apps/web/e2e/react-migration.spec.ts
+  s_7f4847bf57d656::t_ce1f2c6e26fb0f 1-177
+apps/web/next-env.d.ts
+  s_9b4d385d88a8aa::t_36d689eaefee68 1-6
+apps/web/next.config.ts
+  s_9b4d385d88a8aa::t_9faa90e0f3b66e 1-29
+apps/web/package.json
+  s_9b4d385d88a8aa::t_d96baa81f7a662 1-41
+apps/web/playwright.config.ts
+  s_9b4d385d88a8aa::t_81f7929a05eac0 1-28
+apps/web/src/api/account.test.ts
+  s_6820d72c191561::t_ba3bec3da14bef 1-285
+apps/web/src/api/account.ts
+  s_9b4d385d88a8aa::t_f10ccc3c9acf3e 1-404
+apps/web/src/api/api.test.ts
+  s_9b4d385d88a8aa::t_ebb3b4571aa085 1-145
+apps/web/src/api/content.test.ts
+  s_0a3ce98831218d::t_bfaf5bdd3c394d 1-321
+apps/web/src/api/content.ts
+  s_9b4d385d88a8aa::t_2df474f4dfaad2 1-345
+apps/web/src/api/home.test.ts
+  s_9b4d385d88a8aa::t_651e6f9a40015c 1-74
+apps/web/src/api/home.ts
+  s_9b4d385d88a8aa::t_d9a6a770f6ea5f 1-117
+apps/web/src/api/http.ts
+  s_14a19825ad06d7::t_3370aa7bc1ee2f 1-125
+apps/web/src/api/index.ts
+  s_9b4d385d88a8aa::t_a1ae74bcf6a3af 1-20
+apps/web/src/api/maccms.ts
+  s_9b4d385d88a8aa::t_e841db347088ef 1-147
+apps/web/src/api/schemas.ts
+  s_9b4d385d88a8aa::t_de625db715adc0 1-76
+apps/web/src/app/AccountContext.test.tsx
+  s_85cc379c607721::t_8618ae4daf5620 1-251
+apps/web/src/app/AccountContext.tsx
+  s_85cc379c607721::t_b0a527a97d3aa6 1-157
+apps/web/src/app/App.test.tsx
+  s_9b4d385d88a8aa::t_7af9d56759cc72 1-741
+apps/web/src/app/AppProviders.test.ts
+  s_9b4d385d88a8aa::t_691a7160630f5b 1-20
+apps/web/src/app/AppProviders.tsx
+  s_9b4d385d88a8aa::t_8ff7b524554f6a 1-30
+apps/web/src/app/AppShell.tsx
+  s_9b4d385d88a8aa::t_43af16237ad3be 1-35
+apps/web/src/app/account/devices/page.tsx
+  s_9b4d385d88a8aa::t_2645ad28c2c271 1-5
+apps/web/src/app/account/favorites/page.tsx
+  s_9b4d385d88a8aa::t_99168c0201c034 1-5
+apps/web/src/app/account/history/page.tsx
+  s_9b4d385d88a8aa::t_34389515a4cd23 1-5
+apps/web/src/app/account/page.tsx
+  s_9b4d385d88a8aa::t_71792465bf3f3a 1-5
+apps/web/src/app/categories/page.tsx
+  s_9b4d385d88a8aa::t_f9b06d831cbd34 1-5
+apps/web/src/app/category/[typeId]/page.tsx
+  s_9b4d385d88a8aa::t_768f473951e30f 1-5
+apps/web/src/app/comments/[mid]/[id]/page.tsx
+  s_9b4d385d88a8aa::t_fb7c5e184f2101 1-5
+apps/web/src/app/feedback/page.tsx
+  s_9b4d385d88a8aa::t_a228bb7977f963 1-5
+apps/web/src/app/healthz/route.ts
+  s_9b4d385d88a8aa::t_b01c031e015625 1-15
+apps/web/src/app/history/page.tsx
+  s_9b4d385d88a8aa::t_369fb181235018 1-5
+apps/web/src/app/layout.tsx
+  s_78c8c824456993::t_2b225be1f6ee6d 1-40
+apps/web/src/app/login/page.tsx
+  s_9b4d385d88a8aa::t_099f6f78ebefa8 1-5
+apps/web/src/app/not-found.tsx
+  s_9b4d385d88a8aa::t_9dfc00389156e6 1-5
+apps/web/src/app/page.tsx
+  s_9b4d385d88a8aa::t_9b0c0a181ec2cd 1-5
+apps/web/src/app/rankings/yearly/page.tsx
+  s_9b4d385d88a8aa::t_e58c4b67327651 1-5
+apps/web/src/app/report/page.tsx
+  s_9b4d385d88a8aa::t_6eef63136d45cc 1-5
+apps/web/src/app/routing.tsx
+  s_9b4d385d88a8aa::t_82ecae23a5fc6b 1-127
+apps/web/src/app/search/page.tsx
+  s_9b4d385d88a8aa::t_ad93968422af53 1-5
+apps/web/src/app/status/page.tsx
+  s_9b4d385d88a8aa::t_199f91e164f354 1-5
+apps/web/src/app/trial/[vodId]/[sourceId]/[episodeId]/page.tsx
+  s_9b4d385d88a8aa::t_f0315e605196a8 1-5
+apps/web/src/app/videos/page.tsx
+  s_9b4d385d88a8aa::t_86606ac06e0153 1-5
+apps/web/src/app/vod/[vodId]/confirm/page.tsx
+  s_9b4d385d88a8aa::t_59a62b40e852ad 1-5
+apps/web/src/app/vod/[vodId]/detail/unlock/page.tsx
+  s_9b4d385d88a8aa::t_18c5d4ce0d7e09 1-5
+apps/web/src/app/vod/[vodId]/download/page.tsx
+  s_9b4d385d88a8aa::t_d35d056e0cd5da 1-5
+apps/web/src/app/vod/[vodId]/download/unlock/page.tsx
+  s_9b4d385d88a8aa::t_bd7e28430b547b 1-5
+apps/web/src/app/vod/[vodId]/page.tsx
+  s_9b4d385d88a8aa::t_0fc33857449c22 1-5
+apps/web/src/app/vod/[vodId]/plot/page.tsx
+  s_9b4d385d88a8aa::t_7abbe62980079f 1-5
+apps/web/src/app/vod/[vodId]/unavailable/page.tsx
+  s_9b4d385d88a8aa::t_21dd1aaf9019df 1-5
+apps/web/src/app/vod/[vodId]/unlock/page.tsx
+  s_9b4d385d88a8aa::t_57ce8bf6111578 1-5
+apps/web/src/app/watch/[vodId]/[sourceId]/[episodeId]/page.tsx
+  s_9b4d385d88a8aa::t_c434bc6637ab0f 1-5
+apps/web/src/app/watch/[vodId]/[sourceId]/[episodeId]/unlock/page.tsx
+  s_9b4d385d88a8aa::t_26614d48932517 1-5
+apps/web/src/components/CaptchaField.tsx
+  s_9b4d385d88a8aa::t_20d0c848a1855c 1-29
+apps/web/src/components/ContentBoundary.tsx
+  s_9b4d385d88a8aa::t_68cf4ba9aa2c4b 1-62
+apps/web/src/components/PagePrimitives.test.tsx
+  s_192a2a6fae6ff0::t_644fe4aca555b5 1-27
+apps/web/src/components/PagePrimitives.tsx
+  s_a45b5882321516::t_e63998b87878a8 1-160
+apps/web/src/components/SiteHeader.tsx
+  s_9b4d385d88a8aa::t_7a27c7c82595ec 1-266
+apps/web/src/localHistory.test.ts
+  s_9b4d385d88a8aa::t_e9b5e6b9f431f3 1-72
+apps/web/src/localHistory.ts
+  s_9b4d385d88a8aa::t_78550e224c5a7a 1-185
+apps/web/src/migrationRoutes.test.ts
+  s_9b4d385d88a8aa::t_79e67bc977c108 1-55
+apps/web/src/migrationRoutes.ts
+  s_9b4d385d88a8aa::t_50555c8277236d 1-107
+apps/web/src/proxy.ts
+  s_9b4d385d88a8aa::t_c34b3a9872ce8e 1-24
+apps/web/src/screens/AccountPages.tsx
+  s_9b4d385d88a8aa::t_8ba6e940ecf190 1-507
+apps/web/src/screens/CatalogPages.tsx
+  s_0fa75c2f346e53::t_77a1fadae51dac 1-465
+apps/web/src/screens/ContentPages.tsx
+  s_0a3ce98831218d::t_aeb3c9564ea620 1-870
+apps/web/src/screens/HomePage.tsx
+  s_0fa75c2f346e53::t_593051b0bf89c2 1-455
+apps/web/src/screens/InteractionPages.test.tsx
+  s_85cc379c607721::t_d9b35ce8cd3993 1-134
+apps/web/src/screens/InteractionPages.tsx
+  s_85cc379c607721::t_63d098aa9807f4 1-459
+apps/web/src/screens/LocalHistoryPage.tsx
+  s_192a2a6fae6ff0::t_eee92d5bf4063a 1-67
+apps/web/src/screens/MigrationPages.tsx
+  s_9b4d385d88a8aa::t_910fbbdbdd2671 1-90
+apps/web/src/styles/index.css
+  s_9b4d385d88a8aa::t_31c74bdafbbef1 1-354
+apps/web/src/test/homeFixture.ts
+  s_9b4d385d88a8aa::t_64ba8ae01ae715 1-75
+apps/web/src/test/setup.ts
+  s_9b4d385d88a8aa::t_7d0a809bb66c53 1-17
+apps/web/tsconfig.json
+  s_9b4d385d88a8aa::t_aa2f26dedac895 1-31
+apps/web/vitest.config.ts
+  s_9b4d385d88a8aa::t_cd3ba19ff6d61c 1-9
+docs/addons.md
+  s_9b4d385d88a8aa::t_772f17f164c4f3 8-12,14-15,78-141
+docs/development-and-operations.md
+  s_9b4d385d88a8aa::t_22b3c261f4323e 7,11,17-34,42-45,57-60,71-73,76-80,87,94-96,101-102,104,107,109,111-113,117-154,172-188,191-199,207-209,218-219,221-226,293,300
+docs/overview.md
+  s_9b4d385d88a8aa::t_7b14774efb9af1 3,14-15,25,28,46-56,67-78,89-91,101,126
+docs/pingfangapi.md
+  s_9b4d385d88a8aa::t_cae520a65e4f42 1-2261
+docs/react-template-migration-matrix.md
+  s_9b4d385d88a8aa::t_a8b582d2910090 1-213
+docs/superpowers/plans/2026-07-21-react-frontend-migration.md
+  s_9b4d385d88a8aa::t_732ab7060855b5 1-346
+docs/theme-and-preview.md
+  s_9b4d385d88a8aa::t_c6497a3f72c9cb 7-14,115-130,151-161
+ops/nginx/react.ping2.my.conf
+  s_9b4d385d88a8aa::t_20828746c5524a 1-91
+ops/systemd/squaredmedia-next.service
+  s_9b4d385d88a8aa::t_b8a8f7c938fb7b 1-28
+package-lock.json
+  s_9b4d385d88a8aa::t_45d84667cd8a77 10-12,22-139,165-187,249-268,293-320,459-491,620-649,716-719,721,723,726-737,739,741-745,748-759,761,764-767,770-784,786-800,802-818,821-837,840-2459,2511-2530,2551-2572,2633-2668,2696-2702,2769-2775,2789-2809,2828-2834,2842-2868,2876-2888,2909-2915,3074-3083,3094-3103,3256-3270,3422-3434,3496-3505,3576-3582,3620-3660,3723-3995,4026-4055,4111-4120,4169-4249,4260-4273,4292-4340,4405-4417,4438-4444,4464-4509,4613-4650,4702-4759,4791-4824,4849-4925,4949-4955,5009-5022,5034-5066,5069-5072,5075,5078,5080-5089,5243-5249,5329-5423,5437-5468,5482-5491,5522-5763,5780-5796,5820-5836,5849-5857
+package.json
+  s_9b4d385d88a8aa::t_3b4a6703bea40c 5-7,11,13,15-24,26-27
+scripts/deploy-next-web.sh
+  s_82d5af57c1abdb::t_e98765fddb331c 1-812
+scripts/deploy-theme.sh
+  s_7634fc973666dc::t_6a50306b8d083e 4-6,18-19,22,25-26,28-63,73-76,78-89,114-181,183-261,264,270-271,276-278,284-305,319-322,330-548,585,589,602,689-709,721-905,910-920,923-927,929-939,941-949,951-984,986-1003,1005-1045,1047-1051,1053-1056,1058-1065,1072,1074,1076-1082
+scripts/dev-react-local.sh
+  s_9b4d385d88a8aa::t_53b094f370a6cb 1-46
+scripts/next-artifact-cache.mjs
+  s_9b4d385d88a8aa::t_566c5757dac3fe 1-232
+scripts/package-theme.mjs
+  s_9b4d385d88a8aa::t_94943193662263 1,7-12,15,18,24-25,29,36,66-69,74-82,100-112,114,116-141,144,146,149-151
+scripts/release-input-fingerprint.mjs
+  s_9b4d385d88a8aa::t_f0ee2c1bf518e8 1-153
+scripts/rollback-next-web.sh
+  s_9b4d385d88a8aa::t_e35649d3a8b56a 1-197
+scripts/verify-release.mjs
+  s_9b4d385d88a8aa::t_218243d689c57e 7-12,15-16,97,104,114,126-136,158,160-164,166,168-173,175-176,178-180,182-183,185-186,188-190,192-208,211-214,216-235,237,240-246,248-251,253-257,259-264,266-267,269-309,311-313
+server/react-api.php
+  s_9b4d385d88a8aa::t_01cc51c8c537c3 1-1303
+template/pingfangvideo/html/vod/detail_pwd.html
+  s_ff054d40e69e29::t_30a57fd6c45e49 3,6,11
+template/pingfangvideo/html/vod/downer_pwd.html
+  s_ff054d40e69e29::t_fe48c018fc79a3 3,6,11
+template/pingfangvideo/html/vod/player.html
+  s_ff054d40e69e29::t_d406c445961770 15-84
+template/pingfangvideo/html/vod/player_pwd.html
+  s_ff054d40e69e29::t_f724522a1a6af4 3,6,11
+tests/deploy-rollback.test.mjs
+  s_9b4d385d88a8aa::t_c2a11b7e3b49c2 1-251
+tests/device-session.test.php
+  s_9b4d385d88a8aa::t_b051176f1f08e5 8,112-114,273,469-500
+tests/next-deploy-cache-hardening.test.mjs
+  s_82d5af57c1abdb::t_c2fd91dc131c85 1-129
+tests/pingfang-api-controller.test.php
+  s_9b4d385d88a8aa::t_9b45bd30000abc 1-232
+tests/pingfang-api.test.php
+  s_9b4d385d88a8aa::t_7fc75fd0beef8f 1-1332
+tests/react-api.test.php
+  s_9b4d385d88a8aa::t_69f316ddbed0a0 1-368
+tests/release-cache.test.mjs
+  s_9b4d385d88a8aa::t_c828f2d0d2fc8b 1-52
+tests/release-input-fingerprint.test.mjs
+  s_9b4d385d88a8aa::t_e9cf2e16269859 1-81
+tests/release-scope.test.mjs
+  s_9b4d385d88a8aa::t_dafc4e08dec105 1-54
+tests/template.test.mjs
+  s_9b4d385d88a8aa::t_813709acd552d4 3-4,10,112,137-149,151,155-156,158,165,188-191,242-243,292-295,319-322,472-475,483-486,534-537,609,651-654,674-677,683-686,717-720,734,736-741,756-759,771-774,791-794,830-835,849-856,890-895,906-911,1101-1104,1163,1167-1170,1263-1266,1321-1324,1386-1389,1571,1584,1730-1733,1796-1798,1851-1854,1942,1946-1947,1972-1983,1986-2100,2121-2125,2139-2140,2143-2179,2186-2220,2228,2236-2243,2246-2394,2403-2404,2418-2419,2424-2450,2488,2521-2586,2606-2607,2736-2738,2754,2761,2815-2818,2885-2888,2890-2893,2948-2951,2975-2986,2989-2992,3069-3072,3463-3466,3484-3487
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2d432e207f1e12e84eead6f4c537cc981392cba7",
+  "prompts": {},
+  "sessions": {
+    "s_0a3ce98831218d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f890e-f13e-7b41-aefa-3d4a505400f3",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_0fa75c2f346e53": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f88eb-bda0-7631-ad09-62109a0cc0e3",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_14a19825ad06d7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f83da-8c88-7b82-abf1-cd3cc51c8856",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_192a2a6fae6ff0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f88a9-c85a-7b63-96e2-29fea89c2f84",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_6820d72c191561": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f892a-606a-71a2-9b1a-d0da09e292c9",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_7634fc973666dc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f89ac-ef5c-7623-8061-7c7a5acc4f8e",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_78c8c824456993": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f88a9-837b-7a00-894b-620f2418593d",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_7f4847bf57d656": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8938-7b9a-70c3-bcdc-4ab63692b416",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_82d5af57c1abdb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f89ac-d626-7a60-aef3-2a6381e780ab",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_85cc379c607721": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8901-81de-7042-a142-6718400f0d8f",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_9b4d385d88a8aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f82d7-e5fe-79e0-b6db-f65a80631f64",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_a45b5882321516": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f88a9-a306-7ea1-83a1-7832156d0211",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_ff054d40e69e29": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f88ca-6a45-7cc2-84d3-522538e809db",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

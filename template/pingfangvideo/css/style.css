@@ -7439,3 +7439,755 @@ body:has(.login-page) {
     transition: none;
   }
 }
+
+/* Dunhuang caisson theme */
+.theme-option-swatch-dunhuang {
+  border-color: rgba(232, 217, 183, 0.5);
+  background: conic-gradient(from 45deg, #2f6174 0 25%, #c89b4a 25% 50%, #a33f2c 50% 75%, #4a644d 75% 100%);
+}
+
+html[data-theme="dunhuang-caisson"] {
+  --dunhuang-ink: #0f0c0a;
+  --dunhuang-panel: #17120d;
+  --dunhuang-sand: #e8d9b7;
+  --dunhuang-gold: #c89b4a;
+  --dunhuang-blue: #2f6174;
+  --dunhuang-green: #4a644d;
+  --dunhuang-cinnabar: #a33f2c;
+  --bg: var(--dunhuang-ink);
+  --panel: rgba(23, 18, 13, 0.94);
+  --panel-soft: rgba(38, 30, 22, 0.92);
+  --text: var(--dunhuang-sand);
+  --muted: #b9aa8c;
+  --line: rgba(200, 155, 74, 0.34);
+  --line-hairline: rgba(232, 217, 183, 0.08);
+  --line-soft: rgba(232, 217, 183, 0.12);
+  --line-muted: rgba(232, 217, 183, 0.18);
+  --line-strong: rgba(200, 155, 74, 0.58);
+  --line-accent-soft: rgba(47, 97, 116, 0.42);
+  --line-accent: rgba(200, 155, 74, 0.54);
+  --line-accent-strong: rgba(200, 155, 74, 0.76);
+  --line-warm: rgba(163, 63, 44, 0.54);
+  --line-warm-strong: rgba(163, 63, 44, 0.7);
+  --line-gold: rgba(200, 155, 74, 0.5);
+  --accent: var(--dunhuang-cinnabar);
+  --accent-2: var(--dunhuang-gold);
+  --gold: var(--dunhuang-gold);
+  --surface: rgba(232, 217, 183, 0.035);
+  --surface-strong: rgba(232, 217, 183, 0.075);
+  --surface-elevated: linear-gradient(145deg, rgba(47, 97, 116, 0.16), rgba(23, 18, 13, 0.94) 48%, rgba(74, 100, 77, 0.13));
+  --selected-bg: rgba(74, 100, 77, 0.72);
+  --selected-bg-strong: rgba(74, 100, 77, 0.84);
+  --selected-compact-shadow: inset 0 0 0 1px rgba(232, 217, 183, 0.12);
+  --selected-shadow: 0 0 0 1px rgba(200, 155, 74, 0.34), 0 14px 30px rgba(0, 0, 0, 0.28);
+  --focus-field-shadow: 0 0 0 1px rgba(200, 155, 74, 0.54), 0 0 0 4px rgba(200, 155, 74, 0.12);
+  --shadow: 0 28px 78px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 18px 46px rgba(0, 0, 0, 0.34);
+  --radius: 7px;
+  --radius-sm: 5px;
+  --brand-2: var(--dunhuang-gold);
+  --focus-ring: 0 0 0 3px rgba(200, 155, 74, 0.42), 0 0 0 6px rgba(47, 97, 116, 0.2);
+  --cinema-canvas:
+    radial-gradient(circle at 14% 0%, rgba(47, 97, 116, 0.22), transparent 30%),
+    radial-gradient(circle at 88% 14%, rgba(163, 63, 44, 0.14), transparent 28%),
+    radial-gradient(circle at 72% 78%, rgba(74, 100, 77, 0.14), transparent 32%),
+    linear-gradient(180deg, #17120d 0%, #0f0c0a 42%, #090706 100%);
+  --cinema-glass:
+    linear-gradient(145deg, rgba(47, 97, 116, 0.16), rgba(23, 18, 13, 0.95) 46%, rgba(74, 100, 77, 0.12));
+  --cinema-glass-soft: linear-gradient(145deg, rgba(47, 97, 116, 0.1), rgba(23, 18, 13, 0.93));
+  --cinema-glass-border: rgba(200, 155, 74, 0.42);
+  --cinema-glass-border-left: rgba(47, 97, 116, 0.68);
+  --cinema-glass-border-right: rgba(163, 63, 44, 0.52);
+  --cinema-header-wash: linear-gradient(180deg, rgba(15, 12, 10, 0.95), rgba(15, 12, 10, 0.48) 74%, transparent);
+  --cinema-header-shadow: 0 22px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(232, 217, 183, 0.08);
+  --cinema-glass-shadow: 0 26px 72px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(232, 217, 183, 0.07);
+  --login-canvas:
+    radial-gradient(circle at 20% 22%, rgba(47, 97, 116, 0.22), transparent 34%),
+    radial-gradient(circle at 84% 70%, rgba(74, 100, 77, 0.17), transparent 35%),
+    linear-gradient(180deg, #17120d, #0f0c0a 64%, #090706);
+}
+
+html[data-theme="dunhuang-caisson"].theme-transitioning::before {
+  background: linear-gradient(110deg, transparent 0 22%, rgba(47, 97, 116, 0.4) 34%, rgba(200, 155, 74, 0.52) 50%, rgba(163, 63, 44, 0.38) 64%, transparent 80%);
+  filter: blur(12px) saturate(1.08);
+}
+
+html[data-theme="dunhuang-caisson"] body {
+  background: var(--cinema-canvas);
+  background-attachment: fixed;
+}
+
+html[data-theme="dunhuang-caisson"] body::before {
+  background-image:
+    radial-gradient(circle, rgba(200, 155, 74, 0.34) 0 1px, transparent 1.35px),
+    radial-gradient(circle, rgba(47, 97, 116, 0.34) 0 0.8px, transparent 1.2px),
+    linear-gradient(120deg, transparent 0 42%, rgba(232, 217, 183, 0.018) 50%, transparent 58%);
+  background-position: 24px 38px, 92px 116px, center;
+  background-size: 211px 197px, 307px 283px, 100% 100%;
+  opacity: 0.28;
+  animation: none;
+}
+
+html[data-theme="dunhuang-caisson"] .site-header {
+  background: var(--cinema-header-wash);
+}
+
+html[data-theme="dunhuang-caisson"] .site-header::after {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  width: min(960px, 72vw);
+  height: 18px;
+  background: url("../images/dunhuang/scrolling-vine-band.svg") center / 100% 18px no-repeat;
+  content: "";
+  opacity: 0.56;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+html[data-theme="dunhuang-caisson"] .header-inner,
+html[data-theme="dunhuang-caisson"] .mobile-drawer {
+  border-color: var(--cinema-glass-border);
+  border-right-color: var(--cinema-glass-border-right);
+  border-left-color: var(--cinema-glass-border-left);
+  border-radius: 10px;
+  background: var(--cinema-glass);
+  box-shadow: var(--cinema-header-shadow);
+  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+
+html[data-theme="dunhuang-caisson"] .brand-emblem {
+  border-color: rgba(200, 155, 74, 0.72);
+  border-radius: 8px;
+  background: #0f0c0a url("../images/dunhuang/emblem.svg") center / cover no-repeat;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.36), 0 0 18px rgba(200, 155, 74, 0.12);
+}
+
+html[data-theme="dunhuang-caisson"] .brand-emblem::before,
+html[data-theme="dunhuang-caisson"] .brand-emblem::after {
+  display: none;
+}
+
+html[data-theme="dunhuang-caisson"] .brand-wordmark strong,
+html[data-theme="dunhuang-caisson"] .banner-copy strong,
+html[data-theme="dunhuang-caisson"] .page-title h1,
+html[data-theme="dunhuang-caisson"] .detail-main h1,
+html[data-theme="dunhuang-caisson"] .player-head h1,
+html[data-theme="dunhuang-caisson"] .system-box h1,
+html[data-theme="dunhuang-caisson"] .shelf-title h2 {
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "PingFang SC", serif;
+  letter-spacing: 0.015em;
+}
+
+html[data-theme="dunhuang-caisson"] .brand-wordmark strong {
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .brand-wordmark small,
+html[data-theme="dunhuang-caisson"] .page-title .eyebrow,
+html[data-theme="dunhuang-caisson"] .player-head .eyebrow,
+html[data-theme="dunhuang-caisson"] .detail-main > .eyebrow,
+html[data-theme="dunhuang-caisson"] .system-box > .eyebrow {
+  color: var(--dunhuang-gold);
+}
+
+html[data-theme="dunhuang-caisson"] .header-search,
+html[data-theme="dunhuang-caisson"] .mobile-drawer-search,
+html[data-theme="dunhuang-caisson"] .channel-search,
+html[data-theme="dunhuang-caisson"] .theme-switcher-menu,
+html[data-theme="dunhuang-caisson"] .user-dropdown,
+html[data-theme="dunhuang-caisson"] .hot-search-panel,
+html[data-theme="dunhuang-caisson"] .banner-controls::before {
+  border-color: rgba(200, 155, 74, 0.34);
+  border-radius: 6px;
+  background: rgba(15, 12, 10, 0.88);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(232, 217, 183, 0.06);
+}
+
+html[data-theme="dunhuang-caisson"] .site-nav a,
+html[data-theme="dunhuang-caisson"] .history-link,
+html[data-theme="dunhuang-caisson"] .theme-switcher-trigger,
+html[data-theme="dunhuang-caisson"] .user-avatar {
+  border-radius: 5px;
+  color: rgba(232, 217, 183, 0.72);
+}
+
+html[data-theme="dunhuang-caisson"] .site-nav a:hover,
+html[data-theme="dunhuang-caisson"] .site-nav a[aria-current="page"],
+html[data-theme="dunhuang-caisson"] .history-link:hover,
+html[data-theme="dunhuang-caisson"] .theme-switcher-trigger:hover {
+  background: rgba(74, 100, 77, 0.42);
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .header-search button,
+html[data-theme="dunhuang-caisson"] .mobile-drawer-search button,
+html[data-theme="dunhuang-caisson"] .hero-search button,
+html[data-theme="dunhuang-caisson"] .channel-search button,
+html[data-theme="dunhuang-caisson"] .primary-btn,
+html[data-theme="dunhuang-caisson"] .login-submit {
+  border-color: rgba(232, 217, 183, 0.38);
+  border-radius: 5px;
+  background: linear-gradient(135deg, #dbb866, var(--dunhuang-gold) 58%, #a77532);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 245, 211, 0.4);
+  color: var(--dunhuang-ink);
+  text-shadow: none;
+}
+
+html[data-theme="dunhuang-caisson"] .ghost-btn,
+html[data-theme="dunhuang-caisson"] .theme-option,
+html[data-theme="dunhuang-caisson"] .mobile-drawer-links a,
+html[data-theme="dunhuang-caisson"] .mobile-drawer-user a,
+html[data-theme="dunhuang-caisson"] .mobile-drawer-cats a {
+  border-color: rgba(200, 155, 74, 0.28);
+  border-radius: 5px;
+  background: rgba(232, 217, 183, 0.045);
+  color: rgba(232, 217, 183, 0.78);
+}
+
+html[data-theme="dunhuang-caisson"] .theme-option.is-active {
+  border-color: rgba(200, 155, 74, 0.72);
+  background: rgba(74, 100, 77, 0.72);
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .hero::before {
+  top: -20%;
+  width: min(1180px, 90vw);
+  background: radial-gradient(ellipse, rgba(47, 97, 116, 0.22), rgba(163, 63, 44, 0.08) 44%, transparent 70%);
+  filter: blur(24px);
+}
+
+html[data-theme="dunhuang-caisson"] .hero-carousel {
+  border-color: rgba(200, 155, 74, 0.56);
+  border-radius: 12px;
+  background: #0f0c0a;
+  box-shadow: 0 38px 110px rgba(0, 0, 0, 0.54), 0 0 44px rgba(47, 97, 116, 0.12), inset 0 0 0 1px rgba(232, 217, 183, 0.07);
+}
+
+html[data-theme="dunhuang-caisson"] .hero-carousel::before {
+  --dunhuang-caisson-frame-opacity: 0.9;
+  inset: 7px;
+  border: 0;
+  border-radius: 8px;
+  background: url("../images/dunhuang/caisson-frame.svg") center / 100% 100% no-repeat;
+  opacity: var(--dunhuang-caisson-frame-opacity);
+  animation: dunhuang-caisson-arrive 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-theme="dunhuang-caisson"] .hero-carousel::after {
+  height: 54%;
+  background: linear-gradient(180deg, transparent, rgba(15, 12, 10, 0.82));
+}
+
+html[data-theme="dunhuang-caisson"] .banner-bg {
+  background-image:
+    linear-gradient(90deg, rgba(15, 12, 10, 0.96) 0%, rgba(15, 12, 10, 0.76) 38%, rgba(15, 12, 10, 0.22) 76%, rgba(15, 12, 10, 0.08) 100%),
+    linear-gradient(180deg, rgba(47, 97, 116, 0.08), rgba(15, 12, 10, 0.32)),
+    var(--banner-bg);
+  filter: saturate(0.92) contrast(1.08);
+}
+
+html[data-theme="dunhuang-caisson"] .banner-bg::after {
+  background:
+    linear-gradient(180deg, rgba(15, 12, 10, 0.04), rgba(15, 12, 10, 0.14) 50%, rgba(15, 12, 10, 0.9) 100%),
+    linear-gradient(90deg, rgba(15, 12, 10, 0.32), transparent 68%);
+}
+
+html[data-theme="dunhuang-caisson"] .hero-carousel .eyebrow {
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid rgba(200, 155, 74, 0.48);
+  border-radius: 4px;
+  background: rgba(15, 12, 10, 0.62);
+  color: var(--dunhuang-gold);
+  padding: 7px 10px;
+}
+
+html[data-theme="dunhuang-caisson"] .banner-copy strong {
+  color: #f2e7ca;
+  font-weight: 700;
+  text-shadow: 0 5px 24px rgba(0, 0, 0, 0.74);
+}
+
+html[data-theme="dunhuang-caisson"] .banner-copy small {
+  color: rgba(232, 217, 183, 0.82);
+}
+
+html[data-theme="dunhuang-caisson"] .banner-meta i {
+  border-color: rgba(200, 155, 74, 0.28);
+  border-radius: 4px;
+  background: rgba(15, 12, 10, 0.58);
+  color: rgba(232, 217, 183, 0.82);
+}
+
+html[data-theme="dunhuang-caisson"] .banner-dot.is-active {
+  background: var(--dunhuang-gold);
+  box-shadow: 0 0 0 1px rgba(232, 217, 183, 0.36), 0 0 14px rgba(200, 155, 74, 0.32);
+}
+
+html[data-theme="dunhuang-caisson"] .hero-rank,
+html[data-theme="dunhuang-caisson"] .filter-panel,
+html[data-theme="dunhuang-caisson"] .category-filter,
+html[data-theme="dunhuang-caisson"] .episode-box,
+html[data-theme="dunhuang-caisson"] .detail-panel,
+html[data-theme="dunhuang-caisson"] .system-box,
+html[data-theme="dunhuang-caisson"] .device-panel,
+html[data-theme="dunhuang-caisson"] .favorite-toolbar,
+html[data-theme="dunhuang-caisson"] .record-toolbar,
+html[data-theme="dunhuang-caisson"] .comment-layout .system-box {
+  border-color: rgba(200, 155, 74, 0.36);
+  border-right-color: rgba(163, 63, 44, 0.38);
+  border-left-color: rgba(47, 97, 116, 0.58);
+  border-radius: 10px;
+  background: var(--cinema-glass);
+  box-shadow: var(--cinema-glass-shadow);
+  -webkit-backdrop-filter: blur(14px) saturate(1.04);
+  backdrop-filter: blur(14px) saturate(1.04);
+}
+
+html[data-theme="dunhuang-caisson"] .filter-panel {
+  position: relative;
+  overflow: hidden;
+  padding-top: 26px;
+}
+
+html[data-theme="dunhuang-caisson"] .filter-panel::before {
+  position: absolute;
+  top: 7px;
+  right: 18px;
+  left: 18px;
+  height: 12px;
+  background: url("../images/dunhuang/pearl-band.svg") center / 100% 12px no-repeat;
+  content: "";
+  opacity: 0.64;
+  pointer-events: none;
+}
+
+html[data-theme="dunhuang-caisson"] .rank-item,
+html[data-theme="dunhuang-caisson"] .genre-chip,
+html[data-theme="dunhuang-caisson"] .home-continue-card,
+html[data-theme="dunhuang-caisson"] .category-tile,
+html[data-theme="dunhuang-caisson"] .timeline-card,
+html[data-theme="dunhuang-caisson"] .list-item,
+html[data-theme="dunhuang-caisson"] .download-list a,
+html[data-theme="dunhuang-caisson"] .comment-item,
+html[data-theme="dunhuang-caisson"] .plot-item,
+html[data-theme="dunhuang-caisson"] .device-card,
+html[data-theme="dunhuang-caisson"] .record-item,
+html[data-theme="dunhuang-caisson"] .favorite-card {
+  border-color: rgba(200, 155, 74, 0.22);
+  border-radius: 7px;
+  background: var(--cinema-glass-soft);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(232, 217, 183, 0.05);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="dunhuang-caisson"] .rank-item:hover,
+html[data-theme="dunhuang-caisson"] .genre-chip:hover,
+html[data-theme="dunhuang-caisson"] .genre-chip:focus-visible,
+html[data-theme="dunhuang-caisson"] .home-continue-card:hover,
+html[data-theme="dunhuang-caisson"] .home-continue-card:focus-visible {
+  border-color: rgba(200, 155, 74, 0.5);
+  background: linear-gradient(145deg, rgba(47, 97, 116, 0.2), rgba(23, 18, 13, 0.94));
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.34);
+}
+
+html[data-theme="dunhuang-caisson"] .category-tile {
+  background:
+    url("../images/dunhuang/channel-vault.svg") center / 100% 100% no-repeat,
+    var(--cinema-glass-soft);
+}
+
+html[data-theme="dunhuang-caisson"] .category-tile:hover,
+html[data-theme="dunhuang-caisson"] .category-tile:focus-within {
+  border-color: rgba(200, 155, 74, 0.5);
+  background:
+    url("../images/dunhuang/channel-vault.svg") center / 100% 100% no-repeat,
+    linear-gradient(145deg, rgba(47, 97, 116, 0.16), rgba(23, 18, 13, 0.95));
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.34);
+}
+
+html[data-theme="dunhuang-caisson"] .sort-latest {
+  border-color: rgba(47, 97, 116, 0.68);
+  color: #8bb0b9;
+}
+
+html[data-theme="dunhuang-caisson"] .sort-hot {
+  border-color: rgba(163, 63, 44, 0.62);
+  color: #cd8c78;
+}
+
+html[data-theme="dunhuang-caisson"] .sort-score {
+  border-color: rgba(200, 155, 74, 0.56);
+  color: var(--dunhuang-gold);
+}
+
+html[data-theme="dunhuang-caisson"] .genre-chip::before {
+  border-color: rgba(200, 155, 74, 0.34);
+  border-radius: 5px;
+  background: linear-gradient(145deg, rgba(47, 97, 116, 0.58), rgba(23, 18, 13, 0.78));
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .genre-chip span {
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .genre-chip small {
+  color: rgba(185, 170, 140, 0.76);
+}
+
+html[data-theme="dunhuang-caisson"] .genre-chip-featured {
+  border-color: rgba(200, 155, 74, 0.4);
+  background: linear-gradient(145deg, rgba(163, 63, 44, 0.18), rgba(23, 18, 13, 0.94) 52%, rgba(47, 97, 116, 0.14));
+}
+
+html[data-theme="dunhuang-caisson"] .genre-chip-featured::before {
+  border-color: rgba(232, 217, 183, 0.3);
+  background: linear-gradient(145deg, rgba(163, 63, 44, 0.84), rgba(98, 42, 32, 0.72));
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .rank-list,
+html[data-theme="dunhuang-caisson"] .genre-dock,
+html[data-theme="dunhuang-caisson"] .home-continue-rail,
+html[data-theme="dunhuang-caisson"] .home-shelf-tabs {
+  scrollbar-color: rgba(200, 155, 74, 0.46) transparent;
+}
+
+html[data-theme="dunhuang-caisson"] .rank-list::-webkit-scrollbar-thumb,
+html[data-theme="dunhuang-caisson"] .genre-dock::-webkit-scrollbar-thumb,
+html[data-theme="dunhuang-caisson"] .home-continue-rail::-webkit-scrollbar-thumb,
+html[data-theme="dunhuang-caisson"] .home-shelf-tabs::-webkit-scrollbar-thumb {
+  background: rgba(200, 155, 74, 0.46);
+}
+
+html[data-theme="dunhuang-caisson"] .page-title::after {
+  width: min(720px, 100%);
+  height: 24px;
+  margin-top: 16px;
+  background: url("../images/dunhuang/rosette-divider.svg") center / 100% 24px no-repeat;
+  box-shadow: none;
+}
+
+html[data-theme="dunhuang-caisson"] .filter-panel a,
+html[data-theme="dunhuang-caisson"] .episode-grid a,
+html[data-theme="dunhuang-caisson"] .paging a,
+html[data-theme="dunhuang-caisson"] .page-state,
+html[data-theme="dunhuang-caisson"] .home-shelf-tabs,
+html[data-theme="dunhuang-caisson"] .home-shelf-tabs button {
+  border-radius: 5px;
+}
+
+html[data-theme="dunhuang-caisson"] .filter-panel a.is-active,
+html[data-theme="dunhuang-caisson"] .episode-grid a.is-active,
+html[data-theme="dunhuang-caisson"] .page-state,
+html[data-theme="dunhuang-caisson"] .home-shelf-tabs button.is-active {
+  border-color: rgba(232, 217, 183, 0.26);
+  background: var(--dunhuang-green);
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .vod-card .poster,
+html[data-theme="dunhuang-caisson"] .home-shelf-poster,
+html[data-theme="dunhuang-caisson"] .home-continue-poster,
+html[data-theme="dunhuang-caisson"] .detail-poster {
+  border-color: rgba(200, 155, 74, 0.28);
+  border-radius: 9px;
+  background: rgba(23, 18, 13, 0.92);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+}
+
+html[data-theme="dunhuang-caisson"] .vod-card:hover .poster,
+html[data-theme="dunhuang-caisson"] .vod-card:focus-visible .poster,
+html[data-theme="dunhuang-caisson"] .home-shelf-card:hover .home-shelf-poster,
+html[data-theme="dunhuang-caisson"] .home-shelf-card:focus-visible .home-shelf-poster {
+  border-color: rgba(200, 155, 74, 0.76);
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.42), 0 0 24px rgba(200, 155, 74, 0.12);
+}
+
+html[data-theme="dunhuang-caisson"] .poster em,
+html[data-theme="dunhuang-caisson"] .poster .quality-badge,
+html[data-theme="dunhuang-caisson"] .detail-poster span,
+html[data-theme="dunhuang-caisson"] .home-shelf-poster em {
+  border-color: rgba(232, 217, 183, 0.28);
+  border-radius: 4px;
+  background: var(--dunhuang-cinnabar);
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .poster .score-badge,
+html[data-theme="dunhuang-caisson"] .home-shelf-score,
+html[data-theme="dunhuang-caisson"] .rank-score,
+html[data-theme="dunhuang-caisson"] .home-continue-body em {
+  color: var(--dunhuang-gold);
+}
+
+html[data-theme="dunhuang-caisson"] .poster .score-badge,
+html[data-theme="dunhuang-caisson"] .hero-rank .rank-item:first-of-type .rank-index {
+  border-radius: 4px;
+  background: var(--dunhuang-gold);
+  color: var(--dunhuang-ink);
+}
+
+html[data-theme="dunhuang-caisson"] .detail-hero::after,
+html[data-theme="dunhuang-caisson"] .player-page::after {
+  background:
+    radial-gradient(circle at 78% 12%, rgba(47, 97, 116, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(15, 12, 10, 0.28), rgba(15, 12, 10, 0.94));
+}
+
+html[data-theme="dunhuang-caisson"] .detail-backdrop img {
+  filter: blur(34px) saturate(0.86) sepia(0.08);
+}
+
+html[data-theme="dunhuang-caisson"] .detail-data div {
+  border-color: rgba(200, 155, 74, 0.15);
+  background: rgba(232, 217, 183, 0.025);
+}
+
+html[data-theme="dunhuang-caisson"] .detail-panel,
+html[data-theme="dunhuang-caisson"] .system-page .system-box {
+  background:
+    url("../images/dunhuang/wave-cloud-corner.svg") right top / 176px 176px no-repeat,
+    var(--cinema-glass);
+}
+
+html[data-theme="dunhuang-caisson"] .player-shell {
+  border-color: rgba(200, 155, 74, 0.34);
+  border-radius: 8px;
+  background: #020201;
+  box-shadow: 0 40px 104px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="dunhuang-caisson"] .player-toolbar {
+  border-color: rgba(200, 155, 74, 0.24);
+  border-radius: 7px;
+  background: rgba(15, 12, 10, 0.92);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="dunhuang-caisson"] body:has(.login-page) {
+  background: var(--login-canvas);
+}
+
+html[data-theme="dunhuang-caisson"] .login-page::before {
+  background-image:
+    radial-gradient(circle, rgba(200, 155, 74, 0.34) 0 1px, transparent 1.35px),
+    radial-gradient(circle, rgba(47, 97, 116, 0.34) 0 0.8px, transparent 1.2px);
+  opacity: 0.3;
+  animation: none;
+}
+
+html[data-theme="dunhuang-caisson"] .login-page::after {
+  right: 8%;
+  bottom: 76px;
+  left: 8%;
+  height: 24px;
+  background: url("../images/dunhuang/rosette-divider.svg") center / min(720px, 100%) 24px no-repeat;
+  box-shadow: none;
+  opacity: 0.72;
+  animation: none;
+}
+
+html[data-theme="dunhuang-caisson"] .login-panel {
+  --login-edge-paint: linear-gradient(115deg, var(--dunhuang-blue), var(--dunhuang-gold) 48%, var(--dunhuang-cinnabar) 72%, var(--dunhuang-green));
+  min-height: 0;
+  border-color: rgba(200, 155, 74, 0.58);
+  border-right-color: rgba(163, 63, 44, 0.5);
+  border-bottom-color: rgba(74, 100, 77, 0.5);
+  border-left-color: rgba(47, 97, 116, 0.68);
+  border-radius: 12px;
+  background: var(--cinema-glass);
+  box-shadow: 0 42px 120px rgba(0, 0, 0, 0.56), inset 0 1px 0 rgba(232, 217, 183, 0.09);
+  -webkit-backdrop-filter: blur(18px) saturate(1.04);
+  backdrop-filter: blur(18px) saturate(1.04);
+  animation: login-panel-arrive 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-theme="dunhuang-caisson"] .login-panel::before {
+  background: var(--login-edge-paint);
+  filter: none;
+}
+
+html[data-theme="dunhuang-caisson"] .login-panel::after {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(163, 63, 44, 0.14), transparent 42%),
+    radial-gradient(circle at 0% 100%, rgba(47, 97, 116, 0.13), transparent 42%);
+}
+
+html[data-theme="dunhuang-caisson"] .login-edge-glow {
+  opacity: 0.22;
+  filter: blur(10px);
+}
+
+html[data-theme="dunhuang-caisson"] .login-kicker,
+html[data-theme="dunhuang-caisson"] .login-options a,
+html[data-theme="dunhuang-caisson"] .login-register a {
+  color: var(--dunhuang-gold);
+}
+
+html[data-theme="dunhuang-caisson"] .login-captcha-image,
+html[data-theme="dunhuang-caisson"] .login-captcha-preview {
+  border-color: rgba(200, 155, 74, 0.54);
+  background: linear-gradient(145deg, #eadfca, #cdbd9f);
+  box-shadow: 0 0 18px rgba(200, 155, 74, 0.16);
+}
+
+html[data-theme="dunhuang-caisson"] .login-captcha-preview {
+  color: var(--dunhuang-cinnabar);
+  text-shadow: 8px -6px 12px rgba(163, 63, 44, 0.18);
+}
+
+html[data-theme="dunhuang-caisson"] .login-captcha-refresh {
+  border-color: rgba(200, 155, 74, 0.26);
+  background: rgba(47, 97, 116, 0.18);
+  color: rgba(232, 217, 183, 0.78);
+}
+
+html[data-theme="dunhuang-caisson"] .login-captcha-refresh:hover {
+  border-color: rgba(200, 155, 74, 0.58);
+  background: rgba(74, 100, 77, 0.38);
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .login-options,
+html[data-theme="dunhuang-caisson"] .login-register {
+  color: rgba(185, 170, 140, 0.74);
+}
+
+html[data-theme="dunhuang-caisson"] .login-options span::before {
+  background: var(--dunhuang-gold);
+  box-shadow: 0 0 10px rgba(200, 155, 74, 0.56);
+}
+
+html[data-theme="dunhuang-caisson"] .login-options a:hover,
+html[data-theme="dunhuang-caisson"] .login-register a:hover {
+  color: var(--dunhuang-sand);
+  text-shadow: 0 0 14px rgba(200, 155, 74, 0.46);
+}
+
+html[data-theme="dunhuang-caisson"] .login-register::before,
+html[data-theme="dunhuang-caisson"] .login-register::after {
+  background: linear-gradient(90deg, transparent, rgba(200, 155, 74, 0.22));
+}
+
+html[data-theme="dunhuang-caisson"] .login-submit:hover {
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42), 0 0 26px rgba(200, 155, 74, 0.2), inset 0 1px 0 rgba(255, 245, 211, 0.46);
+  filter: brightness(1.04) saturate(1.02);
+}
+
+html[data-theme="dunhuang-caisson"] .login-panel h1 {
+  color: var(--dunhuang-sand);
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "PingFang SC", serif;
+  font-weight: 700;
+}
+
+html[data-theme="dunhuang-caisson"] .login-control {
+  border-color: rgba(200, 155, 74, 0.26);
+  border-radius: 6px;
+  background: rgba(15, 12, 10, 0.72);
+  box-shadow: inset 0 1px 0 rgba(232, 217, 183, 0.05);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="dunhuang-caisson"] .login-control:focus-within {
+  border-color: rgba(200, 155, 74, 0.72);
+  background: rgba(23, 18, 13, 0.92);
+  box-shadow: var(--focus-field-shadow);
+}
+
+html[data-theme="dunhuang-caisson"] .login-panel.verify-form .login-control input,
+html[data-theme="dunhuang-caisson"] .login-panel.verify-form .login-label {
+  color: var(--dunhuang-sand);
+}
+
+@keyframes dunhuang-caisson-arrive {
+  from {
+    opacity: 0;
+    transform: scale(1.025);
+  }
+
+  to {
+    opacity: var(--dunhuang-caisson-frame-opacity);
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-theme="dunhuang-caisson"] .header-inner,
+  html[data-theme="dunhuang-caisson"] .mobile-drawer,
+  html[data-theme="dunhuang-caisson"] .hero-carousel,
+  html[data-theme="dunhuang-caisson"] .login-panel {
+    border-radius: 8px;
+  }
+
+  html[data-theme="dunhuang-caisson"] .hero-carousel::before {
+    --dunhuang-caisson-frame-opacity: 0.82;
+    inset: 5px;
+    border-radius: 5px;
+    background-image: url("../images/dunhuang/caisson-frame-mobile.svg");
+    opacity: var(--dunhuang-caisson-frame-opacity);
+  }
+
+  html[data-theme="dunhuang-caisson"] .banner-bg {
+    background-image:
+      linear-gradient(180deg, rgba(15, 12, 10, 0.16) 0%, rgba(15, 12, 10, 0.4) 42%, rgba(15, 12, 10, 0.96) 100%),
+      linear-gradient(90deg, rgba(15, 12, 10, 0.86) 0%, rgba(15, 12, 10, 0.5) 62%, rgba(15, 12, 10, 0.14) 100%),
+      var(--banner-bg);
+  }
+
+  html[data-theme="dunhuang-caisson"] .banner-bg::after {
+    background:
+      linear-gradient(180deg, rgba(15, 12, 10, 0.02), rgba(15, 12, 10, 0.18) 44%, rgba(15, 12, 10, 0.94) 100%),
+      linear-gradient(90deg, rgba(15, 12, 10, 0.34), transparent 72%);
+  }
+
+  html[data-theme="dunhuang-caisson"] .site-header::after {
+    bottom: -6px;
+    width: calc(100vw - 28px);
+    height: 12px;
+    background-size: 100% 12px;
+    opacity: 0.28;
+  }
+
+  html[data-theme="dunhuang-caisson"] .filter-panel {
+    padding-top: 23px;
+  }
+
+  html[data-theme="dunhuang-caisson"] .filter-panel::before {
+    top: 6px;
+    right: 12px;
+    left: 12px;
+    height: 10px;
+    background-size: 100% 10px;
+  }
+
+  html[data-theme="dunhuang-caisson"] .detail-panel,
+  html[data-theme="dunhuang-caisson"] .system-page .system-box {
+    background-size: 118px 118px, auto;
+  }
+
+  html[data-theme="dunhuang-caisson"] .page-title::after {
+    width: 100%;
+    height: 20px;
+    background-size: 100% 20px;
+  }
+
+  html[data-theme="dunhuang-caisson"] .login-page::after {
+    right: 0;
+    bottom: 22px;
+    left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dunhuang-caisson"] .hero-carousel::before {
+    animation: none;
+  }
+}

@@ -25,9 +25,13 @@ pnpm-debug.log*
 .cache/
 .phpunit.cache/
 coverage/
+output/playwright/
+.playwright-cli/
+*.tsbuildinfo
 
 # Generated release artifacts
 dist/
+.next/
 *.tar.gz
 *.zip
 

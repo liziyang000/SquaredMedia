@@ -11,7 +11,8 @@
   var themeStorageKey = "pingfang_theme";
   var validThemes = {
     "blue-pink-purple": true,
-    "poster-magazine": true
+    "poster-magazine": true,
+    "dunhuang-caisson": true
   };
   var themeSwitcherDocumentReady = false;
   var themeTransitionTimer = null;

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 32" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="line" x1="0" y1="16" x2="720" y2="16" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C89B4A" stop-opacity="0"/>
+      <stop offset=".2" stop-color="#2F6174"/>
+      <stop offset=".5" stop-color="#C89B4A"/>
+      <stop offset=".8" stop-color="#4A644D"/>
+      <stop offset="1" stop-color="#C89B4A" stop-opacity="0"/>
+    </linearGradient>
+    <path id="petal" d="M360 3c4 4.4 4.4 8.7 0 13-4.4-4.3-4-8.6 0-13Z"/>
+  </defs>
+  <path d="M0 16h318m84 0h318" stroke="url(#line)" stroke-width="1.5"/>
+  <g fill="#C89B4A" stroke="#E8D9B7" stroke-opacity=".42" stroke-width=".7">
+    <circle cx="94" cy="16" r="3"/>
+    <path d="m132 11 5 5-5 5-5-5 5-5Z"/>
+    <circle cx="170" cy="16" r="3"/>
+    <circle cx="550" cy="16" r="3"/>
+    <path d="m588 11 5 5-5 5-5-5 5-5Z"/>
+    <circle cx="626" cy="16" r="3"/>
+  </g>
+  <g fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".55" stroke-width=".8">
+    <use href="#petal"/>
+    <use href="#petal" transform="rotate(45 360 16)"/>
+    <use href="#petal" transform="rotate(90 360 16)"/>
+    <use href="#petal" transform="rotate(135 360 16)"/>
+    <use href="#petal" transform="rotate(180 360 16)"/>
+    <use href="#petal" transform="rotate(225 360 16)"/>
+    <use href="#petal" transform="rotate(270 360 16)"/>
+    <use href="#petal" transform="rotate(315 360 16)"/>
+  </g>
+  <circle cx="360" cy="16" r="5" fill="#17120D" stroke="#C89B4A" stroke-width="1.5"/>
+</svg>

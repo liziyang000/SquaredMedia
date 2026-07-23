@@ -18,6 +18,14 @@ const requiredFiles = [
   "images/brand/favicon.ico",
   "images/brand/favicon.png",
   "images/brand/ios_fav.png",
+  "images/dunhuang/caisson-frame.svg",
+  "images/dunhuang/caisson-frame-mobile.svg",
+  "images/dunhuang/channel-vault.svg",
+  "images/dunhuang/emblem.svg",
+  "images/dunhuang/pearl-band.svg",
+  "images/dunhuang/rosette-divider.svg",
+  "images/dunhuang/scrolling-vine-band.svg",
+  "images/dunhuang/wave-cloud-corner.svg",
   "images/site-logo.png",
   "js/gsap.min.js",
   "js/react.production.min.js",
@@ -239,6 +247,7 @@ assert.match(include, /"aid":"\{\$maccms\.aid\}"/);
 assert.match(include, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}`));
 assert.match(include, /window\.localStorage\.getItem\("pingfang_theme"\)/);
 assert.match(include, /theme === "poster-magazine"/);
+assert.match(include, /theme === "dunhuang-caisson"/);
 assert.match(include, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260621/);
@@ -270,6 +279,7 @@ assert.doesNotMatch(head, /aria-haspopup=/);
 assert.match(head, /data-theme-option="default" aria-pressed="true"[\s\S]*?<span>液态影院<\/span>/);
 assert.match(head, /data-theme-option="blue-pink-purple" aria-pressed="false"[\s\S]*?<span>极光夜幕<\/span>/);
 assert.match(head, /data-theme-option="poster-magazine" aria-pressed="false"[\s\S]*?<span>海报画廊<\/span>/);
+assert.match(head, /data-theme-option="dunhuang-caisson" aria-pressed="false"[\s\S]*?<span>敦煌流光<\/span>/);
 assert.match(head, /class="mobile-drawer-section mobile-theme-section"/);
 assert.match(head, /data-theme-switcher-mobile/);
 const desktopNavLinks = head.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] || "";
@@ -1068,6 +1078,16 @@ assert.match(starPartial, /vod_score/);
 
 const style = readThemeFile("css/style.css");
 const appScript = readThemeFile("js/app.js");
+const dunhuangAssets = [
+  readThemeFile("images/dunhuang/caisson-frame.svg"),
+  readThemeFile("images/dunhuang/caisson-frame-mobile.svg"),
+  readThemeFile("images/dunhuang/channel-vault.svg"),
+  readThemeFile("images/dunhuang/emblem.svg"),
+  readThemeFile("images/dunhuang/pearl-band.svg"),
+  readThemeFile("images/dunhuang/rosette-divider.svg"),
+  readThemeFile("images/dunhuang/scrolling-vine-band.svg"),
+  readThemeFile("images/dunhuang/wave-cloud-corner.svg")
+];
 const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)]
   .map((match) => match[0])
   .find((rule) => /--cinema-canvas/.test(rule)) || "";
@@ -1174,6 +1194,7 @@ const mobilePlayerToolbarButtonRule = [...style.matchAll(/\.player-toolbar-actio
 assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
+assert.match(appScript, /"dunhuang-caisson": true/);
 assert.match(appScript, /theme-transitioning/);
 assert.match(appScript, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.match(appScript, /document\.documentElement\.removeAttribute\("data-theme"\)/);
@@ -1186,8 +1207,22 @@ assert.match(style, /\.theme-switcher-menu\[hidden\]\s*\{[\s\S]*display: none/);
 assert.match(style, /\.theme-option/);
 assert.match(style, /\.theme-option-swatch/);
 assert.match(style, /\.theme-option-swatch-poster/);
+assert.match(style, /\.theme-option-swatch-dunhuang/);
 assert.match(style, /\.theme-option\.is-active/);
 assert.match(style, /html\[data-theme="poster-magazine"\]/);
+assert.match(style, /html\[data-theme="dunhuang-caisson"\]/);
+assert.match(style, /images\/dunhuang\/emblem\.svg/);
+assert.match(style, /images\/dunhuang\/caisson-frame\.svg/);
+assert.match(style, /images\/dunhuang\/caisson-frame-mobile\.svg/);
+assert.match(style, /images\/dunhuang\/channel-vault\.svg/);
+assert.match(style, /images\/dunhuang\/pearl-band\.svg/);
+assert.match(style, /images\/dunhuang\/rosette-divider\.svg/);
+assert.match(style, /images\/dunhuang\/scrolling-vine-band\.svg/);
+assert.match(style, /images\/dunhuang\/wave-cloud-corner\.svg/);
+dunhuangAssets.forEach((asset) => {
+  assert.match(asset, /<svg[^>]+viewBox=/);
+  assert.doesNotMatch(asset, /<script|javascript:|(?:href|src)=["']https?:\/\//i);
+});
 assert.doesNotMatch(posterRootRule, /--wrap:/);
 assert.match(visualRootRule, /--wrap: min\(1480px, calc\(100vw - 56px\)\)/);
 assert.match(visualRootRule, /--cinema-header-wash:/);
@@ -2244,6 +2279,7 @@ assert.doesNotMatch(preview, /aria-haspopup=/);
 assert.equal((preview.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
+assert.equal((preview.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
 assert.match(preview, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
 assert.match(preview, /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/);
 assert.match(preview, /class="mobile-drawer-section mobile-drawer-account"/);
@@ -2455,6 +2491,7 @@ assert.match(phpRender, /class="mobile-drawer-section mobile-theme-section" data
 assert.equal((phpRender.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
+assert.equal((phpRender.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
 assert.match(phpRender, /hero-carousel/);

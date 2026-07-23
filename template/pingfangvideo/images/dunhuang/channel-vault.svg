@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="vaultEdge" x1="12" y1="12" x2="308" y2="114" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F6174"/>
+      <stop offset=".36" stop-color="#C89B4A"/>
+      <stop offset=".72" stop-color="#4A644D"/>
+      <stop offset="1" stop-color="#A33F2C"/>
+    </linearGradient>
+    <g id="vaultRosette">
+      <path d="M0-6C3-4 3-1 0 0c-3-1-3-4 0-6ZM0 6C-3 4-3 1 0 0c3 1 3 4 0 6ZM-6 0c2-3 5-3 6 0-1 3-4 3-6 0ZM6 0C4 3 1 3 0 0c1-3 4-3 6 0Z" fill="#A33F2C" fill-opacity=".82" stroke="#E8D9B7" stroke-opacity=".38" stroke-width=".7"/>
+      <circle r="1.8" fill="#C89B4A"/>
+    </g>
+  </defs>
+  <path d="M7 116V28h7v-9h12V8h268v11h12v9h7v88" fill="none" stroke="url(#vaultEdge)" stroke-opacity=".44" stroke-width="1.5"/>
+  <path d="M13 116V34h7v-9h12v-9h256v9h12v9h7v82" fill="none" stroke="#E8D9B7" stroke-opacity=".1" stroke-width="1"/>
+  <path d="M20 116V40h6v-9h12v-8h244v8h12v9h6v76" fill="none" stroke="#C89B4A" stroke-opacity=".22" stroke-width="1.1"/>
+  <path d="M54 12h72l7-5 7 5h40l7-5 7 5h72" fill="none" stroke="#2F6174" stroke-opacity=".38" stroke-width="1.2"/>
+  <path d="M58 116H8M262 116h50" stroke="#4A644D" stroke-opacity=".34" stroke-width="1.2"/>
+  <path d="m8 75 5-5 5 5-5 5-5-5ZM302 75l5-5 5 5-5 5-5-5Z" fill="#C89B4A" fill-opacity=".4" stroke="#E8D9B7" stroke-opacity=".22" stroke-width=".7"/>
+  <g transform="translate(160 8)">
+    <use href="#vaultRosette"/>
+  </g>
+  <g fill="#C89B4A" fill-opacity=".46">
+    <circle cx="93" cy="12" r="1.3"/>
+    <circle cx="227" cy="12" r="1.3"/>
+  </g>
+</svg>

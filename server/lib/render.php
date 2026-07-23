@@ -82,6 +82,10 @@ function render_layout(array $data, string $title, string $content): string
           <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
           <span>海报画廊</span>
         </button>
+        <button class="theme-option" type="button" data-theme-option="dunhuang-caisson" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
+          <span>敦煌流光</span>
+        </button>
       </div>
     </div>
     <a class="history-link" href="' . e(path_for('history')) . '">观看记录</a>
@@ -115,6 +119,10 @@ function render_layout(array $data, string $title, string $content): string
       <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
         <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
         <span>海报画廊</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="dunhuang-caisson" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
+        <span>敦煌流光</span>
       </button>
     </div>
   </div>

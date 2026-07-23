@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- Node.js：Next.js 16 最低要求 Node.js 20.9；本仓库与 CI 继续固定使用 Node.js 22.22.0。先用 `npm ci` 安装根项目和 `apps/web` workspace 的锁定依赖。
+- Node.js：Next.js 16 最低要求 Node.js 20.9；本仓库与 CI 继续固定使用 Node.js 22.22.0。先用 `npm ci` 安装根项目、`apps/web` workspace，以及播放器发布包所需 ArtPlayer 和 hls.js 的锁定依赖。
 - PHP：目标版本为 PHP 8.4。完整测试会调用 PHP CLI；海报修复工具还要求 `curl`、`mbstring`、`pdo_mysql` 扩展。
 - 打包：需要系统 `tar`，且当前脚本使用 `--no-xattrs`。
 - 部署：本机需要 `bash`、`ssh`、`scp`；使用密码认证时还需要 `sshpass`，日常发布优先使用 SSH 密钥。
@@ -16,12 +16,12 @@
 
 | 命令                     | 作用                                                                                   | 是否写入仓库生成目录                       |
 | ------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `npm ci`                 | 按 `package-lock.json` 安装前端检查工具                                                | 只写入已忽略的 `node_modules/`             |
+| `npm ci`                 | 按 `package-lock.json` 安装前端检查工具、Web workspace 与播放器发布依赖                | 只写入已忽略的 `node_modules/`             |
 | `npm run dev:local`      | 在 `127.0.0.1:8084` 启动 PHP 预览后端，并以 `127.0.0.1:5173` 作为 Next.js 本地前台入口 | 启动两个本地进程；退出命令后停止           |
 | `npm run dev:web`        | 启动 `apps/web` 的 Next.js 开发服务器                                                  | 写入已忽略的 `apps/web/.next/`             |
-| `npm run lint`           | 检查主题 JavaScript/CSS、React TypeScript/Oxc 和 Prettier 格式                         | 否                                         |
-| `npm run format`         | 用 Prettier 格式化主题脚本、React 工程与配置文件                                       | 是，直接修改被覆盖的源码与配置             |
-| `npm test`               | 运行模板契约、React/API、设备会话与控制器、海报修复测试                                | 否；测试只写入临时或忽略目录               |
+| `npm run lint`           | 检查主题与播放器 JavaScript/CSS、React TypeScript/Oxc 和 Prettier 格式                 | 否                                         |
+| `npm run format`         | 用 Prettier 格式化主题、播放器、React 工程与配置文件                                   | 是，直接修改被覆盖的源码与配置             |
+| `npm test`               | 运行模板、播放器、React/API、发布、设备会话与控制器、海报修复测试                      | 否；测试只写入临时或忽略目录               |
 | `npm run typecheck:web`  | 生成 App Router 类型并用严格 TypeScript 配置检查 Next.js 工程                          | 写入已忽略的 `.next/types/`                |
 | `npm run build:web`      | 类型检查并生成 standalone Next.js `.next` 产物                                         | 是，重建已忽略的 `apps/web/.next/`         |
 | `npm run test:e2e`       | 用 Playwright 验证本地 Next.js/PHP 路由、状态码、账号流程和响应式边界                  | 失败证据写入已忽略的 `output/playwright/`  |
@@ -30,8 +30,10 @@
 | `npm run lint:template`  | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用                         | 否                                         |
 | `npm run verify:compat`  | 检查 MacCMS 目录、标准路由页面和不安全链接模式                                         | 否                                         |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML                                   | 否                                         |
-| `npm run package`        | 默认重建三个发布包；`DEPLOY_SCOPE=backend/api` 时只生成对应后端包                      | 是，重建整个 `dist/`                       |
-| `npm run verify:release` | 默认检查三个归档；`DEPLOY_SCOPE=backend/api` 时只检查本次 scope 的归档                 | 只读 `dist/`                               |
+| `npm run package`        | 默认重建主题、两个插件和播放器包；`DEPLOY_SCOPE=backend/api` 时只生成对应后端包        | 是，重建整个 `dist/`                       |
+| `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物                                       | 是，仅替换播放器目录和归档                 |
+| `npm run verify:release` | 默认检查四个归档；`DEPLOY_SCOPE=backend/api` 时只检查本次 scope 的归档                 | 只读 `dist/`                               |
+| `npm run verify:player-release` | 单独检查播放器归档的严格白名单、文件一致性与链接边界                         | 只读 `dist/`                               |
 
 提交主题相关修改前，至少执行：
 
@@ -79,6 +81,7 @@ npm run verify:release
 - `apps/web/e2e/react-migration.spec.ts` 验证本地 `301`/`410`、干净 URL 直达刷新、匿名历史、登录账号写操作以及 320、390、1100、1180、1181、1440 像素边界；CI 在执行前安装 Chromium。它不能证明生产 Nginx、真实 MacCMS Cookie/权限或真实播放器线路可用。
 - `scripts/verify-preview.mjs` 从仓库根目录调用 PHP CLI，验证旧 PHP 预览仍能渲染主要路由；它不连接真实 MacCMS 数据库。
 - `scripts/verify-release.mjs` 只验证已经生成的归档，不会自动执行打包。
+- `scripts/verify-player-release.mjs` 只接受播放器白名单内的静态文件，并拒绝 PHP、隐藏路径、符号链接和硬链接。
 
 本地静态预览必须通过 HTTP 服务打开，因为 `preview/index.html` 使用绝对路径请求 `/preview/data.json`。直接以 `file://` 打开不能视为有效验证。Docker 通过 `PINGFANG_PREVIEW_DATA=/var/www/html/preview/data.json` 对齐容器挂载路径；不使用 Docker 时，`server/lib/data.php` 默认从仓库根目录读取相同样例数据。PHP 路由验证以 `npm run verify:preview` 为准。
 
@@ -93,7 +96,9 @@ dist/
 ├── pingfangdevice/
 ├── pingfangdevice.tar.gz
 ├── pingfangapi/
-└── pingfangapi.tar.gz
+├── pingfangapi.tar.gz
+├── pingfangplayer-player/
+└── pingfangplayer-player.tar.gz
 ```
 
 打包过程有以下固定行为：
@@ -104,13 +109,22 @@ dist/
 - 打包只接受普通文件和目录，发现符号链接、设备节点等其他类型会直接失败；发布校验还会拒绝 API 归档中的额外顶层路径或非普通条目，并逐个执行 PHP 语法检查。
 - 主题 HTML 中的 `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__` 和 `__PINGFANG_PROMPT_VERSION__` 会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。新增需要内容版本的资源时，应同步维护打包映射和发布验证。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
-- 当前自动化只打包主题、`pingfangdevice` 和 `pingfangapi`，不会自动打包或部署其他 `addons/` 子目录。
+- `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
+- 当前自动化打包主题、`pingfangdevice`、`pingfangapi` 和独立播放器，不会自动打包或部署其他 `addons/` 子目录；现有主题部署与回滚脚本也不会安装或删除独立播放器。
 
 根目录 `dist/` 已被 `.gitignore` 忽略，是可重复生成的主题/插件发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
 `npm run build:web` 另行生成 `apps/web/.next/standalone/`。本项目没有配置静态导出：任意视频动态路由、Cookie 会话和 Proxy 均要求 Next.js runtime。该目录被忽略，也不会混入 `npm run package` 的 MacCMS 归档。`deploy-next-web.sh` 在本机持有互斥锁完成 production build，再用独立 lockfile 安装 Linux x64/glibc 版 Sharp 依赖并验证 ELF 类型；归档按构建输入指纹缓存在 `.cache/next-deploy/v1/`。相同输入的后续发布仍重新执行完整本地门禁和缓存归档校验，但跳过 production build、第二次 Linux 依赖安装与组包。缓存命中会先验签、复制，再对复制品重新计算摘要；缓存未命中时先在独占临时目录生成完整 entry，验证后才原子改名发布。设置 `NEXT_DEPLOY_FORCE_REBUILD=1` 可强制重建。
 
 `output/playwright/` 已被 `.gitignore` 忽略，用于可重复生成的浏览器报告、截图和跟踪；它不是发布产物。`output/` 下的其他路径仍没有正式所有者，不应保存长期资料或被发布自动化依赖。
+
+### 独立播放器包边界
+
+`dist/pingfangplayer-player.tar.gz` 是 HLS 播放性能优先方案，不属于 MacCMS 主题目录。它保留 ArtPlayer 控制、倍速、进度恢复、Safari/iOS 原生 HLS 回退、hls.js 有界媒体错误恢复和慢线路操作提示；首播关键路径不再请求旧播放器使用的 jQuery、CryptoJS、FLV、广告、弹幕和 PHP 配置接口。与当前主题配套使用时，慢线路提示可切换到其他播放组中名称唯一且完全一致的同一集，并通过当前标签页的 `sessionStorage` 恢复换线前进度；找不到可靠匹配时只滚动到选集区，不按 `nid` 猜测。若站点必须保留旧播放器功能，应先做兼容版设计和独立验收，不要直接安装此性能版。
+
+播放器包只包含 5 个静态文件。将来获得明确发布授权后，应先备份站点根目录中的 `static/player/artplayer.html`，再把 4 个版本化资产写入 `static/player/artplayer/`，最后替换入口 HTML。不得整体删除或覆盖现有 `static/player/artplayer/` 目录，因为现网目录还可能包含 PHP、数据库类、配置、插件和旧版回滚文件。回滚只需恢复旧入口 HTML；版本化新资产可以在确认无引用后另行清理。
+
+当前 `npm run deploy` 和 `npm run rollback` 不操作播放器包。MacCMS 后台中的播放器线路、解析状态和 `/static/js/playerconfig.js` 也不由这个仓库生成；其中解析接口及播放前等待秒数必须在后台按实际配置单独核对。
 
 ## 部署
 
@@ -188,7 +202,7 @@ DEPLOY_SCOPE=api npm run deploy
 默认全量发布顺序如下：
 
 1. 在本地重新执行测试、模板检查、兼容验证和预览验证。
-2. 重建 `dist/`，再验证三个发布归档。
+2. 重建 `dist/`，再验证主题、两个插件和播放器四个发布归档。
 3. 上传主题、`pingfangdevice` 与 `pingfangapi` 归档到远端临时路径。
 4. 在修改任何线上文件前，把三个归档解压到远端受控临时目录，检查必需文件、全部插件 PHP 语法、数据库连接及 API 所需的 `ulog_point`、`ulog_duration` 两列。
 5. 安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
@@ -298,6 +312,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 pingfangvideo-theme  -> dist/pingfangvideo.tar.gz
 pingfangdevice-addon -> dist/pingfangdevice.tar.gz
 pingfangapi-addon    -> dist/pingfangapi.tar.gz
+pingfangplayer-player -> dist/pingfangplayer-player.tar.gz
 ```
 
 CI 只构建和保存归档，不连接生产服务器，也不执行部署、回滚或数据库维护。下载 CI 产物后仍应核对对应提交和归档内容，再进入有授权的发布流程。
@@ -305,6 +320,7 @@ CI 只构建和保存归档，不连接生产服务器，也不执行部署、�
 ## 修改工程脚本时的同步检查
 
 - 新增或改名 npm 命令：同步 `package.json`、CI、README 和 `tests/template.test.mjs` 中的契约。
-- 改变发布包内容：同步 `scripts/package-theme.mjs`、`scripts/verify-release.mjs`、CI 上传路径和本文生成目录说明。
+- 改变主题或插件发布包内容：同步 `scripts/package-theme.mjs`、`scripts/verify-release.mjs`、CI 上传路径和本文生成目录说明。
+- 改变播放器发布包内容：同步 `scripts/package-player.mjs`、`scripts/verify-player-release.mjs`、CI 上传路径和本文白名单说明。
 - 改变远端路径或安装步骤：同步部署与回滚脚本、环境示例、备份/失败恢复说明，并补充相应静态测试。
 - 改变数据维护行为：先补单元测试和预演路径，再更新对应操作文档；任何扩大写入范围的变化都需要重新审视备份与回滚策略。

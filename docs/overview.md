@@ -13,6 +13,7 @@
 - 登录设备插件：`addons/pingfangdevice/`
 - 生产 API 插件：`addons/pingfangapi/`
 - 插件发布包：`dist/pingfangdevice.tar.gz`、`dist/pingfangapi.tar.gz`
+- 独立播放器源码与发布包：`maccms-player/`、`dist/pingfangplayer-player.tar.gz`
 
 这些名称会参与 MacCMS 配置、远端目录、路由、数据库表和部署脚本，不应仅因仓库名称不同而单独重命名。若要迁移运行时标识，需要同时核对模板配置、插件钩子、数据库、发布脚本和线上安装状态。
 
@@ -33,6 +34,7 @@ SquaredMedia/
 ├── scripts/                      # 校验、打包、部署、回滚和数据维护脚本
 ├── server/                       # PHP 后端联动预览入口与渲染器
 ├── template/pingfangvideo/       # 可部署的 MacCMS 主题源码
+├── maccms-player/                # 独立 HLS 性能版播放器源码
 ├── tests/                        # Node.js 与 PHP 回归测试
 ├── docker-compose.yml            # 本地 PHP 预览容器编排
 ├── package.json                  # 项目命令入口
@@ -46,6 +48,7 @@ SquaredMedia/
 | 模块                             | 主要职责                                                                                           | 是否进入当前发布流程                  | 详细说明                                          |
 | -------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------- |
 | `template/pingfangvideo/`        | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页                                          | 是，打包为 `pingfangvideo.tar.gz`     | [主题与本地预览](theme-and-preview.md)            |
+| `maccms-player/`                 | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录                                            | 是，单独打包但不由现有部署脚本安装    | [开发、发布与运维](development-and-operations.md) |
 | `apps/web/`                      | Next.js App Router、干净 URL 路由、Query Provider、TypeScript API、组件/API 与 Playwright E2E 测试 | 是，仅发布到 `react.ping2.my` staging | 本文                                              |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS                                             | 否                                    | [主题与本地预览](theme-and-preview.md)            |
 | `addons/pingfangapi/`            | 为 React 前台提供同源、白名单化的 MacCMS 内容、播放、会话和账户 API                                | 是，打包并由部署脚本安装              | [生产 API](pingfangapi.md)                        |

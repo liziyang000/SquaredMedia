@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 560" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="mobileEdge" x1="18" y1="18" x2="372" y2="542" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3C477"/>
+      <stop offset=".32" stop-color="#C89B4A"/>
+      <stop offset=".68" stop-color="#2F6174"/>
+      <stop offset="1" stop-color="#A33F2C"/>
+    </linearGradient>
+    <g id="topCorner" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+      <path d="M15 96V15h82" stroke="#C89B4A" stroke-width="2.4"/>
+      <path d="M24 86V24h63" stroke="#2F6174" stroke-width="4"/>
+      <path d="M34 74V34h41" stroke="#4A644D" stroke-width="3"/>
+      <path d="M45 63V45h19" stroke="#A33F2C" stroke-width="2.4"/>
+      <path d="m15 58 9-9 9 9-9 9-9-9Z" fill="#C89B4A" fill-opacity=".72" stroke="#E8D9B7" stroke-opacity=".48" stroke-width="1.2"/>
+      <circle cx="34" cy="34" r="4.5" fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".56" stroke-width="1.2"/>
+    </g>
+    <g id="bottomCorner" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+      <path d="M15 512v33h34" stroke="#C89B4A" stroke-opacity=".72" stroke-width="2.4"/>
+      <path d="M24 500v36h37" stroke="#4A644D" stroke-opacity=".74" stroke-width="3"/>
+      <path d="m24 516 8-8 8 8-8 8-8-8Z" fill="#A33F2C" fill-opacity=".68" stroke="#E8D9B7" stroke-opacity=".4" stroke-width="1"/>
+    </g>
+    <g id="smallRosette">
+      <path d="M0-8C4-5 4-2 0 0c-4-2-4-5 0-8ZM0 8C-4 5-4 2 0 0c4 2 4 5 0 8ZM-8 0c3-4 6-4 8 0-2 4-5 4-8 0ZM8 0C5 4 2 4 0 0c2-4 5-4 8 0Z" fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".44" stroke-width=".8"/>
+      <circle r="2.3" fill="#C89B4A"/>
+    </g>
+  </defs>
+  <rect x="7" y="7" width="376" height="546" rx="10" fill="none" stroke="url(#mobileEdge)" stroke-opacity=".86" stroke-width="2"/>
+  <rect x="13" y="13" width="364" height="534" rx="7" fill="none" stroke="#E8D9B7" stroke-opacity=".2" stroke-width="1"/>
+  <rect x="20" y="20" width="350" height="520" rx="5" fill="none" stroke="#2F6174" stroke-opacity=".56" stroke-width="1.5"/>
+  <use href="#topCorner"/>
+  <use href="#topCorner" transform="translate(390 0) scale(-1 1)"/>
+  <use href="#bottomCorner"/>
+  <use href="#bottomCorner" transform="translate(390 0) scale(-1 1)"/>
+  <path d="M105 14h49l10 9 10-9h42l10 9 10-9h49" fill="none" stroke="#C89B4A" stroke-opacity=".7" stroke-width="1.8"/>
+  <path d="M112 546h58l8-7 8 7h18l8-7 8 7h58" fill="none" stroke="#4A644D" stroke-opacity=".66" stroke-width="1.6"/>
+  <path d="M20 132h11M20 156h7M359 132h11M363 156h7M20 420h8M362 420h8" stroke="#C89B4A" stroke-linecap="square" stroke-opacity=".54" stroke-width="1.5"/>
+  <g transform="translate(195 15)">
+    <use href="#smallRosette"/>
+  </g>
+  <g transform="translate(195 545) rotate(180)">
+    <use href="#smallRosette"/>
+  </g>
+</svg>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="goldStroke" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E3C477"/>
+      <stop offset=".28" stop-color="#C89B4A"/>
+      <stop offset=".62" stop-color="#A33F2C"/>
+      <stop offset="1" stop-color="#C89B4A"/>
+    </linearGradient>
+    <g id="corner" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+      <path d="M28 174V28h146" stroke="#C89B4A" stroke-width="4"/>
+      <path d="M44 156V44h112" stroke="#2F6174" stroke-width="7"/>
+      <path d="M61 137V61h76" stroke="#4A644D" stroke-width="5"/>
+      <path d="M78 119V78h41" stroke="#A33F2C" stroke-width="4"/>
+      <path d="m28 100 16-16 17 17-17 17-16-16Z" fill="#C89B4A" fill-opacity=".72" stroke="#E8D9B7" stroke-opacity=".5" stroke-width="2"/>
+      <circle cx="61" cy="61" r="7" fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".62" stroke-width="2"/>
+    </g>
+    <g id="rosette">
+      <path d="M0-14C5-9 6-4 0 0c-6-4-5-9 0-14ZM0 14C-5 9-6 4 0 0c6 4 5 9 0 14ZM-14 0c5-5 10-6 14 0-4 6-9 5-14 0ZM14 0C9 5 4 6 0 0c4-6 9-5 14 0Z" fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".5"/>
+      <circle r="4" fill="#C89B4A"/>
+    </g>
+  </defs>
+  <rect x="18" y="18" width="1564" height="864" rx="20" fill="none" stroke="url(#goldStroke)" stroke-opacity=".82" stroke-width="3"/>
+  <rect x="32" y="32" width="1536" height="836" rx="15" fill="none" stroke="#E8D9B7" stroke-opacity=".22" stroke-width="2"/>
+  <rect x="47" y="47" width="1506" height="806" rx="10" fill="none" stroke="#2F6174" stroke-opacity=".64" stroke-width="3"/>
+  <use href="#corner"/>
+  <use href="#corner" transform="translate(1600 0) scale(-1 1)"/>
+  <use href="#corner" transform="translate(0 900) scale(1 -1)"/>
+  <use href="#corner" transform="translate(1600 900) scale(-1 -1)"/>
+  <path d="M230 31h430l18 16 18-16h208l18 16 18-16h430" fill="none" stroke="#C89B4A" stroke-opacity=".76" stroke-width="3"/>
+  <path d="M230 869h430l18-16 18 16h208l18-16 18 16h430" fill="none" stroke="#4A644D" stroke-opacity=".72" stroke-width="3"/>
+  <g transform="translate(800 32)">
+    <use href="#rosette"/>
+  </g>
+  <g transform="translate(800 868) rotate(180)">
+    <use href="#rosette"/>
+  </g>
+  <g fill="#C89B4A" fill-opacity=".64">
+    <circle cx="310" cy="32" r="3"/>
+    <circle cx="350" cy="32" r="3"/>
+    <circle cx="1250" cy="32" r="3"/>
+    <circle cx="1290" cy="32" r="3"/>
+    <circle cx="310" cy="868" r="3"/>
+    <circle cx="350" cy="868" r="3"/>
+    <circle cx="1250" cy="868" r="3"/>
+    <circle cx="1290" cy="868" r="3"/>
+  </g>
+</svg>

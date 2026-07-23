@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 48" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="edge" x1="0" y1="24" x2="960" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C89B4A" stop-opacity="0"/>
+      <stop offset=".12" stop-color="#C89B4A" stop-opacity=".62"/>
+      <stop offset=".5" stop-color="#E8D9B7" stop-opacity=".8"/>
+      <stop offset=".88" stop-color="#C89B4A" stop-opacity=".62"/>
+      <stop offset="1" stop-color="#C89B4A" stop-opacity="0"/>
+    </linearGradient>
+    <g id="vine">
+      <path d="M0 24C28 5 52 5 80 24s52 19 80 0" fill="none" stroke="#C89B4A" stroke-linecap="round" stroke-width="1.8"/>
+      <path d="M31 10c-8 7-7 15 1 19M129 38c8-7 7-15-1-19" fill="none" stroke="#E8D9B7" stroke-linecap="round" stroke-opacity=".62" stroke-width="1.2"/>
+      <path d="M46 9c9-4 16-1 18 8-9 3-15 0-18-8ZM114 39c-9 4-16 1-18-8 9-3 15 0 18 8Z" fill="#2F6174" stroke="#E8D9B7" stroke-opacity=".46" stroke-width=".8"/>
+      <path d="M66 17c8-5 15-3 19 5-8 5-15 3-19-5ZM94 31c-8 5-15 3-19-5 8-5 15-3 19 5Z" fill="#4A644D" stroke="#E8D9B7" stroke-opacity=".42" stroke-width=".8"/>
+      <circle cx="31" cy="10" r="2.8" fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".62" stroke-width=".7"/>
+      <circle cx="129" cy="38" r="2.8" fill="#A33F2C" stroke="#E8D9B7" stroke-opacity=".62" stroke-width=".7"/>
+      <path d="m80 18 6 6-6 6-6-6 6-6Z" fill="#C89B4A" stroke="#E8D9B7" stroke-opacity=".55" stroke-width=".8"/>
+    </g>
+    <pattern id="repeat" width="160" height="48" patternUnits="userSpaceOnUse">
+      <use href="#vine"/>
+    </pattern>
+  </defs>
+  <path d="M0 3h960M0 45h960" stroke="url(#edge)" stroke-width="1"/>
+  <rect width="960" height="48" fill="url(#repeat)"/>
+</svg>

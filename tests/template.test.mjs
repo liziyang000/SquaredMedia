@@ -20,6 +20,14 @@ const requiredFiles = [
   "images/brand/favicon.ico",
   "images/brand/favicon.png",
   "images/brand/ios_fav.png",
+  "images/dunhuang/caisson-frame.svg",
+  "images/dunhuang/caisson-frame-mobile.svg",
+  "images/dunhuang/channel-vault.svg",
+  "images/dunhuang/emblem.svg",
+  "images/dunhuang/pearl-band.svg",
+  "images/dunhuang/rosette-divider.svg",
+  "images/dunhuang/scrolling-vine-band.svg",
+  "images/dunhuang/wave-cloud-corner.svg",
   "images/site-logo.png",
   "js/gsap.min.js",
   "js/react.production.min.js",
@@ -156,9 +164,11 @@ const requiredRootFiles = [
   "scripts/release-input-fingerprint.mjs",
   "scripts/rollback-theme.sh",
   "scripts/rollback-next-web.sh",
+  "scripts/package-player.mjs",
   "scripts/package-theme.mjs",
   "scripts/verify-compat.mjs",
   "scripts/verify-preview.mjs",
+  "scripts/verify-player-release.mjs",
   "scripts/verify-release.mjs",
   "server/index.php",
   "server/lib/data.php",
@@ -264,6 +274,7 @@ assert.match(include, /"aid":"\{\$maccms\.aid\}"/);
 assert.match(include, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}`));
 assert.match(include, /window\.localStorage\.getItem\("pingfang_theme"\)/);
 assert.match(include, /theme === "poster-magazine"/);
+assert.match(include, /theme === "dunhuang-caisson"/);
 assert.match(include, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260621/);
@@ -298,6 +309,7 @@ assert.doesNotMatch(head, /aria-haspopup=/);
 assert.match(head, /data-theme-option="default" aria-pressed="true"[\s\S]*?<span>液态影院<\/span>/);
 assert.match(head, /data-theme-option="blue-pink-purple" aria-pressed="false"[\s\S]*?<span>极光夜幕<\/span>/);
 assert.match(head, /data-theme-option="poster-magazine" aria-pressed="false"[\s\S]*?<span>海报画廊<\/span>/);
+assert.match(head, /data-theme-option="dunhuang-caisson" aria-pressed="false"[\s\S]*?<span>敦煌流光<\/span>/);
 assert.match(head, /class="mobile-drawer-section mobile-theme-section"/);
 assert.match(head, /data-theme-switcher-mobile/);
 const desktopNavLinks = head.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] || "";
@@ -1160,7 +1172,19 @@ assert.match(starPartial, /vod_score/);
 
 const style = readThemeFile("css/style.css");
 const appScript = readThemeFile("js/app.js");
-const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)].map((match) => match[0]).find((rule) => /--cinema-canvas/.test(rule)) || "";
+const dunhuangAssets = [
+  readThemeFile("images/dunhuang/caisson-frame.svg"),
+  readThemeFile("images/dunhuang/caisson-frame-mobile.svg"),
+  readThemeFile("images/dunhuang/channel-vault.svg"),
+  readThemeFile("images/dunhuang/emblem.svg"),
+  readThemeFile("images/dunhuang/pearl-band.svg"),
+  readThemeFile("images/dunhuang/rosette-divider.svg"),
+  readThemeFile("images/dunhuang/scrolling-vine-band.svg"),
+  readThemeFile("images/dunhuang/wave-cloud-corner.svg")
+];
+const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)]
+  .map((match) => match[0])
+  .find((rule) => /--cinema-canvas/.test(rule)) || "";
 const pageStarsRule = extractCssRule(style, "body::before");
 const headerSearchInputFocusRule = extractCssRule(style, ".header-search input:focus-visible");
 const filterOptionsRule = extractCssRule(style, ".filter-options");
@@ -1267,6 +1291,7 @@ const mobilePlayerToolbarButtonRule =
 assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
+assert.match(appScript, /"dunhuang-caisson": true/);
 assert.match(appScript, /theme-transitioning/);
 assert.match(appScript, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.match(appScript, /document\.documentElement\.removeAttribute\("data-theme"\)/);
@@ -1279,8 +1304,22 @@ assert.match(style, /\.theme-switcher-menu\[hidden\]\s*\{[\s\S]*display: none/);
 assert.match(style, /\.theme-option/);
 assert.match(style, /\.theme-option-swatch/);
 assert.match(style, /\.theme-option-swatch-poster/);
+assert.match(style, /\.theme-option-swatch-dunhuang/);
 assert.match(style, /\.theme-option\.is-active/);
 assert.match(style, /html\[data-theme="poster-magazine"\]/);
+assert.match(style, /html\[data-theme="dunhuang-caisson"\]/);
+assert.match(style, /images\/dunhuang\/emblem\.svg/);
+assert.match(style, /images\/dunhuang\/caisson-frame\.svg/);
+assert.match(style, /images\/dunhuang\/caisson-frame-mobile\.svg/);
+assert.match(style, /images\/dunhuang\/channel-vault\.svg/);
+assert.match(style, /images\/dunhuang\/pearl-band\.svg/);
+assert.match(style, /images\/dunhuang\/rosette-divider\.svg/);
+assert.match(style, /images\/dunhuang\/scrolling-vine-band\.svg/);
+assert.match(style, /images\/dunhuang\/wave-cloud-corner\.svg/);
+dunhuangAssets.forEach((asset) => {
+  assert.match(asset, /<svg[^>]+viewBox=/);
+  assert.doesNotMatch(asset, /<script|javascript:|(?:href|src)=["']https?:\/\//i);
+});
 assert.doesNotMatch(posterRootRule, /--wrap:/);
 assert.match(visualRootRule, /--wrap: min\(1480px, calc\(100vw - 56px\)\)/);
 assert.match(visualRootRule, /--cinema-header-wash:/);
@@ -1968,7 +2007,6 @@ assert.match(packageJson.scripts["lint:frontend"], /npm run format:check/);
 assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.mjs");
 assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");
 assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
-assert.equal(packageJson.scripts["verify:release"], "node scripts/verify-release.mjs");
 assert.match(packageJson.scripts["test:api"], /pingfang-api\.test\.php/);
 assert.match(packageJson.scripts["test:api"], /pingfang-api-controller\.test\.php/);
 assert.match(packageJson.scripts["test:api"], /device-session\.test\.php/);
@@ -1981,6 +2019,12 @@ for (const releaseTest of [
 ]) {
   assert.match(packageJson.scripts.test, new RegExp(releaseTest.replaceAll(".", "\\.")));
 }
+assert.equal(packageJson.scripts["package:player"], "node scripts/package-player.mjs");
+assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify-player-release.mjs");
+assert.match(packageJson.scripts.package, /package-theme\.mjs/);
+assert.match(packageJson.scripts.package, /package:player/);
+assert.match(packageJson.scripts["verify:release"], /verify-release\.mjs/);
+assert.match(packageJson.scripts["verify:release"], /verify:player-release/);
 assert.equal(packageJson.scripts.deploy, "bash scripts/deploy-theme.sh");
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 assert.equal(packageJson.scripts["deploy:web"], "bash scripts/deploy-next-web.sh");
@@ -2467,7 +2511,7 @@ assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
 
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
-assert.match(ciWorkflow, /name: Theme and Addon CI/);
+assert.match(ciWorkflow, /name: Theme, Addon, and Player CI/);
 assert.match(ciWorkflow, /pull_request:/);
 assert.match(ciWorkflow, /actions\/checkout@v4/);
 assert.match(ciWorkflow, /actions\/setup-node@v4/);
@@ -2486,6 +2530,7 @@ assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
 assert.match(ciWorkflow, /name: pingfangvideo-theme[\s\S]*path: dist\/pingfangvideo\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangdevice\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangapi-addon[\s\S]*path: dist\/pingfangapi\.tar\.gz/);
+assert.match(ciWorkflow, /name: pingfangplayer-player[\s\S]*path: dist\/pingfangplayer-player\.tar\.gz/);
 
 const deviceAddonInfo = readAddonFile("info.ini");
 assert.match(deviceAddonInfo, /name = pingfangdevice/);
@@ -2811,6 +2856,7 @@ assert.doesNotMatch(preview, /aria-haspopup=/);
 assert.equal((preview.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
+assert.equal((preview.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
 assert.match(preview, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
 assert.match(
   preview,
@@ -3046,6 +3092,7 @@ assert.match(phpRender, /class="mobile-drawer-section mobile-theme-section" data
 assert.equal((phpRender.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
+assert.equal((phpRender.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
 assert.match(phpRender, /hero-carousel/);
@@ -3286,6 +3333,12 @@ assert.match(appJs, /MacPlayer\.PlayLinkNext/);
 assert.match(appJs, /addEventListener\(\s*"ended"/);
 assert.match(appJs, /contentDocument/);
 assert.match(appJs, /window\.top\.location\.href = nextUrl/);
+assert.match(appJs, /function hasAlternatePlaybackLine/);
+assert.match(appJs, /function switchToAlternatePlaybackLine/);
+assert.match(appJs, /function consumeAlternatePlaybackResume/);
+assert.match(appJs, /window\.PingFangVideo\.hasAlternatePlaybackLine = hasAlternatePlaybackLine/);
+assert.match(appJs, /window\.PingFangVideo\.switchToAlternatePlaybackLine = switchToAlternatePlaybackLine/);
+assert.match(appJs, /window\.PingFangVideo\.consumeAlternatePlaybackResume = consumeAlternatePlaybackResume/);
 assert.match(appJs, /function initLogoutLinks/);
 assert.match(appJs, /\[data-logout-link\]/);
 assert.match(appJs, /data-logout-redirect/);

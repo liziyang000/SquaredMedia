@@ -331,7 +331,6 @@ export function VodInteractions({
   dislikes?: number;
 }) {
   const account = useAccount();
-  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [rating, setRating] = useState(String(Math.max(1, Math.round(score))));
@@ -340,13 +339,6 @@ export function VodInteractions({
   const [displayLikes, setDisplayLikes] = useState(likes);
   const [displayDislikes, setDisplayDislikes] = useState(dislikes);
   const [pending, setPending] = useState(false);
-  const favorites = useQuery({
-    queryKey: ["account", "favorites"],
-    queryFn: () => account.api.getFavorites(),
-    enabled: account.session.authenticated
-  });
-  const favorited = favorites.data?.some((item) => item.vodId === vodId) ?? false;
-
   useEffect(() => {
     setDisplayScore(score);
     setDisplayScoreCount(scoreCount);
@@ -370,37 +362,38 @@ export function VodInteractions({
   };
 
   return (
-    <div className="detail-interactions">
-      <div className="interaction-panel score-panel">
+    <div className="detail-interactions" aria-label="影片互动">
+      <div className="score-summary">
+        <span>评分</span>
         <strong>{displayScore.toFixed(1)}</strong>
-        <span>{displayScoreCount > 0 ? `${displayScoreCount} 人评分` : "当前评分"}</span>
-        <label className="rating-control">
-          <span className="sr-only">我的评分</span>
-          <select value={rating} onChange={(event) => setRating(event.currentTarget.value)}>
-            {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
-              <option key={value} value={value}>
-                {value} 分
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              void run(
-                () => account.api.submitRating({ vodId, score: Number(rating) }),
-                (result) => {
-                  setDisplayScore(result.data.average);
-                  setDisplayScoreCount(result.data.count);
-                }
-              )
-            }
-          >
-            评分
-          </button>
-        </label>
+        <em>{displayScoreCount > 0 ? `${displayScoreCount} 人评分` : "暂无评分"}</em>
       </div>
-      <div className="interaction-panel digg-panel">
+      <label className="rating-control">
+        <span>我的评分</span>
+        <select value={rating} onChange={(event) => setRating(event.currentTarget.value)}>
+          {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
+            <option key={value} value={value}>
+              {value} 分
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            void run(
+              () => account.api.submitRating({ vodId, score: Number(rating) }),
+              (result) => {
+                setDisplayScore(result.data.average);
+                setDisplayScoreCount(result.data.count);
+              }
+            )
+          }
+        >
+          评分
+        </button>
+      </label>
+      <div className="digg-panel">
         <button
           type="button"
           disabled={pending}
@@ -432,28 +425,56 @@ export function VodInteractions({
           点踩 {displayDislikes}
         </button>
       </div>
-      <div className="interaction-panel favorite-action">
-        <button
-          className="ghost-btn"
-          type="button"
-          onClick={() => {
-            if (!account.session.authenticated) {
-              void navigate("/login", { state: { from: `/vod/${vodId}` } });
-              return;
-            }
-            if (favorited) return;
-            void run(async () => {
-              const result = await account.api.setFavorite({ vodId, favorite: true });
-              await favorites.refetch();
-              return result;
-            });
-          }}
-          disabled={pending || favorited}
-        >
-          {favorited ? "已收藏" : "收藏"}
-        </button>
-      </div>
       {(message || error) && <FormMessage error={Boolean(error)}>{error || message}</FormMessage>}
+    </div>
+  );
+}
+
+export function VodFavoriteButton({ vodId }: { vodId: string }) {
+  const account = useAccount();
+  const navigate = useNavigate();
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const favorites = useQuery({
+    queryKey: ["account", "favorites"],
+    queryFn: () => account.api.getFavorites(),
+    enabled: account.session.authenticated
+  });
+  const favorited = favorites.data?.some((item) => item.vodId === vodId) ?? false;
+
+  return (
+    <div className="detail-favorite-action">
+      <button
+        className="ghost-btn"
+        type="button"
+        onClick={() => {
+          if (!account.session.authenticated) {
+            void navigate("/login", { state: { from: `/vod/${vodId}` } });
+            return;
+          }
+          if (favorited) return;
+          setMessage("");
+          setError("");
+          setPending(true);
+          void account.api
+            .setFavorite({ vodId, favorite: true })
+            .then(async (result) => {
+              setMessage(result.message);
+              await favorites.refetch();
+            })
+            .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "收藏失败"))
+            .finally(() => setPending(false));
+        }}
+        disabled={pending || (account.session.authenticated && favorites.isPending) || favorited}
+      >
+        {pending ? "收藏中…" : favorited ? "已收藏" : "收藏"}
+      </button>
+      {(message || error) && (
+        <span className={`favorite-feedback${error ? " is-error" : ""}`} role="status">
+          {error || message}
+        </span>
+      )}
     </div>
   );
 }

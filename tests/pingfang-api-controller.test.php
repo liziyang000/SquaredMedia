@@ -193,7 +193,8 @@ namespace {
     $GLOBALS['pingfang_test_vod_result']['info'] = $baseInfo;
     \app\common\controller\All::$access = ['code' => 1, 'trysee' => 0];
     $player = $controller->player();
-    $assertSame('template:vod/player', $player['body'], 'Authorized playback must render the player template.');
+    $assertSame(true, str_contains($player['body'], 'template:vod/player'), 'Authorized playback must render the native player template.');
+    $assertSame(true, str_contains($player['body'], 'data-pingfang-player-embed'), 'The React player route must suppress the nested native page chrome.');
     $assertSame(
         ['vod_id' => ['eq', 42], 'vod_status' => ['eq', 1], 'vod_recycle_time' => 0],
         $GLOBALS['pingfang_test_vod_where'],

@@ -52,9 +52,10 @@ export function resolveMigrationRoute(requestUrl: string, method = "GET"): Migra
     return { status: 410 };
   }
 
-  if (pathname === "/index.php/vod/show.html" || pathname === "/index.php/label/videos.html" || pathname === "/index.php/label/categories.html") {
+  if (pathname === "/index.php/vod/show.html" || pathname === "/index.php/label/videos.html") {
     return { status: 301, location: appendCatalogParams("/videos", searchParams) };
   }
+  if (pathname === "/index.php/label/categories.html") return { status: 301, location: "/categories" };
   if (pathname === "/index.php/label/hot.html") return { status: 301, location: appendCatalogParams("/rankings/yearly", searchParams) };
   if (pathname === "/index.php/label/history.html") return { status: 301, location: "/history" };
 

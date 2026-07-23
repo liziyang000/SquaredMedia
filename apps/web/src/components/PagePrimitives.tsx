@@ -14,6 +14,7 @@ export type VodCardItem = {
   remark: string;
   year: string;
   class: string;
+  typeName?: string;
   score: number;
 };
 
@@ -41,14 +42,51 @@ export function PageHeader({ eyebrow, title, description }: { eyebrow: string; t
   );
 }
 
-export function PageStatus({ title, description, error, onRetry }: { title: string; description: string; error?: boolean; onRetry?: () => void }) {
+export function PageStatus({
+  title,
+  description,
+  error,
+  loading = false,
+  ready = false,
+  onRetry
+}: {
+  title: string;
+  description: string;
+  error?: boolean;
+  loading?: boolean;
+  ready?: boolean;
+  onRetry?: () => void;
+}) {
   return (
-    <main className="home-status-shell" aria-live="polite">
-      <section className="home-status-panel" role={error ? "alert" : "status"}>
-        <span className="brand-emblem" aria-hidden="true" />
+    <main className={`home-status-shell${loading ? " loading-status-shell" : ""}`} aria-busy={loading && !ready} aria-live="polite">
+      <section className={`home-status-panel${loading ? " loading-status-panel" : ""}${ready ? " is-ready" : ""}`} role={error ? "alert" : "status"}>
+        {loading ? (
+          <span className="loading-status-mark" aria-hidden="true">
+            <span className="brand-emblem" />
+            <span className="loading-status-orbit">
+              <i />
+              <i />
+              <i />
+            </span>
+          </span>
+        ) : (
+          <span className="brand-emblem" aria-hidden="true" />
+        )}
         <p className="migration-kicker">SquaredMedia</p>
         <h1>{title}</h1>
         <p>{description}</p>
+        {loading && (
+          <div className="loading-status-motion" aria-hidden="true">
+            <span className="loading-status-track">
+              <i className="loading-status-bar" />
+            </span>
+            <span className="loading-status-stages">
+              <i>连接片库</i>
+              <i>整理分类</i>
+              <i>生成片单</i>
+            </span>
+          </div>
+        )}
         {onRetry && (
           <button type="button" onClick={onRetry}>
             重新加载
@@ -92,14 +130,14 @@ export function VodCard({ video }: { video: VodCardItem }) {
         height={450}
         sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px"
       >
-        <span>{video.remark}</span>
+        <em className="quality-badge">{video.remark || "高清"}</em>
+        <span className="score-badge">{video.score.toFixed(1)}</span>
       </Artwork>
       <strong>{video.title}</strong>
       <span className="card-meta">
+        <span>{video.typeName || video.class}</span>
         <span>{video.year}</span>
-        <span>{video.class}</span>
       </span>
-      <span className="score-badge">{video.score.toFixed(1)}</span>
     </Link>
   );
 }

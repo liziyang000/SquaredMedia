@@ -7,6 +7,7 @@
 | 路径 | 职责 | 是否进入生产主题包 |
 | --- | --- | --- |
 | `template/pingfangvideo/**` | MacCMS 生产主题、共享前端资源和播放器提示页 | 是 |
+| `maccms-player/**` | 独立的 HLS 性能版播放器源码 | 否；单独生成播放器归档 |
 | `preview/index.html` | 浏览器端路由与渲染的静态交互预览 | 否 |
 | `preview/data.json` | 两套本地预览共用的样例数据 | 否 |
 | `server/**` | PHP 8.4 后端渲染预览，不是 MacCMS 模板引擎 | 否 |
@@ -51,7 +52,9 @@
 - 详情、播放和下载页当前对象使用 `$obj`，请求参数使用 `$param`。
 - `vod/detail.html` 保留评分、星级、顶踩、收藏、历史和用户日志钩子。
 - `vod/play.html` 与 `vod/player.html` 必须保留 `{$player_data}` 和 `{$player_js}`；后者是收费或试看场景使用的 iframe 播放页。
-- 当前生产播放链仍由 MacCMS 原生播放器负责。`hls.min.js`、`pingfang-player.js` 和 `.pf-player` 样式是源码中保留的实验原型，生产播放模板和本地预览都没有加载这两个脚本；实验脚本不进入生产发布包。
+- 当前生产播放链仍由 MacCMS 的 `{$player_data}`、`{$player_js}` 选择播放器。主题内的 `hls.min.js`、`pingfang-player.js` 和 `.pf-player` 样式是保留的实验原型，生产播放模板和本地预览都没有加载它们，且它们不进入主题发布包。
+- `maccms-player/` 是独立的 HLS 性能版播放器源码，由单独归档交付，不属于主题，也不会被现有部署脚本自动安装；其功能边界、发布顺序和回滚要求见 `docs/development-and-operations.md`。
+- 主题 `app.js` 为独立播放器提供同集换线桥接：只接受其他播放组中规范化名称唯一且完全一致的集数链接，并在换线时临时传递播放进度；播放器与主题需要按同一版本组合验收。
 - `react.production.min.js`、`react-dom.production.min.js` 和 `rank-react.js` 同样只保留在源码中，不进入生产发布包；榜单使用服务端/静态 HTML 和 `app.js`。
 
 ## 当前视觉与动效
@@ -154,7 +157,7 @@ npm run verify:release
 - `preview/index.html` 通过绝对路径 `/preview/data.json` 取数，直接双击文件会解析到错误的文件系统根路径，并可能受浏览器模块/CORS 限制。
 - Docker 通过 `PINGFANG_PREVIEW_DATA` 指向 `/var/www/html/preview/data.json`；宿主机 PHP CLI 未设置该变量时，`load_data()` 默认读取仓库根目录的 `preview/data.json`。
 - `npm run verify:preview` 验证宿主机 PHP CLI 渲染链；修改 Compose 或容器路径时仍应额外执行 `docker compose config` 并访问容器入口。
-- 自定义播放器和 React 榜单脚本仅保留在源码、不进入生产发布包；启用它们属于单独功能变更，需要同步模板、打包、预览和测试，不能仅添加 `<script>`。
+- 主题内的实验播放器和 React 榜单脚本仅保留在源码、不进入主题发布包；独立的 `maccms-player/` 只进入自己的播放器归档，仍需明确发布授权和线上播放验收才能启用。
 
 ## 历史文档状态
 

@@ -83,6 +83,28 @@ It also builds the companion MacCMS addon archive:
 dist/pingfangdevice.tar.gz
 ```
 
+The same command builds the independently reviewed static player archive:
+
+```text
+dist/pingfangplayer-player.tar.gz
+```
+
+That archive has its own `pingfangplayer-player/` root and contains only the
+approved files under `static/player/`: the player HTML, versioned ArtPlayer and
+hls.js distributions, and the first-party player JavaScript and CSS. PHP,
+hidden files, and links are rejected by `npm run verify:player-release`. The
+existing `npm run deploy` and `npm run rollback` commands remain scoped to the
+theme and addon; they do not install or remove this player archive.
+
+This player is the performance-first HLS profile: it keeps ArtPlayer controls,
+playback-rate selection, progress restore, native HLS fallback, bounded hls.js
+recovery, and slow-line actions. With the matching theme, the line action only
+switches to a uniquely named same-episode link in another MacCMS play group and
+restores the position from tab-scoped session storage; ambiguous names fall
+back to the episode list. Legacy ad, danmuku, FLV, jQuery, CryptoJS, and PHP
+configuration requests are intentionally not loaded on its critical path. Those
+existing server files are not included in or deleted by the archive.
+
 The `pingfangdevice` addon provides 登录设备管理 for member accounts. It records
 each successful login as a device session, shows current devices with recent
 login and activity time, supports manually kicking other devices offline, and
@@ -183,8 +205,9 @@ same release gate on pushes and pull requests: `npm test`, `npm run lint`,
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,
 `npm run package`, and `npm run verify:release`. After verification, the CI
 workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
-`dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, keeping theme and addon
-release units separate.
+`dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, plus
+`dist/pingfangplayer-player.tar.gz` as `pingfangplayer-player`, keeping all
+three release units separate.
 
 `npm run lint` checks first-party browser JavaScript with ESLint, theme CSS with
 Stylelint, and JavaScript/config formatting with Prettier. Vendored minified

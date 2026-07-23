@@ -1,4 +1,4 @@
-name: Theme and Addon CI
+name: Theme, Addon, and Player CI
 
 on:
   push:
@@ -62,3 +62,9 @@ jobs:
         with:
           name: pingfangdevice-addon
           path: dist/pingfangdevice.tar.gz
+
+      - name: Upload player package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pingfangplayer-player
+          path: dist/pingfangplayer-player.tar.gz

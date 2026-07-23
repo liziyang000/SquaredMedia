@@ -6,7 +6,7 @@ export default [
     ignores: ["template/pingfangvideo/js/*.min.js"]
   },
   {
-    files: ["template/pingfangvideo/js/*.js"],
+    files: ["template/pingfangvideo/js/*.js", "maccms-player/static/player/artplayer/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "script",

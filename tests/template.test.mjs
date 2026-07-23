@@ -145,9 +145,11 @@ const requiredRootFiles = [
   "scripts/deploy-ping2.env",
   "scripts/deploy-theme.sh",
   "scripts/rollback-theme.sh",
+  "scripts/package-player.mjs",
   "scripts/package-theme.mjs",
   "scripts/verify-compat.mjs",
   "scripts/verify-preview.mjs",
+  "scripts/verify-player-release.mjs",
   "scripts/verify-release.mjs",
   "server/index.php",
   "server/lib/data.php",
@@ -1899,7 +1901,12 @@ assert.match(packageJson.scripts["lint:frontend"], /npm run format:check/);
 assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.mjs");
 assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");
 assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
-assert.equal(packageJson.scripts["verify:release"], "node scripts/verify-release.mjs");
+assert.equal(packageJson.scripts["package:player"], "node scripts/package-player.mjs");
+assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify-player-release.mjs");
+assert.match(packageJson.scripts.package, /package-theme\.mjs/);
+assert.match(packageJson.scripts.package, /package:player/);
+assert.match(packageJson.scripts["verify:release"], /verify-release\.mjs/);
+assert.match(packageJson.scripts["verify:release"], /verify:player-release/);
 assert.equal(packageJson.scripts.deploy, "bash scripts/deploy-theme.sh");
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 
@@ -2008,7 +2015,7 @@ assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
 
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
-assert.match(ciWorkflow, /name: Theme and Addon CI/);
+assert.match(ciWorkflow, /name: Theme, Addon, and Player CI/);
 assert.match(ciWorkflow, /pull_request:/);
 assert.match(ciWorkflow, /actions\/checkout@v4/);
 assert.match(ciWorkflow, /actions\/setup-node@v4/);
@@ -2026,6 +2033,7 @@ assert.match(ciWorkflow, /npm run verify:release/);
 assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
 assert.match(ciWorkflow, /name: pingfangvideo-theme[\s\S]*path: dist\/pingfangvideo\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangdevice\.tar\.gz/);
+assert.match(ciWorkflow, /name: pingfangplayer-player[\s\S]*path: dist\/pingfangplayer-player\.tar\.gz/);
 
 const deviceAddonInfo = readAddonFile("info.ini");
 assert.match(deviceAddonInfo, /name = pingfangdevice/);
@@ -2729,6 +2737,12 @@ assert.match(appJs, /MacPlayer\.PlayLinkNext/);
 assert.match(appJs, /addEventListener\(\s*"ended"/);
 assert.match(appJs, /contentDocument/);
 assert.match(appJs, /window\.top\.location\.href = nextUrl/);
+assert.match(appJs, /function hasAlternatePlaybackLine/);
+assert.match(appJs, /function switchToAlternatePlaybackLine/);
+assert.match(appJs, /function consumeAlternatePlaybackResume/);
+assert.match(appJs, /window\.PingFangVideo\.hasAlternatePlaybackLine = hasAlternatePlaybackLine/);
+assert.match(appJs, /window\.PingFangVideo\.switchToAlternatePlaybackLine = switchToAlternatePlaybackLine/);
+assert.match(appJs, /window\.PingFangVideo\.consumeAlternatePlaybackResume = consumeAlternatePlaybackResume/);
 assert.match(appJs, /function initLogoutLinks/);
 assert.match(appJs, /\[data-logout-link\]/);
 assert.match(appJs, /data-logout-redirect/);

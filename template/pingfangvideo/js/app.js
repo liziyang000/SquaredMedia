@@ -1109,6 +1109,9 @@
   }
 
   var autoNextNavigating = false;
+  var alternatePlaybackResumeKey = "pingfang_alternate_playback_resume_v1";
+  var alternatePlaybackResumeMaxAge = 30 * 60 * 1000;
+  var alternatePlaybackMinimumTime = 5;
 
   function normalizePlaybackUrl(value) {
     var raw = String(value || "").trim();
@@ -1131,6 +1134,138 @@
     } catch (error) {
       return window.location.href.split("#")[0];
     }
+  }
+
+  function normalizeEpisodeLabel(value) {
+    var label = String(value || "").trim();
+    if (!label) return "";
+
+    try {
+      label = label.normalize("NFKC");
+    } catch (error) {}
+
+    return label.replace(/\s+/g, " ").toLowerCase();
+  }
+
+  function alternatePlaybackLinks() {
+    var active = document.querySelector('#episodeList .episode-grid a.is-active[aria-current="page"], #episodeList .episode-grid a.is-active');
+    if (!active) return [];
+
+    var currentBox = active.closest(".episode-box");
+    var episodeLabel = normalizeEpisodeLabel(active.textContent);
+    var boxes = Array.prototype.slice.call(document.querySelectorAll("#episodeList .episode-box"));
+    var currentIndex = boxes.indexOf(currentBox);
+    if (!currentBox || !episodeLabel || currentIndex === -1 || boxes.length < 2) return [];
+
+    var links = [];
+    for (var offset = 1; offset < boxes.length; offset += 1) {
+      var box = boxes[(currentIndex + offset) % boxes.length];
+      var matches = Array.prototype.slice.call(box.querySelectorAll(".episode-grid a")).filter(function (link) {
+        return normalizeEpisodeLabel(link.textContent) === episodeLabel;
+      });
+      if (matches.length !== 1) continue;
+
+      var target = normalizePlaybackUrl(matches[0].href);
+      try {
+        if (!target || new URL(target).origin !== window.location.origin || target === currentPlaybackUrl()) continue;
+      } catch (error) {
+        continue;
+      }
+      links.push(matches[0]);
+    }
+
+    return links;
+  }
+
+  function hasAlternatePlaybackLine() {
+    return alternatePlaybackLinks().length > 0;
+  }
+
+  function clearAlternatePlaybackResume() {
+    try {
+      window.sessionStorage.removeItem(alternatePlaybackResumeKey);
+    } catch (error) {}
+  }
+
+  function readAlternatePlaybackResume() {
+    var record;
+    try {
+      record = JSON.parse(window.sessionStorage.getItem(alternatePlaybackResumeKey) || "null");
+    } catch (error) {
+      clearAlternatePlaybackResume();
+      return null;
+    }
+
+    if (!record || record.version !== 1) return null;
+    var target = normalizePlaybackUrl(record.target);
+    var time = Number(record.time);
+    var expiresAt = Number(record.expiresAt);
+    try {
+      if (
+        !target ||
+        new URL(target).origin !== window.location.origin ||
+        !Number.isFinite(time) ||
+        time < alternatePlaybackMinimumTime ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt <= Date.now()
+      ) {
+        clearAlternatePlaybackResume();
+        return null;
+      }
+    } catch (error) {
+      clearAlternatePlaybackResume();
+      return null;
+    }
+
+    return {
+      target: target,
+      time: time,
+      expiresAt: expiresAt
+    };
+  }
+
+  function storeAlternatePlaybackResume(target, time) {
+    if (!Number.isFinite(time) || time < alternatePlaybackMinimumTime) {
+      clearAlternatePlaybackResume();
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(
+        alternatePlaybackResumeKey,
+        JSON.stringify({
+          version: 1,
+          target: target,
+          time: Math.round(time * 10) / 10,
+          expiresAt: Date.now() + alternatePlaybackResumeMaxAge
+        })
+      );
+    } catch (error) {}
+  }
+
+  function switchToAlternatePlaybackLine(currentTime) {
+    var candidate = alternatePlaybackLinks()[0];
+    if (!candidate) return false;
+
+    var target = normalizePlaybackUrl(candidate.href);
+    if (!target) return false;
+
+    var time = Number(currentTime);
+    var previous = readAlternatePlaybackResume();
+    if (previous && previous.target === currentPlaybackUrl() && previous.time > time) {
+      time = previous.time;
+    }
+    storeAlternatePlaybackResume(target, time);
+    window.location.href = target;
+    return true;
+  }
+
+  function consumeAlternatePlaybackResume() {
+    var record = readAlternatePlaybackResume();
+    if (!record || record.target !== currentPlaybackUrl()) return 0;
+
+    clearAlternatePlaybackResume();
+    return record.time;
   }
 
   function getNextPlaybackUrl() {
@@ -1442,6 +1577,9 @@
   window.PingFangVideo.initHomeLatestTabs = initHomeLatestTabs;
   window.PingFangVideo.initHomeContinueWatching = initHomeContinueWatching;
   window.PingFangVideo.initAutoNextPlayback = initAutoNextPlayback;
+  window.PingFangVideo.hasAlternatePlaybackLine = hasAlternatePlaybackLine;
+  window.PingFangVideo.switchToAlternatePlaybackLine = switchToAlternatePlaybackLine;
+  window.PingFangVideo.consumeAlternatePlaybackResume = consumeAlternatePlaybackResume;
   window.PingFangVideo.initDynamicVodFilters = initDynamicVodFilters;
   window.PingFangVideo.initThemeSwitchers = initThemeSwitchers;
   window.PingFangVideo.initLoginControls = initLoginControls;

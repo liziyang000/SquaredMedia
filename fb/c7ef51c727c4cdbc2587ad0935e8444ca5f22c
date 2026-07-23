@@ -1,0 +1,73 @@
+addons/pingfangapi/application/index/controller/Pingfangapi.php
+  s_0173a874687295::t_3ecefb26a981f6 87,104-123
+addons/pingfangapi/service/ContentService.php
+  s_0173a874687295::t_f51929f6057da9 287,1007,1475-1482
+apps/web/deploy/package-lock.json
+  s_0173a874687295::t_d68e4673fbaeb3 11,14,35-44,806-811
+apps/web/deploy/package.json
+  s_0173a874687295::t_b79c11bc00300e 9,12
+apps/web/package.json
+  s_0173a874687295::t_a1ccfa7b245a25 20,23
+apps/web/src/app/App.test.tsx
+  s_0173a874687295::t_39f21bb39f25d0 6,197,270-271,330-337,378,381-383,391,411-412,416-450,670-671,725-801
+apps/web/src/components/CaptchaField.tsx
+  s_9b4d385d88a8aa::t_c75cf9ae69ba39 7,10,13,17-51,59
+apps/web/src/components/ContentBoundary.test.tsx
+  s_0173a874687295::t_47afb28d05ccd5 1-90
+apps/web/src/components/ContentBoundary.tsx
+  s_0173a874687295::t_b52d8b906ed273 1,3-4,12-141,145-147,152-153,165-169
+apps/web/src/components/PagePrimitives.test.tsx
+  s_9b4d385d88a8aa::t_30c87584e3434c 4-5,29-62
+apps/web/src/components/PagePrimitives.tsx
+  s_0173a874687295::t_26a2dbd8544b57 17,45-59,61-74,78-89,133-134,138
+apps/web/src/components/SiteHeader.tsx
+  s_9b4d385d88a8aa::t_7b2fda55a86481 160,235
+apps/web/src/migrationRoutes.test.ts
+  s_9b4d385d88a8aa::t_614f921de85894 8
+apps/web/src/migrationRoutes.ts
+  s_9b4d385d88a8aa::t_e45c9ac64e3ec1 55,58
+apps/web/src/screens/AccountPages.tsx
+  s_9b4d385d88a8aa::t_c56daa5949126b 4,38-109,120,151,157,159,165-167,184-186,204-207,211-213
+apps/web/src/screens/CatalogPages.tsx
+  s_0173a874687295::t_bc413dbe600fce 102,108-109,153-155,165,205,284,349
+apps/web/src/screens/ContentPages.tsx
+  s_0173a874687295::t_31393cb2d60879 23,187,195,410,509
+apps/web/src/screens/InteractionPages.tsx
+  s_0173a874687295::t_61e37a0eb0e8bf 365-367,369,371-396,432-480
+apps/web/src/styles/index.css
+  s_0173a874687295::t_d6ad2e5e9de380 3-6,69-308,323-383,534,541,551-719,723-724,749-796
+docs/react-template-migration-matrix.md
+  s_9b4d385d88a8aa::t_6431ef7b15d58e 90,94
+package-lock.json
+  s_0173a874687295::t_4e9a3fcc945127 26,29,640-649,3401-3406
+tests/pingfang-api-controller.test.php
+  s_0173a874687295::t_486a1fe2041d99 196-197
+tests/pingfang-api.test.php
+  s_0173a874687295::t_72e9991c799a00 452-456,1203-1206
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fbc7ef51c727c4cdbc2587ad0935e8444ca5f22c",
+  "prompts": {},
+  "sessions": {
+    "s_0173a874687295": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f89fb-4224-7ca3-b46a-f1e8f29eb533",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    },
+    "s_9b4d385d88a8aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f82d7-e5fe-79e0-b6db-f65a80631f64",
+        "model": "unknown"
+      },
+      "human_author": "李博康 <libokang.ppkf@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

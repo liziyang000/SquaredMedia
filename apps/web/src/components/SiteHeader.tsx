@@ -157,7 +157,7 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
             <Link to="/" aria-current={homeIsCurrent ? "page" : undefined}>
               首页
             </Link>
-            <Link to="/videos" aria-current={videosAreCurrent ? "page" : undefined}>
+            <Link to="/categories" aria-current={videosAreCurrent ? "page" : undefined}>
               视频
             </Link>
           </nav>
@@ -232,7 +232,7 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
           <Link to="/" aria-current={homeIsCurrent ? "page" : undefined} onClick={closeDrawer}>
             首页
           </Link>
-          <Link to="/videos" aria-current={videosAreCurrent ? "page" : undefined} onClick={closeDrawer}>
+          <Link to="/categories" aria-current={videosAreCurrent ? "page" : undefined} onClick={closeDrawer}>
             视频
           </Link>
         </nav>

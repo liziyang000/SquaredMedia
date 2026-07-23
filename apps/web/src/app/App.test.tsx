@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountPage, LoginPage } from "../screens/AccountPages";
-import { CatalogPage, RankingsPage, SearchPage } from "../screens/CatalogPages";
+import { CatalogPage, CategoriesPage, RankingsPage, SearchPage } from "../screens/CatalogPages";
 import { ContentChallengePage, DownloadsPage, PlayerPage, PlotPage, VodDetailPage } from "../screens/ContentPages";
 import { HomePage } from "../screens/HomePage";
 import { FeedbackPage, ReportPage } from "../screens/InteractionPages";
@@ -194,6 +194,7 @@ function routeForTest(path: string) {
   const { pathname } = new URL(path, "http://react.test");
   if (pathname === "/") return { element: <HomePage />, params: {} };
   if (pathname === "/videos") return { element: <CatalogPage />, params: {} };
+  if (pathname === "/categories") return { element: <CategoriesPage />, params: {} };
   if (pathname === "/rankings/yearly") return { element: <RankingsPage />, params: {} };
   if (pathname === "/search") return { element: <SearchPage />, params: {} };
   if (pathname === "/history") return { element: <LocalHistoryPage />, params: {} };
@@ -266,6 +267,8 @@ describe("React migration routes", () => {
     expect(screen.getByRole("link", { name: "查看更多" })).toHaveAttribute("href", "/rankings/yearly");
     expect(screen.getByRole("link", { name: "热播榜全站热度" })).toHaveAttribute("href", "/rankings/yearly");
     expect(screen.getByRole("link", { name: "登录" })).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/categories"]')).toHaveTextContent("视频");
+    expect(container.querySelector('.mobile-drawer-links a[href="/categories"]')).toHaveTextContent("视频");
     const actions = vi.mocked(fetch).mock.calls.map(([input]) => requestAction(input));
     expect(actions.filter((action) => action === "home_v2")).toHaveLength(1);
     expect(actions).not.toContain("navigation");
@@ -324,6 +327,14 @@ describe("React migration routes", () => {
     expectMigratedPage(container);
   });
 
+  it("renders the video category index at the top navigation target", async () => {
+    const { container } = renderRoutes("/categories");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "视频分类" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "进入电影" })).toHaveAttribute("href", "/category/42");
+    expectMigratedPage(container);
+  });
+
   it("keeps anonymous feedback enabled when MacCMS does not require login", async () => {
     let submittedBody: Record<string, unknown> | undefined;
     vi.mocked(fetch).mockImplementation(async (input, init) => {
@@ -364,9 +375,12 @@ describe("React migration routes", () => {
   });
 
   it("allows anonymous MacCMS rating and digg while keeping counts in sync", async () => {
-    renderRoutes("/vod/1");
+    const { container } = renderRoutes("/vod/1");
 
     expect(await screen.findByRole("heading", { level: 1, name: "云端回声" })).toBeInTheDocument();
+    expect(container.querySelector(".detail-actions > .primary-btn + .detail-favorite-action")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "下载" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "评论" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "评分" }));
     expect(await screen.findByText("评分已提交")).toBeInTheDocument();
     expect(screen.getByText("13 人评分")).toBeInTheDocument();
@@ -374,7 +388,7 @@ describe("React migration routes", () => {
     expect(await screen.findByRole("button", { name: "点赞 10" })).toBeInTheDocument();
   });
 
-  it("requests the scoped paginated library and renders the category entry cards", async () => {
+  it("requests the scoped paginated library without repeating the category entry cards", async () => {
     vi.mocked(fetch).mockImplementation(async (input) => {
       if (requestAction(input) === "content") {
         return jsonResponse({
@@ -394,9 +408,44 @@ describe("React migration routes", () => {
     expect(requestParam(contentCall!, "scope")).toBe("library");
     expect(requestParam(contentCall!, "page")).toBe("2");
     expect(requestParam(contentCall!, "page_size")).toBe("24");
-    expect(screen.getByRole("link", { name: "进入电影" })).toHaveAttribute("href", "/category/42");
-    expect(container.querySelector(".category-tile .sort-hot")).toHaveAttribute("href", "/category/42?sort=hot");
+    expect(screen.queryByRole("link", { name: "进入电影" })).not.toBeInTheDocument();
+    expect(container.querySelector(".category-tile")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "下一页" })).toHaveAttribute("href", "/videos?page=3");
+  });
+
+  it("replaces the library root types with the selected category children", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (requestAction(input) === "content") {
+        return jsonResponse({
+          code: 1,
+          msg: "内容加载成功",
+          data: {
+            ...contentFixtureResponse,
+            categoryContext: {
+              current: { id: 4201, name: "动作", parentId: 42 },
+              parent: { id: 42, name: "电影", parentId: null },
+              children: [
+                { id: 4201, name: "动作", parentId: 42 },
+                { id: 4202, name: "喜剧", parentId: 42 }
+              ]
+            }
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    const { container } = renderRoutes("/videos?typeId=4201&area=冰岛");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "影片库" })).toBeInTheDocument();
+    const typeRow = Array.from(container.querySelectorAll(".filter-row")).find((row) => row.querySelector("strong")?.textContent === "类型");
+    expect(typeRow?.querySelector(".is-active")).toHaveTextContent("动作");
+    expect(typeRow?.querySelector('a[href*="typeId=42"]')).toHaveTextContent("全部");
+    expect(typeRow?.querySelector('a[href*="typeId=4202"]')).toHaveTextContent("喜剧");
+    expect(typeRow?.querySelector('a[href^="/category/"]')).not.toBeInTheDocument();
+    const contentCall = vi.mocked(fetch).mock.calls.find(([input]) => requestAction(input) === "content")?.[0];
+    expect(requestParam(contentCall!, "type_id")).toBe("4201");
+    expect(requestParam(contentCall!, "scope")).toBe("library");
   });
 
   it("uses category context and native facets for a child category", async () => {
@@ -618,8 +667,8 @@ describe("React migration routes", () => {
     renderRoutes("/watch/1/1/101");
 
     expect(await screen.findByTitle("云端回声 - 正片 播放器")).toHaveAttribute("src", "/index.php/pingfangapi/player/id/1/sid/1/nid/101.html");
-    expect(await screen.findByText("播放记录已保存")).toBeInTheDocument();
-    expect(historyBodies).toEqual([{ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 0 }]);
+    await waitFor(() => expect(historyBodies).toEqual([{ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 0 }]));
+    expect(screen.queryByText("播放记录已保存")).not.toBeInTheDocument();
   });
 
   it("renders sanitized anonymous browser history separately from account history", async () => {
@@ -671,6 +720,83 @@ describe("React migration routes", () => {
     expect(await screen.findByRole("heading", { name: "欢迎回来" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "注册会员" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "忘记密码？" })).not.toBeInTheDocument();
+  });
+
+  it("matches the legacy login controls and fine-pointer glass highlight", async () => {
+    let frameCallback: FrameRequestCallback | undefined;
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(
+        (query: string) =>
+          ({
+            matches: query.includes("hover: hover"),
+            media: query,
+            onchange: null,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            dispatchEvent: vi.fn(() => true)
+          }) as MediaQueryList
+      )
+    );
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        frameCallback = callback;
+        return 1;
+      })
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (requestAction(input) === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: {
+            authenticated: false,
+            user: null,
+            csrfToken: "test-csrf-token",
+            requirements: {
+              loginCaptcha: true,
+              feedbackLogin: false,
+              feedbackEnabled: true,
+              feedbackAudit: false,
+              feedbackCaptcha: false,
+              commentLogin: false,
+              commentEnabled: true,
+              commentAudit: false,
+              commentCaptcha: false,
+              captchaUrl: "/index.php/verify/index"
+            }
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    const { container } = renderRoutes("/login");
+
+    expect(await screen.findByRole("heading", { name: "欢迎回来" })).toBeInTheDocument();
+    const panel = container.querySelector(".react-login-panel");
+    expect(panel?.querySelectorAll("svg.login-field-icon")).toHaveLength(3);
+    expect(panel?.querySelector(".login-captcha-row")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("输入验证码")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "点击刷新验证码" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "换一张验证码" })).toHaveClass("login-captcha-refresh");
+
+    const password = screen.getByPlaceholderText("登录密码");
+    const passwordToggle = screen.getByRole("button", { name: "显示密码" });
+    expect(passwordToggle.querySelector("svg")).toBeInTheDocument();
+    fireEvent.click(passwordToggle);
+    expect(password).toHaveAttribute("type", "text");
+    expect(passwordToggle).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.pointerMove(window, { clientX: 320, clientY: 240, pointerType: "mouse" });
+    expect(panel).toHaveAttribute("data-login-pointer", "active");
+    frameCallback?.(0);
+    expect(panel?.querySelector<HTMLElement>(".login-glass-highlight")?.style.transform).toContain("translate3d");
+    expect(screen.getByRole("button", { name: "登录" })).toHaveClass("login-submit");
   });
 
   it("renders the React 404 page for an unknown route", async () => {

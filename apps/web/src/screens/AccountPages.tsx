@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "../app/routing";
 
@@ -35,6 +35,78 @@ function AccountGate({ children }: { children: ReactNode }) {
   return children;
 }
 
+function useLoginGlassMotion(enabled: boolean) {
+  const panelRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const panel = panelRef.current;
+    const highlight = panel?.querySelector<HTMLElement>(".login-glass-highlight");
+    if (!panel || !highlight) return;
+
+    const page = panel.closest<HTMLElement>(".login-page");
+    let observer: IntersectionObserver | undefined;
+    if ("IntersectionObserver" in window) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          const state = entry?.isIntersecting ? "running" : "paused";
+          panel.dataset.loginMotion = state;
+          if (page) page.dataset.loginMotion = state;
+        },
+        { threshold: 0.08 }
+      );
+      observer.observe(panel);
+    }
+
+    const finePointer = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!finePointer || reduceMotion) return () => observer?.disconnect();
+
+    let frame = 0;
+    let pointerPosition: { x: number; y: number } | null = null;
+    const renderHighlight = () => {
+      frame = 0;
+      if (!pointerPosition || !panel.isConnected) return;
+      const bounds = panel.getBoundingClientRect();
+      const highlightSize = highlight.offsetWidth || 340;
+      const x = pointerPosition.x - bounds.left - panel.clientLeft - highlightSize / 2;
+      const y = pointerPosition.y - bounds.top - panel.clientTop - highlightSize / 2;
+      highlight.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+    };
+    const requestRender = () => {
+      if (!pointerPosition || frame) return;
+      frame = window.requestAnimationFrame(renderHighlight);
+    };
+    const trackPointer = (event: PointerEvent) => {
+      if (event.pointerType && event.pointerType !== "mouse") return;
+      pointerPosition = { x: event.clientX, y: event.clientY };
+      panel.dataset.loginPointer = "active";
+      requestRender();
+    };
+    const hideHighlight = () => {
+      delete panel.dataset.loginPointer;
+    };
+
+    window.addEventListener("pointermove", trackPointer, { passive: true });
+    window.addEventListener("scroll", requestRender, { passive: true });
+    window.addEventListener("resize", requestRender);
+    window.addEventListener("blur", hideHighlight);
+    document.documentElement.addEventListener("pointerleave", hideHighlight);
+
+    return () => {
+      observer?.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", trackPointer);
+      window.removeEventListener("scroll", requestRender);
+      window.removeEventListener("resize", requestRender);
+      window.removeEventListener("blur", hideHighlight);
+      document.documentElement.removeEventListener("pointerleave", hideHighlight);
+    };
+  }, [enabled]);
+
+  return panelRef;
+}
+
 export function LoginPage() {
   const account = useAccount();
   const navigate = useNavigate();
@@ -45,6 +117,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const panelRef = useLoginGlassMotion(!account.isPending && !account.error && !account.session.authenticated);
   const destination = ((location.state as { from?: string } | null)?.from || "/account").startsWith("/")
     ? (location.state as { from?: string } | null)?.from || "/account"
     : "/account";
@@ -75,23 +148,23 @@ export function LoginPage() {
 
   return (
     <main className="login-page" id="mainContent" tabIndex={-1} aria-labelledby="reactLoginTitle">
-      <form className="login-panel verify-form" onSubmit={submit}>
+      <form ref={panelRef} className="login-panel verify-form react-login-panel" onSubmit={submit}>
         <span className="login-edge-glow" aria-hidden="true" />
         <span className="login-glass-highlight" aria-hidden="true" />
         <div className="login-heading">
           <span className="login-kicker">MEMBER LOGIN</span>
           <h1 id="reactLoginTitle">欢迎回来</h1>
-          <p>登录账号以继续管理收藏、记录和登录设备</p>
+          <p id="reactLoginSubtitle">登录账号以继续管理收藏、记录和登录设备</p>
         </div>
-        <div className="login-fields">
+        <div className="login-fields" aria-describedby="reactLoginSubtitle">
           <div className="login-field">
             <label className="login-label" htmlFor="reactLoginAccount">
               账号
             </label>
             <span className="login-control">
-              <span className="login-field-icon" aria-hidden="true">
-                ◇
-              </span>
+              <svg className="login-field-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
+              </svg>
               <input
                 id="reactLoginAccount"
                 name="username"
@@ -108,9 +181,9 @@ export function LoginPage() {
               密码
             </label>
             <span className="login-control">
-              <span className="login-field-icon" aria-hidden="true">
-                ◇
-              </span>
+              <svg className="login-field-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3" />
+              </svg>
               <input
                 id="reactLoginPassword"
                 type={showPassword ? "text" : "password"}
@@ -128,14 +201,17 @@ export function LoginPage() {
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword((visible) => !visible)}
               >
-                {showPassword ? "隐藏" : "显示"}
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
               </button>
             </span>
           </div>
+          {account.session.requirements.loginCaptcha && account.session.requirements.captchaUrl && (
+            <CaptchaField variant="login" url={account.session.requirements.captchaUrl} value={captcha} onChange={setCaptcha} />
+          )}
         </div>
-        {account.session.requirements.loginCaptcha && account.session.requirements.captchaUrl && (
-          <CaptchaField url={account.session.requirements.captchaUrl} value={captcha} onChange={setCaptcha} />
-        )}
         {process.env.NODE_ENV !== "production" && <SuccessMessage message="本地验收账号：demo / demo123" />}
         {error && <ErrorMessage message={error} />}
         <div className="login-options">

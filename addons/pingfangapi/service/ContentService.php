@@ -284,6 +284,7 @@ class ContentService
         if (empty($playList[$sourceId]['urls'][$episodeId])) {
             throw new ApiException(404, '播放资源不存在');
         }
+        $this->assertPlaybackAccess($row, $sourceId, $episodeId);
 
         $episode = $playList[$sourceId]['urls'][$episodeId];
         $episodeName = self::nonEmptyText(
@@ -1003,11 +1004,10 @@ class ContentService
 
     private function playbackFields($withDisplay)
     {
-        $fields = explode(',', $this->accessFields());
+        $fields = explode(',', $this->gateFields('playback', true));
         if ($withDisplay) {
             $fields = array_merge($fields, ['vod_name', 'vod_pic']);
         }
-        $fields = array_merge($fields, ['vod_play_from', 'vod_play_server', 'vod_play_note', 'vod_play_url']);
         return implode(',', array_values(array_unique($fields)));
     }
 
@@ -1470,6 +1470,14 @@ class ContentService
             'points' => $points,
             'tryseeMinutes' => $tryseeMinutes,
         ];
+    }
+
+    protected function assertPlaybackAccess(array $row, $sourceId, $episodeId)
+    {
+        $access = $this->accessState($row, 'playback', $sourceId, $episodeId);
+        if (empty($access['authorized'])) {
+            throw new ApiException(403, isset($access['message']) ? $access['message'] : '无权播放该内容');
+        }
     }
 
     private function assertCategoryAccess(array $row)

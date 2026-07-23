@@ -449,6 +449,11 @@ final class PingfangApiContentTotalProbe extends ContentService
         $this->assertAccessEpisode($row, $scope, $sourceId, $episodeId);
     }
 
+    public function checkPlaybackAccess(array $row, int $sourceId, int $episodeId): void
+    {
+        $this->assertPlaybackAccess($row, $sourceId, $episodeId);
+    }
+
     public function typeIds(array $query, array $types): array
     {
         return $this->typeIdsForQuery($query, $types);
@@ -1195,6 +1200,10 @@ $permissionGate = new PingfangApiContentTotalProbe(static function () {
 });
 $assertSame('permission', $permissionGate->state($gateRow, 'detail')['state'], 'Copyright mode 2 must not replace a denied detail permission state.');
 $assertSame('copyright', $allowedGate->state($gateRow, 'detail')['state'], 'Copyright mode 2 must replace authorized detail output.');
+$assertThrowsStatus(static function () use ($permissionGate, $gateRow): void {
+    $permissionGate->checkPlaybackAccess($gateRow, 1, 1);
+}, 403, 'Playback descriptors must not be returned before the native permission gate passes.');
+$allowedGate->checkPlaybackAccess($gateRow, 1, 1);
 $GLOBALS['config'] = $routeConfig;
 
 $addonSource = '';

@@ -84,7 +84,7 @@ class Pingfangapi extends All
                 && (string) session('1-4-' . intval($info['vod_id'])) !== '1') {
                 return $this->playerResponse($this->label_fetch('vod/player_pwd'));
             }
-            return $this->playerResponse($this->label_fetch('vod/player'));
+            return $this->playerResponse($this->embeddedPlayerHtml($this->label_fetch('vod/player')));
         } catch (ApiException $e) {
             return $this->playerResponse($e->getMessage(), $e->status());
         } catch (\Throwable $e) {
@@ -99,6 +99,26 @@ class Pingfangapi extends All
             'Cache-Control' => 'private, no-store',
             'Pragma' => 'no-cache',
         ]);
+    }
+
+    private function embeddedPlayerHtml($content)
+    {
+        $style = <<<'HTML'
+<style data-pingfang-player-embed>
+html,body{width:100%;height:100%;min-height:0;margin:0;overflow:hidden;background:#000}
+body::before,.site-header,.mobile-drawer,.mobile-drawer-backdrop,.player-head,.player-toolbar,#episodeList{display:none!important}
+#mainContent,.player-page,.player-page>.wrap{width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important}
+.player-page::after{display:none!important}
+.player-shell{width:100%!important;height:100%!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important}
+.player-shell #MacPlayer,.player-shell iframe,.player-shell video,.player-shell embed,.player-shell object,.player-shell #MacPlayer>*{width:100%!important;height:100%!important;min-height:0!important;border:0!important}
+</style>
+HTML;
+        $content = (string) $content;
+        if (stripos($content, '</head>') !== false) {
+            $embedded = preg_replace('/<\/head>/i', $style . '</head>', $content, 1);
+            return is_string($embedded) ? $embedded : $style . $content;
+        }
+        return $style . $content;
     }
 
     public function _empty()

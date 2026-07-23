@@ -99,13 +99,14 @@ function FilterRow({
   );
 }
 
-function CategoryTypeRow({ content, params }: { content: ContentData; params: URLSearchParams }) {
+function CategoryTypeRow({ content, params, library = false }: { content: ContentData; params: URLSearchParams; library?: boolean }) {
   const { current, parent, children } = content.categoryContext;
   if (!current) return null;
 
   const root = parent ?? current;
   const allActive = !parent && !["area", "year", "lang", "letter", "class"].some((name) => stringParam(params, name));
-  const categoryHref = (id: string) => hrefWithParams(`/category/${id}`, params, { typeId: undefined });
+  const categoryHref = (id: string) =>
+    library ? hrefWithParams("/videos", params, { typeId: id }) : hrefWithParams(`/category/${id}`, params, { typeId: undefined });
 
   return (
     <div className="filter-row">
@@ -148,32 +149,10 @@ function SearchTypeRow({ content, params }: { content: ContentData; params: URLS
   );
 }
 
-function CategoryIndex({ categories }: { categories: ContentData["categories"] }) {
-  return (
-    <section className="wrap category-index" aria-label="视频分类">
-      {categories.map((category) => (
-        <article className="category-tile" key={category.id}>
-          <Link className="category-hit" to={`/category/${category.id}`} aria-label={`进入${category.name}`} />
-          <div className="category-main">
-            <span>{category.name}</span>
-            <em>进入频道</em>
-          </div>
-          <div className="category-children">
-            {sortOptions.map((option) => (
-              <Link className={`category-sort sort-${option.value}`} key={option.value} to={`/category/${category.id}?sort=${option.value}`}>
-                {option.label}
-              </Link>
-            ))}
-          </div>
-        </article>
-      ))}
-    </section>
-  );
-}
-
 function CatalogContent({ content, typeId, params }: { content: ContentData; typeId?: string; params: URLSearchParams }) {
-  const category = typeId ? content.categoryContext.current : undefined;
-  const pathname = category ? `/category/${category.id}` : "/videos";
+  const category = content.categoryContext.current ?? undefined;
+  const routeCategory = typeId ? category : undefined;
+  const pathname = routeCategory ? `/category/${routeCategory.id}` : "/videos";
   const selectedClass = stringParam(params, "class");
   const query = catalogQuery(typeId, params);
   const result = {
@@ -183,7 +162,7 @@ function CatalogContent({ content, typeId, params }: { content: ContentData; typ
     totalPages: content.totalPages
   };
   const classes = content.facets.classes;
-  const title = category?.name ?? "影片库";
+  const title = routeCategory?.name ?? "影片库";
   const sortLabel = sortOptions.find((option) => option.value === query.sort)?.label ?? "最新";
 
   useEffect(() => {
@@ -210,7 +189,6 @@ function CatalogContent({ content, typeId, params }: { content: ContentData; typ
   return (
     <main id="mainContent" tabIndex={-1}>
       <PageHeader eyebrow="分类浏览" title={title} description={`按${sortLabel}排序，共 ${result.total} 部内容。`} />
-      {!typeId && <CategoryIndex categories={content.categories} />}
       <section className="wrap filter-panel category-filter">
         <div className="filter-row filter-search-row">
           <strong>搜索</strong>
@@ -224,7 +202,7 @@ function CatalogContent({ content, typeId, params }: { content: ContentData; typ
           </form>
         </div>
         {category ? (
-          <CategoryTypeRow content={content} params={params} />
+          <CategoryTypeRow content={content} params={params} library={!typeId} />
         ) : (
           <FilterRow
             label="类型"
@@ -303,7 +281,7 @@ export function CatalogPage() {
   const { typeId } = useParams();
   const [params] = useSearchParams();
   return (
-    <ContentBoundary request={catalogQuery(typeId, params)}>
+    <ContentBoundary request={catalogQuery(typeId, params)} readyTitle="筛选完成" readyDescription="正在呈现符合条件的影片…">
       {(content) => <CatalogContent content={content} typeId={typeId} params={params} />}
     </ContentBoundary>
   );
@@ -368,7 +346,7 @@ export function SearchPage() {
   };
 
   return (
-    <ContentBoundary request={request}>
+    <ContentBoundary request={request} readyTitle="搜索完成" readyDescription="正在呈现匹配的影片…">
       {(content) => {
         const result = {
           items: content.videos,

@@ -20,7 +20,7 @@ import { useAccount } from "../app/AccountContext";
 import { DetailBoundary } from "../components/ContentBoundary";
 import { Artwork, EmptyState, PageHeader, PageStatus, VodCard } from "../components/PagePrimitives";
 import { upsertLocalHistory } from "../localHistory";
-import { VodInteractions } from "./InteractionPages";
+import { VodFavoriteButton, VodInteractions } from "./InteractionPages";
 
 type ContentPageProps = {
   api?: ContentApi;
@@ -173,9 +173,6 @@ function VodDetailContent({ content }: { content: ContentDetailData }) {
             <span className="eyebrow">{video.typeName}</span>
             <div className="detail-title-row">
               <h1>{video.title}</h1>
-              <span className="score-badge" aria-label={`${video.score.toFixed(1)} 分`}>
-                {video.score.toFixed(1)}
-              </span>
             </div>
             <p className="meta">
               {video.year || "年份未知"} / {video.area || "地区未知"} / {video.class || "类型待更新"}
@@ -187,19 +184,15 @@ function VodDetailContent({ content }: { content: ContentDetailData }) {
                   立即播放
                 </Link>
               )}
-              <Link className="ghost-btn" to={`/vod/${video.id}/download`}>
-                下载
-              </Link>
+              <VodFavoriteButton vodId={video.id} />
               <Link className="ghost-btn" to={`/vod/${video.id}/plot`}>
                 分集剧情
               </Link>
               <Link className="ghost-btn" to={`/report?vodId=${encodeURIComponent(video.id)}`}>
                 片源报错
               </Link>
-              <Link className="ghost-btn" to={`/comments/1/${video.id}`}>
-                评论
-              </Link>
             </div>
+            <VodInteractions vodId={video.id} score={video.score} scoreCount={video.scoreCount} likes={video.likes} dislikes={video.dislikes} />
             <dl className="detail-data">
               <div>
                 <dt>导演</dt>
@@ -226,7 +219,6 @@ function VodDetailContent({ content }: { content: ContentDetailData }) {
                 <dd>{video.duration || "待更新"}</dd>
               </div>
             </dl>
-            <VodInteractions vodId={video.id} score={video.score} scoreCount={video.scoreCount} likes={video.likes} dislikes={video.dislikes} />
           </div>
         </div>
       </section>
@@ -415,6 +407,7 @@ function PlayerMedia({
       <iframe
         src={playback.url}
         title={`${playback.title} - ${playback.episodeName} 播放器`}
+        className="native-player-frame"
         allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
         allowFullScreen
         referrerPolicy="strict-origin-when-cross-origin"
@@ -459,7 +452,6 @@ function AuthorizedPlayer({
   const video = { id: playback.vodId, title: playback.title, poster: playback.poster };
   const account = useAccount();
   const navigate = useNavigate();
-  const [historyMessage, setHistoryMessage] = useState("");
   const [autoAdvance, setAutoAdvance] = useState(true);
   const startedHistoryKey = useRef("");
   const previousEpisode = activeGroup.episodes[activeIndex - 1];
@@ -489,10 +481,8 @@ function AuthorizedPlayer({
         episodeId: activeEpisode.id,
         positionSeconds: 0
       })
-      .then(() => setHistoryMessage("播放记录已保存"))
       .catch(() => {
         startedHistoryKey.current = "";
-        setHistoryMessage("播放记录暂未保存");
       });
   }, [account.api, account.session.authenticated, activeEpisode.id, activeEpisode.sourceId, trial, video.id]);
 
@@ -516,8 +506,7 @@ function AuthorizedPlayer({
         positionSeconds: Math.max(element.currentTime, 0),
         ...(Number.isFinite(element.duration) && element.duration > 0 ? { durationSeconds: element.duration } : {})
       })
-      .then(() => setHistoryMessage("播放进度已保存"))
-      .catch(() => setHistoryMessage("播放进度暂未保存"));
+      .catch(() => undefined);
   };
 
   return (
@@ -573,11 +562,6 @@ function AuthorizedPlayer({
               </Link>
             </div>
           </div>
-          {historyMessage && (
-            <p className="react-form-message" role="status">
-              {historyMessage}
-            </p>
-          )}
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import { resolveMigrationRoute } from "./migrationRoutes";
 describe("local migration route policy", () => {
   it.each([
     ["/index.php/vod/show.html?area=大陆&by=hits&page=2", "/videos?area=%E5%A4%A7%E9%99%86&page=2&sort=hot"],
+    ["/index.php/label/categories.html", "/categories"],
     ["/index.php/vod/type/id/42.html?year=2026", "/category/42?year=2026"],
     ["/index.php/vod/search/wd/云端.html?type=42&page=3", "/search?wd=%E4%BA%91%E7%AB%AF&page=3&typeId=42"],
     ["/index.php/vod/detail/id/1.html", "/vod/1"],

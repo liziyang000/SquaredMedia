@@ -1,5 +1,9 @@
 @import "../../../../template/pingfangvideo/css/style.css";
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   min-height: 100vh;
 }
@@ -62,6 +66,246 @@ body {
   padding: 10px 18px;
 }
 
+.loading-status-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 16% 14%, rgba(128, 112, 255, 0.2), transparent 32%), linear-gradient(145deg, rgba(18, 26, 57, 0.96), rgba(10, 18, 39, 0.9));
+}
+
+.loading-status-panel::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 22%, rgba(151, 185, 255, 0.12) 44%, rgba(112, 244, 255, 0.18) 50%, transparent 58%);
+  content: "";
+  pointer-events: none;
+  transform: translateX(-125%);
+  animation: loading-panel-sweep 3.2s linear infinite;
+}
+
+.loading-status-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.loading-status-mark {
+  position: relative;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+}
+
+.loading-status-mark .brand-emblem {
+  flex-basis: 40px;
+  animation: loading-emblem-pulse 1.8s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.loading-status-orbit {
+  position: absolute;
+  inset: -7px;
+  border: 1px solid rgba(147, 170, 255, 0.2);
+  border-radius: 50%;
+  animation: loading-orbit-spin 3.4s linear infinite;
+}
+
+.loading-status-orbit i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #9e9bff;
+  box-shadow: 0 0 12px rgba(158, 155, 255, 0.9);
+}
+
+.loading-status-orbit i:nth-child(1) {
+  top: -3px;
+  left: calc(50% - 2px);
+}
+
+.loading-status-orbit i:nth-child(2) {
+  right: 4px;
+  bottom: 5px;
+  background: #72e8ff;
+  box-shadow: 0 0 12px rgba(114, 232, 255, 0.9);
+}
+
+.loading-status-orbit i:nth-child(3) {
+  bottom: 9px;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  opacity: 0.72;
+}
+
+.loading-status-motion {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.loading-status-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(162, 178, 232, 0.13);
+}
+
+.loading-status-bar {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8c7cff, #6ee7ff 58%, #efffff);
+  box-shadow: 0 0 14px rgba(110, 231, 255, 0.48);
+  transform: translateX(-110%) scaleX(0.22);
+  transform-origin: left center;
+  animation: loading-progress-flow 1.7s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.loading-status-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.loading-status-stages i {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(185, 197, 223, 0.5);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  animation: loading-stage-focus 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.loading-status-stages i::before {
+  flex: 0 0 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+  box-shadow: 0 0 9px currentColor;
+}
+
+.loading-status-stages i:nth-child(2) {
+  animation-delay: 1.2s;
+}
+
+.loading-status-stages i:nth-child(3) {
+  animation-delay: 2.4s;
+}
+
+.loading-status-panel.is-ready::before,
+.loading-status-panel.is-ready .brand-emblem,
+.loading-status-panel.is-ready .loading-status-orbit,
+.loading-status-panel.is-ready .loading-status-bar,
+.loading-status-panel.is-ready .loading-status-stages i {
+  animation: none;
+}
+
+.loading-status-panel.is-ready .loading-status-bar {
+  transform: translateX(0) scaleX(0.72);
+}
+
+.loading-status-panel.is-ready .loading-status-stages i {
+  color: #72e8ff;
+  opacity: 0.88;
+}
+
+@keyframes loading-panel-sweep {
+  0%,
+  20% {
+    transform: translateX(-125%);
+  }
+
+  72%,
+  100% {
+    transform: translateX(125%);
+  }
+}
+
+@keyframes loading-emblem-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+@keyframes loading-orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loading-progress-flow {
+  0% {
+    transform: translateX(-110%) scaleX(0.22);
+  }
+
+  58% {
+    transform: translateX(8%) scaleX(0.62);
+  }
+
+  100% {
+    transform: translateX(110%) scaleX(0.3);
+  }
+}
+
+@keyframes loading-stage-focus {
+  0%,
+  28%,
+  100% {
+    color: rgba(185, 197, 223, 0.42);
+    opacity: 0.62;
+    transform: translateY(0);
+  }
+
+  8%,
+  20% {
+    color: #b6f4ff;
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-status-panel::before,
+  .loading-status-mark .brand-emblem,
+  .loading-status-orbit,
+  .loading-status-bar,
+  .loading-status-stages i {
+    animation: none;
+  }
+
+  .loading-status-orbit {
+    display: none;
+  }
+
+  .loading-status-bar {
+    transform: translateX(0) scaleX(0.72);
+  }
+
+  .loading-status-stages i {
+    color: rgba(185, 197, 223, 0.72);
+    opacity: 1;
+  }
+}
+
 .home-hero-empty {
   place-items: center;
   padding: 24px;
@@ -74,6 +318,67 @@ body {
 
 .react-app {
   min-height: 100vh;
+}
+
+.react-app .header-search,
+.react-app .channel-search,
+.react-app .mobile-drawer-search {
+  --react-search-radius: 15px;
+
+  border-radius: var(--react-search-radius);
+}
+
+.react-app .header-search:focus-within,
+.react-app .channel-search:focus-within,
+.react-app .mobile-drawer-search:focus-within {
+  border-color: rgba(112, 211, 255, 0.56);
+  box-shadow: 0 0 18px rgba(112, 211, 255, 0.16);
+}
+
+.react-app .header-search input {
+  border-radius: calc(var(--react-search-radius) - 1px) 0 0 calc(var(--react-search-radius) - 1px);
+  box-shadow: none;
+}
+
+.react-app .channel-search input[type="search"],
+.react-app .mobile-drawer-search input {
+  border-radius: calc(var(--react-search-radius) - 4px) 0 0 calc(var(--react-search-radius) - 4px);
+  box-shadow: none;
+}
+
+.react-app .header-search button {
+  border-radius: 0 calc(var(--react-search-radius) - 1px) calc(var(--react-search-radius) - 1px) 0;
+}
+
+.react-app .channel-search button,
+.react-app .mobile-drawer-search button {
+  border-radius: 0 calc(var(--react-search-radius) - 4px) calc(var(--react-search-radius) - 4px) 0;
+}
+
+.react-app .header-search input:focus-visible,
+.react-app .header-search button:focus-visible,
+.react-app .channel-search input:focus-visible,
+.react-app .channel-search button:focus-visible,
+.react-app .mobile-drawer-search input:focus-visible,
+.react-app .mobile-drawer-search button:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.react-app .channel-search,
+.react-app .mobile-drawer-search {
+  gap: 0;
+}
+
+.react-login-panel {
+  align-content: start;
+}
+
+.react-login-panel .login-submit {
+  height: 58px;
+  min-height: 58px;
+  align-self: start;
+  padding: 0 18px;
 }
 
 .verify-form select,
@@ -226,17 +531,14 @@ body {
   padding: 18px;
 }
 
-.comment-actions,
-.rating-control {
+.comment-actions {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 12px;
 }
 
-.comment-actions button,
-.rating-control button,
-.favorite-action button {
+.comment-actions button {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -246,13 +548,180 @@ body {
   padding: 8px 12px;
 }
 
-.favorite-action {
-  display: grid;
-  place-items: center;
+.react-app .detail-grid {
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(28px, 4vw, 58px);
+  padding: 56px 0 64px;
+}
+
+.react-app .detail-panel {
+  width: 100%;
+  max-width: none;
+  padding: clamp(26px, 3.2vw, 42px);
+}
+
+.react-app .detail-title-row {
+  justify-content: flex-start;
+}
+
+.react-app .detail-main h1 {
+  max-width: 18ch;
+  font-size: clamp(40px, 4.8vw, 66px);
+  line-height: 1.02;
+}
+
+.react-app .detail-main .summary {
+  max-width: 72ch;
+  color: rgba(225, 229, 244, 0.78);
+  line-height: 1.75;
+}
+
+.react-app .detail-actions {
+  gap: 10px;
+  margin: 24px 0 16px;
+}
+
+.react-app .detail-actions .primary-btn,
+.react-app .detail-actions .ghost-btn {
+  min-height: 42px;
+  padding: 9px 16px;
+}
+
+.detail-favorite-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.favorite-feedback {
+  max-width: 150px;
+  color: var(--accent-2);
+  font-size: 12px;
+}
+
+.favorite-feedback.is-error {
+  color: #ffb4a6;
+}
+
+.react-app .detail-interactions {
+  display: flex;
+  grid-template-columns: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  margin: 0 0 22px;
+  border-top: 1px solid rgba(222, 228, 255, 0.1);
+  border-bottom: 1px solid rgba(222, 228, 255, 0.1);
+  padding: 10px 0;
+}
+
+.score-summary,
+.react-app .detail-interactions .rating-control,
+.react-app .detail-interactions .digg-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.score-summary {
+  padding-right: 16px;
+}
+
+.score-summary span,
+.react-app .detail-interactions .rating-control > span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.score-summary strong {
+  color: var(--gold);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.score-summary em {
+  color: rgba(201, 193, 223, 0.66);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.react-app .detail-interactions .rating-control {
+  margin: 0;
+  border-left: 1px solid rgba(222, 228, 255, 0.1);
+  padding: 0 16px;
+}
+
+.react-app .detail-interactions .rating-control select {
+  width: auto;
+  min-height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 13px;
+  padding: 4px 24px 4px 8px;
+}
+
+.react-app .detail-interactions .rating-control button,
+.react-app .detail-interactions .digg-panel button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(230, 233, 247, 0.78);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+.react-app .detail-interactions .rating-control button:hover,
+.react-app .detail-interactions .digg-panel button:hover {
+  background: rgba(139, 124, 255, 0.1);
+  color: #fff;
+}
+
+.react-app .detail-interactions .rating-control button:disabled,
+.react-app .detail-interactions .digg-panel button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.react-app .detail-interactions .digg-panel {
+  grid-template-columns: none;
+  border-left: 1px solid rgba(222, 228, 255, 0.1);
+  padding-left: 8px;
+}
+
+.react-app .detail-data {
+  gap: 0;
+  border-top: 1px solid rgba(222, 228, 255, 0.08);
+}
+
+.react-app .detail-data div {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid rgba(222, 228, 255, 0.08);
+  border-bottom: 1px solid rgba(222, 228, 255, 0.08);
+  border-radius: 0;
+  background: transparent;
+  padding: 14px 16px;
+}
+
+.react-app .detail-data div:nth-child(3n) {
+  border-right: 0;
+}
+
+.react-app .player-shell > .native-player-frame,
+.react-app .player-shell > video {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 .detail-interactions .react-form-message {
-  grid-column: 1 / -1;
+  flex: 1 0 100%;
+  margin: 8px 0 0;
 }
 
 @media (max-width: 760px) {
@@ -276,6 +745,54 @@ body {
 
   .account-record-list .record-item .danger-btn {
     grid-column: 1 / -1;
+  }
+
+  .react-app .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 38px 0 44px;
+  }
+
+  .react-app .detail-main h1 {
+    max-width: none;
+    font-size: clamp(38px, 12vw, 56px);
+  }
+
+  .react-app .detail-interactions {
+    gap: 6px 0;
+  }
+
+  .react-app .detail-interactions .rating-control {
+    border-left: 0;
+    padding: 0 12px 0 0;
+  }
+
+  .react-app .detail-interactions .digg-panel {
+    padding-left: 6px;
+  }
+
+  .react-app .detail-data {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .react-app .detail-data div:nth-child(3n) {
+    border-right: 1px solid rgba(222, 228, 255, 0.08);
+  }
+
+  .react-app .detail-data div:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .react-app .detail-data {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .react-app .detail-data div,
+  .react-app .detail-data div:nth-child(2n),
+  .react-app .detail-data div:nth-child(3n) {
+    border-right: 0;
   }
 }
 

@@ -96,7 +96,7 @@
 | GET    | `playback`                        | 否                   | 校验影片、线路、集数和播放权限；登录时可返回当前剧集的精确云端续播位置             |
 | GET    | `session`                         | 否                   | 当前 MacCMS 用户、白名单资料、会话 CSRF Token 和公开表单要求                     |
 | GET    | `comments`                        | 否                   | 只返回已审核评论的纯文本白名单 DTO                                               |
-| GET    | `favorites`、`history`、`devices` | 是                   | 当前用户的 Ulog 和活动设备会话                                                   |
+| GET    | `favorites`、`history`、`devices` | 是                   | 当前用户的 Ulog 和活动设备会话；账户收藏/历史支持 24 条页码分页                  |
 | POST   | `login`、`logout`                 | 登录不要求；退出要求 | 原生 `User` 登录/退出并同步 `DeviceSession`                                      |
 | POST   | `favorite`、`favorites.delete`    | 是                   | 当前用户、`mid=1`、`type=2` 的收藏记录                                           |
 | POST   | `history.save`、`history.delete`  | 是                   | 当前用户、`mid=1`、`type=4` 的播放进度；按原生 Ulog 精确更新或删除，并忽略同会话中更旧的并发断点 |
@@ -112,6 +112,12 @@
 
 `content` 不返回完整目录。除筛选、排序和分页白名单外，compact 模式还接受 `include_category_totals` 与 `include_facets`。普通目录分类名直接来自 MacCMS 类型缓存；只有分类索引显式请求时才执行并返回分类总数，只有需要剧情筛选的页面才读取剧情选项。响应中的 `videos` 是当前页，`total`、`page`、`totalPages` 来自服务端查询；组合筛选与搜索的精确计数按条件缓存。详情页通过独立 `detail&compact=1` 动作读取，不依赖当前目录页。
 
+账户收藏和历史仅在同时提供 `page/page_size` 时返回分页元数据；无分页参数的旧
+`{items}` 契约及首页 `history&limit=4` 保留用于回滚。历史分页会在有效影片和剧集
+过滤、按影片折叠并聚合全部原生 `ulog_id` 后再切页，避免跨页重复或删除后旧记录重新出现。
+React 账号页固定每页 24 条，只选择当前页；底层 ID 超过单次 100 条上限时按顺序
+分批精确删除，任一批失败会重新读取活动页；删除末页最后一项后回到仍有效的页码。
+
 `lazyload_image` 使用 MacCMS 标准图片配置控件，控制 React 全局图片加载中、空图和加载失败占位；API 只接受当前站点路径，并通过 `navigation/home_v2` 的 `ui.lazyloadImage` 下发。`home_limit` 默认 120、允许 24～300，只约束兼容 `home` 的最新内容池，不参与 `home_v2` 或目录分页。首页内容缓存默认 300 秒；分类与筛选总数缓存由 `summary_cache_seconds` 控制，默认 1800 秒、允许 0～86400 秒。缓存键包含用户组权限边界，HTTP 响应仍不允许共享缓存。普通内容响应不暴露 `vod_play_url`；关键词对影片名、演员和导演执行索引友好的前缀匹配，不执行会导致全表扫描的任意位置匹配，`%` 和 `_` 按普通字符处理。所有查询值继续由数据库参数绑定。
 
 播放器轻提示继续读取 MacCMS 系统播放器配置：`second + prestrain` 控制 React
@@ -120,7 +126,7 @@
 
 ### 会话与写入安全
 
-- 所有 POST 只接受不超过 32 KiB 的 JSON 对象，并按 action 拒绝未知字段；资源 ID 必须是正整数，批量删除最多 100 个。
+- 所有 POST 只接受不超过 32 KiB 的 JSON 对象，并按 action 拒绝未知字段；资源 ID 必须是正整数，服务端单次批量删除最多 100 个。
 - 所有 POST，包括登录，必须同时通过站内 `Origin`/`Referer`、`X-Requested-With`、`X-CSRF-Token` 和请求频率检查。插件不发送 CORS 允许头；React 客户端也拒绝绝对或协议相对 API 地址。
 - 登录强制 `openid=''`、`col=''`，内部 `return_meta` 只用于创建设备会话，不进入响应。设备注册失败会撤销设备 Token 并回滚原生登录；登录和退出后轮换 PHP Session 与 CSRF。
 - 注册、注册验证码和找回密码不在公开 action 白名单中；评论和留言复用原生审核、验证码、内容过滤、黑名单、Cookie 限频及通知行为。新增记录 ID 从同一数据库连接读取，避免写入成功却返回失败。

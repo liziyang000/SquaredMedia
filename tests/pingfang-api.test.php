@@ -499,8 +499,10 @@ final class PingfangApiFakeAccount extends AccountService
     public string $csrf = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     public array $loginInput = [];
     public array $favoriteInput = [];
+    public array $favoritePageInput = [];
     public array $historyInput = [];
     public array $historyLimits = [];
+    public array $historyPageInput = [];
     public ?int $resumePosition = null;
     public array $resumeInputs = [];
     public array $feedbackInput = [];
@@ -559,6 +561,18 @@ final class PingfangApiFakeAccount extends AccountService
         return [];
     }
 
+    public function favoritesPage($userId, $page, $pageSize)
+    {
+        $this->favoritePageInput[] = [(int) $userId, (int) $page, (int) $pageSize];
+        return [
+            'items' => [],
+            'page' => (int) $page,
+            'pageSize' => (int) $pageSize,
+            'total' => 7,
+            'totalPages' => 3,
+        ];
+    }
+
     public function setFavorite($userId, $vodId, $favorite)
     {
         $this->favoriteInput = [$userId, $vodId, $favorite];
@@ -574,6 +588,18 @@ final class PingfangApiFakeAccount extends AccountService
     {
         $this->historyLimits[] = (int) $limit;
         return [];
+    }
+
+    public function historyPage($userId, $page, $pageSize)
+    {
+        $this->historyPageInput[] = [(int) $userId, (int) $page, (int) $pageSize];
+        return [
+            'items' => [],
+            'page' => (int) $page,
+            'pageSize' => (int) $pageSize,
+            'total' => 7,
+            'totalPages' => 3,
+        ];
     }
 
     public function resumePosition($userId, $vodId, $sourceId, $episodeId)
@@ -980,9 +1006,30 @@ $assertEnvelope($request('POST', 'favorites.delete', ['recordIds' => ['key' => '
 $deleteFavorite = $assertEnvelope($request('POST', 'favorites.delete', ['recordIds' => ['71']], [], $writeHeaders), 200, 'Favorite delete');
 $assertSame(['removed' => 1], $deleteFavorite, 'Favorite delete must report removed rows.');
 
+$legacyFavorites = $assertEnvelope($request('GET', 'favorites'), 200, 'Legacy favorites');
+$assertSame(['items'], array_keys($legacyFavorites), 'Legacy favorites must keep the unpaginated response shape.');
+$favoritePage = $assertEnvelope($request('GET', 'favorites', [], ['page' => '2', 'page_size' => '3']), 200, 'Paginated favorites');
+$assertSame(['items', 'page', 'pageSize', 'total', 'totalPages'], array_keys($favoritePage), 'Paginated favorites must return the private-list page envelope.');
+$assertSame([[42, 2, 3]], $account->favoritePageInput, 'Paginated favorites must use validated bounds and the current user.');
+$assertEnvelope($request('GET', 'favorites', [], ['page' => '0', 'page_size' => '3']), 422, 'Zero favorites page');
+$assertEnvelope($request('GET', 'favorites', [], ['page' => '100001', 'page_size' => '3']), 422, 'Oversized favorites page');
+$assertEnvelope($request('GET', 'favorites', [], ['page' => '1', 'page_size' => '0']), 422, 'Zero favorites page size');
+$assertEnvelope($request('GET', 'favorites', [], ['page' => '1', 'page_size' => '101']), 422, 'Oversized favorites page size');
+$assertEnvelope($request('GET', 'favorites', [], ['page' => '1']), 422, 'Incomplete favorites pagination');
+
+$legacyHistory = $assertEnvelope($request('GET', 'history'), 200, 'Legacy history');
+$assertSame(['items'], array_keys($legacyHistory), 'Legacy history must keep the unpaginated response shape.');
 $assertEnvelope($request('GET', 'history', [], ['limit' => '4']), 200, 'Bounded history');
-$assertSame([4], $account->historyLimits, 'History must pass the validated response limit to the account service.');
+$assertSame([100, 4], $account->historyLimits, 'History must preserve its default and pass validated legacy response limits.');
 $assertEnvelope($request('GET', 'history', [], ['limit' => '101']), 422, 'Oversized history limit');
+$historyPage = $assertEnvelope($request('GET', 'history', [], ['page' => '3', 'page_size' => '3']), 200, 'Paginated history');
+$assertSame(['items', 'page', 'pageSize', 'total', 'totalPages'], array_keys($historyPage), 'Paginated history must return the private-list page envelope.');
+$assertSame([[42, 3, 3]], $account->historyPageInput, 'Paginated history must use validated bounds and the current user.');
+$assertEnvelope($request('GET', 'history', [], ['page' => '100001', 'page_size' => '3']), 422, 'Oversized history page');
+$assertEnvelope($request('GET', 'history', [], ['page' => '1', 'page_size' => '101']), 422, 'Oversized history page size');
+$assertEnvelope($request('GET', 'history', [], ['page' => '1']), 422, 'Incomplete history pagination');
+$assertEnvelope($request('GET', 'history', [], ['page' => '1', 'page_size' => '3', 'limit' => '3']), 422, 'Conflicting history pagination');
+$assertEnvelope($request('GET', 'history', [], ['page_size' => '3', 'limit' => '3']), 422, 'Conflicting partial history pagination');
 
 $historyBody = [
     'vodId' => '7',

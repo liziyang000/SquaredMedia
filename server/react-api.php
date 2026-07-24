@@ -1121,6 +1121,120 @@ function react_api_history_items(array $state, array $query): array
     return array_slice(array_values($state['history']), 0, $limit);
 }
 
+function react_api_page_query_value(array $query, string $name, int $maximum): ?int
+{
+    if (!array_key_exists($name, $query) || (!is_string($query[$name]) && !is_int($query[$name]))) {
+        return null;
+    }
+    $value = (string) $query[$name];
+    if (!preg_match('/^[0-9]+$/', $value)) {
+        return null;
+    }
+    $number = (int) $value;
+    return $number >= 1 && $number <= $maximum ? $number : null;
+}
+
+function react_api_sorted_private_items(array $items, string $timeField): array
+{
+    $decorated = [];
+    foreach (array_values($items) as $index => $item) {
+        $decorated[] = ['index' => $index, 'item' => $item];
+    }
+    usort($decorated, static function (array $left, array $right) use ($timeField): int {
+        $byTime = strcmp(
+            (string) ($right['item'][$timeField] ?? ''),
+            (string) ($left['item'][$timeField] ?? '')
+        );
+        return $byTime !== 0 ? $byTime : ((int) $right['index'] <=> (int) $left['index']);
+    });
+    return array_values(array_map(static fn (array $entry): array => $entry['item'], $decorated));
+}
+
+function react_api_fold_history_items(array $items, array $catalog): array
+{
+    $groups = [];
+    foreach (react_api_sorted_private_items($items, 'watchedAt') as $item) {
+        $vodId = react_api_identifier_value($item['vodId'] ?? null);
+        $video = $vodId === null ? null : react_api_find_video($catalog, $vodId);
+        if ($video === null) {
+            continue;
+        }
+        if (!isset($groups[$vodId])) {
+            $groups[$vodId] = ['item' => null, 'recordIds' => []];
+        }
+        foreach (is_array($item['recordIds'] ?? null) ? $item['recordIds'] : [] as $recordId) {
+            $recordId = react_api_identifier_value($recordId);
+            if ($recordId !== null) {
+                $groups[$vodId]['recordIds'][$recordId] = true;
+            }
+        }
+        if ($groups[$vodId]['item'] !== null) {
+            continue;
+        }
+        $sourceId = react_api_identifier_value($item['sourceId'] ?? null);
+        $episodeId = react_api_identifier_value($item['episodeId'] ?? null);
+        if ($sourceId !== null && $episodeId !== null && react_api_find_episode($video, $sourceId, $episodeId) !== null) {
+            $groups[$vodId]['item'] = $item;
+        }
+    }
+
+    $folded = [];
+    foreach ($groups as $group) {
+        if ($group['item'] === null) {
+            continue;
+        }
+        $item = $group['item'];
+        $item['recordIds'] = array_keys($group['recordIds']);
+        $folded[] = $item;
+    }
+
+    return react_api_sorted_private_items($folded, 'watchedAt');
+}
+
+function react_api_private_list_response(
+    array $items,
+    array $query,
+    string $timeField,
+    string $message,
+    bool $allowLimit = false
+): array {
+    $hasPage = array_key_exists('page', $query);
+    $hasPageSize = array_key_exists('page_size', $query);
+    if (!$hasPage && !$hasPageSize) {
+        $legacyItems = $allowLimit ? react_api_history_items(['history' => $items], $query) : array_values($items);
+        return react_api_success(['items' => $legacyItems], $message);
+    }
+
+    $allowedKeys = $allowLimit ? ['action', 'limit', 'page', 'page_size'] : ['action', 'page', 'page_size'];
+    if (
+        !$hasPage
+        || !$hasPageSize
+        || array_diff(array_keys($query), $allowedKeys) !== []
+        || ($allowLimit && array_key_exists('limit', $query))
+    ) {
+        return react_api_error(422, '分页参数不正确');
+    }
+
+    $requestedPage = react_api_page_query_value($query, 'page', 100000);
+    $pageSize = react_api_page_query_value($query, 'page_size', 100);
+    if ($requestedPage === null || $pageSize === null) {
+        return react_api_error(422, '分页参数不正确');
+    }
+
+    $sortedItems = react_api_sorted_private_items($items, $timeField);
+    $total = count($sortedItems);
+    $totalPages = $total > 0 ? (int) ceil($total / $pageSize) : 0;
+    $page = $totalPages > 0 ? min($requestedPage, $totalPages) : 1;
+
+    return react_api_success([
+        'items' => array_slice($sortedItems, ($page - 1) * $pageSize, $pageSize),
+        'page' => $page,
+        'pageSize' => $pageSize,
+        'total' => $total,
+        'totalPages' => $totalPages,
+    ], $message);
+}
+
 function react_api_handle(array &$session, array $catalog, string $method, array $query = [], array $body = [], array $headers = []): array
 {
     react_api_initialize_session($session);
@@ -1204,8 +1318,8 @@ function react_api_handle(array &$session, array $catalog, string $method, array
 
         return match ($action) {
             'account' => react_api_success(react_api_account($state), '账户加载成功'),
-            'favorites' => react_api_success(['items' => array_values($state['favorites'])], '收藏加载成功'),
-            'history' => react_api_success(['items' => react_api_history_items($state, $query)], '播放记录加载成功'),
+            'favorites' => react_api_private_list_response($state['favorites'], $query, 'createdAt', '收藏加载成功'),
+            'history' => react_api_private_list_response(react_api_fold_history_items($state['history'], $catalog), $query, 'watchedAt', '播放记录加载成功', true),
             'devices' => react_api_success(['maxDevices' => 3, 'items' => array_values($state['devices'])], '登录设备加载成功'),
             default => react_api_error(404, '接口不存在'),
         };

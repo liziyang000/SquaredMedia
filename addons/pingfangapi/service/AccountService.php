@@ -190,6 +190,21 @@ class AccountService
         return $items;
     }
 
+    public function favoritesPage($userId, $page, $pageSize)
+    {
+        $rows = Db::name('Ulog')
+            ->field('ulog_id,ulog_rid,ulog_time')
+            ->where([
+                'user_id' => intval($userId),
+                'ulog_mid' => 1,
+                'ulog_type' => 2,
+            ])
+            ->order('ulog_time desc,ulog_id desc')
+            ->select();
+
+        return $this->privateListPage($this->favoriteItems($this->rows($rows)), $page, $pageSize);
+    }
+
     public function setFavorite($userId, $vodId, $favorite)
     {
         $userId = intval($userId);
@@ -292,29 +307,67 @@ class AccountService
                 continue;
             }
             $seen[$vodId] = count($items);
-            $position = max(0, intval(isset($row['ulog_point']) ? $row['ulog_point'] : 0));
-            $storedDuration = intval(isset($row['ulog_duration']) ? $row['ulog_duration'] : 0);
-            $duration = $storedDuration > 0 ? $storedDuration : null;
-            $items[] = [
-                'recordIds' => [(string) $recordId],
-                'vodId' => (string) $vodId,
-                'sourceId' => (string) $sourceId,
-                'episodeId' => (string) $episodeId,
-                'title' => self::text(isset($video['vod_name']) ? $video['vod_name'] : '', '未命名影片'),
-                'episodeName' => $episodeName,
-                'poster' => self::imageUrl(isset($video['vod_pic']) ? $video['vod_pic'] : ''),
-                'positionSeconds' => $position,
-                'durationSeconds' => $duration,
-                'completed' => $duration !== null && $position * 100 >= $duration * 95,
-                'progress' => $episodeName . ' · 已看到 ' . self::clock($position),
-                'watchedAt' => self::formatTime(isset($row['ulog_time']) ? $row['ulog_time'] : 0),
-            ];
+            $items[] = $this->historyItem($row, $video, $episodeName, [(string) $recordId]);
             if (count($items) >= $limit) {
                 break;
             }
         }
 
         return $items;
+    }
+
+    public function historyPage($userId, $page, $pageSize)
+    {
+        $rows = Db::name('Ulog')
+            ->field('ulog_id,ulog_rid,ulog_sid,ulog_nid,ulog_point,ulog_duration,ulog_time')
+            ->where([
+                'user_id' => intval($userId),
+                'ulog_mid' => 1,
+                'ulog_type' => 4,
+            ])
+            ->where('ulog_sid', 'gt', 0)
+            ->where('ulog_nid', 'gt', 0)
+            ->order('ulog_time desc,ulog_id desc')
+            ->select();
+        $rows = $this->rows($rows);
+        $videos = $this->videosByIds($this->recordIds($rows), true);
+        $recordIdsByVideo = [];
+
+        foreach ($rows as $row) {
+            $recordId = intval(isset($row['ulog_id']) ? $row['ulog_id'] : 0);
+            $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
+            if ($recordId < 1 || !isset($videos[$vodId])) {
+                continue;
+            }
+            if (!isset($recordIdsByVideo[$vodId])) {
+                $recordIdsByVideo[$vodId] = [];
+            }
+            $recordIdsByVideo[$vodId][] = (string) $recordId;
+        }
+
+        $items = [];
+        $seen = [];
+        $playLists = [];
+        foreach ($rows as $row) {
+            $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
+            if (isset($seen[$vodId]) || !isset($recordIdsByVideo[$vodId])) {
+                continue;
+            }
+            $video = $videos[$vodId];
+            if (!isset($playLists[$vodId])) {
+                $playLists[$vodId] = $this->videoPlayList($video);
+            }
+            $sourceId = intval(isset($row['ulog_sid']) ? $row['ulog_sid'] : 0);
+            $episodeId = intval(isset($row['ulog_nid']) ? $row['ulog_nid'] : 0);
+            $episodeName = $this->episodeName($video, $sourceId, $episodeId, $playLists[$vodId]);
+            if ($episodeName === null) {
+                continue;
+            }
+            $seen[$vodId] = true;
+            $items[] = $this->historyItem($row, $video, $episodeName, $recordIdsByVideo[$vodId]);
+        }
+
+        return $this->privateListPage($items, $page, $pageSize);
     }
 
     public function resumePosition($userId, $vodId, $sourceId, $episodeId)
@@ -704,6 +757,72 @@ class AccountService
             session(self::CSRF_SESSION_KEY, null);
         }
         $this->csrfToken();
+    }
+
+    private function favoriteItems(array $rows)
+    {
+        $videos = $this->videosByIds($this->recordIds($rows));
+        $items = [];
+
+        foreach ($rows as $row) {
+            $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
+            if (!isset($videos[$vodId])) {
+                continue;
+            }
+            $video = $videos[$vodId];
+            $items[] = [
+                'recordIds' => [(string) intval(isset($row['ulog_id']) ? $row['ulog_id'] : 0)],
+                'vodId' => (string) $vodId,
+                'title' => self::text(isset($video['vod_name']) ? $video['vod_name'] : '', '未命名影片'),
+                'poster' => self::imageUrl(isset($video['vod_pic']) ? $video['vod_pic'] : ''),
+                'remark' => self::text(isset($video['vod_remarks']) ? $video['vod_remarks'] : '', '已收藏'),
+                'createdAt' => self::formatTime(isset($row['ulog_time']) ? $row['ulog_time'] : 0),
+            ];
+        }
+
+        return $items;
+    }
+
+    private function historyItem(array $row, array $video, $episodeName, array $recordIds)
+    {
+        $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
+        $sourceId = intval(isset($row['ulog_sid']) ? $row['ulog_sid'] : 0);
+        $episodeId = intval(isset($row['ulog_nid']) ? $row['ulog_nid'] : 0);
+        $position = max(0, intval(isset($row['ulog_point']) ? $row['ulog_point'] : 0));
+        $storedDuration = intval(isset($row['ulog_duration']) ? $row['ulog_duration'] : 0);
+        $duration = $storedDuration > 0 ? $storedDuration : null;
+
+        return [
+            'recordIds' => $recordIds,
+            'vodId' => (string) $vodId,
+            'sourceId' => (string) $sourceId,
+            'episodeId' => (string) $episodeId,
+            'title' => self::text(isset($video['vod_name']) ? $video['vod_name'] : '', '未命名影片'),
+            'episodeName' => $episodeName,
+            'poster' => self::imageUrl(isset($video['vod_pic']) ? $video['vod_pic'] : ''),
+            'positionSeconds' => $position,
+            'durationSeconds' => $duration,
+            'completed' => $duration !== null && $position * 100 >= $duration * 95,
+            'progress' => $episodeName . ' · 已看到 ' . self::clock($position),
+            'watchedAt' => self::formatTime(isset($row['ulog_time']) ? $row['ulog_time'] : 0),
+        ];
+    }
+
+    private function privateListPage(array $items, $page, $pageSize)
+    {
+        $page = max(1, min(100000, intval($page)));
+        $pageSize = max(1, min(self::PRIVATE_LIST_LIMIT, intval($pageSize)));
+        $total = count($items);
+        $totalPages = $total > 0 ? intval(ceil($total / $pageSize)) : 0;
+        $page = $totalPages > 0 ? min($page, $totalPages) : 1;
+
+        return [
+            'items' => array_slice($items, ($page - 1) * $pageSize, $pageSize),
+            'page' => $page,
+            'pageSize' => $pageSize,
+            'total' => $total,
+            'totalPages' => $totalPages,
+        ];
     }
 
     private function videosByIds(array $ids, $withPlayback = false)

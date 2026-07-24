@@ -236,15 +236,48 @@ $assertEnvelope($request('POST', 'favorite', $favoriteBody, [], $csrfHeader), 40
 $favorites = $assertEnvelope($request('GET', 'favorites'), 200, 'Favorites after add');
 $assertSame(1, count($favorites['items']), 'A successful favorite write must be observable through the getter.');
 $assertSame(['recordIds', 'vodId', 'title', 'poster', 'remark', 'createdAt'], array_keys($favorites['items'][0]), 'Favorite entries must match the React DTO.');
+$assertSame(['items'], array_keys($favorites), 'Legacy favorites must retain the unpaginated response shape.');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '1', 'favorite' => false], [], $csrfHeader), 200, 'Favorite remove');
 $assertSame([], $assertEnvelope($request('GET', 'favorites'), 200, 'Favorites after remove')['items'], 'Favorite removal must persist.');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '1', 'favorite' => true], [], $csrfHeader), 200, 'Favorite add before batch delete');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '2', 'favorite' => true], [], $csrfHeader), 200, 'Second favorite add before batch delete');
+$session[REACT_API_SESSION_KEY]['favorites']['1']['createdAt'] = '2026-07-24T10:00:00+00:00';
+$session[REACT_API_SESSION_KEY]['favorites']['2']['createdAt'] = '2026-07-24T11:00:00+00:00';
+$favoritePageOne = $assertEnvelope($request('GET', 'favorites', [], ['page' => '1', 'page_size' => '1']), 200, 'First favorites page');
+$assertSame(
+    ['items', 'page', 'pageSize', 'total', 'totalPages'],
+    array_keys($favoritePageOne),
+    'Paginated favorites must expose the common page metadata.'
+);
+$assertSame([1, 1, 2, 2], [$favoritePageOne['page'], $favoritePageOne['pageSize'], $favoritePageOne['total'], $favoritePageOne['totalPages']], 'Favorites page metadata must describe the complete result.');
+$assertSame('2', $favoritePageOne['items'][0]['vodId'], 'Favorites must sort newest first before pagination.');
+$favoriteLeadingZeroPage = $assertEnvelope($request('GET', 'favorites', [], ['page' => '01', 'page_size' => '01']), 200, 'Favorites page with leading zeros');
+$assertSame([1, 1], [$favoriteLeadingZeroPage['page'], $favoriteLeadingZeroPage['pageSize']], 'Favorites pagination must parse digit-only values consistently with production.');
+$favoritePageTwo = $assertEnvelope($request('GET', 'favorites', [], ['page' => '2', 'page_size' => '1']), 200, 'Second favorites page');
+$assertSame('1', $favoritePageTwo['items'][0]['vodId'], 'Favorites page two must contain the next stable item.');
+$favoritePastEnd = $assertEnvelope($request('GET', 'favorites', [], ['page' => '99', 'page_size' => '1']), 200, 'Favorites page past the end');
+$assertSame(2, $favoritePastEnd['page'], 'Favorites requests past the end must converge to the final page.');
+$assertSame('1', $favoritePastEnd['items'][0]['vodId'], 'The converged favorites page must return the final item.');
+foreach ([
+    ['page' => '1'],
+    ['page_size' => '1'],
+    ['page' => '0', 'page_size' => '1'],
+    ['page' => '1', 'page_size' => '0'],
+    ['page' => '1', 'page_size' => '101'],
+    ['page' => '100001', 'page_size' => '1'],
+] as $invalidFavoritePage) {
+    $assertEnvelope($request('GET', 'favorites', [], $invalidFavoritePage), 422, 'Invalid favorites pagination');
+}
 $assertEnvelope($request('POST', 'favorites.delete', ['recordIds' => []], [], $csrfHeader), 422, 'Empty favorite batch delete');
 $favoriteDelete = $assertEnvelope($request('POST', 'favorites.delete', ['recordIds' => ['1']], [], $csrfHeader), 200, 'Favorite batch delete');
 $assertSame(['removed' => 1], $favoriteDelete, 'Favorite batch delete must report the number removed.');
+$favoritePageAfterDelete = $assertEnvelope($request('GET', 'favorites', [], ['page' => '2', 'page_size' => '1']), 200, 'Favorites page after deletion');
+$assertSame([1, 1, 1, 1], [$favoritePageAfterDelete['page'], $favoritePageAfterDelete['pageSize'], $favoritePageAfterDelete['total'], $favoritePageAfterDelete['totalPages']], 'Favorites pagination must converge after deleting the final page item.');
+$assertSame('2', $favoritePageAfterDelete['items'][0]['vodId'], 'Favorites pagination must retain the remaining item after deletion.');
 $favoriteClear = $assertEnvelope($request('POST', 'favorites.delete', ['all' => true], [], $csrfHeader), 200, 'Favorite clear');
 $assertSame(['removed' => 1], $favoriteClear, 'Favorite clear must remove every remaining favorite.');
+$emptyFavoritePage = $assertEnvelope($request('GET', 'favorites', [], ['page' => '9', 'page_size' => '1']), 200, 'Empty favorites page');
+$assertSame([[], 1, 1, 0, 0], [$emptyFavoritePage['items'], $emptyFavoritePage['page'], $emptyFavoritePage['pageSize'], $emptyFavoritePage['total'], $emptyFavoritePage['totalPages']], 'Empty favorites pagination must normalize to page one with zero total pages.');
 
 $historyBody = [
     'vodId' => '1',
@@ -319,10 +352,90 @@ $unknownDurationPlayback = $assertEnvelope($request('GET', 'playback', [], [
 ]), 200, 'Playback without resumable duration');
 $assert(!array_key_exists('resumePositionSeconds', $unknownDurationPlayback), 'Playback history without a duration must not resume.');
 
+$legacyHistory = $assertEnvelope($request('GET', 'history'), 200, 'Legacy history response');
+$assertSame(['items'], array_keys($legacyHistory), 'Legacy history must retain the unpaginated response shape.');
+$limitedHistory = $assertEnvelope($request('GET', 'history', [], ['limit' => '1']), 200, 'Limited legacy history response');
+$assertSame(['items'], array_keys($limitedHistory), 'History limit must retain the legacy response shape.');
+$assertSame(1, count($limitedHistory['items']), 'History limit must retain its bounded legacy behavior.');
+$assertEnvelope($request('GET', 'history', [], ['limit' => '1', 'page' => '1', 'page_size' => '1']), 422, 'History limit and pagination conflict');
+$assertEnvelope($request('GET', 'history', [], ['page' => '1']), 422, 'History pagination requires page size');
+$assertEnvelope($request('GET', 'history', [], ['page' => '1', 'page_size' => '101']), 422, 'History pagination rejects oversized page size');
+
+$secondVideo = $catalog['videos'][1];
+$secondEpisode = $secondVideo['episodes'][0];
+$secondHistoryKey = (string) $secondVideo['id'] . ':' . REACT_API_SOURCE_ID . ':' . react_api_episode_id($secondVideo, $secondEpisode);
+$secondHistoryBody = [
+    'vodId' => (string) $secondVideo['id'],
+    'sourceId' => REACT_API_SOURCE_ID,
+    'episodeId' => react_api_episode_id($secondVideo, $secondEpisode),
+    'positionSeconds' => 45,
+    'durationSeconds' => 180,
+    'checkpointAtMs' => 1784846400500,
+];
+$assertEnvelope($request('POST', 'history.save', $secondHistoryBody, [], $csrfHeader), 200, 'Second history save before pagination');
+$secondEpisodeHistoryKey = (string) $secondVideo['id'] . ':' . REACT_API_SOURCE_ID . ':' . react_api_episode_id($secondVideo, $secondVideo['episodes'][1]);
+$secondEpisodeHistoryBody = array_replace($secondHistoryBody, [
+    'episodeId' => react_api_episode_id($secondVideo, $secondVideo['episodes'][1]),
+    'positionSeconds' => 20,
+    'checkpointAtMs' => 1784846400600,
+]);
+$assertEnvelope($request('POST', 'history.save', $secondEpisodeHistoryBody, [], $csrfHeader), 200, 'Newer episode history save before folding');
+$removedEpisodeHistoryKey = (string) $secondVideo['id'] . ':' . REACT_API_SOURCE_ID . ':299';
+$session[REACT_API_SESSION_KEY]['history'][$removedEpisodeHistoryKey] = array_replace(
+    $session[REACT_API_SESSION_KEY]['history'][$secondEpisodeHistoryKey],
+    [
+        'recordIds' => [$removedEpisodeHistoryKey],
+        'episodeId' => '299',
+        'episodeName' => '已移除分集',
+        'watchedAt' => '2026-07-24T13:00:00+00:00',
+    ]
+);
+$session[REACT_API_SESSION_KEY]['history'][$secondHistoryKey]['recordIds'][] = $secondHistoryKey;
+$session[REACT_API_SESSION_KEY]['history']['1:1:101']['watchedAt'] = '2026-07-24T10:00:00+00:00';
+$session[REACT_API_SESSION_KEY]['history'][$secondHistoryKey]['watchedAt'] = '2026-07-24T11:00:00+00:00';
+$session[REACT_API_SESSION_KEY]['history'][$secondEpisodeHistoryKey]['watchedAt'] = '2026-07-24T12:00:00+00:00';
+$foldedLegacyHistory = $assertEnvelope($request('GET', 'history', [], ['limit' => '2']), 200, 'Folded legacy history response');
+$assertSame(2, count($foldedLegacyHistory['items']), 'Legacy history must fold episodes by video before applying the limit.');
+$assertSame(
+    [(string) $secondVideo['id'], '1'],
+    array_column($foldedLegacyHistory['items'], 'vodId'),
+    'Legacy history must order folded videos by their newest display item.'
+);
+$assertSame($secondEpisodeHistoryBody['episodeId'], $foldedLegacyHistory['items'][0]['episodeId'], 'Folded history must display the newest episode for a video.');
+$assertSame(
+    [$removedEpisodeHistoryKey, $secondEpisodeHistoryKey, $secondHistoryKey],
+    $foldedLegacyHistory['items'][0]['recordIds'],
+    'Folded history must aggregate every episode record ID without duplicates.'
+);
+$historyPageOne = $assertEnvelope($request('GET', 'history', [], ['page' => '1', 'page_size' => '1']), 200, 'First history page');
+$assertSame(
+    ['items', 'page', 'pageSize', 'total', 'totalPages'],
+    array_keys($historyPageOne),
+    'Paginated history must expose the common page metadata.'
+);
+$assertSame([1, 1, 2, 2], [$historyPageOne['page'], $historyPageOne['pageSize'], $historyPageOne['total'], $historyPageOne['totalPages']], 'History page metadata must describe the complete result.');
+$assertSame((string) $secondVideo['id'], $historyPageOne['items'][0]['vodId'], 'History must sort newest first before pagination.');
+$assertSame($secondEpisodeHistoryBody['episodeId'], $historyPageOne['items'][0]['episodeId'], 'Paginated history must display the newest episode after folding.');
+$assertSame([$removedEpisodeHistoryKey, $secondEpisodeHistoryKey, $secondHistoryKey], $historyPageOne['items'][0]['recordIds'], 'Paginated history must expose every folded record ID for batch deletion.');
+$historyLeadingZeroPage = $assertEnvelope($request('GET', 'history', [], ['page' => '01', 'page_size' => '01']), 200, 'History page with leading zeros');
+$assertSame([1, 1], [$historyLeadingZeroPage['page'], $historyLeadingZeroPage['pageSize']], 'History pagination must parse digit-only values consistently with production.');
+$historyPageTwo = $assertEnvelope($request('GET', 'history', [], ['page' => '2', 'page_size' => '1']), 200, 'Second history page');
+$assertSame('1', $historyPageTwo['items'][0]['vodId'], 'History page two must contain the next stable item.');
+$historyPastEnd = $assertEnvelope($request('GET', 'history', [], ['page' => '99', 'page_size' => '1']), 200, 'History page past the end');
+$assertSame(2, $historyPastEnd['page'], 'History requests past the end must converge to the final page.');
+$assertSame('1', $historyPastEnd['items'][0]['vodId'], 'The converged history page must return the final item.');
+$foldedHistoryDelete = $assertEnvelope($request('POST', 'history.delete', ['recordIds' => $historyPageOne['items'][0]['recordIds']], [], $csrfHeader), 200, 'Delete folded history item');
+$assertSame(['removed' => 3], $foldedHistoryDelete, 'Deleting a folded history item must remove every underlying episode record.');
+$historyPageAfterDelete = $assertEnvelope($request('GET', 'history', [], ['page' => '2', 'page_size' => '1']), 200, 'History page after deletion');
+$assertSame([1, 1, 1, 1], [$historyPageAfterDelete['page'], $historyPageAfterDelete['pageSize'], $historyPageAfterDelete['total'], $historyPageAfterDelete['totalPages']], 'History pagination must converge after deleting the final page item.');
+$assertSame('1', $historyPageAfterDelete['items'][0]['vodId'], 'Deleting a folded history item must not reveal an older episode for the same video.');
+
 $assertEnvelope($request('POST', 'history.delete', ['recordIds' => [[]]], [], $csrfHeader), 422, 'History delete with an invalid ID');
 $historyDelete = $assertEnvelope($request('POST', 'history.delete', ['recordIds' => ['1:1:101']], [], $csrfHeader), 200, 'History delete');
 $assertSame(['removed' => 1], $historyDelete, 'History delete must remove every record for the selected video.');
 $assertSame([], $assertEnvelope($request('GET', 'history'), 200, 'History after delete')['items'], 'History deletion must persist.');
+$emptyHistoryPage = $assertEnvelope($request('GET', 'history', [], ['page' => '9', 'page_size' => '1']), 200, 'Empty history page');
+$assertSame([[], 1, 1, 0, 0], [$emptyHistoryPage['items'], $emptyHistoryPage['page'], $emptyHistoryPage['pageSize'], $emptyHistoryPage['total'], $emptyHistoryPage['totalPages']], 'Empty history pagination must normalize to page one with zero total pages.');
 
 $assertEnvelope($request('POST', 'device.revoke', ['sessionId' => 'local-current'], [], $csrfHeader), 409, 'Current device revoke');
 $revoke = $assertEnvelope(

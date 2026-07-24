@@ -456,6 +456,21 @@ reload_nginx() {
   fi
 }
 
+healthz_matches_release() {
+  local expected_release="$1"
+  shift
+  local payload
+  payload="$(curl "$@")" || return 1
+  HEALTHZ_PAYLOAD="$payload" EXPECTED_RELEASE="$expected_release" php -r '
+    $payload = json_decode(getenv("HEALTHZ_PAYLOAD"), true);
+    if (!is_array($payload)
+        || ($payload["status"] ?? null) !== "ok"
+        || ($payload["release"] ?? null) !== getenv("EXPECTED_RELEASE")) {
+      exit(1);
+    }
+  '
+}
+
 harden_release() {
   local target="$1"
   chown -R root:root "$target"
@@ -578,7 +593,7 @@ candidate_pid=$!
 
 candidate_ready=0
 for _ in $(seq 1 45); do
-  if curl -fsS --max-time 3 "http://127.0.0.1:$NEXT_CANDIDATE_PORT/healthz" | grep -Fq "$RELEASE_ID"; then
+  if healthz_matches_release "$RELEASE_ID" -fsS --max-time 3 "http://127.0.0.1:$NEXT_CANDIDATE_PORT/healthz"; then
     candidate_ready=1
     break
   fi
@@ -670,7 +685,7 @@ systemctl restart "$NEXT_SERVICE"
 
 service_ready=0
 for _ in $(seq 1 45); do
-  if curl -fsS --max-time 3 "http://127.0.0.1:$NEXT_PORT/healthz" | grep -Fq "$RELEASE_ID"; then
+  if healthz_matches_release "$RELEASE_ID" -fsS --max-time 3 "http://127.0.0.1:$NEXT_PORT/healthz"; then
     service_ready=1
     break
   fi
@@ -706,7 +721,7 @@ wait_for_http_status() {
 
 nginx_ready=0
 for _ in $(seq 1 15); do
-  if curl -kfs --max-time 3 "${resolve_args[@]}" "$base_url/healthz" | grep -Fq "$RELEASE_ID"; then
+  if healthz_matches_release "$RELEASE_ID" -kfsS --max-time 3 "${resolve_args[@]}" "$base_url/healthz"; then
     nginx_ready=1
     break
   fi
@@ -806,6 +821,12 @@ cleanup_remote
 trap - EXIT
 echo "Deployed Next.js release $RELEASE_ID to https://$NEXT_SITE_HOST/"
 echo "Previous release: ${old_current:-none}"
+previous_release="${old_current##*/}"
+if [[ "$previous_release" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ]]; then
+  echo "Rollback command: NEXT_ROLLBACK_RELEASE=$previous_release npm run rollback:web"
+else
+  echo "Rollback command: npm run rollback:web"
+fi
 REMOTE_DEPLOY
 
 release_local_deploy_lock

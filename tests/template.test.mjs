@@ -2927,7 +2927,11 @@ assert.match(apiApplicationController, /'Location' => \$media\['url'\]/);
 assert.match(apiApplicationController, /check_user_popedom/);
 assert.match(apiApplicationController, /label_vod_play/);
 assert.match(apiApplicationController, /public function _empty\(\)/);
-assert.match(apiApplicationController, /return json\(\$response\['body'\], \$response\['status'\], \$response\['headers'\]\)/);
+assert.match(
+  apiApplicationController,
+  /return json\(\$response\['body'\], \$response\['status'\], \$this->responseHeaders\(\$response\['headers'\]\)\)/
+);
+assert.match(apiApplicationController, /\$headers\['X-Request-ID'\] = \$this->requestId/);
 const apiAccountService = readApiAddonFile("service/AccountService.php");
 assert.match(apiAccountService, /'ulog_points' => 0/);
 assert.match(

@@ -154,7 +154,14 @@ Method 白名单，客户端仍不得发送 POST。
 Content-Type: application/json; charset=utf-8
 X-Content-Type-Options: nosniff
 Cache-Control: private, no-store
+X-Request-ID: <服务器生成的 32 位请求 ID>
 ```
+
+`X-Request-ID` 由服务器为每个 API、播放器或媒体入口请求生成，不接受客户端指定，
+并传入 `AccountService` 关联同一次请求。服务端错误日志只写
+`request_id`、`endpoint`、白名单 `action`、`status` 和 `exception_class`；不写
+异常消息、请求体、Cookie、CSRF、Token 或媒体 URL。4xx 默认不记录，转换为响应的
+5xx 仍会记录。
 
 常见 HTTP 状态：
 
@@ -2238,27 +2245,38 @@ API-only 部署会：
 1. 在修改前核对现有设备服务、hook 文件摘要、hook 登记、设备表和 Ulog 列。
 2. 只上传并替换 `pingfangapi` 插件和应用控制器。
 3. 保持主题、React 静态文件和 `pingfangdevice` 不变。
-4. 备份旧插件目录和控制器。
+4. 使用同一个部署脚本生成的备份 ID 成对备份旧插件目录和控制器。
 5. 检查 PHP 语法并清理配置允许的运行时缓存。
-6. 配置站点 Host 时请求兼容 `home` 做真实回环 smoke。
+6. 配置站点 Host 时请求 `home_v2&compact=1` 做真实回环 smoke。
 
 站点启用地区限制且服务器回环恰好被拒绝时，部署只接受精确的 403
 `当前地区不可访问` 策略响应；这只能证明控制器和策略生效，不能替代允许地区的
 公网验收。
 
-### 16.5 回滚边界
+### 16.5 回滚与联动顺序
 
 部署事务失败或 smoke 失败时，脚本会自动恢复本次 scope 的文件快照。成功的
-API-only 发布会保留类似以下备份：
+API-only 发布会让旧插件和旧应用控制器共享一个备份 ID，并在终端输出精确回滚
+命令：
 
 ```text
-addons/pingfangapi.backup.<时间戳>
-application/index/controller/Pingfangapi.php.backup.<时间戳>
+API_ROLLBACK_BACKUP=<id> npm run rollback:api
 ```
 
-当前 `npm run rollback` 只回滚主题，没有成功发布后的 API 自动回滚命令。需要回退
-API 时，应在维护窗口核对目标备份后人工恢复插件目录和控制器，并清理 MacCMS
-缓存。
+保存该 ID 后，回滚时执行：
+
+```bash
+source scripts/deploy-ping2.env
+API_ROLLBACK_BACKUP=<id> npm run rollback:api
+```
+
+脚本严格校验成对备份，保存当前 API 文件快照后只替换 `pingfangapi` 插件和
+`Pingfangapi.php` 应用控制器，再检查 PHP、清理缓存并执行真实
+`home_v2&compact=1` smoke；它不修改主题、`pingfangdevice`、hook 或数据库。任一
+替换、校验、缓存清理或 smoke 失败都会恢复回滚前快照。
+
+API 与 React 联动变更必须先发布向后兼容 API，再发布 React。React 故障只回滚
+Web；若 API 故障且新 React 依赖新契约，则先回滚 Web，再按上述 ID 回滚 API。
 
 ## 17. 测试与验收
 
@@ -2368,7 +2386,7 @@ GET action 不能 POST，POST action 不能 GET。读取响应 `Allow` 头确认
 - API 只能同源使用，不适合作为第三方开放 API。
 - 评分更新依赖数据库事务和行锁；使用不支持事务或行锁的表引擎时，并发评分的
   原子性不能只由当前 PHP 代码保证。
-- 成功部署后的 API 回滚仍需人工选择备份。
+- API 回滚必须使用 API-only 发布输出的显式成对备份 ID，不能按目录排序猜测。
 - 自动化不能替代真实短信/邮件、VIP、付费、试看、密码、版权和地区策略验收。
 
 ## 20. 相关文档

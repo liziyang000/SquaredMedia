@@ -179,6 +179,13 @@ These pages stay inside the theme package, so deployment and rollback update
 them together with the rest of the theme without replacing MacCMS core files
 under `/static/player`.
 
+The React frontend never embeds either page. A non-empty `预加载提示` enables a
+native React preparation hint after the configured `预加载时间`; a non-empty
+`缓冲提示` enables the native buffering hint. Only the normalized delay and
+enable flags reach React, so the configured HTML URLs are never requested by
+the React player. The React lazyload image is configured from the
+`pingfangapi` addon settings in the same MacCMS admin panel.
+
 ## Release Package
 
 Create a deployable archive:

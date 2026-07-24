@@ -456,7 +456,9 @@ function AuthorizedPlayer({
       name: video.title,
       url: watchHref(video.id, activeEpisode),
       poster: video.poster,
-      progress: `${activeEpisode.name} · 已看到 ${minutes}:${String(seconds).padStart(2, "0")}`
+      progress: `${activeEpisode.name} · 已看到 ${minutes}:${String(seconds).padStart(2, "0")}`,
+      positionSeconds,
+      ...(durationSeconds ? { durationSeconds } : {})
     });
     if (isTrial || !account.session.authenticated) return;
     const signature = `${video.id}:${activeEpisode.sourceId}:${activeEpisode.id}:${positionSeconds}:${durationSeconds ?? ""}`;

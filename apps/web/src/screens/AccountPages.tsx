@@ -3,11 +3,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "../app/routing";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "../app/routing";
 
 import { useAccount } from "../app/AccountContext";
 import { CaptchaField } from "../components/CaptchaField";
-import { Artwork, EmptyState, PageHeader, PageStatus } from "../components/PagePrimitives";
+import { Artwork, EmptyState, PageHeader, PageStatus, Pagination } from "../components/PagePrimitives";
+
+const ACCOUNT_PAGE_SIZE = 24;
+
+function accountPageParam(params: URLSearchParams) {
+  const value = Number(params.get("page") || 1);
+  return Number.isSafeInteger(value) && value >= 1 && value <= 100000 ? value : 1;
+}
+
+function pageAfterDeletion(
+  data: { items: Array<{ recordIds: string[] }>; page: number; pageSize: number; total: number },
+  input: { recordIds?: string[]; all?: boolean },
+  removedRecords: number
+) {
+  const selectedIds = new Set(input.recordIds ?? []);
+  const selectedItems = data.items.filter((item) => item.recordIds.some((recordId) => selectedIds.has(recordId))).length;
+  const removedItems = input.all ? (removedRecords > 0 ? data.total : 0) : Math.min(selectedItems, removedRecords);
+  const totalPages = Math.ceil(Math.max(0, data.total - removedItems) / data.pageSize);
+  return Math.min(data.page, Math.max(totalPages, 1));
+}
 
 function ErrorMessage({ message }: { message: string }) {
   return (
@@ -282,20 +301,35 @@ export function AccountPage() {
 export function FavoritesPage() {
   const account = useAccount();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const page = accountPageParam(searchParams);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const query = useQuery({
-    queryKey: ["account", "favorites"],
-    queryFn: () => account.api.getFavorites(),
+    queryKey: ["account", "favorites", page],
+    queryFn: () => account.api.getFavoritesPage(page, ACCOUNT_PAGE_SIZE),
     enabled: account.session.authenticated
   });
   const remove = useMutation({
     mutationFn: (input: { recordIds?: string[]; all?: boolean }) => account.api.deleteFavorites(input),
-    onSuccess: async () => {
+    onError: async () => {
       setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["account", "favorites"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["account", "favorites"],
+        refetchType: "active"
+      });
+    },
+    onSuccess: async (result, input) => {
+      setSelected(new Set());
+      const nextPage = query.data ? pageAfterDeletion(query.data, input, result.data.removed) : page;
+      await queryClient.invalidateQueries({
+        queryKey: ["account", "favorites"],
+        refetchType: nextPage === page ? "active" : "none"
+      });
+      if (nextPage !== page) void navigate(`/account/favorites?page=${nextPage}`, { replace: true });
     }
   });
-  const items = query.data ?? [];
+  const items = query.data?.items ?? [];
   const allRecordIds = items.flatMap((item) => item.recordIds);
 
   const removeRecords = (recordIds?: string[], all = false) => {
@@ -307,6 +341,16 @@ export function FavoritesPage() {
   useEffect(() => {
     document.title = "我的收藏 · 平方影视";
   }, []);
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [page]);
+
+  useEffect(() => {
+    if (query.data && query.data.page !== page) {
+      void navigate(`/account/favorites?page=${query.data.page}`, { replace: true });
+    }
+  }, [navigate, page, query.data]);
 
   return (
     <AccountGate>
@@ -328,7 +372,7 @@ export function FavoritesPage() {
                   checked={allRecordIds.length > 0 && selected.size === allRecordIds.length}
                   onChange={(event) => setSelected(event.currentTarget.checked ? new Set(allRecordIds) : new Set())}
                 />
-                <span>全选</span>
+                <span>全选本页</span>
               </label>
               <div className="record-actions">
                 <Link className="ghost-btn" to="/videos">
@@ -386,6 +430,9 @@ export function FavoritesPage() {
               </article>
             ))}
           </div>
+          {query.data && (
+            <Pagination page={query.data.page} totalPages={query.data.totalPages} buildHref={(nextPage) => `/account/favorites?page=${nextPage}`} />
+          )}
         </section>
       </main>
     </AccountGate>
@@ -395,22 +442,35 @@ export function FavoritesPage() {
 export function HistoryPage() {
   const account = useAccount();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const page = accountPageParam(searchParams);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const query = useQuery({
-    queryKey: ["account", "history"],
-    queryFn: () => account.api.getHistory(),
+    queryKey: ["account", "history", page],
+    queryFn: () => account.api.getHistoryPage(page, ACCOUNT_PAGE_SIZE),
     enabled: account.session.authenticated
   });
   const remove = useMutation({
     mutationFn: (input: { recordIds?: string[]; all?: boolean }) => account.api.deleteHistory(input),
-    onSuccess: async () => {
+    onError: async () => {
       setSelected(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["account", "history"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["account", "history"],
+        refetchType: "active"
+      });
+    },
+    onSuccess: async (result, input) => {
+      setSelected(new Set());
+      const nextPage = query.data ? pageAfterDeletion(query.data, input, result.data.removed) : page;
+      await queryClient.invalidateQueries({
+        queryKey: ["account", "history"],
+        refetchType: nextPage === page ? "active" : "none"
+      });
+      if (nextPage !== page) void navigate(`/account/history?page=${nextPage}`, { replace: true });
     }
   });
-  const items = [...(query.data ?? [])]
-    .sort((left, right) => right.watchedAt.localeCompare(left.watchedAt))
-    .filter((item, index, records) => records.findIndex((candidate) => candidate.vodId === item.vodId) === index);
+  const items = query.data?.items ?? [];
   const allRecordIds = items.flatMap((item) => item.recordIds);
 
   const removeRecords = (recordIds?: string[], all = false) => {
@@ -422,6 +482,16 @@ export function HistoryPage() {
   useEffect(() => {
     document.title = "播放记录 · 平方影视";
   }, []);
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [page]);
+
+  useEffect(() => {
+    if (query.data && query.data.page !== page) {
+      void navigate(`/account/history?page=${query.data.page}`, { replace: true });
+    }
+  }, [navigate, page, query.data]);
 
   return (
     <AccountGate>
@@ -443,7 +513,7 @@ export function HistoryPage() {
                   checked={allRecordIds.length > 0 && selected.size === allRecordIds.length}
                   onChange={(event) => setSelected(event.currentTarget.checked ? new Set(allRecordIds) : new Set())}
                 />
-                <span>全选</span>
+                <span>全选本页</span>
               </label>
               <div className="record-actions">
                 <button className="ghost-btn" type="button" disabled={remove.isPending || selected.size === 0} onClick={() => removeRecords([...selected])}>
@@ -497,6 +567,7 @@ export function HistoryPage() {
               </article>
             ))}
           </div>
+          {query.data && <Pagination page={query.data.page} totalPages={query.data.totalPages} buildHref={(nextPage) => `/account/history?page=${nextPage}`} />}
         </section>
       </main>
     </AccountGate>

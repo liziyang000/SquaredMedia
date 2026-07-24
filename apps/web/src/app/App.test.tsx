@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AccountPage, LoginPage } from "../screens/AccountPages";
+import { AccountPage, FavoritesPage, HistoryPage, LoginPage } from "../screens/AccountPages";
 import { CatalogPage, CategoriesPage, RankingsPage, SearchPage } from "../screens/CatalogPages";
 import { ContentChallengePage, DownloadsPage, PlayerPage, PlotPage, VodDetailPage } from "../screens/ContentPages";
 import { HomePage } from "../screens/HomePage";
@@ -200,6 +200,8 @@ function routeForTest(path: string) {
   if (pathname === "/history") return { element: <LocalHistoryPage />, params: {} };
   if (pathname === "/login") return { element: <LoginPage />, params: {} };
   if (pathname === "/account") return { element: <AccountPage />, params: {} };
+  if (pathname === "/account/favorites") return { element: <FavoritesPage />, params: {} };
+  if (pathname === "/account/history") return { element: <HistoryPage />, params: {} };
   if (pathname === "/feedback") return { element: <FeedbackPage />, params: {} };
   if (pathname === "/report") return { element: <ReportPage />, params: {} };
   if (pathname === "/status") return { element: <StatusPage />, params: {} };
@@ -301,6 +303,252 @@ describe("React migration routes", () => {
 
     expect(await screen.findByRole("link", { name: "用户中心：测试会员" })).toHaveAttribute("href", "/account");
     expect(sessionAttempts).toBe(2);
+  });
+
+  it("reads the favorites page from the URL and clears this-page selection when paging", async () => {
+    const favoriteCalls: string[] = [];
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const action = requestAction(input);
+      if (action === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: true, user: { id: 7, name: "测试会员" }, csrfToken: "test-csrf-token" }
+        });
+      }
+      if (action === "favorites") {
+        const value = String(input);
+        favoriteCalls.push(value);
+        const page = Number(requestParam(input, "page") || 1);
+        return jsonResponse({
+          code: 1,
+          msg: "收藏加载成功",
+          data: {
+            items: [
+              {
+                recordIds: [`favorite-${page}`],
+                vodId: page,
+                title: page === 1 ? "第一页收藏" : "第二页收藏",
+                poster: "/poster.jpg",
+                remark: "高清",
+                createdAt: `2026-07-2${page}`
+              }
+            ],
+            page,
+            pageSize: 24,
+            total: 2,
+            totalPages: 2
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    renderRoutes("/account/favorites?page=2");
+
+    const secondPageCheckbox = (await screen.findByLabelText("选择收藏记录 第二页收藏")).querySelector("input")!;
+    expect(screen.getByText("全选本页")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "上一页" })).toHaveAttribute("href", "/account/favorites?page=1");
+    fireEvent.click(secondPageCheckbox);
+    expect(secondPageCheckbox).toBeChecked();
+    fireEvent.change(screen.getByLabelText("跳转页码"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "跳转" }));
+
+    const firstPageCheckbox = (await screen.findByLabelText("选择收藏记录 第一页收藏")).querySelector("input")!;
+    expect(firstPageCheckbox).not.toBeChecked();
+    expect(favoriteCalls.map((call) => requestParam(call, "page"))).toEqual(["2", "1"]);
+    expect(favoriteCalls.map((call) => requestParam(call, "page_size"))).toEqual(["24", "24"]);
+  });
+
+  it("renders account history in the server page order without client deduplication", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const action = requestAction(input);
+      if (action === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: true, user: { id: 7, name: "测试会员" }, csrfToken: "test-csrf-token" }
+        });
+      }
+      if (action === "history") {
+        return jsonResponse({
+          code: 1,
+          msg: "播放记录加载成功",
+          data: {
+            items: [
+              {
+                recordIds: ["history-older"],
+                vodId: 1,
+                sourceId: 1,
+                episodeId: 102,
+                title: "先返回",
+                episodeName: "第二集",
+                poster: "/poster-older.jpg",
+                progress: "已看到 12:00",
+                watchedAt: "2026-07-20 10:00",
+                positionSeconds: 720,
+                durationSeconds: 1200,
+                completed: false
+              },
+              {
+                recordIds: ["history-newer"],
+                vodId: 1,
+                sourceId: 1,
+                episodeId: 101,
+                title: "后返回",
+                episodeName: "第一集",
+                poster: "/poster-newer.jpg",
+                progress: "已看到 08:00",
+                watchedAt: "2026-07-24 10:00",
+                positionSeconds: 480,
+                durationSeconds: 1200,
+                completed: false
+              }
+            ],
+            page: 1,
+            pageSize: 24,
+            total: 2,
+            totalPages: 1
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    const { container } = renderRoutes("/account/history");
+
+    await screen.findByLabelText("选择播放记录 先返回");
+    expect(Array.from(container.querySelectorAll(".record-title")).map((element) => element.textContent)).toEqual(["先返回 - 第二集", "后返回 - 第一集"]);
+    const historyCall = vi.mocked(fetch).mock.calls.find(([input]) => requestAction(input) === "history")?.[0];
+    expect(requestParam(historyCall!, "page")).toBe("1");
+    expect(requestParam(historyCall!, "page_size")).toBe("24");
+    expect(screen.getByText("全选本页")).toBeInTheDocument();
+  });
+
+  it("invalidates every favorites page and converges after deleting the final page item", async () => {
+    let deleted = false;
+    const favoritePages: string[] = [];
+    const invalidateQueries = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const action = requestAction(input);
+      if (action === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: true, user: { id: 7, name: "测试会员" }, csrfToken: "test-csrf-token" }
+        });
+      }
+      if (action === "favorites.delete") {
+        deleted = true;
+        return jsonResponse({ code: 1, msg: "收藏记录删除成功", data: { removed: 1 } });
+      }
+      if (action === "favorites") {
+        const requestedPage = requestParam(input, "page") || "1";
+        favoritePages.push(requestedPage);
+        const page = deleted ? 1 : Number(requestedPage);
+        return jsonResponse({
+          code: 1,
+          msg: "收藏加载成功",
+          data: {
+            items: [
+              {
+                recordIds: [deleted ? "favorite-1" : `favorite-${page}`],
+                vodId: deleted ? 1 : page,
+                title: deleted ? "保留的收藏" : page === 1 ? "第一页收藏" : "末页收藏",
+                poster: "/poster.jpg",
+                remark: "高清",
+                createdAt: "2026-07-24"
+              }
+            ],
+            page,
+            pageSize: 24,
+            total: deleted ? 1 : 2,
+            totalPages: deleted ? 1 : 2
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    renderRoutes("/account/favorites?page=2");
+
+    await screen.findByLabelText("选择收藏记录 末页收藏");
+    fireEvent.click(screen.getByRole("button", { name: "删除" }));
+
+    expect(await screen.findByLabelText("选择收藏记录 保留的收藏")).toBeInTheDocument();
+    expect(favoritePages).toEqual(["2", "1"]);
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["account", "favorites"], refetchType: "none" });
+    invalidateQueries.mockRestore();
+  });
+
+  it("refetches the active favorites page without hiding a partially failed batch delete", async () => {
+    let favoriteReads = 0;
+    let deleteWrites = 0;
+    let firstBatchDeleted = false;
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true)
+    );
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const action = requestAction(input);
+      if (action === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: true, user: { id: 7, name: "测试会员" }, csrfToken: "test-csrf-token" }
+        });
+      }
+      if (action === "favorites.delete") {
+        deleteWrites += 1;
+        const body = JSON.parse(String(init?.body || "{}")) as { recordIds: string[] };
+        if (deleteWrites === 1) {
+          firstBatchDeleted = true;
+          return jsonResponse({ code: 1, msg: "收藏记录删除成功", data: { removed: body.recordIds.length } });
+        }
+        return jsonResponse({ code: 500, msg: "第二批删除失败", data: null }, { ok: false, status: 500 });
+      }
+      if (action === "favorites") {
+        favoriteReads += 1;
+        const recordIds = Array.from({ length: firstBatchDeleted ? 101 : 201 }, (_, index) => String(index + (firstBatchDeleted ? 101 : 1)));
+        return jsonResponse({
+          code: 1,
+          msg: "收藏加载成功",
+          data: {
+            items: [
+              {
+                recordIds,
+                vodId: 1,
+                title: firstBatchDeleted ? "重新读取收藏" : "删除前收藏",
+                poster: "/poster.jpg",
+                remark: "高清",
+                createdAt: "2026-07-24"
+              }
+            ],
+            page: 1,
+            pageSize: 24,
+            total: 1,
+            totalPages: 1
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    renderRoutes("/account/favorites");
+
+    const checkbox = (await screen.findByLabelText("选择收藏记录 删除前收藏")).querySelector("input")!;
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole("button", { name: "删除选中" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("第二批删除失败");
+    const refreshedCheckbox = (await screen.findByLabelText("选择收藏记录 重新读取收藏")).querySelector("input")!;
+    expect(refreshedCheckbox).not.toBeChecked();
+    expect(favoriteReads).toBe(2);
+    expect(deleteWrites).toBe(2);
   });
 
   it("uses the current browser history for the homepage continue rail", async () => {

@@ -23,7 +23,7 @@ backend_pid=$!
 backend_ready=false
 
 for ((attempt = 0; attempt < 50; attempt += 1)); do
-  if php -r '$context = stream_context_create(["http" => ["timeout" => 0.2, "ignore_errors" => true]]); exit(@file_get_contents("http://127.0.0.1:8084/server/react-api.php?action=home", false, $context) === false ? 1 : 0);'; then
+  if php -r '$context = stream_context_create(["http" => ["timeout" => 0.2, "ignore_errors" => true]]); exit(@file_get_contents("http://127.0.0.1:8084/server/react-api.php?action=home_v2&compact=1", false, $context) === false ? 1 : 0);'; then
     backend_ready=true
     break
   fi

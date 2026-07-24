@@ -734,6 +734,28 @@ fi
 for route in / /status /vod/371745 /favicon.ico "$asset_path"; do
   wait_for_http_status GET "$route" 200
 done
+for legacy_play_route in "/index.php/vod/play/id/1/sid/2/nid/3.html" "/vodplay/1-2-3.html"; do
+  for method in GET HEAD; do
+    wait_for_http_status "$method" "$legacy_play_route" 301
+    if [[ "$method" == "HEAD" ]]; then
+      legacy_play_location="$(curl -ksS --max-time 10 "${resolve_args[@]}" --head -o /dev/null -w '%{redirect_url}' "$base_url$legacy_play_route")"
+    else
+      legacy_play_location="$(curl -ksS --max-time 10 "${resolve_args[@]}" -o /dev/null -w '%{redirect_url}' "$base_url$legacy_play_route")"
+    fi
+    if [[ "$legacy_play_location" != "$base_url/watch/1/2/3" ]]; then
+      echo "Staging legacy playback route returned an unexpected redirect target." >&2
+      exit 1
+    fi
+  done
+done
+for legacy_play_route in "/index.php/vod/play/id/371745/sid/1/nid/1.html" "/vodplay/371745-1-1.html"; do
+  legacy_post_result="$(curl -ksS --max-time 20 "${resolve_args[@]}" -X POST -o /dev/null -w '%{http_code}|%{content_type}|%{redirect_url}' "$base_url$legacy_play_route")"
+  IFS='|' read -r legacy_post_status legacy_post_type legacy_post_location <<<"$legacy_post_result"
+  if [[ "$legacy_post_status" != "200" || "$legacy_post_type" != text/html* || -n "$legacy_post_location" ]]; then
+    echo "Staging legacy playback POST did not stay on the MacCMS PHP route." >&2
+    exit 1
+  fi
+done
 for route in /register /forgot-password /index.php/user/reg /index.php/user/reg.html /index.php/user/findpass /index.php/user/findpass.html; do
   for method in GET HEAD; do
     wait_for_http_status "$method" "$route" 410

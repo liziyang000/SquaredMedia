@@ -7,13 +7,13 @@
 ## 固定规则
 
 - React 使用不包含 `index.php` 的新页面 URL；旧的公开 GET 页面地址必须一对一、单跳 `301` 到对应新 URL。
-- 表中的旧 URL 以 MacCMS action 为事实源，并给出默认动态地址示例。生产站可能启用了后台自定义 rewrite，切流前必须以实际 `mac_url*` 输出和访问日志补齐所有别名。
+- 表中的旧 URL 以 MacCMS action 为事实源，并给出默认动态地址示例。生产站可能启用了后台自定义 rewrite，切流前必须以实际 `mac_url*` 输出和访问日志补齐所有别名；默认 `ops/legacy-access-targets.json` 故意标为未完成，不能直接作为退役证据。
 - POST、Ajax、验证码、播放器和下载授权端点不是页面地址，不能 `301` 到 React。它们继续由 MacCMS 或插件处理，React 通过同源 API 调用。
 - 新会员注册和账号找回不进入 React 前台范围；新地址 `/register`、`/forgot-password` 以及旧地址 `/index.php/user/reg.html`、`/index.php/user/findpass.html` 的 GET/HEAD 请求均按 `410 Gone` 退场，不重定向到登录页或首页。
 - 不实施 SEO。百度、Google Sitemap 模板明确返回 `410 Gone`，不能进入 SPA 回退。
 - RSS 不在 React 中重建。只有访问日志或外部系统能证明存在消费者时才由 MacCMS 原端点直通；否则按 `410` 退场。
 - `vod/player.html` 是试看、收费和权限播放器的内部承载面，继续由 MacCMS 直通。React 只负责播放页外壳，不得从普通列表、详情或缓存接口提前取得原始播放地址。
-- 当前仅输出“维护中”“暂未启用”等文案、没有可用业务列表或操作的兜底模块按 `410` 退场。生产切流前仍需核对后台模块开关、数据量和近 30 天访问日志；若发现真实业务使用，必须重新进入 React/API 迁移范围，不能直接 `410`。
+- 当前仅输出“维护中”“暂未启用”等文案、没有可用业务列表或操作的兜底模块按 `410` 退场。生产切流前仍需核对后台模块开关、数据量和至少 30 个完整日的访问日志；若发现真实业务使用，必须重新进入 React/API 迁移范围，不能直接 `410`。零访问只进入人工复核，不自动授权删除。
 
 ## 事实来源
 
@@ -27,13 +27,13 @@
 
 | 代码 | 验收要求                                                                                                                                                               |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `R1` | React 新路由可站内进入、直接访问和刷新；成功、空数据、404、超时均有确定状态；旧 GET URL 保留参数并单跳 `301`；桌面与 320、390、1180、1181 像素无横向溢出和控制台错误。 |
+| `R1` | React 新路由可站内进入、直接访问和刷新；成功、空数据、404、超时均有确定状态；默认动态旧 URL 和已核对的 rewrite 别名保留参数并单跳 `301`；桌面与 320、390、1180、1181 像素无横向溢出和控制台错误。 |
 | `R2` | 在 `R1` 基础上覆盖匿名、已登录、会话过期和设备撤销；写请求验证同源 Cookie、Origin 或 CSRF、输入、重复提交、验证码、成功和业务失败；用户响应不可共享缓存。              |
 | `R3` | 在 `R2` 基础上用真实 HLS、MP4、第三方解析、试看或付费线路验证 `sid`、`nid`、上下集、记录写入和自动下一集；直接请求或修改参数不能绕过授权，普通 API 不泄露播放地址。    |
 | `C1` | React 共享组件有单元和交互测试，并在所有消费页面验证键盘、焦点、加载、空态与错误态；删除旧片段前搜索确认没有残余 include 或脚本钩子。                                  |
 | `B1` | MacCMS 端点优先于 SPA 回退，保持正确状态码、内容类型、Cookie 和权限；React 构建产物不包含其敏感响应，匿名请求不可得到受限数据。                                        |
 | `F1` | 先用日志或调用方清单确认 RSS 消费者；保留时验证 XML、`Content-Type`、更新时间和链接可达且端点不经 SPA；无消费者时改用 `X1`。                                           |
-| `X1` | 所有已知旧 URL 与 rewrite 别名返回精确 `410 Gone`，不重定向、不输出 React 入口；切流前有后台数据量和近 30 天访问日志的零业务证据。                                     |
+| `X1` | 所有已知旧 URL 与 rewrite 别名返回精确 `410 Gone`，不重定向、不输出 React 入口；切流前核对后台数据量、完整别名清单和至少 30 个完整日的访问日志，零业务证据仍须人工批准。                 |
 
 ## 迁移统计
 
@@ -48,7 +48,7 @@
 ## 当前实现状态
 
 - 79 个模板或片段已经全部获得 React 页面、React 共享组件、MacCMS 后端直通候选或 `410` 退场归属；矩阵无遗漏。当前切流范围仅为 `react.ping2.my` staging，主站保持原状。
-- Next.js Proxy 的代码和契约测试已覆盖已知旧公开 GET/HEAD 地址的单跳 `301`、参数保留，以及明确退场地址的真实 HTTP `410`。这些规则只用于迁移兼容，不实施 SEO；Sitemap、搜索引擎元数据和 SEO 切流均不在范围内。staging Nginx 仍让 `/index.php/**` 优先走 PHP，因此不声称旧 PHP 地址已经在服务器上执行这些重定向。
+- Next.js Proxy 的代码和契约测试已覆盖已知旧公开 GET/HEAD 地址的单跳 `301`、参数保留，以及明确退场地址的真实 HTTP `410`。这些规则只用于迁移兼容，不实施 SEO；Sitemap、搜索引擎元数据和 SEO 切流均不在范围内。Nginx 模板现将两个数字形态旧播放地址的 GET/HEAD 交给同一条 Next 迁移规则，其他方法仍交给 PHP；两种别名因此共享 1～2147483647 的参数上限。部署 smoke 会分别核对两条旧地址，但本次未部署，不能据此声称 staging 已生效。
 - App Router 的未匹配路由可进入框架级 `not-found`；但影片详情、下载、剧情等动态页面当前仍在客户端请求 API。API 404 只映射为 `MissingContentPage` UI，API 403 映射为现有权限 UI，尚未实现这些动态页面的真实服务端 HTTP 404/403 状态。
 - 匿名历史保存在经过结构和 URL 白名单校验的浏览器存储中。账号收藏和播放历史通过私有 session 接口以 24 条页码读取，DTO 用 `recordIds` 保留每条原生 `ulog_id`；全选只选择当前页，选择删除只按当前用户、日志类型和精确 `ulog_id` 删除，不按 `ulog_rid` 扩大到同一影片的其他记录，清空操作仍限制在当前用户对应的 type 2 或 type 4 范围内。
 - 影片库、分类、搜索和年度榜已统一使用服务端 scope、父子分类上下文、真实 facets 与 24 条分页；详情保留线路名称/提示和评分顶踩计数，下载与剧情分别读取原生 `vod_down_*` 和 `vod_plot_*`。下载 API 的 404/403 分别显示影片不存在/下载权限状态，剧情 API 的 404/403 分别显示影片不存在/详情权限状态；两者都是客户端 UI 分流。
@@ -74,7 +74,7 @@
 | `template/pingfangvideo/html/vod/detail_pwd.html` | 视频详情密码验证；同一 `vod/detail` 请求被控制器切到密码模板                                    | React 页面          | `/vod/:vodId/unlock?scope=detail`，`PasswordChallengePage`                              | `vod_id`、`vod_name`；同源 CSRF POST 验证内容密码，写入与官方 `MAC.Pwd.Check` 的 `data-type=1` 相同的 session 后安全回跳                                                                                                                              | `R2`；错误密码、暴力尝试限制和详情/播放/下载三类 session 隔离                                                               |
 | `template/pingfangvideo/html/vod/down.html`       | 视频下载页；action `vod/down`，默认 `/index.php/vod/down/id/:vodId.html`，选择项带 `sid`、`nid` | React 页面          | `/vod/:vodId/download`，`DownloadsPage`                                                 | `vod_id`、`vod_name`；用 `mac_play_list(...,'down')` 返回下载组、来源、提示和条目标识；点击同源 `vod/down` 路径让 MacCMS 再鉴权，列表接口不返回原始资源 URL；API 404 显示 `MissingContentPage`，403 进入 `download` 权限状态                          | `R2`；逐条验证下载权限、密码、积分、错误线路和地址不泄露；当前 404/403 是客户端 UI 映射，不代表动态路由已返回对应 HTTP 状态 |
 | `template/pingfangvideo/html/vod/downer_pwd.html` | 下载密码验证；由 `vod/down` 流程选择密码模板                                                    | React 页面          | `/vod/:vodId/download/unlock`，复用 `PasswordChallengePage`                             | `vod_id`、`vod_name`、目标 `sid`、`nid`；同源 CSRF POST 写入 `data-type=5` 对应 session                                                                                                                                                               | `R2`；下载密码 session 不能转作详情或播放授权                                                                               |
-| `template/pingfangvideo/html/vod/play.html`       | 完整播放页；action `vod/play`，默认 `/index.php/vod/play/id/:vodId/sid/:sid/nid/:nid.html`      | React 页面          | `/watch/:vodId/:sourceId/:episodeId`，`WatchPage`                                       | `vod_id`、`vod_name`、当前组和集名称、全部可选组及集元数据、上一集和下一集标识；React 使用同源受控媒体，按当前用户/影片/线路/剧集读取 Ulog 云端断点，每 20 秒及暂停、结束、隐藏、离页时以单调时间戳立即补写；选集、上下集和自动下一集 | `R3`；新旧 URL 必须完整保留 `sid`、`nid`；仅 `30 秒 < 进度 < 95%` 自动续播，服务端忽略同会话更旧的并发断点，最后一集不得循环到自身 |
+| `template/pingfangvideo/html/vod/play.html`       | 完整播放页；action `vod/play`，默认 `/index.php/vod/play/id/:vodId/sid/:sid/nid/:nid.html`，常见 rewrite `/vodplay/:vodId-:sid-:nid.html` | React 页面          | `/watch/:vodId/:sourceId/:episodeId`，`WatchPage`                                       | `vod_id`、`vod_name`、当前组和集名称、全部可选组及集元数据、上一集和下一集标识；React 使用同源受控媒体，按当前用户/影片/线路/剧集读取 Ulog 云端断点，每 20 秒及暂停、结束、隐藏、离页时以单调时间戳立即补写；选集、上下集和自动下一集 | `R3`；两个旧地址的 GET/HEAD 均须单跳 `301` 并完整保留 `sid`、`nid`，三个参数限制为 1～2147483647；其他方法继续交给 PHP，非数字动态别名由 PHP 处理而非数字 rewrite 地址返回 404；仅 `30 秒 < 进度 < 95%` 自动续播，服务端忽略同会话更旧的并发断点，最后一集不得循环到自身 |
 | `template/pingfangvideo/html/vod/player.html`     | 试看、收费或权限场景的原生 iframe 播放器模板；action `vod/player`，由 MacCMS 播放流程内部生成   | MacCMS 后端回滚     | React 不注册也不嵌入该页面；完整授权的 `WatchPage` 使用受控 `pingfangapi/stream` 与页面内 Artplayer | `$obj` 当前影片和播放组、`sid`、`nid`、当前集名称、`$player_data`、`$player_js`；MacCMS 原生模板继续负责回滚链；React 的 `playback/stream` 仅对完整授权返回媒体入口，仅试看时返回 403，避免无法限制时长的 302 泄露完整片源                                                        | `B1`、`R3`；无 iframe 试看须增加服务端媒体裁剪或分片代理；原生响应与媒体入口均须 `private, no-store`，版权状态不能被绕过 |
 | `template/pingfangvideo/html/vod/player_pwd.html` | 播放密码验证；由播放流程选择密码模板                                                            | React 页面          | `/watch/:vodId/:sourceId/:episodeId/unlock`，复用 `PasswordChallengePage`               | `vod_id`、`vod_name`、`sid`、`nid`；同源 CSRF POST 写入 `data-type=4` 对应 session；原 iframe 密码模板也使用官方 `MAC.Pwd.Check`                                                                                                                      | `R2`、`R3`；播放密码 session 不能转作详情或下载授权                                                                         |
 | `template/pingfangvideo/html/vod/plot.html`       | 单个视频的分集剧情；action `vod/plot`，默认 `/index.php/vod/plot/id/:vodId.html`                | React 页面          | `/vod/:vodId/plot`，`PlotPage`                                                          | `vod_id`、`vod_name`、`vod_blurb`、剧情条目 `name`、`detail`；返回详情；API 404 显示 `MissingContentPage`，403 复用 `detail` 权限状态                                                                                                                 | `R1`；HTML 内容先在后端清洗，空剧情有恢复入口；当前 404/403 是客户端 UI 映射，不代表动态路由已返回对应 HTTP 状态            |

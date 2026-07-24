@@ -70,9 +70,27 @@ test("clean content routes refresh and anonymous history stays in the browser", 
     expect(page.url()).not.toContain("index.php");
   }
 
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "pingfang_history",
+      JSON.stringify([
+        {
+          id: "1",
+          name: "云端回声",
+          url: "/watch/1/1/101",
+          progress: "正片 · 已看到 10:00",
+          positionSeconds: 600,
+          durationSeconds: 1200,
+          time: "2026-07-24T10:00:00Z"
+        }
+      ])
+    );
+  });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "继续观看" })).toBeVisible();
   await expect(page.locator(".home-continue-card").first()).toHaveAttribute("href", "/watch/1/1/101");
+  await expect(page.getByRole("progressbar", { name: "云端回声观看进度 50%" })).toHaveAttribute("aria-valuenow", "50");
+  await expect(page.getByText("剩余 10 分钟")).toBeVisible();
   expect(browserErrors).toEqual([]);
 });
 
@@ -169,11 +187,29 @@ test("account writes cover selection, deletion, comments, devices and logout", a
 test("responsive boundaries keep navigation usable without horizontal overflow", async ({ page }) => {
   await blockExternalResources(page);
   const browserErrors = observeBrowserErrors(page);
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "pingfang_history",
+      JSON.stringify([
+        {
+          id: "1",
+          name: "响应式续播记录",
+          url: "/watch/1/1/101",
+          progress: "正片 · 已看到 10:00",
+          positionSeconds: 600,
+          durationSeconds: 1200,
+          time: "2026-07-24T10:00:00Z"
+        }
+      ])
+    );
+  });
 
   for (const width of [320, 390, 1100, 1180, 1181, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "平方影视首页" })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "响应式续播记录观看进度 50%" })).toBeVisible();
     await expectNoOverflow(page);
     await page.goto("/videos");
     await expect(page.getByRole("heading", { name: "影片库" })).toBeVisible();

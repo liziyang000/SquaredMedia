@@ -226,16 +226,23 @@ type ContinueItem = {
   poster?: string;
   meta: string;
   progress: string;
+  positionSeconds?: number;
+  durationSeconds?: number | null;
+  completed: boolean;
 };
 
 function localContinueItem(entry: LocalHistoryEntry): ContinueItem {
+  const completed = entry.positionSeconds !== undefined && entry.durationSeconds !== undefined && entry.positionSeconds / entry.durationSeconds >= 0.95;
   return {
     key: `local-${entry.id}-${entry.url}`,
     name: entry.name,
     url: entry.url,
     poster: entry.poster,
     meta: entry.watchedAt || "当前浏览器",
-    progress: entry.progress
+    progress: entry.progress,
+    positionSeconds: entry.positionSeconds,
+    durationSeconds: entry.durationSeconds,
+    completed
   };
 }
 
@@ -246,8 +253,28 @@ function accountContinueItem(entry: AccountHistoryEntry): ContinueItem {
     url: `/watch/${entry.vodId}/${entry.sourceId}/${entry.episodeId}`,
     poster: entry.poster,
     meta: `${entry.episodeName} · ${entry.watchedAt}`,
-    progress: entry.progress
+    progress: entry.progress,
+    positionSeconds: entry.positionSeconds,
+    durationSeconds: entry.durationSeconds,
+    completed: entry.completed
   };
+}
+
+function progressDetails(item: ContinueItem) {
+  if (item.positionSeconds === undefined || !item.durationSeconds) return null;
+  const percent = Math.min(100, Math.max(0, Math.floor((item.positionSeconds / item.durationSeconds) * 100)));
+  const remainingMinutes = Math.max(1, Math.ceil(Math.max(item.durationSeconds - item.positionSeconds, 0) / 60));
+  const hours = Math.floor(remainingMinutes / 60);
+  const minutes = remainingMinutes % 60;
+  const remaining = hours === 0 ? `剩余 ${remainingMinutes} 分钟` : minutes === 0 ? `剩余 ${hours} 小时` : `剩余 ${hours} 小时 ${minutes} 分钟`;
+  return { percent, remaining };
+}
+
+function isCompleted(item: ContinueItem) {
+  const { positionSeconds, durationSeconds } = item;
+  return (
+    item.completed || (positionSeconds !== undefined && typeof durationSeconds === "number" && durationSeconds > 0 && positionSeconds / durationSeconds >= 0.95)
+  );
 }
 
 function ContinueWatching({ items, historyHref }: { items: ContinueItem[]; historyHref: string }) {
@@ -265,16 +292,35 @@ function ContinueWatching({ items, historyHref }: { items: ContinueItem[]; histo
         </Link>
       </div>
       <div className="home-continue-rail" aria-live="polite">
-        {items.map((item) => (
-          <Link className="home-continue-card" key={item.key} to={item.url}>
-            <Artwork containerClassName="home-continue-poster" src={item.poster} alt={item.name} loading="lazy" />
-            <span className="home-continue-body">
-              <strong>{item.name}</strong>
-              <small>{item.meta}</small>
-              <em>{item.progress}</em>
-            </span>
-          </Link>
-        ))}
+        {items.map((item) => {
+          const details = progressDetails(item);
+          return (
+            <Link className="home-continue-card" key={item.key} to={item.url}>
+              <Artwork containerClassName="home-continue-poster" src={item.poster} alt={item.name} loading="lazy" />
+              <span className="home-continue-body">
+                <strong>{item.name}</strong>
+                <small>{item.meta}</small>
+                <span className="home-continue-status">
+                  <em>{item.progress}</em>
+                  {details && <span className="home-continue-remaining">{details.remaining}</span>}
+                </span>
+                {details && (
+                  <span
+                    className="home-continue-progress"
+                    role="progressbar"
+                    aria-label={`${item.name}观看进度 ${details.percent}%`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={details.percent}
+                    aria-valuetext={details.remaining}
+                  >
+                    <span style={{ width: `${details.percent}%` }} />
+                  </span>
+                )}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
@@ -400,24 +446,23 @@ export function HomePage({ api = homeApi }: { api?: Pick<HomeApi, "getHome"> }) 
   });
   const accountHistoryQuery = useQuery({
     queryKey: ["account", "history", "home"],
-    queryFn: () => account.api.getHistory(4),
+    queryFn: () => account.api.getHistory(12),
     enabled: account.session.authenticated
   });
   const view = useMemo(() => (query.data ? buildHomeView(query.data) : null), [query.data]);
   const continueItems = useMemo(() => {
-    const candidates = [
-      ...localHistory.map(localContinueItem),
-      ...(account.session.authenticated ? (accountHistoryQuery.data ?? []).map(accountContinueItem) : [])
-    ];
+    if (account.isPending) return [];
+    const candidates = account.session.authenticated ? (accountHistoryQuery.data ?? []).map(accountContinueItem) : localHistory.map(localContinueItem);
     const seen = new Set<string>();
     return candidates
+      .filter((item) => !isCompleted(item))
       .filter((item) => {
         if (seen.has(item.url)) return false;
         seen.add(item.url);
         return true;
       })
       .slice(0, 4);
-  }, [account.session.authenticated, accountHistoryQuery.data, localHistory]);
+  }, [account.isPending, account.session.authenticated, accountHistoryQuery.data, localHistory]);
 
   useEffect(() => {
     if (query.data) document.title = `${query.data.siteName} · 首页`;

@@ -20,6 +20,7 @@ DEPLOY_GATE_CACHE_ROOT="${DEPLOY_GATE_CACHE_ROOT:-$repo_root/.cache/deploy-gates
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"
 API_ADDON_NAME="pingfangapi"
+API_BACKUP_ID=""
 ARCHIVE="dist/pingfangvideo.tar.gz"
 ADDON_ARCHIVE="dist/pingfangdevice.tar.gz"
 API_ADDON_ARCHIVE="dist/pingfangapi.tar.gz"
@@ -37,6 +38,10 @@ case "$DEPLOY_SCOPE" in
     exit 1
     ;;
 esac
+
+if [[ "$DEPLOY_SCOPE" == "api" ]]; then
+  API_BACKUP_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$-${RANDOM}${RANDOM}"
+fi
 
 normalized_deploy_path="${DEPLOY_PATH%/}"
 if [[ "$normalized_deploy_path" != /* || "$normalized_deploy_path" == "/" || "$(basename -- "$normalized_deploy_path")" != "template" ]]; then
@@ -275,6 +280,7 @@ remote_env=(
   "DEPLOY_SITE_MARKER=$(printf "%q" "$DEPLOY_SITE_MARKER")"
   "DEVICE_SESSION_HASH=$(printf "%q" "$DEVICE_SESSION_HASH")"
   "DEVICE_HOOK_HASH=$(printf "%q" "$DEVICE_HOOK_HASH")"
+  "API_BACKUP_ID=$(printf "%q" "$API_BACKUP_ID")"
   "ROLLBACK_FAILED_EXIT_STATUS=$(printf "%q" "$ROLLBACK_FAILED_EXIT_STATUS")"
 )
 
@@ -926,6 +932,77 @@ PHP_API_SCHEMA
   fi
 }
 
+validate_api_rollback_pair() {
+  local addon_dir="$1"
+  local controller_file="$2"
+  local label="$3"
+  local php_file
+
+  if [[ ! -d "$addon_dir" || ! -f "$controller_file" ]]; then
+    echo "$label is not a complete API rollback pair." >&2
+    return 1
+  fi
+  if [[ -L "$addon_dir" || -L "$controller_file" || -n "$(find "$addon_dir" -type l -print -quit)" ]]; then
+    echo "$label must not contain symbolic links." >&2
+    return 1
+  fi
+  if [[ ! -f "$addon_dir/info.ini" || ! -f "$addon_dir/application/index/controller/Pingfangapi.php" || ! -f "$addon_dir/service/AccountService.php" ]]; then
+    echo "$label does not contain the required pingfangapi structure." >&2
+    return 1
+  fi
+  if ! cmp -s -- "$addon_dir/application/index/controller/Pingfangapi.php" "$controller_file"; then
+    echo "$label contains mismatched API controllers." >&2
+    return 1
+  fi
+  while IFS= read -r -d '' php_file; do
+    php -l "$php_file" >/dev/null
+  done < <(find "$addon_dir" -type f -name '*.php' -print0)
+  php -l "$controller_file" >/dev/null
+}
+
+persist_api_rollback_backup() {
+  local maccms_root addon_source controller_source addon_backup controller_backup
+
+  if [[ "$DEPLOY_SCOPE" != "api" ]]; then
+    return
+  fi
+  if [[ ! "$API_BACKUP_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[1-9][0-9]*-[0-9]+$ ]]; then
+    echo "API_BACKUP_ID is invalid." >&2
+    return 1
+  fi
+
+  maccms_root="$(dirname "$DEPLOY_PATH")"
+  addon_source="$maccms_root/addons/$API_ADDON_NAME"
+  controller_source="$maccms_root/application/index/controller/Pingfangapi.php"
+  addon_backup="$maccms_root/addons/${API_ADDON_NAME}.backup.${API_BACKUP_ID}"
+  controller_backup="${controller_source}.backup.${API_BACKUP_ID}"
+
+  validate_api_rollback_pair "$addon_source" "$controller_source" "Installed API"
+  if [[ -e "$addon_backup" || -L "$addon_backup" || -e "$controller_backup" || -L "$controller_backup" ]]; then
+    echo "API rollback backup target already exists for ${API_BACKUP_ID}." >&2
+    return 1
+  fi
+
+  if ! cp -a -- "$addon_source" "$addon_backup"; then
+    rm -rf -- "$addon_backup"
+    echo "Failed to create API addon rollback backup." >&2
+    return 1
+  fi
+  if ! cp -a -- "$controller_source" "$controller_backup"; then
+    rm -rf -- "$addon_backup"
+    rm -f -- "$controller_backup"
+    echo "Failed to create API controller rollback backup." >&2
+    return 1
+  fi
+  if ! validate_api_rollback_pair "$addon_backup" "$controller_backup" "Created API rollback backup"; then
+    rm -rf -- "$addon_backup"
+    rm -f -- "$controller_backup"
+    return 1
+  fi
+
+  echo "Created paired API rollback backup ${API_BACKUP_ID}"
+}
+
 install_api_addon() {
   local maccms_root addon_dir backup application_source application_target application_backup
 
@@ -934,7 +1011,9 @@ install_api_addon() {
   application_target="$maccms_root/application/index/controller/Pingfangapi.php"
   mkdir -p "$maccms_root/addons"
 
-  if [[ -d "$addon_dir" ]]; then
+  if [[ "$DEPLOY_SCOPE" == "api" ]]; then
+    backup="${API_ADDON_NAME}.backup.${API_BACKUP_ID}"
+  elif [[ -d "$addon_dir" ]]; then
     backup="${API_ADDON_NAME}.backup.$(date +%Y%m%d%H%M%S)"
     cp -a "$addon_dir" "$maccms_root/addons/$backup"
   fi
@@ -947,7 +1026,7 @@ install_api_addon() {
 
   application_source="$addon_dir/application/index/controller/Pingfangapi.php"
   mkdir -p "$(dirname "$application_target")"
-  if [[ -f "$application_target" ]]; then
+  if [[ "$DEPLOY_SCOPE" != "api" && -f "$application_target" ]]; then
     application_backup="${application_target}.backup.$(date +%Y%m%d%H%M%S)"
     cp -a "$application_target" "$application_backup"
   fi
@@ -1100,6 +1179,7 @@ trap cleanup_deploy_files EXIT
 
 preflight_release
 snapshot_release
+persist_api_rollback_backup
 release_started=1
 if [[ "$DEPLOY_SCOPE" != "api" ]]; then
   install_device_addon
@@ -1129,6 +1209,7 @@ trap - EXIT
 
 if [[ "$DEPLOY_SCOPE" == "api" ]]; then
   echo "Deployed ${API_ADDON_NAME} to ${REMOTE} without changing the theme or ${ADDON_NAME}"
+  echo "API_ROLLBACK_BACKUP=${API_BACKUP_ID} npm run rollback:api"
 elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
   echo "Deployed ${ADDON_NAME} and ${API_ADDON_NAME} to ${REMOTE} without changing the theme"
 else

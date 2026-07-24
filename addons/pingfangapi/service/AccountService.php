@@ -13,9 +13,11 @@ class AccountService
 
     private $currentUserLoaded = false;
     private $currentUserValue;
+    private $requestId;
 
-    public function __construct($verifiedUser = null)
+    public function __construct($verifiedUser = null, $requestId = null)
     {
+        $this->requestId = self::requestId($requestId);
         if (is_array($verifiedUser)) {
             $this->currentUserLoaded = true;
             $this->currentUserValue = intval(isset($verifiedUser['user_id']) ? $verifiedUser['user_id'] : 0) > 0 ? $verifiedUser : null;
@@ -1118,11 +1120,37 @@ class AccountService
 
     private function logFailure($action, \Throwable $e)
     {
-        $message = '[pingfangapi] Failed to ' . $action . ': ' . $e->getMessage();
+        $actions = [
+            'register device login' => 'register_login',
+            'read logout user' => 'read_logout_user',
+            'revoke logout device' => 'revoke_logout_device',
+            'send comment reply notification' => 'send_comment_reply_notification',
+            'read last insert id' => 'read_last_insert_id',
+        ];
+        $message = json_encode([
+            'request_id' => $this->requestId,
+            'endpoint' => 'account',
+            'action' => isset($actions[$action]) ? $actions[$action] : 'unknown',
+            'status' => 500,
+            'exception_class' => get_class($e),
+        ], JSON_UNESCAPED_SLASHES);
         if (function_exists('trace')) {
             trace($message, 'error');
             return;
         }
         error_log($message);
+    }
+
+    private static function requestId($value)
+    {
+        $value = trim((string) $value);
+        if (preg_match('/^[a-f0-9]{32}$/D', $value)) {
+            return $value;
+        }
+        try {
+            return bin2hex(random_bytes(16));
+        } catch (\Throwable $e) {
+            return substr(hash('sha256', uniqid('', true) . mt_rand()), 0, 32);
+        }
     }
 }

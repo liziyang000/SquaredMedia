@@ -24,6 +24,7 @@ function shellQuote(value) {
 const rollbackFunctions = extractBetween("restore_release() {", "\ntrap cleanup_deploy_files EXIT");
 const uploadCleanupFunction = extractBetween("cleanup_remote_uploads() {", "\ntrap cleanup_remote_uploads EXIT");
 const clearCacheFunction = extractBetween("clear_maccms_cache() {", "\n\nvalidate_api_warmup_response() {");
+const addonConfigMergeFunction = extractBetween("merge_addon_config_values() {", "\n\ninstall_device_addon() {");
 
 assert.match(deployScript, /ROLLBACK_FAILED_EXIT_STATUS=95/);
 assert.match(rollbackFunctions, /local rollback_status=0/);
@@ -34,6 +35,39 @@ assert.ok(
   uploadCleanupFunction.indexOf('if [[ "$status" -eq "$ROLLBACK_FAILED_EXIT_STATUS" ]]') < uploadCleanupFunction.indexOf("REMOTE_UPLOAD_CLEANUP"),
   "The local exit trap must preserve uploads before attempting remote cleanup"
 );
+
+const addonConfigHarnessRoot = mkdtempSync(path.join(tmpdir(), "pingfang-addon-config-test-"));
+try {
+  const oldConfig = path.join(addonConfigHarnessRoot, "old.php");
+  const newConfig = path.join(addonConfigHarnessRoot, "new.php");
+  const harnessPath = path.join(addonConfigHarnessRoot, "merge.sh");
+  writeFileSync(
+    oldConfig,
+    "<?php return [['name' => 'home_limit', 'value' => '77'], ['name' => 'removed_setting', 'value' => 'keep-out']];\n"
+  );
+  writeFileSync(
+    newConfig,
+    "<?php return [['name' => 'lazyload_image', 'value' => '/template/default.png'], ['name' => 'home_limit', 'value' => '120']];\n"
+  );
+  writeFileSync(
+    harnessPath,
+    [
+      "#!/usr/bin/env bash",
+      "set -euo pipefail",
+      addonConfigMergeFunction,
+      `merge_addon_config_values ${shellQuote(oldConfig)} ${shellQuote(newConfig)}`,
+      ""
+    ].join("\n")
+  );
+  const result = spawnSync("bash", [harnessPath], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const mergedConfig = readFileSync(newConfig, "utf8");
+  assert.match(mergedConfig, /'name' => 'lazyload_image'[\s\S]*'value' => '\/template\/default\.png'/);
+  assert.match(mergedConfig, /'name' => 'home_limit'[\s\S]*'value' => '77'/);
+  assert.doesNotMatch(mergedConfig, /removed_setting|keep-out/);
+} finally {
+  rmSync(addonConfigHarnessRoot, { recursive: true, force: true });
+}
 
 function runRemoteRollbackScenario({ failCopy = false, snapshotState = "directory" }) {
   const scenarioRoot = mkdtempSync(path.join(tmpdir(), "pingfang-rollback-test-"));

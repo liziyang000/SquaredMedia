@@ -147,7 +147,7 @@ if [[ "$DEPLOY_SCOPE" == "api" ]]; then
 fi
 
 run_full_gate() {
-  npm test
+  DEPLOY_SCOPE=all npm test
   npm run lint
   npm run lint:template
   npm run verify:compat
@@ -603,6 +603,54 @@ verify_deployed_site() {
   warm_api_endpoints "$port"
 }
 
+merge_addon_config_values() {
+  local old_config="$1"
+  local new_config="$2"
+
+  if [[ ! -f "$old_config" || ! -f "$new_config" ]]; then
+    return
+  fi
+
+  OLD_ADDON_CONFIG="$old_config" NEW_ADDON_CONFIG="$new_config" php <<'PHP_ADDON_CONFIG'
+<?php
+$oldPath = getenv('OLD_ADDON_CONFIG');
+$newPath = getenv('NEW_ADDON_CONFIG');
+$oldConfig = include $oldPath;
+$newConfig = include $newPath;
+if (!is_array($oldConfig) || !is_array($newConfig)) {
+    fwrite(STDERR, "Addon config merge requires two valid config arrays.\n");
+    exit(1);
+}
+
+$oldValues = [];
+foreach ($oldConfig as $row) {
+    if (is_array($row) && isset($row['name']) && is_scalar($row['name']) && array_key_exists('value', $row)) {
+        $oldValues[(string) $row['name']] = $row['value'];
+    }
+}
+foreach ($newConfig as &$row) {
+    if (!is_array($row) || !isset($row['name']) || !is_scalar($row['name'])) {
+        continue;
+    }
+    $name = (string) $row['name'];
+    if (array_key_exists($name, $oldValues)) {
+        $row['value'] = $oldValues[$name];
+    }
+}
+unset($row);
+
+$content = "<?php\n\nreturn " . var_export($newConfig, true) . ";\n";
+$tempPath = $newPath . '.tmp.' . getmypid();
+if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newPath)) {
+    @unlink($tempPath);
+    fwrite(STDERR, "Failed to preserve saved addon configuration.\n");
+    exit(1);
+}
+PHP_ADDON_CONFIG
+
+  php -l "$new_config" >/dev/null
+}
+
 install_device_addon() {
   local maccms_root addon_dir backup application_source application_target application_backup
 
@@ -619,6 +667,9 @@ install_device_addon() {
 
   rm -rf "$addon_dir"
   mv "$device_addon_source" "$addon_dir"
+  if [[ -n "${backup:-}" ]]; then
+    merge_addon_config_values "$maccms_root/addons/$backup/config.php" "$addon_dir/config.php"
+  fi
 
   if [[ -n "$backup" && -f "$maccms_root/addons/$backup/config.php" ]]; then
     EXISTING_ADDON_CONFIG="$maccms_root/addons/$backup/config.php" NEW_ADDON_CONFIG="$addon_dir/config.php" php <<'PHP_ADDON_CONFIG'
@@ -945,6 +996,9 @@ install_api_addon() {
 
   rm -rf "$addon_dir"
   mv "$api_addon_source" "$addon_dir"
+  if [[ -n "${backup:-}" ]]; then
+    merge_addon_config_values "$maccms_root/addons/$backup/config.php" "$addon_dir/config.php"
+  fi
 
   application_source="$addon_dir/application/index/controller/Pingfangapi.php"
   mkdir -p "$(dirname "$application_target")"

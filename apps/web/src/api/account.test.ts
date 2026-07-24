@@ -12,6 +12,10 @@ function jsonResponse(body: unknown, { ok = true, status = 200 } = {}) {
   } as Response;
 }
 
+function requestAction(input: RequestInfo | URL) {
+  return new URL(String(input), "http://react-api.local").searchParams.get("action");
+}
+
 function responseFor(action: string | null) {
   const dataByAction: Record<string, unknown> = {
     session: {
@@ -119,6 +123,96 @@ function responseFor(action: string | null) {
 }
 
 describe("createAccountApi reads", () => {
+  it("requests and parses paginated favorites and history", async () => {
+    const calls: string[] = [];
+    const api = createAccountApi({
+      endpoint: "/react-api.php?locale=zh",
+      fetchImpl: async (input) => {
+        const value = String(input);
+        calls.push(value);
+        const action = new URL(value, "http://react-api.local").searchParams.get("action");
+        const response = responseFor(action) as { data: { items: unknown[] } };
+        return jsonResponse({
+          ...response,
+          data: {
+            ...response.data,
+            page: action === "favorites" ? "2" : "3",
+            pageSize: action === "favorites" ? "24" : "12",
+            total: "50",
+            totalPages: action === "favorites" ? "3" : "5",
+            internalCursor: "secret"
+          }
+        });
+      }
+    });
+
+    const favorites = await api.getFavoritesPage(2, 24);
+    const history = await api.getHistoryPage(3, 12);
+
+    expect(calls).toEqual(["/react-api.php?locale=zh&action=favorites&page=2&page_size=24", "/react-api.php?locale=zh&action=history&page=3&page_size=12"]);
+    expect(favorites).toMatchObject({ page: 2, pageSize: 24, total: 50, totalPages: 3 });
+    expect(history).toMatchObject({ page: 3, pageSize: 12, total: 50, totalPages: 5 });
+    expect(favorites).not.toHaveProperty("internalCursor");
+    expect(favorites.items[0]).not.toHaveProperty("url");
+    expect(history.items[0]).not.toHaveProperty("src");
+  });
+
+  it("normalizes an unpaginated response as one legacy page", async () => {
+    const api = createAccountApi({
+      endpoint: "/react-api.php",
+      fetchImpl: async (input) => jsonResponse(responseFor(requestAction(input)))
+    });
+
+    await expect(api.getFavoritesPage(4, 24)).resolves.toMatchObject({
+      page: 1,
+      pageSize: 24,
+      total: 1,
+      totalPages: 1
+    });
+    await expect(api.getHistoryPage(2, 24)).resolves.toMatchObject({
+      page: 1,
+      pageSize: 24,
+      total: 1,
+      totalPages: 1
+    });
+  });
+
+  it("retries paginated reads without new query fields only for the exact older API error", async () => {
+    const calls: string[] = [];
+    const api = createAccountApi({
+      endpoint: "/react-api.php",
+      fetchImpl: async (input) => {
+        const value = String(input);
+        calls.push(value);
+        const url = new URL(value, "http://react-api.local");
+        if (url.searchParams.has("page")) {
+          return jsonResponse({ code: 400, msg: "存在未支持的查询参数", data: null }, { ok: false, status: 400 });
+        }
+        return jsonResponse(responseFor(url.searchParams.get("action")));
+      }
+    });
+
+    await expect(api.getFavoritesPage(2, 24)).resolves.toMatchObject({ page: 1, pageSize: 24, total: 1, totalPages: 1 });
+    await expect(api.getHistoryPage(3, 24)).resolves.toMatchObject({ page: 1, pageSize: 24, total: 1, totalPages: 1 });
+    expect(calls).toEqual([
+      "/react-api.php?action=favorites&page=2&page_size=24",
+      "/react-api.php?action=favorites",
+      "/react-api.php?action=history&page=3&page_size=24",
+      "/react-api.php?action=history"
+    ]);
+  });
+
+  it("does not hide other pagination request failures", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ code: 400, msg: "存在未支持的查询参数：other", data: null }, { ok: false, status: 400 }));
+    const api = createAccountApi({ endpoint: "/react-api.php", fetchImpl });
+
+    await expect(api.getFavoritesPage(2, 24)).rejects.toMatchObject({
+      status: 400,
+      message: "存在未支持的查询参数：other"
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("parses session, favorites, history and devices through response whitelists", async () => {
     const calls: string[] = [];
     const api = createAccountApi({
@@ -202,6 +296,63 @@ describe("createAccountApi reads", () => {
 });
 
 describe("createAccountApi writes", () => {
+  it("deletes arbitrary record id lists in sequential batches and aggregates removed records", async () => {
+    const calls: Array<{ action: string; body: Record<string, unknown> }> = [];
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+    const api = createAccountApi({
+      endpoint: "/react-api.php",
+      csrfToken: "csrf",
+      fetchImpl: async (input, init) => {
+        const action = requestAction(input) || "";
+        const body = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
+        calls.push({ action, body });
+        activeRequests += 1;
+        maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+        await Promise.resolve();
+        activeRequests -= 1;
+        const removed = Array.isArray(body.recordIds) ? body.recordIds.length : 0;
+        return jsonResponse({ code: 1, msg: `${action} ok`, data: { removed } });
+      }
+    });
+    const recordIds = Array.from({ length: 205 }, (_, index) => index + 1);
+
+    const favorites = await api.deleteFavorites({ recordIds });
+    const history = await api.deleteHistory({ all: true });
+
+    expect(calls.map(({ action }) => action)).toEqual(["favorites.delete", "favorites.delete", "favorites.delete", "history.delete"]);
+    expect(calls.slice(0, 3).map(({ body }) => (body.recordIds as unknown[]).length)).toEqual([100, 100, 5]);
+    expect(calls.slice(0, 3).flatMap(({ body }) => body.recordIds as unknown[])).toEqual(recordIds.map(String));
+    expect(calls[3]?.body).toEqual({ all: true });
+    expect(maxActiveRequests).toBe(1);
+    expect(favorites.data.removed).toBe(205);
+    expect(history.data.removed).toBe(0);
+  });
+
+  it("stops after a failed delete batch and surfaces the original error", async () => {
+    const batchSizes: number[] = [];
+    const api = createAccountApi({
+      endpoint: "/react-api.php",
+      csrfToken: "csrf",
+      fetchImpl: async (_input, init) => {
+        const body = JSON.parse(String(init?.body || "{}")) as { recordIds: unknown[] };
+        batchSizes.push(body.recordIds.length);
+        if (batchSizes.length === 2) {
+          return jsonResponse({ code: 401, msg: "登录状态已失效", data: null }, { ok: false, status: 401 });
+        }
+        return jsonResponse({ code: 1, msg: "删除成功", data: { removed: body.recordIds.length } });
+      }
+    });
+
+    await expect(api.deleteHistory({ recordIds: Array.from({ length: 201 }, (_, index) => index + 1) })).rejects.toMatchObject({
+      kind: "business",
+      status: 401,
+      code: 401,
+      message: "登录状态已失效"
+    });
+    expect(batchSizes).toEqual([100, 100]);
+  });
+
   it("adds CSRF to every write and sends only validated fields", async () => {
     const calls: Array<{ action: string; init?: RequestInit; body: Record<string, unknown> }> = [];
     const csrfToken = vi.fn(() => "csrf-123");
@@ -280,6 +431,9 @@ describe("createAccountApi writes", () => {
     await expect(invalidApi.submitRating({ vodId: 1, score: 11 })).rejects.toMatchObject({ kind: "validation" });
     await expect(invalidApi.deleteFavorites({ recordIds: [] })).rejects.toMatchObject({ kind: "validation" });
     await expect(invalidApi.deleteFavorites({ all: true, recordIds: [21] })).rejects.toMatchObject({ kind: "validation" });
+    await expect(invalidApi.deleteFavorites({ recordIds: [...Array.from({ length: 100 }, (_, index) => index + 1), "invalid/id"] })).rejects.toMatchObject({
+      kind: "validation"
+    });
     await expect(invalidApi.revokeDevice(" ")).rejects.toMatchObject({ kind: "validation" });
     await expect(invalidApi.submitReport({ sourceId: 1, episodeId: 2, reason: "无法播放" })).rejects.toMatchObject({ kind: "validation" });
     expect(fetchImpl).not.toHaveBeenCalled();

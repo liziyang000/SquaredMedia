@@ -103,6 +103,10 @@ const deviceSchema = z.object({
 const favoritesSchema = z.object({ items: z.array(favoriteSchema) });
 const historySchema = z.object({ items: z.array(historyEntrySchema) });
 const historyLimitSchema = z.number().int().min(1).max(100);
+const accountPageRequestSchema = z.object({
+  page: z.number().int().min(1).max(100000),
+  pageSize: z.number().int().min(1).max(100)
+});
 const devicesSchema = z.object({ maxDevices: z.coerce.number().int().positive(), items: z.array(deviceSchema) });
 
 const loginInputSchema = z.object({
@@ -134,13 +138,14 @@ const favoriteResultSchema = z.object({
 
 const recordDeleteInputSchema = z
   .object({
-    recordIds: z.array(identifierSchema).min(1).max(100).optional(),
+    recordIds: z.array(identifierSchema).min(1).optional(),
     all: z.boolean().optional()
   })
   .refine((input) => (input.all === true ? !input.recordIds?.length : Boolean(input.recordIds?.length)), {
     message: "all 与 recordIds 必须且只能选择一种"
   });
 const recordDeleteResultSchema = z.object({ removed: z.number().int().nonnegative() });
+const recordDeleteBatchSize = 100;
 
 const historyInputSchema = z.object({
   vodId: identifierSchema,
@@ -237,6 +242,13 @@ const ratingResultSchema = z.object({
 
 export type AccountUser = z.infer<typeof accountUserSchema>;
 export type AccountSession = z.infer<typeof sessionSchema>;
+export type AccountPage<T> = {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
 export type FavoriteEntry = z.infer<typeof favoriteSchema>;
 export type AccountHistoryEntry = z.infer<typeof historyEntrySchema>;
 export type AccountDevice = z.infer<typeof deviceSchema>;
@@ -268,9 +280,11 @@ export type AccountApi = {
   verifyContentPassword(input: ContentPasswordInput): Promise<ApiEnvelopeResult<z.infer<typeof contentPasswordResultSchema>>>;
   logout(): Promise<ApiEnvelopeResult<z.infer<typeof logoutResultSchema>>>;
   getFavorites(): Promise<FavoriteEntry[]>;
+  getFavoritesPage(page?: number, pageSize?: number): Promise<AccountPage<FavoriteEntry>>;
   setFavorite(input: FavoriteInput): Promise<ApiEnvelopeResult<z.infer<typeof favoriteResultSchema>>>;
   deleteFavorites(input: RecordDeleteInput): Promise<ApiEnvelopeResult<z.infer<typeof recordDeleteResultSchema>>>;
   getHistory(limit?: number): Promise<AccountHistoryEntry[]>;
+  getHistoryPage(page?: number, pageSize?: number): Promise<AccountPage<AccountHistoryEntry>>;
   saveHistory(input: HistoryInput): Promise<ApiEnvelopeResult<z.infer<typeof historyResultSchema>>>;
   deleteHistory(input: RecordDeleteInput): Promise<ApiEnvelopeResult<z.infer<typeof recordDeleteResultSchema>>>;
   getDevices(): Promise<AccountDevices>;
@@ -301,6 +315,42 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
     return parseEnvelopeData(payload, schema, fallbackMessage).data;
   }
 
+  async function readPage<T>(action: string, itemSchema: z.ZodType<T>, fallbackMessage: string, page = 1, pageSize = 24): Promise<AccountPage<T>> {
+    const request = parseApiInput({ page, pageSize }, accountPageRequestSchema);
+    const schema = z.union([
+      z.object({
+        items: z.array(itemSchema),
+        page: z.coerce.number().int().positive(),
+        pageSize: z.coerce.number().int().positive(),
+        total: z.coerce.number().int().nonnegative(),
+        totalPages: z.coerce.number().int().nonnegative()
+      }),
+      z.object({ items: z.array(itemSchema) })
+    ]);
+    let result;
+    try {
+      result = await read(action, schema, fallbackMessage, {
+        page: String(request.page),
+        page_size: String(request.pageSize)
+      });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 400 || error.message !== "存在未支持的查询参数") {
+        throw error;
+      }
+      result = await read(action, schema, fallbackMessage);
+    }
+    if ("page" in result) return result;
+
+    const total = result.items.length;
+    return {
+      items: result.items,
+      page: 1,
+      pageSize: Math.max(request.pageSize, total),
+      total,
+      totalPages: total > 0 ? 1 : 0
+    };
+  }
+
   async function write<T>(action: string, body: unknown, schema: z.ZodType<T>, fallbackMessage: string, keepalive = false) {
     const token = resolveCsrfToken(csrfToken ?? sessionCsrfToken);
     const url = withApiParams(requireApiEndpoint(endpoint), { action });
@@ -316,6 +366,28 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
       timeoutMs
     });
     return parseEnvelopeData(payload, schema, fallbackMessage);
+  }
+
+  async function deleteRecords(action: string, input: RecordDeleteInput, fallbackMessage: string) {
+    const parsed = parseApiInput(input, recordDeleteInputSchema);
+    const recordIds = parsed.recordIds ?? [];
+    if (parsed.all === true || recordIds.length <= recordDeleteBatchSize) {
+      return write(action, parsed, recordDeleteResultSchema, fallbackMessage);
+    }
+
+    let message = fallbackMessage;
+    let removed = 0;
+    for (let offset = 0; offset < recordIds.length; offset += recordDeleteBatchSize) {
+      const result = await write(
+        action,
+        { ...parsed, recordIds: recordIds.slice(offset, offset + recordDeleteBatchSize) },
+        recordDeleteResultSchema,
+        fallbackMessage
+      );
+      message = result.message;
+      removed += result.data.removed;
+    }
+    return { message, data: { removed } };
   }
 
   return Object.freeze({
@@ -345,18 +417,26 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
       return (await read("favorites", favoritesSchema, "收藏加载失败")).items;
     },
 
+    async getFavoritesPage(page, pageSize) {
+      return readPage("favorites", favoriteSchema, "收藏加载失败", page, pageSize);
+    },
+
     async setFavorite(input) {
       return write("favorite", parseApiInput(input, favoriteInputSchema), favoriteResultSchema, "收藏操作失败");
     },
 
     async deleteFavorites(input) {
-      return write("favorites.delete", parseApiInput(input, recordDeleteInputSchema), recordDeleteResultSchema, "收藏记录删除失败");
+      return deleteRecords("favorites.delete", input, "收藏记录删除失败");
     },
 
     async getHistory(limit) {
       const params: Record<string, string> = {};
       if (limit !== undefined) params.limit = String(parseApiInput(limit, historyLimitSchema));
       return (await read("history", historySchema, "播放记录加载失败", params)).items;
+    },
+
+    async getHistoryPage(page, pageSize) {
+      return readPage("history", historyEntrySchema, "播放记录加载失败", page, pageSize);
     },
 
     async saveHistory(input) {
@@ -373,7 +453,7 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
     },
 
     async deleteHistory(input) {
-      return write("history.delete", parseApiInput(input, recordDeleteInputSchema), recordDeleteResultSchema, "播放记录删除失败");
+      return deleteRecords("history.delete", input, "播放记录删除失败");
     },
 
     async getDevices() {

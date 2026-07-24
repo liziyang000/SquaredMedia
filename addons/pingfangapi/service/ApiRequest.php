@@ -306,13 +306,42 @@ class ApiRequest
             return self::success(['items' => $this->content->comments($vodId, $mid)], '评论加载成功');
         }
 
-        $this->assertQueryKeys($query, $action === 'history' ? ['action', 'limit'] : ['action']);
+        if ($action === 'favorites') {
+            $this->assertQueryKeys($query, ['action', 'page', 'page_size']);
+        } elseif ($action === 'history') {
+            $this->assertQueryKeys($query, ['action', 'limit', 'page', 'page_size']);
+        } else {
+            $this->assertQueryKeys($query, ['action']);
+        }
         $user = $this->requireUser();
         $userId = intval($user['user_id']);
         if ($action === 'favorites') {
+            $hasPage = array_key_exists('page', $query);
+            $hasPageSize = array_key_exists('page_size', $query);
+            if ($hasPage !== $hasPageSize) {
+                throw new ApiException(422, 'page 和 page_size 必须同时提供');
+            }
+            if ($hasPage) {
+                $page = $this->queryInteger($query['page'], 'page', 1, 100000);
+                $pageSize = $this->queryInteger($query['page_size'], 'page_size', 1, AccountService::PRIVATE_LIST_LIMIT);
+                return self::success($this->account->favoritesPage($userId, $page, $pageSize), '收藏加载成功');
+            }
             return self::success(['items' => $this->account->favorites($userId)], '收藏加载成功');
         }
         if ($action === 'history') {
+            $hasPage = array_key_exists('page', $query);
+            $hasPageSize = array_key_exists('page_size', $query);
+            if (array_key_exists('limit', $query) && ($hasPage || $hasPageSize)) {
+                throw new ApiException(422, 'limit 不能与 page 或 page_size 同时使用');
+            }
+            if ($hasPage !== $hasPageSize) {
+                throw new ApiException(422, 'page 和 page_size 必须同时提供');
+            }
+            if ($hasPage) {
+                $page = $this->queryInteger($query['page'], 'page', 1, 100000);
+                $pageSize = $this->queryInteger($query['page_size'], 'page_size', 1, AccountService::PRIVATE_LIST_LIMIT);
+                return self::success($this->account->historyPage($userId, $page, $pageSize), '播放记录加载成功');
+            }
             $limit = array_key_exists('limit', $query) ? $this->queryInteger($query['limit'], 'limit', 1, AccountService::PRIVATE_LIST_LIMIT) : AccountService::PRIVATE_LIST_LIMIT;
             return self::success(['items' => $this->account->history($userId, $limit)], '播放记录加载成功');
         }

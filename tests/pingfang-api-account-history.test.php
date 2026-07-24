@@ -14,6 +14,8 @@ final class PingfangApiAccountHistoryDb
 final class PingfangApiAccountHistoryQuery
 {
     private string $table;
+    private array $where = [];
+    private ?int $limit = null;
 
     public function __construct(string $table)
     {
@@ -28,6 +30,7 @@ final class PingfangApiAccountHistoryQuery
     public function where(...$arguments)
     {
         $GLOBALS['pingfangApiAccountHistoryWhere'][$this->table][] = $arguments;
+        $this->where[] = $arguments;
         return $this;
     }
 
@@ -38,18 +41,63 @@ final class PingfangApiAccountHistoryQuery
 
     public function limit($limit)
     {
+        $this->limit = max(0, (int) $limit);
         return $this;
     }
 
     public function select()
     {
-        return $GLOBALS['pingfangApiAccountHistoryRows'][$this->table] ?? [];
+        $rows = $GLOBALS['pingfangApiAccountHistoryRows'][$this->table] ?? [];
+        $rows = array_values(array_filter($rows, function (array $row): bool {
+            foreach ($this->where as $arguments) {
+                if (count($arguments) === 1 && is_array($arguments[0])) {
+                    foreach ($arguments[0] as $field => $expected) {
+                        if (!$this->matches($row, (string) $field, '=', $expected)) {
+                            return false;
+                        }
+                    }
+                    continue;
+                }
+                if (count($arguments) === 2 && !$this->matches($row, (string) $arguments[0], '=', $arguments[1])) {
+                    return false;
+                }
+                if (count($arguments) === 3 && !$this->matches($row, (string) $arguments[0], (string) $arguments[1], $arguments[2])) {
+                    return false;
+                }
+            }
+            return true;
+        }));
+        if ($this->limit !== null) {
+            $rows = array_slice($rows, 0, $this->limit);
+        }
+        return $rows;
     }
 
     public function find()
     {
-        $rows = $GLOBALS['pingfangApiAccountHistoryRows'][$this->table] ?? [];
+        $rows = $this->select();
         return $rows[0] ?? null;
+    }
+
+    private function matches(array $row, string $field, string $operator, $expected): bool
+    {
+        if (!array_key_exists($field, $row)) {
+            return true;
+        }
+        $actual = $row[$field];
+        if (is_array($expected) && count($expected) === 2) {
+            return $this->matches($row, $field, (string) $expected[0], $expected[1]);
+        }
+        if ($operator === 'in') {
+            return in_array($actual, (array) $expected);
+        }
+        if ($operator === 'not in') {
+            return !in_array($actual, (array) $expected);
+        }
+        if ($operator === 'gt') {
+            return $actual > $expected;
+        }
+        return $actual == $expected;
     }
 
     public function update($data)
@@ -140,6 +188,60 @@ $assertSame(true, $items[1]['completed'], 'History at the native 95% threshold m
 $assertSame(42, $items[2]['positionSeconds'], 'Legacy history must retain a known position when duration is unavailable.');
 $assertSame(null, $items[2]['durationSeconds'], 'Legacy zero durations must be exposed as unknown rather than a zero-length video.');
 $assertSame(false, $items[2]['completed'], 'History with an unknown duration must not be marked complete.');
+
+$GLOBALS['pingfangApiAccountHistoryRows'] = [
+    'ulog' => [
+        ['ulog_id' => 84, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 4, 'ulog_rid' => 7, 'ulog_sid' => 1, 'ulog_nid' => 2, 'ulog_points' => 0, 'ulog_point' => 12, 'ulog_duration' => 120, 'ulog_time' => 1721621000],
+        ['ulog_id' => 82, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 4, 'ulog_rid' => 8, 'ulog_sid' => 1, 'ulog_nid' => 1, 'ulog_points' => 25, 'ulog_point' => 95, 'ulog_duration' => 100, 'ulog_time' => 1721620950],
+        ['ulog_id' => 81, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 4, 'ulog_rid' => 7, 'ulog_sid' => 1, 'ulog_nid' => 1, 'ulog_points' => 0, 'ulog_point' => 37, 'ulog_duration' => 120, 'ulog_time' => 1721620900],
+        ['ulog_id' => 85, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 4, 'ulog_rid' => 10, 'ulog_sid' => 1, 'ulog_nid' => 1, 'ulog_points' => 0, 'ulog_point' => 18, 'ulog_duration' => 100, 'ulog_time' => 1721620700],
+        ['ulog_id' => 83, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 4, 'ulog_rid' => 9, 'ulog_sid' => 1, 'ulog_nid' => 1, 'ulog_points' => 0, 'ulog_point' => 42, 'ulog_duration' => 100, 'ulog_time' => 1721620600],
+        ['ulog_id' => 86, 'user_id' => 99, 'ulog_mid' => 1, 'ulog_type' => 4, 'ulog_rid' => 11, 'ulog_sid' => 1, 'ulog_nid' => 1, 'ulog_points' => 0, 'ulog_point' => 33, 'ulog_duration' => 100, 'ulog_time' => 1721621100],
+        ['ulog_id' => 71, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 2, 'ulog_rid' => 7, 'ulog_time' => 1721621000],
+        ['ulog_id' => 72, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 2, 'ulog_rid' => 8, 'ulog_time' => 1721620900],
+        ['ulog_id' => 73, 'user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 2, 'ulog_rid' => 9, 'ulog_time' => 1721620800],
+        ['ulog_id' => 74, 'user_id' => 99, 'ulog_mid' => 1, 'ulog_type' => 2, 'ulog_rid' => 10, 'ulog_time' => 1721621100],
+    ],
+    'vod' => array_map(static function (int $vodId): array {
+        return [
+            'vod_id' => $vodId,
+            'vod_status' => 1,
+            'vod_recycle_time' => 0,
+            'vod_name' => '测试影片 ' . $vodId,
+            'vod_pic' => '/upload/' . $vodId . '.jpg',
+            'vod_remarks' => '正片',
+            'vod_play_from' => 'local',
+            'vod_play_url' => '第1集$https://media.example/' . $vodId . '.m3u8',
+            'vod_play_server' => '',
+            'vod_play_note' => '',
+        ];
+    }, [7, 8, 10, 11]),
+];
+
+$paginationService = new AccountService(['user_id' => 42, 'user_name' => 'alice']);
+$historyPage = $paginationService->historyPage(42, 1, 1);
+$assertSame(
+    ['items', 'page', 'pageSize', 'total', 'totalPages'],
+    array_keys($historyPage),
+    'Paginated history must expose the complete page envelope.'
+);
+$assertSame([1, 1, 3, 3], [$historyPage['page'], $historyPage['pageSize'], $historyPage['total'], $historyPage['totalPages']], 'History totals must be computed after validity filtering and folding by video.');
+$assertSame('8', $historyPage['items'][0]['vodId'], 'History order must use the newest valid episode instead of a newer removed episode.');
+$paidHistoryPage = $paginationService->historyPage(42, 2, 1);
+$assertSame('7', $paidHistoryPage['items'][0]['vodId'], 'Paginated history must retain the next valid video after folding.');
+$assertSame('1', $paidHistoryPage['items'][0]['episodeId'], 'History must use the first valid episode when a newer row points to a removed episode.');
+$assertSame(['84', '81'], $paidHistoryPage['items'][0]['recordIds'], 'History must collect every folded record ID before pagination.');
+$lastHistoryPage = $paginationService->historyPage(42, 99, 1);
+$assertSame([3, '10'], [$lastHistoryPage['page'], $lastHistoryPage['items'][0]['vodId']], 'History pages beyond the end must clamp to the last page.');
+$emptyHistoryPage = $paginationService->historyPage(123, 4, 10);
+$assertSame([[], 1, 10, 0, 0], array_values($emptyHistoryPage), 'Empty history pagination must normalize to page one with zero pages.');
+
+$favoritePage = $paginationService->favoritesPage(42, 2, 1);
+$assertSame([2, 1, 2, 2, '8'], [$favoritePage['page'], $favoritePage['pageSize'], $favoritePage['total'], $favoritePage['totalPages'], $favoritePage['items'][0]['vodId']], 'Favorites must paginate only visible records for the current user.');
+$lastFavoritePage = $paginationService->favoritesPage(42, 99, 1);
+$assertSame(2, $lastFavoritePage['page'], 'Favorite pages beyond the end must clamp to the last page.');
+$emptyFavoritePage = $paginationService->favoritesPage(123, 4, 10);
+$assertSame([[], 1, 10, 0, 0], array_values($emptyFavoritePage), 'Empty favorite pagination must normalize to page one with zero pages.');
 
 $GLOBALS['pingfangApiAccountHistoryWhere'] = [];
 $GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = [

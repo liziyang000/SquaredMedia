@@ -1186,7 +1186,7 @@ Token 替换旧 Token。
 | ---------- | --------------------------------------------------- |
 | 方法与地址 | `GET /index.php/pingfangapi/index?action=favorites` |
 | 登录       | 必须登录                                            |
-| 查询参数   | 除 `action=favorites` 外不接受任何参数              |
+| 分页参数   | `page` 与 `page_size` 必须同时提供                   |
 
 `favorites` 从当前用户 `Ulog` 读取：
 
@@ -1195,9 +1195,20 @@ ulog_mid = 1
 ulog_type = 2
 ```
 
-列表按时间倒序，最多 100 条。影片必须处于启用、未回收状态，并排除当前用户组
+列表按时间倒序。影片必须处于启用、未回收状态，并排除当前用户组
 分类黑名单；列表读取不会逐片执行详情密码、版权或播放付费检查。详情访问在
 `detail` 重新判断，播放权限由 `playback` 与其同源 `stream` 入口共同判断。
+
+账号页面固定请求 `page_size=24`：
+
+```text
+GET /index.php/pingfangapi/index?action=favorites&page=1&page_size=24
+```
+
+`page` 范围为 1～100000，`page_size` 范围为 1～100。分页响应在过滤不可见影片后
+计算 `total`，请求超过末页时收敛到最后一页；空列表返回
+`page=1,total=0,totalPages=0`。不传分页参数时保留旧 `{items}` 响应和最多 100 条
+上限，供旧 React 发布包回滚。
 
 ```json
 {
@@ -1221,6 +1232,18 @@ ulog_type = 2
 `recordIds` 是该列表项对应的 MacCMS 原生 `ulog_id`，不是影片 ID。收藏项当前每项
 包含一个记录 ID；页面删除选中项时必须回传该数组，不能用 `vodId` 代替。
 `items=[]` 是正常结果。未登录返回 401；设备会话或分类权限服务不可用返回 503。
+
+分页响应的 `data` 形状为：
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "pageSize": 24,
+  "total": 0,
+  "totalPages": 0
+}
+```
 
 #### `favorite`：设置单片收藏状态
 
@@ -1272,7 +1295,9 @@ ulog_type = 2
 ```
 
 `recordIds` 必须是 1～100 个正整数 `ulog_id`，重复 ID 会去重；不能同时提交
-`all=true`。`all=false` 本身不代表有效选择，仍必须同时提供 `recordIds`。定向删除
+`all=true`。`all=false` 本身不代表有效选择，仍必须同时提供 `recordIds`。React
+客户端在一个当前页选择超过 100 个底层 ID 时会按 100 条顺序分批，任一批失败后
+重新读取活动页，不会静默截断。定向删除
 按“当前用户 + `ulog_mid=1` + `ulog_type=2` + 选中 `ulog_id`”执行，不会扩大到同一
 影片的其他隐藏记录。
 
@@ -1294,7 +1319,8 @@ ulog_type = 2
 | ---------- | ------------------------------------------------- |
 | 方法与地址 | `GET /index.php/pingfangapi/index?action=history` |
 | 登录       | 必须登录                                          |
-| `limit`    | 可选整数，1～100，默认 100                        |
+| 旧列表参数 | `limit` 可选整数，1～100，默认 100                 |
+| 分页参数   | `page` 与 `page_size` 必须同时提供                 |
 
 `history` 读取当前用户的播放进度记录：
 
@@ -1302,7 +1328,15 @@ ulog_type = 2
 GET /index.php/pingfangapi/index?action=history&limit=4
 ```
 
-`limit` 可省略，范围为 1～100，默认 100。首页固定请求 4；完整记录页使用默认值。
+`limit` 可省略，范围为 1～100，默认 100。首页固定请求 4，继续使用旧 `{items}`
+响应。账号记录页改为：
+
+```text
+GET /index.php/pingfangapi/index?action=history&page=1&page_size=24
+```
+
+`page` 范围为 1～100000，`page_size` 范围为 1～100；二者必须同时出现，并且不能
+与 `limit` 共用。
 
 ```text
 ulog_mid = 1
@@ -1348,8 +1382,10 @@ ulog_nid > 0
 `durationSeconds` 为 `null`。`completed` 仅在有效时长下按 95% 阈值由服务端
 计算，客户端不能通过 `history.save` 直接提交该状态。
 和收藏列表相同，影片会按启用状态、回收状态和分类黑名单过滤，但列表读取不会替代
-后续详情权限和受控媒体入口校验。无记录返回 `items=[]`；`limit` 越界返回 422，未登录返回
-401。
+后续详情权限和受控媒体入口校验。分页模式必须先完成有效剧集校验、按影片折叠和
+全部 `recordIds` 聚合，再切当前页，因此 `total` 是可展示影片数，不是原始 Ulog 行数。
+分页元数据、超页与空列表规则和收藏一致；`limit` 或分页参数越界返回 422，未登录返回
+401。不传分页参数时继续返回最多 100 个折叠项。
 
 #### `history.save`：保存播放进度
 
@@ -1426,7 +1462,8 @@ ulog_nid > 0
 { "all": true }
 ```
 
-选择规则与 `favorites.delete` 相同。定向删除按当前用户、`ulog_mid=1`、`ulog_type=4`
+选择规则与 `favorites.delete` 相同，包括 React 客户端对超过 100 个底层 ID 的
+顺序分批和失败后重新读取。定向删除按当前用户、`ulog_mid=1`、`ulog_type=4`
 和选中 `ulog_id` 执行；`all=true` 才删除当前用户的全部 type 4 记录。两种方式都不按
 积分字段缩窄，也不会因为同一 `vodId` 而扩大删除范围。
 
@@ -1864,7 +1901,7 @@ id, title, year, class, backdrop, duration, version, summary, episodes
   `action` 之外的额外 query，但客户端不得依赖该实现细节。
 - ID 必须为正整数，最大 2147483647。JSON body 可传整数或不带前导零的十进制
   字符串；不接受 0、负数、浮点数或 `"0001"`。
-- 批量删除最多 100 个原生 Ulog `recordIds`；它们是 `ulog_id`，不是影片 ID。
+- 服务端单次批量删除最多 100 个原生 Ulog `recordIds`；它们是 `ulog_id`，不是影片 ID，React 会对更大的当前页选择顺序分批。
 - 秒数必须使用 JSON number，不能传数字字符串；必须有限且在范围内，浮点数向下
   取整，并拒绝 `NaN`、无穷大和越界值。
 - 可选字段不需要时应省略，不要传空字符串或 `null`；客户端不得依赖 PHP `isset`

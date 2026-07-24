@@ -10,6 +10,7 @@ const STARTUP_HINT_GRACE_MS = 7_000;
 const BUFFER_HINT_DELAY_MS = 400;
 const STALL_TIMEOUT_MS = 8_000;
 const PLAYER_ERROR_TIMEOUT_MS = 7_000;
+const CHECKPOINT_INTERVAL_MS = 20_000;
 const MEDIA_RECOVERY_COOLDOWN_MS = 5_000;
 const MAX_MEDIA_RECOVERIES = 2;
 const HLS_CONFIG = {
@@ -32,14 +33,17 @@ function prefersNativeHls(video: HTMLVideoElement) {
 
 type MacCmsPlayerProps = {
   playback: PlaybackDescriptor;
+  resumePositionSeconds?: number;
   onCheckpoint: (element: HTMLVideoElement) => void;
   onComplete: () => void;
 };
 
-export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlayerProps) {
+export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, onComplete }: MacCmsPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const checkpointRef = useRef(onCheckpoint);
   const completeRef = useRef(onComplete);
+  const latestPositionRef = useRef(0);
+  const hasLatestPositionRef = useRef(false);
   const [retryVersion, setRetryVersion] = useState(0);
   const [hint, setHint] = useState("");
   const [status, setStatus] = useState("");
@@ -51,6 +55,11 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
   useEffect(() => {
     completeRef.current = onComplete;
   }, [onComplete]);
+
+  useEffect(() => {
+    latestPositionRef.current = 0;
+    hasLatestPositionRef.current = false;
+  }, [playback.episodeId, playback.sourceId, playback.vodId]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -65,6 +74,8 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
     let hasPlayed = false;
     let blockingStatus = false;
     let trialEnded = false;
+    let resumeApplied = false;
+    let lastCheckpointAt = 0;
     let player: import("artplayer").default | undefined;
     let activeHls: import("hls.js").default | undefined;
     let resetHlsRecovery: (() => void) | undefined;
@@ -129,9 +140,43 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
       endTrial();
       return true;
     };
+    const checkpoint = (video: HTMLVideoElement) => {
+      if (!Number.isFinite(video.currentTime) || video.currentTime < 0) return;
+      if (video.currentTime === 0 && !hasPlayed && !hasLatestPositionRef.current) return;
+      lastCheckpointAt = Date.now();
+      latestPositionRef.current = video.currentTime;
+      hasLatestPositionRef.current = true;
+      checkpointRef.current(video);
+    };
+    const applyResumePosition = () => {
+      if (resumeApplied || !player) return;
+      const duration = player.video.duration;
+      if (!Number.isFinite(duration) || duration <= 0) return;
+
+      resumeApplied = true;
+      if (hasLatestPositionRef.current) {
+        player.video.currentTime = Math.min(latestPositionRef.current, Math.max(duration - 1, 0));
+        return;
+      }
+
+      const cloudPosition = resumePositionSeconds ?? 0;
+      if (!Number.isFinite(cloudPosition) || cloudPosition <= 30 || cloudPosition >= duration * 0.95) return;
+
+      player.video.currentTime = Math.min(cloudPosition, Math.max(duration - 1, 0));
+      latestPositionRef.current = player.video.currentTime;
+      player.notice.show = "已从上次进度继续播放";
+    };
+    const checkpointOnPageExit = () => {
+      if (player) checkpoint(player.video);
+    };
+    const checkpointWhenHidden = () => {
+      if (document.hidden) checkpointOnPageExit();
+    };
 
     setHint("");
     setStatus("");
+    document.addEventListener("visibilitychange", checkpointWhenHidden);
+    window.addEventListener("pagehide", checkpointOnPageExit);
 
     const mount = async () => {
       const [{ default: Artplayer }, { default: Hls }] = await Promise.all([import("artplayer"), import("hls.js")]);
@@ -207,7 +252,7 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
         lock: true,
         gesture: true,
         fastForward: true,
-        autoPlayback: true,
+        autoPlayback: false,
         autoOrientation: true,
         airplay: true,
         moreVideoAttr: {
@@ -231,16 +276,31 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
         ? Math.max(STARTUP_TIMEOUT_MS, playback.playerHints.startupHintAfterMs + STARTUP_HINT_GRACE_MS)
         : STARTUP_TIMEOUT_MS;
       startupTimer = setTimeout(() => showStatus("视频加载较慢，可以重新加载或切换线路。"), startupWarningAfterMs);
-      art.on("video:canplay", () => playbackReady(true));
+      art.on("video:loadedmetadata", applyResumePosition);
+      art.on("video:canplay", () => {
+        applyResumePosition();
+        playbackReady(true);
+      });
       art.on("video:playing", () => {
+        if (!hasPlayed) lastCheckpointAt = Date.now();
         hasPlayed = true;
         playbackReady(true);
       });
       art.on("video:timeupdate", () => {
         if (enforceTrial()) return;
         if (!art.video.paused && art.video.readyState >= 3) {
+          if (!hasPlayed) lastCheckpointAt = Date.now();
           hasPlayed = true;
           playbackReady();
+        }
+        if (hasPlayed && Number.isFinite(art.video.currentTime) && art.video.currentTime >= 0) {
+          latestPositionRef.current = art.video.currentTime;
+          hasLatestPositionRef.current = true;
+        }
+        const now = Date.now();
+        if (hasPlayed && art.video.currentTime > 0 && now - lastCheckpointAt >= CHECKPOINT_INTERVAL_MS) {
+          lastCheckpointAt = now;
+          checkpoint(art.video);
         }
       });
       art.on("video:seeking", enforceTrial);
@@ -252,11 +312,11 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
         bufferHintTimer = undefined;
         stallTimer = undefined;
         if (!disposed) setHint("");
-        if (!disposed && !trialEnded) checkpointRef.current(art.video);
+        if (!disposed && !trialEnded) checkpoint(art.video);
       });
       art.on("video:ended", () => {
         if (disposed) return;
-        checkpointRef.current(art.video);
+        checkpoint(art.video);
         if (!trialEnded) completeRef.current();
       });
       art.on("video:error", () => {
@@ -271,9 +331,11 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
     void mount().catch(() => showStatus("播放器核心加载失败，请重新加载后重试。"));
 
     return () => {
+      document.removeEventListener("visibilitychange", checkpointWhenHidden);
+      window.removeEventListener("pagehide", checkpointOnPageExit);
       disposed = true;
       clearPlaybackTimers();
-      if (player?.video.currentTime) checkpointRef.current(player.video);
+      if (player) checkpoint(player.video);
       player?.destroy();
       destroyHls();
       container.replaceChildren();
@@ -288,6 +350,7 @@ export function MacCmsPlayer({ playback, onCheckpoint, onComplete }: MacCmsPlaye
     playback.sourceId,
     playback.url,
     playback.vodId,
+    resumePositionSeconds,
     retryVersion
   ]);
 

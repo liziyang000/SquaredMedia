@@ -54,7 +54,7 @@ function react_api_initialize_session(array &$session): void
         $state['user'] = null;
     }
 
-    foreach (['favorites', 'history', 'devices', 'feedback', 'reports', 'comments', 'reactions', 'ratings'] as $key) {
+    foreach (['favorites', 'history', 'historyCheckpoints', 'devices', 'feedback', 'reports', 'comments', 'reactions', 'ratings'] as $key) {
         if (!isset($state[$key]) || !is_array($state[$key])) {
             $state[$key] = [];
         }
@@ -515,7 +515,7 @@ function react_api_mime_type(string $url): string
     };
 }
 
-function react_api_playback(array $catalog, array $query): array
+function react_api_playback(array $catalog, array $query, array $state): array
 {
     $vodId = react_api_identifier_value($query['vod_id'] ?? null);
     $sourceId = react_api_identifier_value($query['source_id'] ?? null);
@@ -536,7 +536,7 @@ function react_api_playback(array $catalog, array $query): array
         return react_api_error(503, '播放资源暂不可用');
     }
 
-    return react_api_success([
+    $data = [
         'siteName' => (string) ($catalog['siteName'] ?? ''),
         'vodId' => $vodId,
         'sourceId' => $sourceId,
@@ -548,7 +548,18 @@ function react_api_playback(array $catalog, array $query): array
         'kind' => react_api_mime_type($url) === 'application/vnd.apple.mpegurl' ? 'hls' : 'video',
         'url' => $url,
         'mimeType' => react_api_mime_type($url),
-    ], '播放信息加载成功');
+    ];
+    if (is_array($state['user'] ?? null)) {
+        $historyKey = $vodId . ':' . $sourceId . ':' . $episodeId;
+        $history = $state['history'][$historyKey] ?? null;
+        $positionSeconds = is_array($history) ? (int) ($history['positionSeconds'] ?? 0) : 0;
+        $durationSeconds = is_array($history) ? (int) ($history['durationSeconds'] ?? 0) : 0;
+        if ($positionSeconds > 30 && $durationSeconds > 0 && $positionSeconds * 100 < $durationSeconds * 95) {
+            $data['resumePositionSeconds'] = $positionSeconds;
+        }
+    }
+
+    return react_api_success($data, '播放信息加载成功');
 }
 
 function react_api_session_data(array $state): array
@@ -736,7 +747,7 @@ function react_api_account(array $state): array
 
 function react_api_clear_account_state(array &$state): void
 {
-    foreach (['favorites', 'history', 'devices', 'reactions', 'ratings'] as $key) {
+    foreach (['favorites', 'history', 'historyCheckpoints', 'devices', 'reactions', 'ratings'] as $key) {
         $state[$key] = [];
     }
 }
@@ -839,11 +850,21 @@ function react_api_history_save(array &$state, array $catalog, array $body): arr
     $position = react_api_number(react_api_input($body, 'positionSeconds', 'position_seconds'));
     $durationValue = react_api_input($body, 'durationSeconds', 'duration_seconds');
     $duration = $durationValue === null ? null : react_api_number($durationValue);
+    $checkpointValue = react_api_input($body, 'checkpointAtMs', 'checkpoint_at_ms');
+    $checkpointAtMs = $checkpointValue === null ? null : react_api_number($checkpointValue);
     if ($vodId === null || $sourceId === null || $episodeId === null || $position === null || $position < 0) {
         return react_api_error(422, '播放记录参数不正确');
     }
     if ($durationValue !== null && ($duration === null || $duration <= 0)) {
         return react_api_error(422, '播放时长参数不正确');
+    }
+    if ($checkpointValue !== null && (
+        $checkpointAtMs === null
+        || $checkpointAtMs < 1
+        || $checkpointAtMs > 9999999999999
+        || floor($checkpointAtMs) !== $checkpointAtMs
+    )) {
+        return react_api_error(422, '播放记录顺序参数不正确');
     }
 
     $video = react_api_find_video($catalog, $vodId);
@@ -852,11 +873,32 @@ function react_api_history_save(array &$state, array $catalog, array $body): arr
         return react_api_error(404, '播放资源不存在');
     }
 
-    $positionSeconds = $position;
-    if ($duration !== null && $positionSeconds > $duration) {
+    $positionSeconds = (int) floor($position);
+    $durationSeconds = $duration === null ? null : (int) floor($duration);
+    $key = $vodId . ':' . $sourceId . ':' . $episodeId;
+    if ($durationSeconds === null) {
+        $existingDuration = (int) ($state['history'][$key]['durationSeconds'] ?? 0);
+        $durationSeconds = $existingDuration > 0 ? $existingDuration : null;
+    }
+    if ($durationSeconds !== null && $durationSeconds < 1) {
+        return react_api_error(422, '播放时长参数不正确');
+    }
+    if ($durationSeconds !== null && $positionSeconds > $durationSeconds) {
         return react_api_error(422, '播放进度不能超过总时长');
     }
-    $key = $vodId . ':' . $episodeId;
+    if ($checkpointAtMs === null && isset($state['historyCheckpoints'][$key])) {
+        return react_api_success(['saved' => true], '播放记录已保存');
+    }
+    if (
+        $checkpointAtMs !== null
+        && isset($state['historyCheckpoints'][$key])
+        && (int) $state['historyCheckpoints'][$key] > (int) $checkpointAtMs
+    ) {
+        return react_api_success(['saved' => true], '播放记录已保存');
+    }
+    if ($checkpointAtMs !== null) {
+        $state['historyCheckpoints'][$key] = (int) $checkpointAtMs;
+    }
     $state['history'][$key] = [
         'recordIds' => [$key],
         'vodId' => $vodId,
@@ -865,7 +907,10 @@ function react_api_history_save(array &$state, array $catalog, array $body): arr
         'title' => (string) $video['title'],
         'episodeName' => (string) $episode['name'],
         'poster' => (string) ($video['poster'] ?? ''),
-        'progress' => (string) ((int) floor($positionSeconds)) . ' 秒',
+        'positionSeconds' => $positionSeconds,
+        'durationSeconds' => $durationSeconds,
+        'completed' => $durationSeconds !== null && $positionSeconds * 100 >= $durationSeconds * 95,
+        'progress' => (string) $positionSeconds . ' 秒',
         'watchedAt' => react_api_now(),
     ];
 
@@ -1143,7 +1188,7 @@ function react_api_handle(array &$session, array $catalog, string $method, array
             return $detail === null ? react_api_error(404, '影片不存在') : react_api_success($detail, '影片详情加载成功', 200, true);
         }
         if ($action === 'playback') {
-            return react_api_playback($catalog, $query);
+            return react_api_playback($catalog, $query, $state);
         }
         if ($action === 'session') {
             return react_api_success(react_api_session_data($state), '登录状态加载成功');
@@ -1203,7 +1248,7 @@ function react_api_handle(array &$session, array $catalog, string $method, array
 
 function react_api_needs_session(string $method, string $action): bool
 {
-    return strtoupper($method) !== 'GET' || !in_array($action, ['home', 'home_v2', 'navigation', 'content', 'playback'], true);
+    return strtoupper($method) !== 'GET' || !in_array($action, ['home', 'home_v2', 'navigation', 'content'], true);
 }
 
 function react_api_request_headers(): array

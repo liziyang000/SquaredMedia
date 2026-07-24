@@ -65,6 +65,9 @@ function responseFor(action: string | null) {
           poster: "/poster.jpg",
           progress: "已看到 48:02",
           watchedAt: "2026-06-15 18:20",
+          positionSeconds: 2882,
+          durationSeconds: 7200,
+          completed: false,
           src: "https://media.example.com/private.mp4"
         }
       ]
@@ -156,9 +159,28 @@ describe("createAccountApi reads", () => {
     });
     expect(favorites[0]).not.toHaveProperty("url");
     expect(history[0]).not.toHaveProperty("src");
+    expect(history[0]).toMatchObject({ positionSeconds: 2882, durationSeconds: 7200, completed: false });
     expect(devices.maxDevices).toBe(3);
     expect(devices.items[0]).not.toHaveProperty("token");
     expect(comments).toEqual([{ id: "31", parentId: null, author: "测试用户", content: "很好看", createdAt: "2026-06-15 19:20", likes: 3, dislikes: 0 }]);
+  });
+
+  it("keeps history reads compatible with records created before numeric progress fields", async () => {
+    const api = createAccountApi({
+      endpoint: "/react-api.php",
+      fetchImpl: async () => {
+        const response = responseFor("history") as { data: { items: Array<Record<string, unknown>> } };
+        const [item] = response.data.items;
+        if (item) {
+          delete item.positionSeconds;
+          delete item.durationSeconds;
+          delete item.completed;
+        }
+        return jsonResponse(response);
+      }
+    });
+
+    await expect(api.getHistory()).resolves.toMatchObject([{ positionSeconds: 0, durationSeconds: null, completed: false }]);
   });
 
   it("reuses the CSRF token returned by session bootstrap", async () => {
@@ -199,7 +221,7 @@ describe("createAccountApi writes", () => {
     await api.logout();
     await api.setFavorite({ vodId: 1, favorite: true });
     await api.deleteFavorites({ recordIds: [21, 22] });
-    await api.saveHistory({ vodId: 1, sourceId: 1, episodeId: 101, positionSeconds: 30, durationSeconds: 120 });
+    await api.saveHistory({ vodId: 1, sourceId: 1, episodeId: 101, positionSeconds: 30, durationSeconds: 120, checkpointAtMs: 1784846400123 });
     await api.deleteHistory({ all: true });
     await api.revokeDevice("session-2");
     await api.submitFeedback({ name: "访客", content: "建议内容" });
@@ -234,7 +256,15 @@ describe("createAccountApi writes", () => {
     expect(calls[0]?.body).not.toHaveProperty("admin");
     expect(calls[1]?.body).toEqual({ vodId: "1", scope: "detail", password: "content-secret" });
     expect(calls[4]?.body).toEqual({ recordIds: ["21", "22"] });
-    expect(calls[5]?.body).toEqual({ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 30, durationSeconds: 120 });
+    expect(calls[5]?.body).toEqual({
+      vodId: "1",
+      sourceId: "1",
+      episodeId: "101",
+      positionSeconds: 30,
+      durationSeconds: 120,
+      checkpointAtMs: 1784846400123
+    });
+    expect(calls[5]?.init?.keepalive).toBe(true);
     expect(calls[6]?.body).toEqual({ all: true });
   });
 
@@ -265,6 +295,46 @@ describe("createAccountApi writes", () => {
       code: 401,
       message: "登录状态已失效"
     });
+  });
+
+  it("retries history checkpoints without ordering metadata against an older API", async () => {
+    const bodies: Array<Record<string, unknown>> = [];
+    const keepalive: Array<boolean | undefined> = [];
+    const api = createAccountApi({
+      endpoint: "/react-api.php",
+      csrfToken: "csrf",
+      fetchImpl: async (_input, init) => {
+        const body = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
+        bodies.push(body);
+        keepalive.push(init?.keepalive);
+        if (bodies.length === 1) {
+          return jsonResponse({ code: 422, msg: "存在未支持的请求字段", data: null }, { ok: false, status: 422 });
+        }
+        return jsonResponse(responseFor("history.save"));
+      }
+    });
+
+    await api.saveHistory({
+      vodId: 1,
+      sourceId: 1,
+      episodeId: 101,
+      positionSeconds: 30,
+      durationSeconds: 120,
+      checkpointAtMs: 1784846400123
+    });
+
+    expect(bodies).toEqual([
+      {
+        vodId: "1",
+        sourceId: "1",
+        episodeId: "101",
+        positionSeconds: 30,
+        durationSeconds: 120,
+        checkpointAtMs: 1784846400123
+      },
+      { vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 30, durationSeconds: 120 }
+    ]);
+    expect(keepalive).toEqual([true, true]);
   });
 
   it("allows the legacy direct report form without a video id", async () => {

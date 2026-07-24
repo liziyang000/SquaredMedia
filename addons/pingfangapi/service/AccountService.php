@@ -8,6 +8,7 @@ use think\Db;
 class AccountService
 {
     const CSRF_SESSION_KEY = 'pingfangapi_csrf';
+    const HISTORY_CHECKPOINT_SESSION_KEY = 'pingfangapi_history_checkpoints';
     const PRIVATE_LIST_LIMIT = 100;
 
     private $currentUserLoaded = false;
@@ -292,6 +293,8 @@ class AccountService
             }
             $seen[$vodId] = count($items);
             $position = max(0, intval(isset($row['ulog_point']) ? $row['ulog_point'] : 0));
+            $storedDuration = intval(isset($row['ulog_duration']) ? $row['ulog_duration'] : 0);
+            $duration = $storedDuration > 0 ? $storedDuration : null;
             $items[] = [
                 'recordIds' => [(string) $recordId],
                 'vodId' => (string) $vodId,
@@ -300,6 +303,9 @@ class AccountService
                 'title' => self::text(isset($video['vod_name']) ? $video['vod_name'] : '', '未命名影片'),
                 'episodeName' => $episodeName,
                 'poster' => self::imageUrl(isset($video['vod_pic']) ? $video['vod_pic'] : ''),
+                'positionSeconds' => $position,
+                'durationSeconds' => $duration,
+                'completed' => $duration !== null && $position * 100 >= $duration * 95,
                 'progress' => $episodeName . ' · 已看到 ' . self::clock($position),
                 'watchedAt' => self::formatTime(isset($row['ulog_time']) ? $row['ulog_time'] : 0),
             ];
@@ -311,8 +317,38 @@ class AccountService
         return $items;
     }
 
-    public function saveHistory($userId, $vodId, $sourceId, $episodeId, $position, $duration)
+    public function resumePosition($userId, $vodId, $sourceId, $episodeId)
     {
+        $row = Db::name('Ulog')
+            ->field('ulog_point,ulog_duration')
+            ->where([
+                'user_id' => intval($userId),
+                'ulog_mid' => 1,
+                'ulog_type' => 4,
+                'ulog_rid' => intval($vodId),
+                'ulog_sid' => intval($sourceId),
+                'ulog_nid' => intval($episodeId),
+            ])
+            ->order('ulog_time desc,ulog_id desc')
+            ->find();
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $position = max(0, intval(isset($row['ulog_point']) ? $row['ulog_point'] : 0));
+        $duration = max(0, intval(isset($row['ulog_duration']) ? $row['ulog_duration'] : 0));
+        if ($position <= 30 || $duration < 1 || $position * 100 >= $duration * 95) {
+            return null;
+        }
+        return $position;
+    }
+
+    public function saveHistory($userId, $vodId, $sourceId, $episodeId, $position, $duration, $checkpointAtMs = null)
+    {
+        if (!$this->acceptHistoryCheckpoint($userId, $vodId, $sourceId, $episodeId, $checkpointAtMs)) {
+            return ['saved' => true];
+        }
+
         $where = [
             'user_id' => intval($userId),
             'ulog_mid' => 1,
@@ -342,7 +378,58 @@ class AccountService
             throw new ApiException(500, '播放记录保存失败');
         }
 
+        $this->rememberHistoryCheckpoint($userId, $vodId, $sourceId, $episodeId, $checkpointAtMs);
         return ['saved' => true];
+    }
+
+    private function acceptHistoryCheckpoint($userId, $vodId, $sourceId, $episodeId, $checkpointAtMs)
+    {
+        if (!function_exists('session')) {
+            return true;
+        }
+
+        $key = implode(':', [
+            intval($userId),
+            intval($vodId),
+            intval($sourceId),
+            intval($episodeId),
+        ]);
+        $checkpoints = session(self::HISTORY_CHECKPOINT_SESSION_KEY);
+        if (!is_array($checkpoints)) {
+            $checkpoints = [];
+        }
+        if ($checkpointAtMs === null) {
+            return !isset($checkpoints[$key]);
+        }
+        if (isset($checkpoints[$key]) && intval($checkpoints[$key]) > intval($checkpointAtMs)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function rememberHistoryCheckpoint($userId, $vodId, $sourceId, $episodeId, $checkpointAtMs)
+    {
+        if ($checkpointAtMs === null || !function_exists('session')) {
+            return;
+        }
+
+        $key = implode(':', [
+            intval($userId),
+            intval($vodId),
+            intval($sourceId),
+            intval($episodeId),
+        ]);
+        $checkpoints = session(self::HISTORY_CHECKPOINT_SESSION_KEY);
+        if (!is_array($checkpoints)) {
+            $checkpoints = [];
+        }
+        unset($checkpoints[$key]);
+        $checkpoints[$key] = intval($checkpointAtMs);
+        if (count($checkpoints) > self::PRIVATE_LIST_LIMIT) {
+            array_shift($checkpoints);
+        }
+        session(self::HISTORY_CHECKPOINT_SESSION_KEY, $checkpoints);
     }
 
     public function deleteHistory($userId, array $recordIds, $all)

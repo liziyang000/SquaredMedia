@@ -396,14 +396,16 @@ export function PlotPage({ api = contentApi }: ContentPageProps) {
 
 function PlayerMedia({
   playback,
+  resumePositionSeconds,
   onCheckpoint,
   onComplete
 }: {
   playback: PlaybackDescriptor;
+  resumePositionSeconds?: number;
   onCheckpoint: (element: HTMLVideoElement) => void;
   onComplete: () => void;
 }) {
-  return <MacCmsPlayer playback={playback} onCheckpoint={onCheckpoint} onComplete={onComplete} />;
+  return <MacCmsPlayer playback={playback} resumePositionSeconds={resumePositionSeconds} onCheckpoint={onCheckpoint} onComplete={onComplete} />;
 }
 
 function AuthorizedPlayer({
@@ -425,7 +427,8 @@ function AuthorizedPlayer({
   const account = useAccount();
   const navigate = useNavigate();
   const [autoAdvance, setAutoAdvance] = useState(true);
-  const startedHistoryKey = useRef("");
+  const savedCheckpointRef = useRef("");
+  const checkpointAtRef = useRef(0);
   const isTrial = trial || Boolean(playback.maxPlaybackSeconds);
   const previousEpisode = activeGroup.episodes[activeIndex - 1];
   const nextEpisode = activeGroup.episodes[activeIndex + 1];
@@ -442,27 +445,12 @@ function AuthorizedPlayer({
     });
   }, [activeEpisode, video.id, video.poster, video.title]);
 
-  useEffect(() => {
-    if (isTrial || !account.session.authenticated) return;
-    const key = `${video.id}:${activeEpisode.sourceId}:${activeEpisode.id}`;
-    if (startedHistoryKey.current === key) return;
-    startedHistoryKey.current = key;
-    void account.api
-      .saveHistory({
-        vodId: video.id,
-        sourceId: activeEpisode.sourceId,
-        episodeId: activeEpisode.id,
-        positionSeconds: 0
-      })
-      .catch(() => {
-        startedHistoryKey.current = "";
-      });
-  }, [account.api, account.session.authenticated, activeEpisode.id, activeEpisode.sourceId, isTrial, video.id]);
-
   const checkpoint = (element: HTMLVideoElement) => {
     if (!Number.isFinite(element.currentTime)) return;
-    const minutes = Math.floor(Math.max(element.currentTime, 0) / 60);
-    const seconds = Math.floor(Math.max(element.currentTime, 0) % 60);
+    const positionSeconds = Math.floor(Math.max(element.currentTime, 0));
+    const durationSeconds = Number.isFinite(element.duration) && element.duration > 0 ? Math.floor(element.duration) : null;
+    const minutes = Math.floor(positionSeconds / 60);
+    const seconds = positionSeconds % 60;
     upsertLocalHistory(window.localStorage, {
       id: video.id,
       name: video.title,
@@ -471,15 +459,23 @@ function AuthorizedPlayer({
       progress: `${activeEpisode.name} · 已看到 ${minutes}:${String(seconds).padStart(2, "0")}`
     });
     if (isTrial || !account.session.authenticated) return;
+    const signature = `${video.id}:${activeEpisode.sourceId}:${activeEpisode.id}:${positionSeconds}:${durationSeconds ?? ""}`;
+    if (savedCheckpointRef.current === signature) return;
+    savedCheckpointRef.current = signature;
+    const checkpointAtMs = Math.max(Date.now(), checkpointAtRef.current + 1);
+    checkpointAtRef.current = checkpointAtMs;
     void account.api
       .saveHistory({
         vodId: video.id,
         sourceId: activeEpisode.sourceId,
         episodeId: activeEpisode.id,
-        positionSeconds: Math.max(element.currentTime, 0),
-        ...(Number.isFinite(element.duration) && element.duration > 0 ? { durationSeconds: element.duration } : {})
+        positionSeconds,
+        ...(durationSeconds ? { durationSeconds } : {}),
+        checkpointAtMs
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (savedCheckpointRef.current === signature) savedCheckpointRef.current = "";
+      });
   };
 
   return (
@@ -500,6 +496,7 @@ function AuthorizedPlayer({
           <div className="player-shell" role="region" aria-label={`${video.title} ${activeEpisode.name} 视频播放器`}>
             <PlayerMedia
               playback={playback}
+              resumePositionSeconds={isTrial ? undefined : playback.resumePositionSeconds}
               onCheckpoint={checkpoint}
               onComplete={() => {
                 if (autoAdvance && nextEpisode) void navigate(playbackHref(video.id, nextEpisode, isTrial));
@@ -554,6 +551,8 @@ export function PlayerPage({ trial = false, api = contentApi }: ContentPageProps
     queryKey: ["playback", normalizedVodId, normalizedSourceId, normalizedEpisodeId],
     queryFn: () => api.getPlayback(normalizedVodId, normalizedSourceId, normalizedEpisodeId),
     enabled: normalizedVodId !== "" && normalizedSourceId !== "" && normalizedEpisodeId !== "",
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
     staleTime: 0
   });
 

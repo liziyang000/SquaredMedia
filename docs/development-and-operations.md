@@ -29,6 +29,7 @@
 | `npm run test:e2e` | 用 Playwright 验证本地 Next.js/PHP 路由、状态码、账号流程和响应式边界 | 失败证据写入已忽略的 `output/playwright/` |
 | `npm run deploy:web` | 验证、构建或复用 Linux standalone 归档并原子切换 `react.ping2.my` | 写入本地缓存、远端版本、systemd 与 Nginx |
 | `npm run rollback:web` | 将 staging 切回 `previous` 或指定 Next.js release | 修改远端 `current` 与对应运行配置 |
+| `npm run rollback:api` | 使用显式成对备份 ID 回滚生产 API 插件和应用控制器 | 修改远端 API 文件并清理 MacCMS 缓存 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
@@ -185,7 +186,17 @@ source scripts/deploy-ping2.env
 npm run rollback:web
 ```
 
-指定版本时使用 `NEXT_ROLLBACK_RELEASE=<release-id>`。回滚脚本可在 Next release 之间切换，也能在首次切流后恢复保存的旧静态 staging 配置；它不修改主站、MacCMS 文件或数据库。
+`deploy:web` 成功后会根据切换前的 Next release 输出精确命令
+`NEXT_ROLLBACK_RELEASE=<release-id> npm run rollback:web`；没有可识别的旧 Next
+release 时只输出通用回滚命令。指定 Next 版本回滚时，目标目录中的
+`release.env`、`release.json` 和目录名必须报告同一个 release ID；切换后服务器
+回环及公开 `/healthz` 都必须返回该精确 ID，并继续验证首页以及真实
+`home_v2&compact=1`、`content&scope=library` API 响应。任一验证失败都会恢复回滚前
+的 `current`、Nginx 配置和服务状态。脚本也能在首次切流后恢复保存的旧静态
+staging 配置；它不修改主站、MacCMS 文件或数据库。
+
+API 与 React 同时变更时，先发布向后兼容的 API，再发布 React。React 故障只执行
+`rollback:web`；若 API 故障且新 React 依赖新契约，先回滚 Web，再回滚 API。
 
 ### MacCMS 主题、addon 与联机游戏
 
@@ -222,6 +233,10 @@ DEPLOY_SCOPE=api npm run deploy
 
 `DEPLOY_SCOPE` 只接受 `all`、`backend` 或 `api`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题，适合首次建立生产 API 依赖基线。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会核对服务器已安装的设备服务和 hook 文件摘要、`app_begin` 登记及完整设备会话表结构，不兼容时直接失败并要求先执行一次 `backend` 部署。发布脚本会对包含未提交文件的当前工作区计算内容指纹，并额外纳入三个实际发布源中会进入归档的 Git ignored 文件：该指纹首次发布仍执行完整门禁并写入 `.cache/deploy-gates/v1/`；相同指纹的后续 API-only 发布只运行生产 API、控制器和设备会话测试，并只打包、验证 API 归档。任一发布输入、测试、门禁脚本或工具链变化都会使成功章失效并恢复完整门禁。
 
+API-only 在替换文件前为旧插件目录和旧应用控制器生成同一个成对备份 ID；发布
+成功后终端会输出对应的
+`API_ROLLBACK_BACKUP=<id> npm run rollback:api`，应随发布记录保存。
+
 默认全量发布顺序如下：
 
 1. 在本地重新执行测试、Lint、React 类型/构建/E2E、模板检查、兼容验证和预览验证。
@@ -249,6 +264,11 @@ DEPLOY_SCOPE=api npm run deploy
 - MacCMS 缓存目录仍可由 Web 进程写入。
 - 远端实际主题和插件文件来自本次归档，并记录本次生成的备份目录名。
 
+API 的 `X-Request-ID` 由服务器生成，并传入 `AccountService` 关联同一次请求。服务端
+错误日志只包含 `request_id`、`endpoint`、白名单 `action`、`status` 和
+`exception_class`；不记录异常消息、请求体、Cookie、CSRF、Token 或媒体 URL。
+4xx 默认不记录，转换为响应的 5xx 仍会记录，排障时可用响应头中的 ID 关联日志。
+
 ### 发布安全边界
 
 - 不要把 `DEPLOY_PASSWORD` 写入仓库或 `scripts/deploy-ping2.env`；优先使用 SSH 密钥。首次连接使用 `StrictHostKeyChecking=accept-new`，操作人仍应通过可信渠道核对主机指纹。
@@ -263,9 +283,14 @@ DEPLOY_SCOPE=api npm run deploy
 - `npm run rollback` 仍是一次成功发布后的显式主题回滚，不会主动回退插件或删除数据库结构。
 - 游戏服务部署是 MacCMS 文件事务之后的独立阶段，会单独备份服务环境、systemd、Nginx 和设备插件配置；该阶段失败时自动恢复上一个游戏服务版本，但不会回滚此前已经成功提交的主题与两个插件。
 
-API-only 安装成功后会保留 `pingfangapi.backup.<时间戳>` 目录和 `Pingfangapi.php.backup.<时间戳>` 控制器副本，但当前没有成功发布后的 API 自动回滚命令；`npm run rollback` 只处理主题。API smoke 失败发生在发布事务提交前，因此会自动恢复 API 文件快照。
+API-only 安装成功后会保留共享同一 ID 的
+`pingfangapi.backup.<id>` 与 `Pingfangapi.php.backup.<id>`。API smoke 失败发生在
+发布事务提交前，因此会自动恢复 API 文件快照；成功提交后的回退使用下述显式
+`rollback:api` 命令。
 
 ## 回滚
+
+### MacCMS 主题
 
 `npm run rollback` 调用 `scripts/rollback-theme.sh`。默认选择远端模板目录中名称排序最后的 `pingfangvideo.backup.*`：
 
@@ -286,6 +311,20 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 默认回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
 
 此命令只回滚主题，不回滚 `pingfangdevice`、`pingfangapi`、应用控制器、hook 配置、数据库表结构或联机游戏服务。若故障来自插件或游戏服务发布，必须使用对应阶段留下的备份或 `deploy:games` 恢复链制定单独方案。主题回滚后仍需完成与发布后相同的线上验证。
+
+### PingFang API
+
+API-only 发布后，使用该次终端输出的成对备份 ID：
+
+```bash
+source scripts/deploy-ping2.env
+API_ROLLBACK_BACKUP=<id> npm run rollback:api
+```
+
+回滚会严格校验同一 ID 的插件目录和应用控制器备份，先保存当前 API 文件快照，再
+替换这两个目标、检查 PHP、清理缓存并执行真实 `home_v2&compact=1` 回环 smoke。
+它不修改主题、`pingfangdevice`、hook 或数据库。任一替换、校验、缓存清理或 smoke
+失败都会尝试恢复回滚前快照；恢复本身失败时以状态 `95` 报错并保留现场。
 
 ## 数据维护工具
 

@@ -11,13 +11,20 @@ use ip_limit\IpLocationQuery;
 
 class Pingfangapi extends All
 {
+    private $requestId = '';
+    private $logEndpoint = 'index';
+    private $logAction = 'unknown';
+
     public function index()
     {
+        $this->beginRequest('index', 'unknown');
         try {
             $this->assertApiAccess();
             $this->label_user();
             $request = request();
             $method = strtoupper((string) $request->method());
+            $query = $request->get();
+            $this->logAction = $this->safeAction(isset($query['action']) ? $query['action'] : '');
             $body = [];
             if ($method === 'POST') {
                 $body = ApiRequest::decodeJson($request->contentType(), $request->getInput());
@@ -27,20 +34,23 @@ class Pingfangapi extends All
                 return $this->check_user_popedom($typeId, $popedom, $param, $flag, $info, $trysee);
             });
             $verifiedUser = isset($GLOBALS['user']) && is_array($GLOBALS['user']) ? $GLOBALS['user'] : [];
-            $api = new ApiRequest($content, new AccountService($verifiedUser));
-            $response = $api->handle($method, $request->get(), $body, $this->requestHeaders($request));
+            $api = new ApiRequest($content, new AccountService($verifiedUser, $this->requestId));
+            $response = $api->handle($method, $query, $body, $this->requestHeaders($request));
+            $this->logResponseFailure($response['status'], ApiException::class);
         } catch (ApiException $e) {
+            $this->logResponseFailure($e->status(), get_class($e));
             $response = ApiRequest::failure($e->status(), $e->getMessage());
         } catch (\Throwable $e) {
-            $this->logFailure($e);
+            $this->logFailure(500, get_class($e));
             $response = ApiRequest::failure(500, '服务器暂时无法处理请求');
         }
 
-        return json($response['body'], $response['status'], $response['headers']);
+        return json($response['body'], $response['status'], $this->responseHeaders($response['headers']));
     }
 
     public function player()
     {
+        $this->beginRequest('player', 'player');
         try {
             $this->assertApiAccess();
             $this->label_maccms();
@@ -86,15 +96,17 @@ class Pingfangapi extends All
             }
             return $this->playerResponse($this->embeddedPlayerHtml($this->label_fetch('vod/player')));
         } catch (ApiException $e) {
+            $this->logResponseFailure($e->status(), get_class($e));
             return $this->playerResponse($e->getMessage(), $e->status());
         } catch (\Throwable $e) {
-            $this->logFailure($e);
+            $this->logFailure(500, get_class($e));
             return $this->playerResponse('服务器暂时无法处理请求', 500);
         }
     }
 
     public function stream()
     {
+        $this->beginRequest('stream', 'stream');
         try {
             $this->assertApiAccess();
             $this->label_user();
@@ -112,11 +124,13 @@ class Pingfangapi extends All
                 'Cache-Control' => 'private, no-store',
                 'Pragma' => 'no-cache',
                 'X-Content-Type-Options' => 'nosniff',
+                'X-Request-ID' => $this->requestId,
             ]);
         } catch (ApiException $e) {
+            $this->logResponseFailure($e->status(), get_class($e));
             return $this->streamErrorResponse($e->getMessage(), $e->status());
         } catch (\Throwable $e) {
-            $this->logFailure($e);
+            $this->logFailure(500, get_class($e));
             return $this->streamErrorResponse('服务器暂时无法处理请求', 500);
         }
     }
@@ -126,6 +140,7 @@ class Pingfangapi extends All
         return response($content, intval($status), [
             'Cache-Control' => 'private, no-store',
             'Pragma' => 'no-cache',
+            'X-Request-ID' => $this->requestId,
         ]);
     }
 
@@ -136,6 +151,7 @@ class Pingfangapi extends All
             'Cache-Control' => 'private, no-store',
             'Pragma' => 'no-cache',
             'X-Content-Type-Options' => 'nosniff',
+            'X-Request-ID' => $this->requestId,
         ]);
     }
 
@@ -161,8 +177,9 @@ HTML;
 
     public function _empty()
     {
+        $this->beginRequest('_empty', 'not_found');
         $response = ApiRequest::failure(404, '接口不存在');
-        return json($response['body'], $response['status'], $response['headers']);
+        return json($response['body'], $response['status'], $this->responseHeaders($response['headers']));
     }
 
     private function assertApiAccess()
@@ -184,7 +201,6 @@ HTML;
         } catch (\GeoIp2\Exception\AddressNotFoundException $e) {
             return;
         } catch (\Throwable $e) {
-            $this->logFailure($e);
             throw new ApiException(503, '地区访问策略暂时不可用');
         }
 
@@ -207,9 +223,59 @@ HTML;
         return $headers;
     }
 
-    private function logFailure(\Throwable $e)
+    private function beginRequest($endpoint, $action)
     {
-        $message = '[pingfangapi] Unhandled API error: ' . $e->getMessage();
+        $this->requestId = $this->generateRequestId();
+        $this->logEndpoint = in_array($endpoint, ['index', 'player', 'stream', '_empty'], true) ? $endpoint : 'index';
+        $this->logAction = $this->safeAction($action);
+    }
+
+    private function generateRequestId()
+    {
+        try {
+            return bin2hex(random_bytes(16));
+        } catch (\Throwable $e) {
+            return substr(hash('sha256', uniqid('', true) . mt_rand()), 0, 32);
+        }
+    }
+
+    private function safeAction($action)
+    {
+        if (!is_string($action) && !is_int($action)) {
+            return 'unknown';
+        }
+        $action = trim((string) $action);
+        $allowed = [
+            'home', 'home_v2', 'navigation', 'content', 'detail', 'access', 'downloads', 'plot', 'playback',
+            'session', 'comments', 'favorites', 'history', 'devices', 'login', 'logout', 'favorite',
+            'favorites.delete', 'history.save', 'history.delete', 'device.revoke', 'feedback', 'report',
+            'comment', 'reaction', 'rating', 'password.verify', 'player', 'stream', 'not_found', 'unknown',
+        ];
+        return in_array($action, $allowed, true) ? $action : 'unknown';
+    }
+
+    private function responseHeaders(array $headers)
+    {
+        $headers['X-Request-ID'] = $this->requestId;
+        return $headers;
+    }
+
+    private function logResponseFailure($status, $exceptionClass)
+    {
+        if (intval($status) >= 500) {
+            $this->logFailure($status, $exceptionClass);
+        }
+    }
+
+    private function logFailure($status, $exceptionClass)
+    {
+        $message = json_encode([
+            'request_id' => $this->requestId,
+            'endpoint' => $this->logEndpoint,
+            'action' => $this->logAction,
+            'status' => intval($status),
+            'exception_class' => (string) $exceptionClass,
+        ], JSON_UNESCAPED_SLASHES);
         if (function_exists('trace')) {
             trace($message, 'error');
             return;

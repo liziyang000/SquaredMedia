@@ -35,6 +35,7 @@
 | `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物                                       | 是，仅替换播放器目录和归档                 |
 | `npm run verify:release` | 默认检查四个归档；`DEPLOY_SCOPE=backend/api` 时只检查本次 scope 的归档                 | 只读 `dist/`                               |
 | `npm run verify:player-release` | 单独检查播放器归档的严格白名单、文件一致性与链接边界                         | 只读 `dist/`                               |
+| `npm run audit:legacy-access` | 对本地 Nginx access log 做旧入口访问审计，不输出原始请求或访问者信息                  | 否                                         |
 
 提交主题相关修改前，至少执行：
 
@@ -73,7 +74,7 @@ npm run verify:release
 - `tests/template.test.mjs` 是仓库级静态与预览契约测试，也会约束发布脚本、CI 配置和数据库维护文档中的关键入口。
 - `npm run lint` 用 ESLint 检查主题浏览器脚本、用 Oxc 检查 React TypeScript、用 Stylelint 检查主题 CSS，并用 Prettier 验证源码与配置格式；压缩第三方库不在检查范围内。
 - `npm run typecheck:web` 和 `npm run build:web` 分别验证 App Router 类型边界及 standalone Next.js 生产构建；开发服务器或单元测试通过不能替代生产构建。E2E 应在 production build 之前运行，避免 `next dev` 扫描刚生成的 standalone 树。
-- `npm run dev:local` 让浏览器只访问 `http://127.0.0.1:5173/`；`next.config.ts` 在 development 中将 `/react-api.php` 重写到 `server/react-api.php`，并把 `/index.php`、`/api.php`、`/template`、`/static`、`/upload` 和 `/preview` 代理到端口 `8084` 的 PHP 预览后端，因此本地请求保持同源。`src/proxy.ts` 依据 `src/migrationRoutes.ts` 对已知旧公开 URL 返回单跳 `301`，对明确退场地址返回 HTTP `410`；生产 Nginx 和服务器部署仍需单独设计。
+- `npm run dev:local` 让浏览器只访问 `http://127.0.0.1:5173/`；`next.config.ts` 在 development 中将 `/react-api.php` 重写到 `server/react-api.php`，并把 `/index.php`、`/api.php`、`/template`、`/static`、`/upload` 和 `/preview` 代理到端口 `8084` 的 PHP 预览后端，因此本地请求保持同源。`src/proxy.ts` 依据 `src/migrationRoutes.ts` 对已知旧公开 URL 返回单跳 `301`，对明确退场地址返回 HTTP `410`；生产是否生效仍必须以实际 Nginx 和服务器请求验收。
 - `scripts/lint-template.mjs` 面向源模板结构，阻止本地预览、`localhost`、死链接或错误资源路径进入生产主题。
 - `scripts/verify-compat.mjs` 面向 MacCMS 页面和目录兼容面。
 - `tests/react-api.test.php` 验证本地 React API 的服务端分页、筛选、独立详情、字段白名单、媒体 URL 隔离、HTTP 状态、JSON Content-Type、有限数值与字段边界、session/CSRF、既有会员登录、注册/找回 action 退场、收藏/记录批量操作、设备及绑定 `mid`/内容 ID 的互动写入。
@@ -154,7 +155,7 @@ npm run deploy:web
 
 本地锁位于 `.cache/next-deploy/v1/.deploy.lock`。正常退出会自动释放；若本机进程被 `SIGKILL` 或掉电打断，确认没有其他 `deploy:web` 进程后再手工移除这个空锁目录。
 
-Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
+Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；两个 PHP 入口只检查真实的 `index.php` 或 `api.php` 文件，并显式把 `SCRIPT_NAME` 与 `PATH_INFO` 传给 FastCGI，保证插件 action 和 provider 路由不会被完整 URI 的物理文件检查误拦。旧播放页 `/index.php/vod/play/id/<vod_id>/sid/<sid>/nid/<nid>.html` 和 rewrite `/vodplay/<vod_id>-<sid>-<nid>.html` 的 GET/HEAD 会在通用 PHP 规则之前交给同一条 Next 迁移规则并返回单跳 `301`，因此两种别名共享 1～2147483647 的正整数校验。数字形态旧地址的 POST 等其他方法继续进入 MacCMS PHP；非数字动态地址仍由 PHP 处理，非数字 rewrite 地址由 Next 返回 404，避免把写请求或无效标识误重定向。`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
 
 回滚：
 
@@ -233,7 +234,7 @@ API-only 在替换文件前为旧插件目录和旧应用控制器生成同一�
 
 - 首页、分类、详情、播放及用户入口返回预期页面，没有 PHP 运行时错误。
 - `pingfangdevice` 管理页可访问，登录、设备登记和撤销流程按预期工作。
-- 兼容 `home` 仍返回 JSON envelope 且列表没有原始播放 URL；`home_v2` 的轮播/年度榜不超过 5 条、最新/每频道不超过 6 条，卡片无剧集和播放字段，`navigation` 只返回站点名与可见频道；`content&page=1&page_size=24` 返回真实总数和当前页且卡片 `episodes` 为空，第二页 ID 与第一页不重复，重复请求和翻页不会再次执行相同的全表总数统计，`detail&vod_id=<id>` 可独立读取完整剧集；`session` 能签发 CSRF，真实账号登录、收藏、历史和设备撤销均按当前用户隔离。
+- 当前 React 和插件管理入口使用 `home_v2&compact=1`；兼容 `home` 仅供旧发布包和回滚，仍须返回 JSON envelope 且列表没有原始播放 URL。`home_v2` 的轮播/年度榜不超过 5 条、最新/每频道不超过 6 条，卡片无剧集和播放字段，`navigation` 只返回站点名与可见频道；`content&page=1&page_size=24` 返回真实总数和当前页且卡片 `episodes` 为空，第二页 ID 与第一页不重复，重复请求和翻页不会再次执行相同的全表总数统计，`detail&vod_id=<id>` 可独立读取完整剧集；`session` 能签发 CSRF，真实账号登录、收藏、历史和设备撤销均按当前用户隔离。
 - `playback` action 只返回同源 `pingfangapi/stream` 描述符；React 直接使用 Artplayer/HLS，`stream` 会重新执行 MacCMS 播放权限并仅对 `ps=0` 直连媒体返回 302。原 `pingfangapi/player` 保留作原生模板与回滚，React 不得重新嵌入 iframe。
 - 使用真实后台配置验收登录验证码、评论审核与黑名单、留言/报错、顶踩和评分；确认注册、注册验证码和找回 action 返回 404，新旧注册/找回页面路径族返回 410。
 - MacCMS 缓存目录仍可由 Web 进程写入。
@@ -243,6 +244,64 @@ API 的 `X-Request-ID` 由服务器生成，并传入 `AccountService` 关联同
 错误日志只包含 `request_id`、`endpoint`、白名单 `action`、`status` 和
 `exception_class`；不记录异常消息、请求体、Cookie、CSRF、Token 或媒体 URL。
 4xx 默认不记录，转换为响应的 5xx 仍会记录，排障时可用响应头中的 ID 关联日志。
+
+### 旧入口访问审计
+
+旧入口删除前，先把目标站点的 Nginx access log 和轮转后的 `.gz` 文件安全导出到
+本机，再执行只读审计：
+
+```bash
+npm run audit:legacy-access -- \
+  --through 2026-07-23 \
+  --days 30 \
+  /private/tmp/pingfang-access.log \
+  /private/tmp/pingfang-access.log.1.gz
+```
+
+`--through` 必须是昨天或更早的日期，窗口至少 30 日。工具只接受本地普通文件和
+预期的 Nginx combined 格式，不通过 SSH 或网络取日志；报告只包含按固定路由族
+聚合的计数、浏览器成功计数、方法、状态码分组、首末时间和输入内容 SHA-256，
+不输出路径查询、IP、Referer、User-Agent、Cookie、Token 或媒体地址。路径按
+Nginx 默认规则解码、消解点段并合并重复斜杠，重复 `action` 按 PHP 最后一个标量值
+统计。坏行、完全重复文件、读取期间变化或混用时区都会使证据失效。
+
+默认清单 `ops/legacy-access-targets.json` 故意将 `aliasInventoryComplete` 设为
+`false`，`logCoverage` 也为 `null`。先复制到仓库外的临时文件：
+
+```json
+{
+  "schemaVersion": 1,
+  "siteLabel": "目标站点标识",
+  "aliasInventoryComplete": true,
+  "logCoverage": {
+    "from": "2026-06-24",
+    "through": "2026-07-23",
+    "targetVhostOnly": true,
+    "allRotationsIncluded": true,
+    "locationsLogged": true,
+    "staticExports": true,
+    "nonOverlappingFiles": true
+  },
+  "additionalPrefixes": {
+    "retiredActors": ["/actorsearch/"]
+  },
+  "legacyPlayPrefixes": ["/vodplay/"]
+}
+```
+
+五项确认分别表示：日志只属于目标 vhost；窗口内 active 与 rotated 文件齐全；目标
+location 没有关闭、采样或条件过滤 access log；导出后文件不再写入；轮转文件没有
+部分重叠。还要核对生产 MacCMS `mac_url*` 和 Nginx rewrite，补齐
+`legacyPlayPrefixes`，并按报告中的固定目标名把其他自定义别名前缀写入
+`additionalPrefixes`；存在无法用前缀覆盖的 rewrite 时保持
+`aliasInventoryComplete=false` 并另行分析。工具只能发现内容完全相同的重复文件，
+不能自行证明轮转边界或 vhost 归属；输入 SHA-256 用于让报告事后绑定到本次导出。
+
+报告只给出 `INSUFFICIENT_EVIDENCE` 或 `MANUAL_REVIEW_REQUIRED`，永远不会自动给出
+`KEEP` 或 `RETIRE`；每个退场路由族必须分别人工评估。零访问不等于可删除：
+`action=home` 至少保留到所有可回滚 Web 版本都不再依赖它；
+`pingfangapi/player` 继续服务原生模板、权限场景和回滚；两个旧播放页地址继续保留
+单跳 `301`。本仓库本次只准备工具和路由契约，没有读取生产日志，也没有执行部署。
 
 ### 发布安全边界
 

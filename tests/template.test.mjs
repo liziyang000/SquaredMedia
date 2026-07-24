@@ -2058,10 +2058,42 @@ assert.match(nextNginx, /proxy_pass http:\/\/127\.0\.0\.1:3100/);
 assert.match(nextNginx, /location \^~ \/_next\/static\//);
 assert.match(nextNginx, /location ~ \^\/index\\\.php/);
 assert.match(nextNginx, /location ~ \^\/index\\\.php[\s\S]*?fastcgi_intercept_errors off;/);
+const indexPhpLocation = nextNginx.match(/location ~ \^\/index\\\.php\(\?:\/\|\$\) \{[\s\S]*?\n\}/)?.[0];
+assert.ok(indexPhpLocation, "Generic index.php FastCGI location must exist");
+assert.match(indexPhpLocation, /fastcgi_split_path_info/);
+assert.match(indexPhpLocation, /try_files \$index_script_name =404/);
+assert.match(indexPhpLocation, /fastcgi_param SCRIPT_FILENAME \$document_root\$index_script_name/);
+assert.match(indexPhpLocation, /fastcgi_param SCRIPT_NAME \$index_script_name/);
+assert.match(indexPhpLocation, /fastcgi_param PATH_INFO \$index_path_info/);
+assert.doesNotMatch(indexPhpLocation, /try_files \$uri|include pathinfo\.conf/);
+const apiPhpLocation = nextNginx.match(/location ~ \^\/api\\\.php\(\?:\/\|\$\) \{[\s\S]*?\n\}/)?.[0];
+assert.ok(apiPhpLocation, "Generic api.php FastCGI location must exist");
+assert.match(apiPhpLocation, /fastcgi_split_path_info/);
+assert.match(apiPhpLocation, /try_files \$api_script_name =404/);
+assert.match(apiPhpLocation, /fastcgi_param SCRIPT_FILENAME \$document_root\$api_script_name/);
+assert.match(apiPhpLocation, /fastcgi_param SCRIPT_NAME \$api_script_name/);
+assert.match(apiPhpLocation, /fastcgi_param PATH_INFO \$api_path_info/);
+assert.doesNotMatch(apiPhpLocation, /try_files \$uri|include pathinfo\.conf/);
 assert.match(nextNginx, /root \/www\/wwwroot\/squaredMedia/);
 assert.match(nextNginx, /location = \/favicon\.ico/);
 assert.match(nextNginx, /alias \/www\/wwwroot\/squaredMedia\/template\/pingfangvideo\/images\/brand\/favicon\.ico/);
 assert.match(nextNginx, /location ~ \^\/index\\\.php\/user\/\(\?:reg\|findpass\)[^\n]*\{\s*return 410;/);
+assert.match(
+  nextNginx,
+  /location ~ "\^\/index\\\.php\/vod\/play\/id\/\(\[1-9\]\[0-9\]\{0,9\}\)\/sid\/\(\[1-9\]\[0-9\]\{0,9\}\)\/nid\/\(\[1-9\]\[0-9\]\{0,9\}\)\(\?:\\\.html\)\?\$" \{[\s\S]*?error_page 418 = @legacy_play_next;[\s\S]*?fastcgi_split_path_info[\s\S]*?try_files \$legacy_play_script_name =404;[\s\S]*?fastcgi_pass unix:\/tmp\/php-cgi-82\.sock;[\s\S]*?fastcgi_param SCRIPT_NAME \$legacy_play_script_name;[\s\S]*?fastcgi_param PATH_INFO \$legacy_play_path_info;/
+);
+assert.doesNotMatch(nextNginx, /location \^~ \/index\.php\/vod\/play\//);
+assert.match(nextNginx, /if \(\$request_method = GET\) \{\s*return 418;\s*\}/);
+assert.match(nextNginx, /if \(\$request_method = HEAD\) \{\s*return 418;\s*\}/);
+assert.match(
+  nextNginx,
+  /location ~ "\^\/vodplay\/\(\[1-9\]\[0-9\]\{0,9\}\)-\(\[1-9\]\[0-9\]\{0,9\}\)-\(\[1-9\]\[0-9\]\{0,9\}\)\\\.html\$" \{[\s\S]*?error_page 418 = @legacy_play_next;[\s\S]*?rewrite "\^\/vodplay\/[\s\S]*?" \/index\.php\/vod\/play\/id\/\$1\/sid\/\$2\/nid\/\$3\.html last;/
+);
+assert.match(nextNginx, /location @legacy_play_next \{[\s\S]*?proxy_pass http:\/\/127\.0\.0\.1:3100;/);
+assert.ok(
+  nextNginx.indexOf('location ~ "^/index\\.php/vod/play/') < nextNginx.indexOf("location ~ ^/index\\.php(?:/|$)"),
+  "Canonical numeric legacy play pages must reach Next before the generic MacCMS PHP location"
+);
 assert.match(nextNginx, /return 404/);
 assert.doesNotMatch(nextNginx, /try_files \/index\.html/);
 
@@ -2123,6 +2155,14 @@ assert.match(nextDeployScript, /rm -f -- "\$NEXT_ROOT\/current"/);
 assert.match(nextDeployScript, /old_nginx_exists/);
 assert.match(nextDeployScript, /old_service_enabled/);
 assert.match(nextDeployScript, /for route in \/ \/status \/vod\/371745 \/favicon\.ico "\$asset_path"/);
+assert.match(nextDeployScript, /\/index\.php\/vod\/play\/id\/1\/sid\/2\/nid\/3\.html/);
+assert.match(nextDeployScript, /\/vodplay\/1-2-3\.html/);
+assert.match(nextDeployScript, /\/watch\/1\/2\/3/);
+assert.match(nextDeployScript, /\/index\.php\/vod\/play\/id\/371745\/sid\/1\/nid\/1\.html/);
+assert.match(nextDeployScript, /\/vodplay\/371745-1-1\.html/);
+assert.match(nextDeployScript, /legacy_post_status/);
+assert.match(nextDeployScript, /legacy_post_type/);
+assert.match(nextDeployScript, /legacy_post_location/);
 assert.match(nextDeployScript, /for route in \/register \/forgot-password/);
 assert.match(nextDeployScript, /\/index\.php\/user\/reg\.html/);
 assert.match(nextDeployScript, /wait_for_http_status/);
@@ -2572,7 +2612,7 @@ assert.match(deviceActions, /isPost\(\) \|\| !Request\(\)->isAjax\(\)/);
 
 const apiAddonInfo = readApiAddonFile("info.ini");
 assert.match(apiAddonInfo, /name = pingfangapi/);
-assert.match(apiAddonInfo, /pingfangapi\/index\?action=home/);
+assert.match(apiAddonInfo, /url = \/index\.php\/pingfangapi\/index\?action=home_v2&compact=1/);
 const apiAddonConfig = readApiAddonFile("config.php");
 assert.match(apiAddonConfig, /'name'\s*=>\s*'lazyload_image'/);
 assert.match(apiAddonConfig, /'type'\s*=>\s*'image'/);

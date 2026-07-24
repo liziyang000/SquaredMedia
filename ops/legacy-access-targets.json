@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "siteLabel": "ping2video-production",
+  "aliasInventoryComplete": false,
+  "logCoverage": null,
+  "additionalPrefixes": {},
+  "legacyPlayPrefixes": [
+    "/vodplay/"
+  ]
+}

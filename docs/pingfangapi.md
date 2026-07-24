@@ -114,6 +114,9 @@ React 使用：
 React 不再渲染该入口的 iframe。两个入口预期都使用 GET；控制器当前没有单独的
 Method 白名单，客户端仍不得发送 POST。
 
+`player` 不是待删除接口。它继续承担 MacCMS 原生模板、试看/收费等原生权限分支和
+Web/API 回滚链；是否有 React 流量不能作为删除依据。
+
 `stream/player` 路径中的 `id` 是 API 内部数字 `vod_id`。控制器将它转为整数后直接按
 `vod_id` 查询，不会按公开 Vod 路由的 `rewrite.vod_id` 模式解析 `vod_en` 或
 `mac_alphaID()`。
@@ -302,7 +305,7 @@ JSON 字段会被拒绝，而不是被静默忽略。
 | 方法与地址 | `GET /index.php/pingfangapi/index?action=home` |
 | 登录       | 不要求；结果仍按当前匿名或会员用户组过滤       |
 | 查询参数   | 除 `action=home` 外不接受任何参数              |
-| 推荐用途   | 旧发布包兼容、部署 smoke；新首页不要使用       |
+| 推荐用途   | 旧发布包兼容和回滚；新首页及插件管理入口不要使用 |
 
 完整请求：
 
@@ -353,7 +356,7 @@ curl -sS 'https://react.example.com/index.php/pingfangapi/index?action=home'
 - `videos`：兼容影片数组，每项含基本卡片字段、摘要和最多一个剧集标识。
 
 当前 React 首页不应继续依赖这个大列表，应使用 `home_v2`。`home` 只为旧客户端和
-旧静态发布回滚保留。
+旧静态发布回滚保留；插件管理入口也已改用 `home_v2&compact=1`。
 
 主要失败：多传查询参数返回 400；MacCMS 内容、分类权限或播放列表服务不可用时
 返回 503；站点、地区或分类访问策略也可能先返回 403/503。
@@ -2277,6 +2280,22 @@ API_ROLLBACK_BACKUP=<id> npm run rollback:api
 
 API 与 React 联动变更必须先发布向后兼容 API，再发布 React。React 故障只回滚
 Web；若 API 故障且新 React 依赖新契约，则先回滚 Web，再按上述 ID 回滚 API。
+
+### 16.6 旧入口退役证据
+
+`npm run audit:legacy-access -- --through <完整日期> --days 30 <本地日志...>` 可对
+本地导出的 Nginx combined access log 做脱敏、按固定路由族的计数。使用默认
+`ops/legacy-access-targets.json` 时，别名清单故意标为不完整，日志覆盖确认也为
+空；必须先按生产 MacCMS `mac_url*`、Nginx rewrite、目标 vhost、access log
+开关/过滤、轮转文件、静态导出和文件非重叠情况补齐仓库外的清单；自定义 rewrite
+还需按固定目标名写入 `additionalPrefixes`，再人工评估。
+
+审计不会联网，也不输出原始 URI、查询参数、IP、Referer、User-Agent 或媒体地址；
+报告用 SHA-256 绑定确切输入。缺日、坏行、完全重复文件、读取期间变化、混用时区、
+别名或日志覆盖未核对都会得到证据不足。即使连续 30 天零访问，也只会得到
+`MANUAL_REVIEW_REQUIRED`，不会自动给出 `KEEP` 或 `RETIRE`。`home` 在旧 Web 回滚
+链清理完成前保留，`player` 按 4.2 的原生权限/回滚边界保留，旧 MacCMS 播放页则
+继续单跳 `301` 到 `/watch/...`。
 
 ## 17. 测试与验收
 

@@ -27,21 +27,27 @@ async function expectNoOverflow(page: Page) {
 }
 
 test("old public URLs redirect once and retired outputs return HTTP 410", async ({ request }) => {
-  const legacy = await request.get("/index.php/vod/play/id/1/sid/2/nid/3.html", { maxRedirects: 0 });
-  expect(legacy.status()).toBe(301);
-  expect(new URL(legacy.headers().location, "http://127.0.0.1:5173").pathname).toBe("/watch/1/2/3");
+  for (const path of ["/index.php/vod/play/id/1/sid/2/nid/3.html", "/vodplay/1-2-3.html"]) {
+    for (const method of ["GET", "HEAD"] as const) {
+      const legacy = method === "GET" ? await request.get(path, { maxRedirects: 0 }) : await request.head(path, { maxRedirects: 0 });
+      expect(legacy.status()).toBe(301);
+      expect(new URL(legacy.headers().location, "http://127.0.0.1:5173").pathname).toBe("/watch/1/2/3");
+    }
+  }
+
+  const malformedPlayback = await request.get("/vodplay/1-2-%2F%2Fevil%2Eexample.html", { maxRedirects: 0 });
+  expect(malformedPlayback.status()).not.toBe(301);
+  expect(malformedPlayback.headers().location).toBeUndefined();
+
+  const legacyPlaybackPost = await request.post("/index.php/vod/play/id/1/sid/2/nid/3.html", { maxRedirects: 0 });
+  expect(legacyPlaybackPost.status()).toBe(200);
+  expect(legacyPlaybackPost.headers()["content-type"]).toContain("text/html");
 
   for (const path of ["/index.php/actor/detail/id/1.html", "/register", "/forgot-password", "/index.php/user/reg.html", "/index.php/user/findpass.html"]) {
     const retired = await request.get(path, { maxRedirects: 0 });
     expect(retired.status()).toBe(410);
     expect(await retired.text()).toBe("Gone");
   }
-
-  const write = await request.post("/index.php/vod/play/id/1/sid/2/nid/3.html", {
-    data: {},
-    maxRedirects: 0
-  });
-  expect([301, 410]).not.toContain(write.status());
 });
 
 test("clean content routes refresh and anonymous history stays in the browser", async ({ page }) => {

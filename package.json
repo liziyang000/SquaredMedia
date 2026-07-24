@@ -12,7 +12,7 @@
     "lint:js": "eslint \"template/pingfangvideo/js/*.js\" \"maccms-player/static/player/artplayer/*.js\"",
     "lint:web": "npm run lint --workspace @squaredmedia/web",
     "lint:css": "stylelint \"template/pingfangvideo/{css,player}/**/*.css\" \"maccms-player/static/player/artplayer/*.css\"",
-    "test": "node tests/template.test.mjs && node tests/player-package.test.mjs && node tests/player-runtime.test.mjs && node tests/release-scope.test.mjs && node tests/release-input-fingerprint.test.mjs && node tests/release-cache.test.mjs && node tests/next-deploy-cache-hardening.test.mjs && node tests/deploy-rollback.test.mjs && node tests/api-rollback.test.mjs && node tests/web-rollback.test.mjs && npm run test:web && php tests/react-api.test.php && php tests/pingfang-api.test.php && php tests/pingfang-api-controller.test.php && php tests/device-session.test.php && php tests/device-controller.test.php && php tests/poster-repair.test.php",
+    "test": "node tests/template.test.mjs && node tests/player-package.test.mjs && node tests/player-runtime.test.mjs && node tests/release-scope.test.mjs && node tests/release-input-fingerprint.test.mjs && node tests/release-cache.test.mjs && node tests/next-deploy-cache-hardening.test.mjs && node tests/deploy-rollback.test.mjs && node tests/api-rollback.test.mjs && node tests/web-rollback.test.mjs && node tests/legacy-access-audit.test.mjs && npm run test:web && php tests/react-api.test.php && php tests/pingfang-api.test.php && php tests/pingfang-api-controller.test.php && php tests/device-session.test.php && php tests/device-controller.test.php && php tests/poster-repair.test.php",
     "test:api": "php tests/pingfang-api.test.php && php tests/pingfang-api-controller.test.php && php tests/device-session.test.php",
     "test:web": "npm run test --workspace @squaredmedia/web",
     "test:e2e": "npm run test:e2e --workspace @squaredmedia/web",
@@ -31,6 +31,7 @@
     "package:player": "node scripts/package-player.mjs",
     "verify:release": "node scripts/verify-release.mjs && npm run verify:player-release",
     "verify:player-release": "node scripts/verify-player-release.mjs",
+    "audit:legacy-access": "node scripts/audit-legacy-access.mjs",
     "deploy": "bash scripts/deploy-theme.sh",
     "rollback:api": "bash scripts/rollback-api.sh",
     "rollback": "bash scripts/rollback-theme.sh"

@@ -93,7 +93,7 @@
 | GET    | `navigation`                      | 否                   | 从 MacCMS 分类缓存返回站点名和当前用户组可见的首页频道，不扫描影片表             |
 | GET    | `content`                         | 否                   | 服务端筛选、搜索、排序和分页；compact 模式按需返回分类总数与筛选元数据           |
 | GET    | `detail`                          | 否                   | 按 `vod_id` 返回单个影片、剧集标识和最多 6 条同类推荐                            |
-| GET    | `playback`                        | 否                   | 校验影片、线路和集数，只返回同源受控 `pingfangapi/player` iframe URL             |
+| GET    | `playback`                        | 否                   | 校验影片、线路、集数和播放权限，返回同源受控 `pingfangapi/stream` 描述符          |
 | GET    | `session`                         | 否                   | 当前 MacCMS 用户、白名单资料、会话 CSRF Token 和公开表单要求                     |
 | GET    | `comments`                        | 否                   | 只返回已审核评论的纯文本白名单 DTO                                               |
 | GET    | `favorites`、`history`、`devices` | 是                   | 当前用户的 Ulog 和活动设备会话                                                   |
@@ -108,11 +108,15 @@
 
 ### 内容与播放边界
 
-当前 React 为 `home_v2`、`content` 和 `detail` 显式传 `compact=1`；旧形状继续保留给缓存中的旧静态资源。compact 目录和相关推荐只查询并返回 7 字段卡片，搜索额外增加 `typeName/actor/summary`，都不解析播放列表；完整剧集仅由详情读取。`home_v2` 按区块调用 MacCMS `Vod::listCacheData`，Hero 与普通卡片分别传精确字段白名单和独立原生缓存命名空间：轮播和年度榜各最多 5 条，本年最新及每个可见频道各最多 6 条。首页、目录、收藏、历史和评论响应均不返回原始播放地址。playback 响应也不返回源站媒体地址，而是返回 `url('pingfangapi/player', id/sid/nid)` 生成的同源 iframe。该受控入口重新执行站点/地区策略和 `check_user_popedom`，允许时复用 `label_vod_play` 与原生播放器模板；付费或无权限时渲染原生受限播放页，不把可复制的直接 `vod/player` 地址交给 React。
+当前 React 为 `home_v2`、`content` 和 `detail` 显式传 `compact=1`；旧形状继续保留给缓存中的旧静态资源。compact 目录和相关推荐只查询并返回 7 字段卡片，搜索额外增加 `typeName/actor/summary`，都不解析播放列表；完整剧集仅由详情读取。`home_v2` 按区块调用 MacCMS `Vod::listCacheData`，Hero 与普通卡片分别传精确字段白名单和独立原生缓存命名空间：轮播和年度榜各最多 5 条，本年最新及每个可见频道各最多 6 条。首页、目录、收藏、历史和评论响应均不返回原始播放地址。完整授权时，`playback` 响应返回 `url('pingfangapi/stream', id/sid/nid)` 生成的同源媒体入口和媒体类型。React 直接挂载与当前 MacCMS 配置一致的 Artplayer/HLS；`stream` 再次执行站点/地区策略和 `check_user_popedom`，成功后 302 到 `ps=0` 直连媒体。仅允许试看时服务端返回 403，避免 302 暴露无法限制时长的完整片源；`ps=1` 第三方解析线路明确返回 503。原 `pingfangapi/player` HTML 入口保留给 MacCMS 原生模板与回滚。
 
 `content` 不返回完整目录。除筛选、排序和分页白名单外，compact 模式还接受 `include_category_totals` 与 `include_facets`。普通目录分类名直接来自 MacCMS 类型缓存；只有分类索引显式请求时才执行并返回分类总数，只有需要剧情筛选的页面才读取剧情选项。响应中的 `videos` 是当前页，`total`、`page`、`totalPages` 来自服务端查询；组合筛选与搜索的精确计数按条件缓存。详情页通过独立 `detail&compact=1` 动作读取，不依赖当前目录页。
 
-`home_limit` 默认 120、允许 24～300，只约束兼容 `home` 的最新内容池，不参与 `home_v2` 或目录分页。首页内容缓存默认 300 秒；分类与筛选总数缓存由 `summary_cache_seconds` 控制，默认 1800 秒、允许 0～86400 秒。缓存键包含用户组权限边界，HTTP 响应仍不允许共享缓存。普通内容响应不暴露 `vod_play_url`；关键词对影片名、演员和导演执行索引友好的前缀匹配，不执行会导致全表扫描的任意位置匹配，`%` 和 `_` 按普通字符处理。所有查询值继续由数据库参数绑定。
+`lazyload_image` 使用 MacCMS 标准图片配置控件，控制 React 全局图片加载中、空图和加载失败占位；API 只接受当前站点路径，并通过 `navigation/home_v2` 的 `ui.lazyloadImage` 下发。`home_limit` 默认 120、允许 24～300，只约束兼容 `home` 的最新内容池，不参与 `home_v2` 或目录分页。首页内容缓存默认 300 秒；分类与筛选总数缓存由 `summary_cache_seconds` 控制，默认 1800 秒、允许 0～86400 秒。缓存键包含用户组权限边界，HTTP 响应仍不允许共享缓存。普通内容响应不暴露 `vod_play_url`；关键词对影片名、演员和导演执行索引友好的前缀匹配，不执行会导致全表扫描的任意位置匹配，`%` 和 `_` 按普通字符处理。所有查询值继续由数据库参数绑定。
+
+播放器轻提示继续读取 MacCMS 系统播放器配置：`second + prestrain` 控制 React
+启动等待提示，`buffer` 控制缓冲提示。API 只返回延迟和开关，不返回或加载后台
+填写的 HTML 地址；原生模板仍按 MacCMS 既有方式使用这些地址。
 
 ### 会话与写入安全
 
@@ -126,7 +130,7 @@
 
 ### 安装、配置与验收
 
-`npm run package` 生成 `dist/pingfangapi.tar.gz`。`npm run deploy` 会先安装 `pingfangdevice`，再备份并安装 `pingfangapi`，把应用控制器复制到 `application/index/controller/Pingfangapi.php`，检查 PHP 语法、设备插件依赖及 `ulog_point`、`ulog_duration` 数据列。插件不创建表、不修改 hook，也不会部署 React 静态文件。
+`npm run package` 生成 `dist/pingfangapi.tar.gz`。`npm run deploy` 会先安装 `pingfangdevice`，再备份并安装 `pingfangapi`，按配置名合并保留后台已经保存的插件配置，把应用控制器复制到 `application/index/controller/Pingfangapi.php`，检查 PHP 语法、设备插件依赖及 `ulog_point`、`ulog_duration` 数据列。插件不创建表、不修改 hook，也不会部署 React 静态文件。
 
 首次建立生产 API、但不切换主题时，使用 `DEPLOY_SCOPE=backend npm run deploy` 安装并验证 `pingfangdevice` 与 `pingfangapi`。服务器已经具备这套依赖基线后，可使用 `DEPLOY_SCOPE=api npm run deploy` 只上传和替换 `pingfangapi` 及其应用控制器。API-only 会在修改前核对设备服务和 hook 文件摘要、`app_begin` 登记及设备会话表结构；不匹配时拒绝部署，不会自动更新设备插件。
 
@@ -137,7 +141,7 @@ NEXT_PUBLIC_API_BASE_URL=/index.php/pingfangapi/index
 NEXT_PUBLIC_HOME_API_URL=/index.php/pingfangapi/index
 ```
 
-`tests/pingfang-api.test.php`、`tests/pingfang-api-controller.test.php` 与发布包校验覆盖分页参数、详情路由、服务、控制器 JSON 策略和静态安全边界，但不连接真实数据库。宣称生产可用前仍必须在 staging 完成：分页总数与跨页去重、组合筛选和关键词查询计划、详情字段对照、Cookie/CSRF 轮换、真实账号和设备撤销、收藏/历史用户隔离、付费记录保护，以及匿名/试看/付费/密码/版权播放器 iframe 验收。
+`tests/pingfang-api.test.php`、`tests/pingfang-api-controller.test.php` 与发布包校验覆盖分页参数、详情路由、服务、控制器 JSON 策略和静态安全边界，但不连接真实数据库。宣称生产可用前仍必须在 staging 完成：分页总数与跨页去重、组合筛选和关键词查询计划、详情字段对照、Cookie/CSRF 轮换、真实账号和设备撤销、收藏/历史用户隔离、付费记录保护，以及匿名/试看/付费/密码/版权的 `playback`、`stream` 和真实媒体播放验收。
 
 ## `videolint`
 

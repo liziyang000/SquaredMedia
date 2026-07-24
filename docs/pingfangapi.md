@@ -1,6 +1,6 @@
 # PingFang API（`pingfangapi`）详细说明
 
-最后核验：2026-07-22
+最后核验：2026-07-23
 
 本文描述当前仓库 `addons/pingfangapi/` 的实际实现，供 React 前台开发、
 MacCMS 联调、测试和部署使用。代码、插件配置和测试是事实源；本文不把本地
@@ -22,12 +22,13 @@ React/Next.js 迁移只替换页面渲染和数据传输方式。导航与频道
 - 登录、退出和当前会话读取。
 - 收藏、播放记录、设备列表和设备撤销。
 - 留言、片源报错、评论、顶踩和评分。
-- 返回受控的同源播放器 iframe 地址，并在真正加载播放器时再次执行 MacCMS
-  原生播放权限校验。
+- 返回受控的同源媒体入口，由 React 直接挂载与 MacCMS 现有配置一致的
+  Artplayer/HLS 播放器；媒体入口再次执行 MacCMS 原生播放权限校验。
 
 它刻意不做以下事情：
 
-- 不向浏览器返回 `vod_play_url` 或第三方媒体源地址。
+- 不在 JSON 中返回 `vod_play_url` 或第三方媒体源地址。受控媒体入口授权成功后
+  使用 HTTP 302 转交实际媒体，因此浏览器网络面板仍可看到最终媒体地址。
 - 不开放跨域 API，也不提供公开 CORS 配置。
 - 不自行实现会员等级、试看、付费、密码或版权判断。
 - 不创建独立业务表，不修改 MacCMS 后台数据结构，不登记运行时 hook。
@@ -48,8 +49,10 @@ flowchart LR
     Content --> Core["MacCMS 原生模型与函数"]
     Account --> Core
     Core --> DB["MacCMS 数据库与缓存"]
-    Content -->|"仅返回同源 iframe 路径"| Player["/index.php/pingfangapi/player/..."]
-    Player --> Native["MacCMS 原生权限、受限页与播放器模板"]
+    Content -->|"仅返回同源媒体路径"| Stream["/index.php/pingfangapi/stream/..."]
+    Stream --> Native["再次执行 MacCMS 原生播放权限"]
+    Native -->|"HTTP 302"| Media["直连 HLS / MP4"]
+    Media --> Artplayer["React Artplayer + hls.js"]
 ```
 
 一次 JSON 请求的主要流程是：
@@ -61,9 +64,10 @@ flowchart LR
 4. `ContentService` 或 `AccountService` 调用 MacCMS 模型、函数和数据库。
 5. 控制器统一返回 JSON envelope，并禁止共享 HTTP 缓存。
 
-播放器不是 JSON 响应。浏览器先请求 `action=playback` 取得同源 iframe 路径，
-iframe 再进入 `Pingfangapi::player()`，重新执行站点、地区、内容和播放权限判断，
-最终渲染 MacCMS 的播放器、试看/付费提示、密码页或版权页。
+浏览器先请求 `action=playback`。该 action 验证站点、地区、剧集和当前播放权限，
+完整授权后返回同源 `stream` 路径和媒体类型。Artplayer/HLS 请求 `stream` 时，
+控制器再次执行相同权限判断，成功后 302 到实际媒体；权限、试看或线路不支持时
+直接返回 4xx/5xx，不加载 iframe。
 
 ## 3. 目录结构
 
@@ -89,20 +93,30 @@ iframe 再进入 `Pingfangapi::player()`，重新执行站点、地区、内容�
 当前共有 27 个 action：14 个 GET 和 13 个 POST。action 必须精确匹配白名单；
 未知 action 返回 404，Method 不匹配返回 405，并携带 `Allow` 响应头。
 
-### 4.2 播放器 HTML 入口
+### 4.2 受控媒体入口与原生回滚入口
+
+React 使用：
+
+```text
+/index.php/pingfangapi/stream/id/<vod_id>/sid/<source_id>/nid/<episode_id>.html
+```
+
+该入口不使用 JSON envelope。它再次检查站点、地区、影片、剧集、播放权限、密码和
+版权状态；成功时返回私有、不可缓存的 302，`Location` 是 MacCMS 当前剧集的媒体
+地址。React 不得直接拼接该路径，应使用 `action=playback` 返回的 `url`。
+
+原 MacCMS HTML 播放入口仍保留供原生模板和回滚使用：
 
 ```text
 /index.php/pingfangapi/player/id/<vod_id>/sid/<source_id>/nid/<episode_id>.html
 ```
 
-该入口返回 HTML，不使用 JSON envelope，也不应被当作公开媒体 URL。正常情况下
-前端只使用 `action=playback` 返回的 `url`，不要自行拼接播放器路径。预期调用方法
-是 GET；控制器当前没有单独的 Method 白名单，客户端仍不得发送 POST。
+React 不再渲染该入口的 iframe。两个入口预期都使用 GET；控制器当前没有单独的
+Method 白名单，客户端仍不得发送 POST。
 
-`player` 路径中的 `id` 是 API 内部数字 `vod_id`。控制器将它转为整数后直接按
+`stream/player` 路径中的 `id` 是 API 内部数字 `vod_id`。控制器将它转为整数后直接按
 `vod_id` 查询，不会按公开 Vod 路由的 `rewrite.vod_id` 模式解析 `vod_en` 或
-`mac_alphaID()`。即使站点对外详情路由使用别名或编码 ID，前端也只能使用
-`action=playback` 返回的数字 ID 播放器入口。
+`mac_alphaID()`。
 
 ### 4.3 成功响应
 
@@ -235,7 +249,7 @@ JSON 字段会被拒绝，而不是被静默忽略。
 | `access`     | 否   | 影片、访问范围及可选线路/剧集       | 不含敏感字段的访问状态与提示                       |
 | `downloads`  | 否   | `vod_id`                            | 下载线路、条目标识及同源 MacCMS 下载入口           |
 | `plot`       | 否   | `vod_id`                            | 影片简介和经清洗的分集剧情                         |
-| `playback`   | 否   | `vod_id`、`source_id`、`episode_id` | 同源受控播放器 iframe 描述符                       |
+| `playback`   | 否   | `vod_id`、`source_id`、`episode_id` | 同源受控媒体描述符                                 |
 | `session`    | 否   | 无                                  | 登录状态、CSRF、白名单用户资料和表单要求           |
 | `comments`   | 否   | `content_id`，可选 `mid`            | 已审核评论列表                                     |
 | `favorites`  | 是   | 无                                  | 当前用户最多 100 条收藏                            |
@@ -739,8 +753,8 @@ GET /index.php/pingfangapi/index?action=access&vod_id=371745&scope=playback&sour
 | `confirm`    | MacCMS 返回积分/权限确认，`points` 可能大于 0              |
 | `copyright`  | 当前 scope 命中 MacCMS 版权状态限制                        |
 
-`authorized=true` 仅代表这个 scope 当前允许继续；播放仍必须请求 `playback` 并让
-iframe 再执行原生 `popedom=3`。结果包含会话和用户组判断，统一返回
+`authorized=true` 仅代表这个 scope 当前允许继续；播放仍必须请求 `playback`，随后
+由 `stream` 再执行原生 `popedom=3`。结果包含会话和用户组判断，统一返回
 `Cache-Control: private, no-store`，不能放入 CDN 公共缓存。
 
 ### 6.7 `downloads`：下载列表
@@ -851,15 +865,15 @@ X-CSRF-Token: <session.csrfToken>
 成功后重新请求 `detail`、`downloads` 或 `playback`；不要把密码保存到 URL、
 localStorage 或 React Query 缓存。错误密码返回 422，过于频繁返回 429。
 
-### 6.10 `playback` 与 `player`
+### 6.10 `playback`、`stream` 与 `player`
 
-| 项目         | 值                                                   |
-| ------------ | ---------------------------------------------------- |
-| 方法与地址   | `GET /index.php/pingfangapi/index?action=playback`   |
-| 登录         | 不要求；JSON 仅验证剧集入口，iframe 执行最终播放权限 |
-| `vod_id`     | 必填，影片 ID                                        |
-| `source_id`  | 必填，来自 `detail.video.episodes[].sourceId`        |
-| `episode_id` | 必填，来自 `detail.video.episodes[].id`              |
+| 项目         | 值                                                    |
+| ------------ | ----------------------------------------------------- |
+| 方法与地址   | `GET /index.php/pingfangapi/index?action=playback`    |
+| 登录         | 不要求；JSON 与 `stream` 都执行当前会话的播放权限校验 |
+| `vod_id`     | 必填，影片 ID                                         |
+| `source_id`  | 必填，来自 `detail.video.episodes[].sourceId`         |
+| `episode_id` | 必填，来自 `detail.video.episodes[].id`               |
 
 ```text
 GET /index.php/pingfangapi/index?action=playback&vod_id=371745&source_id=1&episode_id=1
@@ -887,44 +901,61 @@ JSON 返回示例：
         "episodes": [{ "id": "1", "no": 1, "name": "第1集", "sourceId": "1" }]
       }
     ],
-    "kind": "iframe",
-    "url": "/index.php/pingfangapi/player/id/371745/sid/1/nid/1.html"
+    "kind": "hls",
+    "url": "/index.php/pingfangapi/stream/id/371745/sid/1/nid/1.html",
+    "mimeType": "application/vnd.apple.mpegurl",
+    "playerHints": {
+      "startupHintAfterMs": 5000,
+      "bufferingHintEnabled": true
+    }
   }
 }
 ```
 
-服务端使用数字 `vod_id` 查询已启用、未回收的影片，解析 `mac_play_list()` 并验证
-线路/剧集存在，然后返回 `siteName`、当前剧集描述和不含媒体 URL 的完整
-`playSources`，便于播放页保持旧 `pingfangvideo` 的线路/选集切换逻辑。该 JSON action
-不叠加详情 `popedom=2`、`vod_pwd` 或详情版权模式；它只会提前拒绝
-`vod_copyright=1` 且 `copyright_status=3` 的播放入口。
+服务端使用数字 `vod_id` 查询已启用、未回收的影片，解析 `mac_play_list()`，验证
+线路/剧集及 `check_user_popedom(..., popedom=3)`，然后返回当前剧集描述和不含
+源站媒体 URL 的完整 `playSources`。详情 `popedom=2`、`vod_pwd` 仍不叠加到播放；
+播放密码、试看、付费和播放版权由播放范围权限处理。
 
-通过后使用 `url('pingfangapi/player', ... )` 生成路径。若 MacCMS 生成绝对地址，它必须与
-当前请求的协议、主机和端口完全同源；协议相对地址和非 HTTP(S) scheme 会被拒绝。
-`player` 内部仍把 `id` 当作数字 `vod_id` 直查，不受公开详情/下载路由的
-`rewrite.vod_id` 配置影响。
+`kind` 是 `hls` 或 `video`。HLS 使用当前 MacCMS Artplayer 的 hls.js 配置；MP4、
+WebM、Ogg、M4V 和 MOV 使用 Artplayer 原生视频路径。仅允许试看的会话不会取得
+播放描述符或 `stream` 重定向：302 无法约束观看时长，也会暴露完整媒体地址，因此
+服务端返回 403。React 不把前端计时当作授权；无 iframe 试看需要后续由服务端裁剪
+媒体或代理 HLS 清单与分片。
 
-iframe 请求再次执行 `check_user_popedom(..., popedom=3)`、试看、付费、版权状态和
-`vod_pwd_play` 会话检查，再通过 `label_vod_play()` 渲染原生模板。React 不应把
-`playback.url` 当作 `<video src>`，也不能绕过该入口自行读取播放源。
+`playerHints` 来自 MacCMS 后台“播放器参数配置”，但不会把提示页 HTML 地址返回
+浏览器。`prestrain` 非空且 `second` 为 1～30 时，React 在等待相应毫秒后显示
+“正在准备播放”轻提示；`buffer` 非空时，连续缓冲 400 毫秒后显示“正在续接画面”。
+提示在 `canplay/playing` 后立即消失，持续 8 秒才升级为带重新加载和线路入口的操作
+卡。清空对应后台地址会关闭轻提示；旧模板仍可继续使用原提示页。
+
+服务端遵循 MacCMS 播放器配置的 `ps` 语义：
+
+- `ps=0`：剧集 URL 是直连媒体；播放器配置中的 `parse` 仅是 MacCMS 用来承载
+  Artplayer 的包装页，React 可跳过该包装页。
+- `ps=1`：线路依赖第三方网页解析。通用解析页不能安全地当作媒体 URL，`playback`
+  返回 503，前端提示切换线路；不会偷偷回退 iframe。
+
+通过后使用 `url('pingfangapi/stream', ... )` 生成同源路径。`stream` 会重新执行
+同一播放权限并返回 302；它拒绝控制字符、非 HTTP(S) scheme 和非法地址，防止响应
+头注入。仅有试看权限时 `playback` 和 `stream` 都返回 403，不返回片源。原
+`player` HTML 入口保留，但只服务 MacCMS 原生模板与回滚。
 
 前端使用：
 
 ```tsx
 const playback = await contentApi.getPlayback(vodId, sourceId, episodeId);
-return <iframe src={playback.url} title={`${playback.title} ${playback.episodeName}`} allowFullScreen />;
+return <MacCmsPlayer playback={playback} />;
 ```
 
-不要把 `player` URL 永久保存到数据库；每次进入播放页都先请求 `playback`，以便
-重新确认剧集是否仍存在，再由 iframe 检查当前会话的播放权限。播放器 URL 返回 HTML，可能是正常播放器、
-试看页、付费提示、版权页或密码页，这些都属于 MacCMS 原生业务结果，且受限模板
-可能仍以 HTTP 200 返回。资源不存在通常是纯文本 404；地区或依赖异常也返回
-HTML/纯文本状态，不使用 JSON envelope。
+不要把 `stream` URL 永久保存到数据库；每次进入播放页都先请求 `playback`，以便
+重新确认剧集和当前会话权限。媒体入口失败时返回纯文本 4xx/5xx，不使用 JSON
+envelope。原 `player` HTML 入口仍可能渲染原生受限页，但 React 不再调用它。
 
 主要失败：缺少参数返回 400；ID 格式错误返回 422；影片、线路或剧集不存在返回
-404；JSON 层命中 `copyright_status=3` 返回 403；生成的播放器 URL 不是安全同源
-HTTP(S) 地址时返回 503。详情密码或详情 `popedom=2` 不会让该 JSON 失败；
-JSON 成功也不等于最终播放授权成功，最终结果由 iframe 中的原生播放权限决定。
+404；播放权限、密码或版权限制返回 403；`ps=1` 第三方解析线路、非法媒体地址或
+无法生成安全同源 `stream` 路径时返回 503。JSON 成功后 `stream` 仍会再次授权，
+用于阻止描述符取得后会话状态发生变化的请求。
 
 ### 6.11 `comments`
 
@@ -1159,7 +1190,7 @@ ulog_type = 2
 
 列表按时间倒序，最多 100 条。影片必须处于启用、未回收状态，并排除当前用户组
 分类黑名单；列表读取不会逐片执行详情密码、版权或播放付费检查。详情访问在
-`detail` 重新判断，播放权限由 `playback.url` 对应的 iframe `player` 最终判断。
+`detail` 重新判断，播放权限由 `playback` 与其同源 `stream` 入口共同判断。
 
 ```json
 {
@@ -1304,7 +1335,7 @@ ulog_nid > 0
 `ulog_id`。删除这个页面项时应传回整个数组，否则同片的较旧记录可能在下次
 请求重新出现。
 和收藏列表相同，影片会按启用状态、回收状态和分类黑名单过滤，但列表读取不会替代
-后续详情权限和 iframe 播放权限校验。无记录返回 `items=[]`；`limit` 越界返回 422，未登录返回
+后续详情权限和受控媒体入口校验。无记录返回 `items=[]`；`limit` 越界返回 422，未登录返回
 401。
 
 #### `history.save`：保存播放进度
@@ -1348,7 +1379,7 @@ ulog_nid > 0
 `ulog_points`；只有插入全新进度行才默认写入 `ulog_points=0`，因此不会把已有付费
 记录降级或把相同集号的不同线路合并。
 影片、线路或剧集不存在返回 404；该 action 不叠加详情 `popedom=2`，最终可播性仍由
-iframe `player` 判定。数字类型、范围或进度大于时长返回 422；数据库写入失败返回 500。
+`playback/stream` 判定。数字类型、范围或进度大于时长返回 422；数据库写入失败返回 500。
 
 历史列表按时间倒序，并按影片保留最新一条有效记录；达到 `limit` 后立即停止。
 同一影片的 MacCMS 播放列表在一次请求内最多解析一次。小 `limit` 会限制候选 Ulog
@@ -1827,7 +1858,7 @@ id, title, year, class, backdrop, duration, version, summary, episodes
 - 分类、首页和统计缓存键包含用户组 ID、组类型、分类权限开关和实际禁用分类摘要。
 - `home/home_v2/content/favorites/history` 使用启用状态、回收状态和分类黑名单过滤，
   不逐片执行详情密码、版权或播放付费判断；`detail` 单独执行详情权限，
-  `playback` 只验证剧集入口不叠加详情权限，iframe `player` 再执行最终播放权限。
+  `playback` 不叠加详情权限，但会执行播放权限；`stream` 在媒体跳转前再次执行。
   `navigation` 不查询影片，只读取类型缓存并应用频道配置和分类黑名单。
 - `comments` 以及以影片为目标的收藏、进度、报错、评论、顶踩和评分写入会先执行
   对应的详情或剧集权限判断。
@@ -1914,12 +1945,43 @@ HTTP 的 `private, no-store`，避免带 MacCMS Session Cookie 的响应进入 C
 
 | 配置项                  | 默认 | 实际允许范围 | 作用                                   |
 | ----------------------- | ---: | -----------: | -------------------------------------- |
+| `lazyload_image`        | 主题内置图 | 当前站点路径 | React 图片加载中、空图和失败占位       |
 | `home_limit`            |  120 |      24～300 | 仅限制兼容 `home` 的影片数             |
 | `cache_seconds`         |  300 |    0～300 秒 | `home`、`home_v2` 及其原生首页列表缓存 |
 | `summary_cache_seconds` | 1800 |  0～86400 秒 | 分类、组合筛选总数和剧情选项缓存       |
 | `comment_limit`         |  100 |       1～200 | 单个影片返回的已审核评论上限           |
 
-服务端会再次裁剪配置值，因此后台即使保存越界值，也不会突破上述范围。
+`lazyload_image` 使用 MacCMS 标准图片配置控件，可上传或填写路径；服务端只接受
+当前站点路径，外部协议、控制字符和路径跳转会回退主题内置图。`navigation` 与
+`home_v2` 通过 `ui.lazyloadImage` 下发同一值，React 全局 `Artwork` 将其用于加载
+中、空图和加载失败状态。服务端会再次裁剪数值配置，因此后台即使保存越界值，也
+不会突破上述范围。
+
+站点原生 `/api.php` 文档还提供 `config/get_tpl_config`（当前模板
+`config.json`）和 `config/get_mctheme`。React 不直接调用它们：这两条接口受
+MacCMS `PublicApi` 开关约束，且返回的是宽泛原生配置。`pingfangapi` 继续作为
+服务端适配层，只向浏览器返回页面实际需要的白名单 `ui` 字段；后续增加主题配置
+时应优先在这里映射现有 MacCMS 值，不在 React 中复制业务规则。
+
+### 14.1 MacCMS OpenAPI 复用边界
+
+MacCMS 后台 OpenAPI 是原生能力、参数和业务语义的参考基线，不是 React 的直接
+运行时依赖。`pingfangapi` 不通过 HTTP 回调本站 `/api.php`，而是在同一 PHP
+进程内复用 MacCMS 模型、配置与公共函数，再转换成稳定的 React DTO：
+
+| React 能力 | 原生参考 | `pingfangapi` 保留的边界 |
+| --- | --- | --- |
+| 首页与导航 | `vod/get_banner`、`get_rank`、`get_latest_by_type`、`type/get_nav_types` | 单请求聚合、字段白名单和用户组隔离缓存 |
+| 目录与详情 | `vod/get_list`、`get_detail`、`search/*` | 精确分页/facets、可见性过滤和不暴露播放源 |
+| 登录与会话 | `auth/me`、`user/login`、`logout` | `DeviceSession`、CSRF、验证码要求和最小用户 DTO |
+| 收藏与历史 | `user/get_ulog`、`add_ulog`、`del_ulog`、`ulog/progress` | 剧集校验、线路隔离、可见性过滤和 React 展示 DTO |
+| 评论与留言 | `comment/*`、`gbook/*` | 同源 POST、CSRF、字段白名单和状态映射 |
+| 播放与权限 | `auth/permission`、`vod/get_play_info`、`verify_pwd` | 试看/付费/密码/版权状态和二次授权的同源 `stream` |
+| 主题配置 | `config/get_tpl_config`、`get_mctheme` | 只下发页面实际使用的同站白名单字段 |
+
+原生接口存在 `info/data` 两种 envelope、表单参数和改变状态的 GET 接口，并受
+`PublicApi` 开关影响；因此 React 只导出 `home.ts`、`content.ts`、`account.ts`
+三组 BFF 客户端，不保留可配置任意原生端点的并行客户端。
 
 ## 15. Next.js/React 调用方式
 
@@ -1985,7 +2047,7 @@ await fetch("/index.php/pingfangapi/index?action=favorite", {
 | `access`           | `contentApi.getAccess(vodId, scope, sid?, nid?)`     | 安全状态，不含播放/下载源                         |
 | `downloads`        | `contentApi.getDownloads(vodId)`                     | 返回同源 MacCMS 下载入口                          |
 | `plot`             | `contentApi.getPlot(vodId)`                          | 返回清洗后的分集剧情                              |
-| `playback`         | `contentApi.getPlayback(vodId, sourceId, episodeId)` | 生产结果必须是同源 iframe                         |
+| `playback`         | `contentApi.getPlayback(vodId, sourceId, episodeId)` | 生产结果必须是同源受控媒体描述符                  |
 | `session`          | `accountApi.getSession()`                            | 应在应用启动时首先调用                            |
 | `comments`         | `accountApi.getComments(vodId, mid?)`                | 生产只支持 `mid=1`                                |
 | `favorites`        | `accountApi.getFavorites()`                          | 返回时已解包为数组                                |
@@ -2024,8 +2086,8 @@ envelope；页面应显示 `message`，并从 `data` 读取上文列出的业务
   `all=true` 与列表 DTO 的原生 `recordIds` 之间二选一。前端类型即使暂未完全收紧，
   也不能传入宽松值。
 - 生产 `comments` 只接受 `content_id`；本地适配器可能兼容其他参数名。
-- 生产 `playback.kind` 恒为 `iframe`，且 URL 是同源 MacCMS 播放器；本地适配器
-  可能返回仅供 fixture 使用的直接媒体地址。
+- 生产 `playback.kind` 是 `hls` 或 `video`，URL 必须是同源 `pingfangapi/stream`
+  入口；本地适配器可能返回仅供 fixture 使用的直接媒体地址。
 - 生产所有 POST 都校验 Origin/Referer、`X-Requested-With`、CSRF、Cookie 和服务端
   限流；本地成功不能证明这些安全链路通过。
 - 生产 `reaction.value=none` 只读取计数；生产重复收藏会刷新收藏时间；退出不会
@@ -2174,7 +2236,7 @@ npm run verify:release
 - 真实普通会员的 session、验证码登录、收藏、历史、设备撤销和退出。
 - 匿名、普通会员、VIP、试看、付费、详情密码、播放密码和版权影片。
 - 评论审核、回复、黑名单、留言/报错、顶踩和评分限频。
-- 允许地区与拒绝地区的 JSON 和播放器 HTML 行为。
+- 允许地区与拒绝地区的 JSON、受控媒体跳转和原生回滚播放器行为。
 - API 响应中不存在 `vod_play_url`、设备 Token、密码、Cookie 等敏感字段。
 
 普通会员流程通过不代表 VIP、付费、试看、密码和版权矩阵已经通过；这些场景需要
@@ -2228,11 +2290,11 @@ GET action 不能 POST，POST action 不能 GET。读取响应 `Allow` 头确认
 5. 大型 MyISAM 表新增索引前安排维护窗口，避免在线锁表影响站点。
 6. 缓存刚被部署脚本清空时，区分冷请求和稳定的热请求。
 
-### 18.8 `playback` 成功但 iframe 显示受限页
+### 18.8 `playback` 成功但媒体入口返回 403
 
-这是允许的两阶段权限结果。`playback` 确认影片和剧集存在并返回受控入口；iframe
-还会执行更严格的播放权限、试看、付费、播放密码和版权判断。应检查原生 MacCMS
-配置和用户权益，不要改成直接返回媒体 URL。
+这是允许的二次授权结果。`playback` 返回描述符后，会话、密码或用户权益可能变化；
+`stream` 在 302 前会再次执行播放权限。检查 MacCMS 用户权益、试看、付费、播放
+密码和版权配置，不要改成在 JSON 中直接返回源站媒体 URL。
 
 ## 19. 当前已知边界
 

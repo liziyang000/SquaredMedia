@@ -8,6 +8,11 @@ const categorySchema = z.object({
   name: z.string().min(1)
 });
 
+const sameSiteAssetPathSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.startsWith("/") && !value.startsWith("//") && !value.includes("\\"));
+
 const episodeSchema = z.object({
   id: identifierSchema,
   sourceId: identifierSchema
@@ -37,7 +42,12 @@ const cardVideoSchema = z.object({
 
 const navigationSchema = z.object({
   siteName: z.string().min(1),
-  categories: z.array(categorySchema)
+  categories: z.array(categorySchema),
+  ui: z
+    .object({
+      lazyloadImage: sameSiteAssetPathSchema
+    })
+    .optional()
 });
 
 const homeResponseSchema = navigationSchema.extend({

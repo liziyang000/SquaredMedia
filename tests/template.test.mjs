@@ -1430,6 +1430,8 @@ const bannerDotRule = style.match(/\.banner-dot\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotAfterRule = style.match(/\.banner-dot::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotActiveRule = style.match(/\.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotActiveAfterRule = style.match(/\.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
+const dunhuangBannerDotActiveRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
+const dunhuangBannerDotActiveAfterRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const hotSearchTermRule = style.match(/\.hot-search-panel a\s*\{[\s\S]*?\}/)?.[0] || "";
 const pageHeadingRule = style.match(/\.hero-copy h1,[\s\S]*?\.player-head h1\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankListTitleRule = style.match(/\.rank-item strong,[\s\S]*?\.list-item strong\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1832,6 +1834,10 @@ assert.match(bannerDotAfterRule, /width: 28px/);
 assert.match(bannerDotAfterRule, /height: 5px/);
 assert.match(bannerDotActiveAfterRule, /width: 36px/);
 assert.match(bannerDotActiveRule, /background: transparent/);
+assert.match(dunhuangBannerDotActiveRule, /background: transparent/);
+assert.match(dunhuangBannerDotActiveRule, /box-shadow: none/);
+assert.match(dunhuangBannerDotActiveAfterRule, /width: 30px/);
+assert.match(dunhuangBannerDotActiveAfterRule, /background: var\(--dunhuang-gold\)/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
 for (const chipRule of [hotSearchTermRule, posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
@@ -2397,7 +2403,7 @@ assert.doesNotMatch(ping2DeployEnv, /DEPLOY_PASSWORD/);
 const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "utf8");
 assert.match(deployScript, /^#!\/usr\/bin\/env bash/);
 assert.match(deployScript, /set -euo pipefail/);
-assert.match(deployScript, /npm test/);
+assert.match(deployScript, /DEPLOY_SCOPE=all npm test/);
 assert.match(deployScript, /npm run lint/);
 assert.match(deployScript, /npm run lint:template/);
 assert.match(deployScript, /npm run verify:compat/);
@@ -2484,7 +2490,7 @@ assert.ok(
   deployScript.indexOf("install_api_addon()") > deployScript.indexOf("PHP_SQL"),
   "The API installer must stay in shell scope after the device installer heredocs"
 );
-for (const marker of ["PHP_CONFIG", "PHP_SQL", "PHP_DEVICE_HOOK", "PHP_API_SCHEMA"]) {
+for (const marker of ["PHP_CONFIG", "PHP_SQL", "PHP_DEVICE_HOOK", "PHP_API_SCHEMA", "PHP_ADDON_CONFIG"]) {
   const heredoc = deployScript.match(new RegExp(`<<'${marker}'\\n([\\s\\S]*?)\\n${marker}`));
   assert.ok(heredoc, `${marker} deploy heredoc should exist`);
   const lint = spawnSync("php", ["-l"], { input: heredoc[1], encoding: "utf8" });
@@ -2874,6 +2880,10 @@ assert.match(deviceActions, /isPost\(\) \|\| !Request\(\)->isAjax\(\)/);
 const apiAddonInfo = readApiAddonFile("info.ini");
 assert.match(apiAddonInfo, /name = pingfangapi/);
 assert.match(apiAddonInfo, /pingfangapi\/index\?action=home/);
+const apiAddonConfig = readApiAddonFile("config.php");
+assert.match(apiAddonConfig, /'name'\s*=>\s*'lazyload_image'/);
+assert.match(apiAddonConfig, /'type'\s*=>\s*'image'/);
+assert.match(apiAddonConfig, /template\/pingfangvideo\/images\/brand\/lazyload\.png/);
 const apiRequestService = readApiAddonFile("service/ApiRequest.php");
 assert.match(apiRequestService, /MAX_BODY_BYTES = 32768/);
 assert.match(apiRequestService, /x-csrf-token/);
@@ -2882,7 +2892,8 @@ assert.match(apiRequestService, /assertSameOrigin/);
 assert.match(apiRequestService, /x-pingfang-request-scheme/);
 assert.doesNotMatch(apiRequestService, /Access-Control-Allow-Origin/i);
 const apiContentService = readApiAddonFile("service/ContentService.php");
-assert.match(apiContentService, /url\('pingfangapi\/player'/);
+assert.match(apiContentService, /url\('pingfangapi\/stream'/);
+assert.doesNotMatch(apiContentService, /url\('pingfangapi\/player'/);
 assert.doesNotMatch(apiContentService, /url\('vod\/player'/);
 assert.match(apiContentService, /vod_recycle_time/);
 assert.match(apiContentService, /mac_get_popedom_filter/);
@@ -2899,8 +2910,8 @@ assert.match(apiApplicationController, /class Pingfangapi extends All/);
 assert.doesNotMatch(apiApplicationController, /class Pingfangapi extends Base/);
 assert.equal(
   (apiApplicationController.match(/\$this->label_user\(\);/g) || []).length,
-  2,
-  "API index and player actions must initialize the native MacCMS user context before checking permissions"
+  3,
+  "API index, player and stream actions must initialize the native MacCMS user context before checking permissions"
 );
 assert.equal(
   (apiApplicationController.match(/\$this->label_maccms\(\);/g) || []).length,
@@ -2911,6 +2922,8 @@ assert.match(apiApplicationController, /ApiRequest::decodeJson/);
 assert.match(apiApplicationController, /requestHeaders/);
 assert.match(apiApplicationController, /assertApiAccess/);
 assert.match(apiApplicationController, /public function player\(\)/);
+assert.match(apiApplicationController, /public function stream\(\)/);
+assert.match(apiApplicationController, /'Location' => \$media\['url'\]/);
 assert.match(apiApplicationController, /check_user_popedom/);
 assert.match(apiApplicationController, /label_vod_play/);
 assert.match(apiApplicationController, /public function _empty\(\)/);

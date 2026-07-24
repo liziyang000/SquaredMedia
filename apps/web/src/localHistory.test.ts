@@ -62,11 +62,49 @@ describe("local browser history", () => {
         name: "云端回声",
         url: "/watch/1/1/101",
         progress: "正片 · 已看到 1:05",
+        positionSeconds: 65,
+        durationSeconds: 130,
         watchedAt: "2026-07-21T12:00:00Z"
       })
     ).toBe(true);
-    expect(readLocalHistory(storage)).toEqual([expect.objectContaining({ id: "1", name: "云端回声", progress: "正片 · 已看到 1:05", url: "/watch/1/1/101" })]);
+    expect(readLocalHistory(storage)).toEqual([
+      expect.objectContaining({
+        id: "1",
+        name: "云端回声",
+        progress: "正片 · 已看到 1:05",
+        positionSeconds: 65,
+        durationSeconds: 130,
+        url: "/watch/1/1/101"
+      })
+    ]);
+    expect(upsertLocalHistory(storage, { id: "1", name: "云端回声", url: "/watch/1/1/101", progress: "正片" })).toBe(true);
+    expect(readLocalHistory(storage)[0]).toEqual(expect.objectContaining({ positionSeconds: 65, durationSeconds: 130 }));
     expect(clearLocalHistory(storage)).toBe(true);
     expect(readLocalHistory(storage)).toEqual([]);
+  });
+
+  it("does not carry numeric progress into another episode of the same video", () => {
+    const storage = memoryStorage();
+    expect(
+      upsertLocalHistory(storage, {
+        id: "1",
+        name: "云端回声",
+        url: "/watch/1/1/101",
+        progress: "第一集 · 已看到 18:00",
+        positionSeconds: 1080,
+        durationSeconds: 1200
+      })
+    ).toBe(true);
+
+    expect(upsertLocalHistory(storage, { id: "1", name: "云端回声", url: "/watch/1/1/102", progress: "第二集" })).toBe(true);
+    expect(readLocalHistory(storage)[0]).toEqual(
+      expect.objectContaining({
+        id: "1",
+        progress: "第二集",
+        url: "/watch/1/1/102"
+      })
+    );
+    expect(readLocalHistory(storage)[0]).not.toHaveProperty("positionSeconds");
+    expect(readLocalHistory(storage)[0]).not.toHaveProperty("durationSeconds");
   });
 });

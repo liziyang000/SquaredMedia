@@ -4,6 +4,8 @@ export type LocalHistoryEntry = {
   url: string;
   poster?: string;
   progress: string;
+  positionSeconds?: number;
+  durationSeconds?: number;
   watchedAt: string;
   dateLabel: string;
   timeLabel: string;
@@ -18,6 +20,8 @@ type HistoryInput = {
   url: string;
   poster?: string;
   progress?: string;
+  positionSeconds?: number;
+  durationSeconds?: number;
   watchedAt?: string;
 };
 
@@ -34,6 +38,22 @@ function recordValue(record: Record<string, unknown>, nested: Record<string, unk
     if (typeof value === "string" || typeof value === "number") return String(value).trim();
   }
   return "";
+}
+
+function normalizedSeconds(value: unknown, minimum: number) {
+  if (typeof value !== "number" && typeof value !== "string") return undefined;
+  const text = String(value).trim();
+  if (!/^\d+$/.test(text)) return undefined;
+  const seconds = Number(text);
+  return Number.isSafeInteger(seconds) && seconds >= minimum ? seconds : undefined;
+}
+
+function recordSeconds(record: Record<string, unknown>, nested: Record<string, unknown>, minimum: number, ...keys: string[]) {
+  for (const key of keys) {
+    const seconds = normalizedSeconds(nested[key] ?? record[key], minimum);
+    if (seconds !== undefined) return seconds;
+  }
+  return undefined;
 }
 
 function toCleanWatch(match: RegExpMatchArray) {
@@ -96,6 +116,8 @@ function normalizeRecord(value: unknown, index: number): (LocalHistoryEntry & { 
   const parsedTime = Date.parse(watchedAt);
   const dateLabel = watchedAt.slice(0, 10) || "最近";
   const timeLabel = watchedAt.length >= 16 ? watchedAt.slice(11, 16) : "--:--";
+  const positionSeconds = recordSeconds(record, nested, 0, "positionSeconds", "position_seconds");
+  const durationSeconds = recordSeconds(record, nested, 1, "durationSeconds", "duration_seconds");
 
   return {
     id: recordValue(record, nested, "id", "ulog_rid") || url,
@@ -103,6 +125,8 @@ function normalizeRecord(value: unknown, index: number): (LocalHistoryEntry & { 
     url,
     poster: normalizePosterUrl(recordValue(record, nested, "pic", "poster", "image")),
     progress: recordValue(record, nested, "progress", "episode") || "继续观看",
+    ...(positionSeconds !== undefined ? { positionSeconds } : {}),
+    ...(durationSeconds !== undefined ? { durationSeconds } : {}),
     watchedAt,
     dateLabel,
     timeLabel,
@@ -154,19 +178,34 @@ export function upsertLocalHistory(storage: StorageWriter, input: HistoryInput):
   if (!name || !url) return false;
 
   const id = input.id?.trim() || url;
+  const current = readLocalHistory(storage);
+  const previous = current.find((entry) => entry.url === url);
+  const positionSeconds = normalizedSeconds(input.positionSeconds, 0) ?? previous?.positionSeconds;
+  const durationSeconds = normalizedSeconds(input.durationSeconds, 1) ?? previous?.durationSeconds;
   const next = {
     id,
     name,
     url,
     pic: normalizePosterUrl(input.poster),
     progress: input.progress?.trim() || "继续观看",
+    ...(positionSeconds !== undefined ? { positionSeconds } : {}),
+    ...(durationSeconds !== undefined ? { durationSeconds } : {}),
     time: input.watchedAt?.trim() || new Date().toISOString()
   };
 
   try {
-    const existing = readLocalHistory(storage)
+    const existing = current
       .filter((entry) => entry.id !== id && entry.url !== url)
-      .map((entry) => ({ id: entry.id, name: entry.name, url: entry.url, pic: entry.poster, progress: entry.progress, time: entry.watchedAt }));
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        url: entry.url,
+        pic: entry.poster,
+        progress: entry.progress,
+        ...(entry.positionSeconds !== undefined ? { positionSeconds: entry.positionSeconds } : {}),
+        ...(entry.durationSeconds !== undefined ? { durationSeconds: entry.durationSeconds } : {}),
+        time: entry.watchedAt
+      }));
     storage.setItem("pingfang_history", JSON.stringify([next, ...existing].slice(0, 50)));
     return true;
   } catch {

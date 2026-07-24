@@ -554,7 +554,17 @@ describe("React migration routes", () => {
   it("uses the current browser history for the homepage continue rail", async () => {
     localStorage.setItem(
       "pingfang_history",
-      JSON.stringify([{ id: "1", name: "云端回声", url: "/watch/1/1/101", progress: "已看到 8:20", time: "2026-07-21T10:00:00Z" }])
+      JSON.stringify([
+        {
+          id: "1",
+          name: "云端回声",
+          url: "/watch/1/1/101",
+          progress: "已看到 8:20",
+          positionSeconds: 500,
+          durationSeconds: 600,
+          time: "2026-07-21T10:00:00Z"
+        }
+      ])
     );
 
     const { container } = renderRoutes("/");
@@ -563,6 +573,90 @@ describe("React migration routes", () => {
     expect(container.querySelector(".home-continue-card")).toHaveAttribute("href", "/watch/1/1/101");
     expect(container.querySelector(".home-continue-poster")).toHaveClass("is-image-missing");
     expect(screen.getByRole("link", { name: "全部记录" })).toHaveAttribute("href", "/history");
+    expect(screen.getByRole("progressbar", { name: "云端回声观看进度 83%" })).toHaveAttribute("aria-valuenow", "83");
+    expect(screen.getByText("剩余 2 分钟")).toBeInTheDocument();
+  });
+
+  it("shows account history progress in the homepage continue rail", async () => {
+    localStorage.setItem(
+      "pingfang_history",
+      JSON.stringify([{ id: "1", name: "本地旧断点", url: "/watch/1/1/101", progress: "已看到 18:00", positionSeconds: 1080, durationSeconds: 1200 }])
+    );
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const action = requestAction(input);
+      if (action === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: true, user: { id: 7, name: "测试会员" }, csrfToken: "test-csrf-token" }
+        });
+      }
+      if (action === "history") {
+        return jsonResponse({
+          code: 1,
+          msg: "播放记录加载成功",
+          data: {
+            items: [
+              {
+                recordIds: ["history-completed"],
+                vodId: 2,
+                sourceId: 1,
+                episodeId: 201,
+                title: "已完播影片",
+                episodeName: "正片",
+                poster: "/completed.jpg",
+                progress: "已看完",
+                watchedAt: "2026-07-24 11:00",
+                positionSeconds: 1200,
+                durationSeconds: 1200,
+                completed: true
+              },
+              {
+                recordIds: ["history-1"],
+                vodId: 1,
+                sourceId: 1,
+                episodeId: 101,
+                title: "云端续播",
+                episodeName: "第一集",
+                poster: "/poster.jpg",
+                progress: "已看到 08:00",
+                watchedAt: "2026-07-24 10:00",
+                positionSeconds: 480,
+                durationSeconds: 1200,
+                completed: false
+              },
+              {
+                recordIds: ["history-no-duration"],
+                vodId: 3,
+                sourceId: 1,
+                episodeId: 301,
+                title: "时长未知",
+                episodeName: "正片",
+                poster: "/unknown.jpg",
+                progress: "已看到 03:00",
+                watchedAt: "2026-07-24 09:00",
+                positionSeconds: 180,
+                durationSeconds: null,
+                completed: false
+              }
+            ]
+          }
+        });
+      }
+      return apiFetch(input);
+    });
+
+    renderRoutes("/");
+
+    expect(await screen.findByRole("progressbar", { name: "云端续播观看进度 40%" })).toHaveAttribute("aria-valuenow", "40");
+    expect(screen.getByText("剩余 12 分钟")).toBeInTheDocument();
+    expect(screen.getByText("已看到 03:00")).toBeInTheDocument();
+    expect(screen.queryByText("已完播影片")).not.toBeInTheDocument();
+    expect(screen.queryByText("本地旧断点")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "全部记录" })).toHaveAttribute("href", "/account/history");
+    const historyCall = vi.mocked(fetch).mock.calls.find(([input]) => requestAction(input) === "history")?.[0];
+    expect(requestParam(historyCall!, "limit")).toBe("12");
   });
 
   it.each([

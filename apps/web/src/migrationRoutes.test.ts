@@ -12,6 +12,10 @@ describe("local migration route policy", () => {
     ["/index.php/vod/down/id/1.html", "/vod/1/download"],
     ["/index.php/vod/plot/id/1.html", "/vod/1/plot"],
     ["/index.php/vod/play/id/1/sid/2/nid/3.html", "/watch/1/2/3"],
+    ["/index.php/vod/play/id/2147483647/sid/2/nid/3.html", "/watch/2147483647/2/3"],
+    ["/vodplay/1-2-3.html", "/watch/1/2/3"],
+    ["/vodplay/2147483647-2-3.html", "/watch/2147483647/2/3"],
+    ["/vodplay/1-2-3.html?next=https://evil.example/watch/9/9/9", "/watch/1/2/3"],
     ["/index.php/label/history.html", "/history"],
     ["/index.php/user/favs.html", "/account/favorites"],
     ["/index.php/comment/index.html?mid=1&id=9", "/comments/1/9"]
@@ -45,6 +49,18 @@ describe("local migration route policy", () => {
     expect(resolveMigrationRoute("/index.php/vod/player/id/1.html")).toBeNull();
     expect(resolveMigrationRoute("/index.php/map/rss.html")).toBeNull();
     expect(resolveMigrationRoute("/index.php/rss/rss.html")).toBeNull();
+  });
+
+  it.each([
+    "/vodplay/0-2-3.html",
+    "/vodplay/1-two-3.html",
+    "/vodplay/1-2-%2F%2Fevil%2Eexample.html",
+    "/vodplay/2147483648-2-3.html",
+    "/index.php/vod/play/id/0/sid/2/nid/3.html",
+    "/index.php/vod/play/id/1/sid/two/nid/3.html",
+    "/index.php/vod/play/id/2147483648/sid/2/nid/3.html"
+  ])("does not redirect a malformed rewritten playback URL %s", (source) => {
+    expect(resolveMigrationRoute(source)).toBeNull();
   });
 
   it("only applies redirects and retirement responses to GET or HEAD", () => {

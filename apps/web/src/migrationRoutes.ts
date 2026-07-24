@@ -1,6 +1,8 @@
 export type MigrationRouteResult = { status: 301; location: string } | { status: 410 };
 
 const identifierPattern = "([A-Za-z0-9_~%:-]+)";
+const playbackIdentifierPattern = "([1-9][0-9]{0,9})";
+const maxPlaybackIdentifier = 2147483647;
 const retiredReactPrefix = /^\/(?:articles|actors|roles|topics|websites|plots|games|comics)(?:\/|$)/;
 const retiredLegacyAction =
   /^\/index\.php\/(?:actor\/(?:detail|index|search|show|type)|art\/(?:confirm|detail|detail_pwd|index|search|show|type)|label\/comics|plot\/(?:udetail|uindex)|role\/(?:detail|index|show)|topic\/(?:detail|index)|user\/(?:findpass|reg)|website\/(?:detail|index|search|show|type)|map\/(?:baidu|google)|rss\/(?:baidu|google))(?:\/.*|\.html)?$/;
@@ -77,12 +79,18 @@ export function resolveMigrationRoute(requestUrl: string, method = "GET"): Migra
   if (download) return { status: 301, location: `/vod/${encodePathSegment(download[1])}/download` };
   const plot = pathname.match(new RegExp(`^/index\\.php/vod/plot/id/${identifierPattern}(?:\\.html)?$`));
   if (plot) return { status: 301, location: `/vod/${encodePathSegment(plot[1])}/plot` };
-  const play = pathname.match(new RegExp(`^/index\\.php/vod/play/id/${identifierPattern}/sid/${identifierPattern}/nid/${identifierPattern}(?:\\.html)?$`));
-  if (play) {
+  const play = pathname.match(
+    new RegExp(`^/index\\.php/vod/play/id/${playbackIdentifierPattern}/sid/${playbackIdentifierPattern}/nid/${playbackIdentifierPattern}(?:\\.html)?$`)
+  );
+  if (play && play.slice(1).every((value) => Number(value) <= maxPlaybackIdentifier)) {
     return {
       status: 301,
       location: `/watch/${encodePathSegment(play[1])}/${encodePathSegment(play[2])}/${encodePathSegment(play[3])}`
     };
+  }
+  const rewrittenPlay = pathname.match(new RegExp(`^/vodplay/${playbackIdentifierPattern}-${playbackIdentifierPattern}-${playbackIdentifierPattern}\\.html$`));
+  if (rewrittenPlay && rewrittenPlay.slice(1).every((value) => Number(value) <= maxPlaybackIdentifier)) {
+    return { status: 301, location: `/watch/${rewrittenPlay[1]}/${rewrittenPlay[2]}/${rewrittenPlay[3]}` };
   }
 
   const staticRedirects = new Map<string, string>([

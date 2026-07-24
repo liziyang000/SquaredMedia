@@ -82,7 +82,7 @@ npm run verify:release
 - `scripts/lint-template.mjs` 面向源模板结构，阻止本地预览、`localhost`、死链接或错误资源路径进入生产主题。
 - `scripts/verify-compat.mjs` 面向 MacCMS 页面和目录兼容面。
 - `tests/react-api.test.php` 验证本地 React API 的服务端分页、筛选、独立详情、字段白名单、媒体 URL 隔离、HTTP 状态、JSON Content-Type、有限数值与字段边界、session/CSRF、既有会员登录、注册/找回 action 退场、收藏/记录批量操作、设备及绑定 `mid`/内容 ID 的互动写入。
-- `tests/pingfang-api.test.php` 验证生产 `pingfangapi` 的兼容 `home`、分区 `home_v2`、轻量 `navigation`、分页参数归一化、详情 action、action/method 白名单、同源与 CSRF、请求体上限、登录字段隔离、账户鉴权、原生播放器 iframe、Ulog 写入契约和列表媒体地址隔离；它使用服务替身，不连接真实 MacCMS 数据库。
+- `tests/pingfang-api.test.php` 验证生产 `pingfangapi` 的兼容 `home`、分区 `home_v2`、轻量 `navigation`、分页参数归一化、详情 action、action/method 白名单、同源与 CSRF、请求体上限、登录字段隔离、账户鉴权、受控媒体描述符、Ulog 写入契约和列表媒体地址隔离；它使用服务替身，不连接真实 MacCMS 数据库。
 - `tests/pingfang-api-controller.test.php` 直接加载生产应用控制器，验证站点关闭、地区限制和未知 action 都保持 JSON envelope；它仍不能代替真实 MacCMS autoload、数据库和 Cookie 验收。
 - `apps/web/e2e/react-migration.spec.ts` 验证本地 `301`/`410`、干净 URL 直达刷新、匿名历史、登录账号写操作以及 320、390、1100、1180、1181、1440 像素边界；CI 在执行前安装 Chromium。它不能证明生产 Nginx、真实 MacCMS Cookie/权限或真实播放器线路可用。
 - `scripts/verify-preview.mjs` 从仓库根目录调用 PHP CLI，验证旧 PHP 预览仍能渲染主要路由；它不连接真实 MacCMS 数据库。
@@ -244,7 +244,7 @@ DEPLOY_SCOPE=api npm run deploy
 - 首页、分类、详情、播放及用户入口返回预期页面，没有 PHP 运行时错误。
 - `pingfangdevice` 管理页可访问，登录、设备登记和撤销流程按预期工作。
 - 兼容 `home` 仍返回 JSON envelope 且列表没有原始播放 URL；`home_v2` 的轮播/年度榜不超过 5 条、最新/每频道不超过 6 条，卡片无剧集和播放字段，`navigation` 只返回站点名与可见频道；`content&page=1&page_size=24` 返回真实总数和当前页且卡片 `episodes` 为空，第二页 ID 与第一页不重复，重复请求和翻页不会再次执行相同的全表总数统计，`detail&vod_id=<id>` 可独立读取完整剧集；`session` 能签发 CSRF，真实账号登录、收藏、历史和设备撤销均按当前用户隔离。
-- playback action 只返回同源 `pingfangapi/player` iframe；该入口会重新执行 MacCMS 播放权限并复用原生播放器/受限播放模板，不能退回可复制的直接 `vod/player` URL。
+- `playback` action 只返回同源 `pingfangapi/stream` 描述符；React 直接使用 Artplayer/HLS，`stream` 会重新执行 MacCMS 播放权限并仅对 `ps=0` 直连媒体返回 302。原 `pingfangapi/player` 保留作原生模板与回滚，React 不得重新嵌入 iframe。
 - 使用真实后台配置验收登录验证码、评论审核与黑名单、留言/报错、顶踩和评分；确认注册、注册验证码和找回 action 返回 404，新旧注册/找回页面路径族返回 410。
 - MacCMS 缓存目录仍可由 Web 进程写入。
 - 远端实际主题和插件文件来自本次归档，并记录本次生成的备份目录名。

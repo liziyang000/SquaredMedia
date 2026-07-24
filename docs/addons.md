@@ -93,13 +93,13 @@
 | GET    | `navigation`                      | 否                   | 从 MacCMS 分类缓存返回站点名和当前用户组可见的首页频道，不扫描影片表             |
 | GET    | `content`                         | 否                   | 服务端筛选、搜索、排序和分页；compact 模式按需返回分类总数与筛选元数据           |
 | GET    | `detail`                          | 否                   | 按 `vod_id` 返回单个影片、剧集标识和最多 6 条同类推荐                            |
-| GET    | `playback`                        | 否                   | 校验影片、线路、集数和播放权限，返回同源受控 `pingfangapi/stream` 描述符          |
+| GET    | `playback`                        | 否                   | 校验影片、线路、集数和播放权限；登录时可返回当前剧集的精确云端续播位置             |
 | GET    | `session`                         | 否                   | 当前 MacCMS 用户、白名单资料、会话 CSRF Token 和公开表单要求                     |
 | GET    | `comments`                        | 否                   | 只返回已审核评论的纯文本白名单 DTO                                               |
 | GET    | `favorites`、`history`、`devices` | 是                   | 当前用户的 Ulog 和活动设备会话                                                   |
 | POST   | `login`、`logout`                 | 登录不要求；退出要求 | 原生 `User` 登录/退出并同步 `DeviceSession`                                      |
 | POST   | `favorite`、`favorites.delete`    | 是                   | 当前用户、`mid=1`、`type=2` 的收藏记录                                           |
-| POST   | `history.save`、`history.delete`  | 是                   | 当前用户、`mid=1`、`type=4` 的播放进度；按原生 Ulog 记录精确更新或删除           |
+| POST   | `history.save`、`history.delete`  | 是                   | 当前用户、`mid=1`、`type=4` 的播放进度；按原生 Ulog 精确更新或删除，并忽略同会话中更旧的并发断点 |
 | POST   | `device.revoke`                   | 是                   | 仅撤销当前用户拥有的非当前设备会话                                               |
 | POST   | `feedback`、`report`、`comment`   | 是                   | 复用原生验证码、审核、内容过滤、评论黑名单、Cookie 限频和回复通知规则            |
 | POST   | `reaction`、`rating`              | 是                   | 校验目标内容权限后原子更新原生顶踩与评分计数                                     |
@@ -108,7 +108,7 @@
 
 ### 内容与播放边界
 
-当前 React 为 `home_v2`、`content` 和 `detail` 显式传 `compact=1`；旧形状继续保留给缓存中的旧静态资源。compact 目录和相关推荐只查询并返回 7 字段卡片，搜索额外增加 `typeName/actor/summary`，都不解析播放列表；完整剧集仅由详情读取。`home_v2` 按区块调用 MacCMS `Vod::listCacheData`，Hero 与普通卡片分别传精确字段白名单和独立原生缓存命名空间：轮播和年度榜各最多 5 条，本年最新及每个可见频道各最多 6 条。首页、目录、收藏、历史和评论响应均不返回原始播放地址。完整授权时，`playback` 响应返回 `url('pingfangapi/stream', id/sid/nid)` 生成的同源媒体入口和媒体类型。React 直接挂载与当前 MacCMS 配置一致的 Artplayer/HLS；`stream` 再次执行站点/地区策略和 `check_user_popedom`，成功后 302 到 `ps=0` 直连媒体。仅允许试看时服务端返回 403，避免 302 暴露无法限制时长的完整片源；`ps=1` 第三方解析线路明确返回 503。原 `pingfangapi/player` HTML 入口保留给 MacCMS 原生模板与回滚。
+当前 React 为 `home_v2`、`content` 和 `detail` 显式传 `compact=1`；旧形状继续保留给缓存中的旧静态资源。compact 目录和相关推荐只查询并返回 7 字段卡片，搜索额外增加 `typeName/actor/summary`，都不解析播放列表；完整剧集仅由详情读取。`home_v2` 按区块调用 MacCMS `Vod::listCacheData`，Hero 与普通卡片分别传精确字段白名单和独立原生缓存命名空间：轮播和年度榜各最多 5 条，本年最新及每个可见频道各最多 6 条。首页、目录、收藏、历史和评论响应均不返回原始播放地址。完整授权时，`playback` 响应返回 `url('pingfangapi/stream', id/sid/nid)` 生成的同源媒体入口和媒体类型；登录用户只有在当前影片、线路和剧集的 Ulog 进度大于 30 秒且小于有效时长的 95% 时，才会额外取得 `resumePositionSeconds`。React 关闭 Artplayer 本地自动续播，播放中每 20 秒及暂停、结束、隐藏或离页时按精确剧集保存，退出请求使用 `keepalive`；同会话的新协议水位会拦截更旧或无时间戳的晚到请求，新 React 对旧 API 的未知字段错误会降级重试旧请求体。`stream` 再次执行站点/地区策略和 `check_user_popedom`，成功后 302 到 `ps=0` 直连媒体。仅允许试看时服务端返回 403，避免 302 暴露无法限制时长的完整片源；`ps=1` 第三方解析线路明确返回 503。原 `pingfangapi/player` HTML 入口保留给 MacCMS 原生模板与回滚。
 
 `content` 不返回完整目录。除筛选、排序和分页白名单外，compact 模式还接受 `include_category_totals` 与 `include_facets`。普通目录分类名直接来自 MacCMS 类型缓存；只有分类索引显式请求时才执行并返回分类总数，只有需要剧情筛选的页面才读取剧情选项。响应中的 `videos` 是当前页，`total`、`page`、`totalPages` 来自服务端查询；组合筛选与搜索的精确计数按条件缓存。详情页通过独立 `detail&compact=1` 动作读取，不依赖当前目录页。
 
@@ -125,7 +125,7 @@
 - 登录强制 `openid=''`、`col=''`，内部 `return_meta` 只用于创建设备会话，不进入响应。设备注册失败会撤销设备 Token 并回滚原生登录；登录和退出后轮换 PHP Session 与 CSRF。
 - 注册、注册验证码和找回密码不在公开 action 白名单中；评论和留言复用原生审核、验证码、内容过滤、黑名单、Cookie 限频及通知行为。新增记录 ID 从同一数据库连接读取，避免写入成功却返回失败。
 - 账户查询和写入的 `user_id` 永远来自服务端当前会话，不接受客户端用户 ID。设备响应不会输出 Token 摘要、原始 User-Agent 或 IP。
-- `ulog_type=4` 同时可能保存付费播放凭证。历史读取沿用旧播放记录页的完整 type 4 范围；更新按影片、线路和剧集匹配现有记录并保留其 `ulog_points`，只有新增记录默认写入 0；删除按前端拿到的原生 `ulog_id` 精确执行。
+- `ulog_type=4` 同时可能保存付费播放凭证。历史读取沿用旧播放记录页的完整 type 4 范围，并返回数值进度、可空时长和服务端派生的 95% 完播状态；更新按影片、线路和剧集匹配现有记录并保留其 `ulog_points`，只有新增记录默认写入 0；删除按前端拿到的原生 `ulog_id` 精确执行。
 - `home`、`home_v2`、分类统计、筛选总数和剧情筛选项只在服务端内部使用按权限隔离的可配置缓存；所有 HTTP 响应统一使用 `private, no-store`，避免 MacCMS Session Cookie 进入共享缓存。
 
 ### 安装、配置与验收

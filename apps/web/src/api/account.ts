@@ -80,7 +80,10 @@ const historyEntrySchema = z.object({
   episodeName: z.string().min(1),
   poster: z.string(),
   progress: z.string(),
-  watchedAt: z.string().min(1)
+  watchedAt: z.string().min(1),
+  positionSeconds: z.coerce.number().int().nonnegative().default(0),
+  durationSeconds: z.coerce.number().int().positive().nullable().default(null),
+  completed: z.boolean().default(false)
 });
 
 const deviceSchema = z.object({
@@ -144,7 +147,8 @@ const historyInputSchema = z.object({
   sourceId: identifierSchema,
   episodeId: identifierSchema,
   positionSeconds: z.number().finite().nonnegative(),
-  durationSeconds: z.number().finite().positive().optional()
+  durationSeconds: z.number().finite().positive().optional(),
+  checkpointAtMs: z.number().int().positive().max(9_999_999_999_999)
 });
 
 const historyResultSchema = z.object({ saved: z.boolean() });
@@ -297,7 +301,7 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
     return parseEnvelopeData(payload, schema, fallbackMessage).data;
   }
 
-  async function write<T>(action: string, body: unknown, schema: z.ZodType<T>, fallbackMessage: string) {
+  async function write<T>(action: string, body: unknown, schema: z.ZodType<T>, fallbackMessage: string, keepalive = false) {
     const token = resolveCsrfToken(csrfToken ?? sessionCsrfToken);
     const url = withApiParams(requireApiEndpoint(endpoint), { action });
     const payload = await requestJson<unknown>(url, {
@@ -307,6 +311,7 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
         "Content-Type": "application/json",
         "X-CSRF-Token": token
       },
+      ...(keepalive ? { keepalive: true } : {}),
       fetchImpl,
       timeoutMs
     });
@@ -355,7 +360,16 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
     },
 
     async saveHistory(input) {
-      return write("history.save", parseApiInput(input, historyInputSchema), historyResultSchema, "播放记录保存失败");
+      const parsed = parseApiInput(input, historyInputSchema);
+      try {
+        return await write("history.save", parsed, historyResultSchema, "播放记录保存失败", true);
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 422 || error.message !== "存在未支持的请求字段") {
+          throw error;
+        }
+        const { checkpointAtMs: _checkpointAtMs, ...legacyInput } = parsed;
+        return write("history.save", legacyInput, historyResultSchema, "播放记录保存失败", true);
+      }
     },
 
     async deleteHistory(input) {

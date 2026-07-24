@@ -285,7 +285,15 @@ class ApiRequest
             $vodId = $this->identifier($this->queryValue($query, 'vod_id'), 'vod_id');
             $sourceId = $this->identifier($this->queryValue($query, 'source_id'), 'source_id');
             $episodeId = $this->identifier($this->queryValue($query, 'episode_id'), 'episode_id');
-            return self::success($this->content->playback($vodId, $sourceId, $episodeId), '播放信息加载成功');
+            $playback = $this->content->playback($vodId, $sourceId, $episodeId);
+            $user = $this->account->currentUser();
+            if (!empty($user)) {
+                $position = $this->account->resumePosition(intval($user['user_id']), $vodId, $sourceId, $episodeId);
+                if ($position !== null) {
+                    $playback['resumePositionSeconds'] = intval($position);
+                }
+            }
+            return self::success($playback, '播放信息加载成功');
         }
         if ($action === 'session') {
             $this->assertQueryKeys($query, ['action']);
@@ -327,19 +335,20 @@ class ApiRequest
 
     private function saveHistory($userId, array $body)
     {
-        $this->assertBodyKeys($body, ['vodId', 'sourceId', 'episodeId', 'positionSeconds', 'durationSeconds']);
+        $this->assertBodyKeys($body, ['vodId', 'sourceId', 'episodeId', 'positionSeconds', 'durationSeconds', 'checkpointAtMs']);
         $vodId = $this->identifier($this->bodyValue($body, 'vodId'), 'vodId');
         $sourceId = $this->identifier($this->bodyValue($body, 'sourceId'), 'sourceId');
         $episodeId = $this->identifier($this->bodyValue($body, 'episodeId'), 'episodeId');
         $position = $this->seconds($this->bodyValue($body, 'positionSeconds'), 'positionSeconds', true);
         $duration = isset($body['durationSeconds']) ? $this->seconds($body['durationSeconds'], 'durationSeconds', false) : null;
+        $checkpointAtMs = isset($body['checkpointAtMs']) ? $this->checkpointMilliseconds($body['checkpointAtMs']) : null;
         if ($duration !== null && $position > $duration) {
             throw new ApiException(422, 'positionSeconds 不能大于 durationSeconds');
         }
 
         $this->content->assertEpisode($vodId, $sourceId, $episodeId);
         return self::success(
-            $this->account->saveHistory($userId, $vodId, $sourceId, $episodeId, $position, $duration),
+            $this->account->saveHistory($userId, $vodId, $sourceId, $episodeId, $position, $duration, $checkpointAtMs),
             '播放记录已保存'
         );
     }
@@ -559,6 +568,14 @@ class ApiRequest
             throw new ApiException(422, $name . ' 必须至少为 1 秒');
         }
         return $seconds;
+    }
+
+    private function checkpointMilliseconds($value)
+    {
+        if (!is_int($value) || $value < 1 || $value > 9999999999999) {
+            throw new ApiException(422, 'checkpointAtMs 超出允许范围');
+        }
+        return $value;
     }
 
     private function stringValue($value, $name, $minimum, $maximum, $trim)

@@ -250,23 +250,77 @@ $historyBody = [
     'vodId' => '1',
     'sourceId' => '1',
     'episodeId' => '101',
-    'positionSeconds' => 37,
+    'positionSeconds' => 37.9,
     'durationSeconds' => 120,
+    'checkpointAtMs' => 1784846400200,
 ];
 $assertEnvelope($request('POST', 'history.save', $historyBody, [], ['X-CSRF-Token' => 'wrong']), 403, 'History with invalid CSRF');
 $assertEnvelope($request('POST', 'history.save', array_replace($historyBody, ['positionSeconds' => '1e309']), [], $csrfHeader), 422, 'History with an infinite position');
 $assertEnvelope($request('POST', 'history.save', array_replace($historyBody, ['durationSeconds' => []]), [], $csrfHeader), 422, 'History with a non-scalar duration');
+$assertEnvelope($request('POST', 'history.save', array_replace($historyBody, ['checkpointAtMs' => 0]), [], $csrfHeader), 422, 'History with an invalid checkpoint order');
+$assertEnvelope($request('POST', 'history.save', array_replace($historyBody, ['positionSeconds' => 0, 'durationSeconds' => 0.5]), [], $csrfHeader), 422, 'History with a subsecond duration');
 $assertEnvelope($request('POST', 'history.save', array_replace($historyBody, ['episodeId' => '999']), [], $csrfHeader), 404, 'History for an unknown episode');
 $assertEnvelope($request('POST', 'history.save', $historyBody, [], $csrfHeader), 200, 'History save');
 $history = $assertEnvelope($request('GET', 'history'), 200, 'History after save');
 $assertSame(1, count($history['items']), 'A successful history write must be observable through the getter.');
 $assertSame(
-    ['recordIds', 'vodId', 'sourceId', 'episodeId', 'title', 'episodeName', 'poster', 'progress', 'watchedAt'],
+    ['recordIds', 'vodId', 'sourceId', 'episodeId', 'title', 'episodeName', 'poster', 'positionSeconds', 'durationSeconds', 'completed', 'progress', 'watchedAt'],
     array_keys($history['items'][0]),
     'History entries must match the React DTO.'
 );
+$assertSame(37, $history['items'][0]['positionSeconds'], 'History entries must expose the normalized playback position.');
+$assertSame(120, $history['items'][0]['durationSeconds'], 'History entries must expose the normalized playback duration.');
+$assertSame(false, $history['items'][0]['completed'], 'History entries below the 95 percent threshold must stay incomplete.');
+$assertSame(['1:1:101'], array_keys($session[REACT_API_SESSION_KEY]['history']), 'Local history keys must isolate playback sources.');
+$assertEnvelope(
+    $request('POST', 'history.save', array_replace($historyBody, ['positionSeconds' => 31, 'checkpointAtMs' => 1784846400100]), [], $csrfHeader),
+    200,
+    'Older concurrent history save'
+);
+$history = $assertEnvelope($request('GET', 'history'), 200, 'History after older concurrent save');
+$assertSame(37, $history['items'][0]['positionSeconds'], 'An older concurrent checkpoint must not overwrite the latest local checkpoint.');
+$legacyHistoryBody = $historyBody;
+unset($legacyHistoryBody['checkpointAtMs']);
+$legacyHistoryBody['positionSeconds'] = 32;
+$assertEnvelope($request('POST', 'history.save', $legacyHistoryBody, [], $csrfHeader), 200, 'Legacy history save after ordered checkpoint');
+$history = $assertEnvelope($request('GET', 'history'), 200, 'History after legacy concurrent save');
+$assertSame(37, $history['items'][0]['positionSeconds'], 'A legacy checkpoint must not overwrite a key that already has an ordering watermark.');
+$resumablePlayback = $assertEnvelope($request('GET', 'playback', [], [
+    'vod_id' => '1',
+    'source_id' => '1',
+    'episode_id' => '101',
+]), 200, 'Playback with resumable history');
+$assertSame(37, $resumablePlayback['resumePositionSeconds'] ?? null, 'Playback must expose only the exact resumable episode checkpoint.');
+
+$completedHistoryBody = array_replace($historyBody, ['positionSeconds' => 114, 'checkpointAtMs' => 1784846400300]);
+$assertEnvelope($request('POST', 'history.save', $completedHistoryBody, [], $csrfHeader), 200, 'Completed history save');
+$completedHistory = $assertEnvelope($request('GET', 'history'), 200, 'Completed history');
+$assertSame(true, $completedHistory['items'][0]['completed'], 'History entries at the 95 percent threshold must be complete.');
+$completedPlayback = $assertEnvelope($request('GET', 'playback', [], [
+    'vod_id' => '1',
+    'source_id' => '1',
+    'episode_id' => '101',
+]), 200, 'Playback with completed history');
+$assert(!array_key_exists('resumePositionSeconds', $completedPlayback), 'Completed playback history must not resume near the ending.');
+
+$unknownDurationBody = $historyBody;
+unset($unknownDurationBody['durationSeconds']);
+$unknownDurationBody['positionSeconds'] = 0;
+$unknownDurationBody['checkpointAtMs'] = 1784846400400;
+$assertEnvelope($request('POST', 'history.save', $unknownDurationBody, [], $csrfHeader), 200, 'History save without duration');
+$unknownDurationHistory = $assertEnvelope($request('GET', 'history'), 200, 'History without duration');
+$assertSame(0, $unknownDurationHistory['items'][0]['positionSeconds'], 'Zero-second history must remain valid.');
+$assertSame(120, $unknownDurationHistory['items'][0]['durationSeconds'], 'Missing playback duration must preserve the existing known duration.');
+$assertSame(false, $unknownDurationHistory['items'][0]['completed'], 'History without a duration cannot be complete.');
+$unknownDurationPlayback = $assertEnvelope($request('GET', 'playback', [], [
+    'vod_id' => '1',
+    'source_id' => '1',
+    'episode_id' => '101',
+]), 200, 'Playback without resumable duration');
+$assert(!array_key_exists('resumePositionSeconds', $unknownDurationPlayback), 'Playback history without a duration must not resume.');
+
 $assertEnvelope($request('POST', 'history.delete', ['recordIds' => [[]]], [], $csrfHeader), 422, 'History delete with an invalid ID');
-$historyDelete = $assertEnvelope($request('POST', 'history.delete', ['recordIds' => ['1:101']], [], $csrfHeader), 200, 'History delete');
+$historyDelete = $assertEnvelope($request('POST', 'history.delete', ['recordIds' => ['1:1:101']], [], $csrfHeader), 200, 'History delete');
 $assertSame(['removed' => 1], $historyDelete, 'History delete must remove every record for the selected video.');
 $assertSame([], $assertEnvelope($request('GET', 'history'), 200, 'History after delete')['items'], 'History deletion must persist.');
 

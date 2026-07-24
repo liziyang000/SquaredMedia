@@ -199,15 +199,22 @@ const playbackSchema = z
     episodeName: z.string().min(1),
     poster: z.string(),
     playSources: z.array(playSourceSchema),
-    kind: z.enum(["video", "iframe"]),
+    kind: z.enum(["video", "hls"]),
     url: playbackUrlSchema,
     mimeType: z.string().min(1).optional(),
-    expiresAt: z.string().min(1).optional()
+    expiresAt: z.string().min(1).optional(),
+    playerHints: z
+      .object({
+        startupHintAfterMs: z.number().int().min(1).max(30_000).nullable(),
+        bufferingHintEnabled: z.boolean()
+      })
+      .optional(),
+    maxPlaybackSeconds: z.coerce.number().int().positive().optional()
   })
   .superRefine((playback, context) => {
     const sameSitePath = playback.url.startsWith("/") && !playback.url.startsWith("//") && !playback.url.includes("\\");
-    if (playback.kind === "iframe" && !sameSitePath) {
-      context.addIssue({ code: "custom", path: ["url"], message: "iframe 播放地址必须是当前站点路径" });
+    if (playback.kind === "hls" && !sameSitePath) {
+      context.addIssue({ code: "custom", path: ["url"], message: "HLS 播放地址必须使用当前站点的授权媒体路径" });
     }
     if (process.env.NODE_ENV === "production" && !sameSitePath) {
       context.addIssue({ code: "custom", path: ["url"], message: "生产播放地址必须是当前站点路径" });

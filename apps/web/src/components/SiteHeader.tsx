@@ -6,7 +6,8 @@ import type { HomeCategory } from "../api";
 const themes = [
   { id: "default", label: "液态影院", swatch: "theme-option-swatch-default" },
   { id: "blue-pink-purple", label: "极光夜幕", swatch: "theme-option-swatch-aurora" },
-  { id: "poster-magazine", label: "海报画廊", swatch: "theme-option-swatch-poster" }
+  { id: "poster-magazine", label: "海报画廊", swatch: "theme-option-swatch-poster" },
+  { id: "dunhuang-caisson", label: "敦煌流光", swatch: "theme-option-swatch-dunhuang" }
 ] as const;
 
 type ThemeId = (typeof themes)[number]["id"];

@@ -12,6 +12,7 @@ describe("Artwork", () => {
 
     expect(screen.queryByRole("img", { name: "空海报" })).not.toBeInTheDocument();
     expect(container.firstElementChild).toHaveClass("poster", "is-image-missing");
+    expect(container.firstElementChild).toHaveAttribute("data-artwork");
   });
 
   it("falls back after an image error and retries when the source changes", async () => {

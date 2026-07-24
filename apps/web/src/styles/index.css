@@ -8,6 +8,12 @@ body {
   min-height: 100vh;
 }
 
+.react-app [data-artwork] {
+  background-image: var(--react-lazyload-image);
+  background-position: center;
+  background-size: cover;
+}
+
 .react-home {
   min-height: 100vh;
 }
@@ -712,13 +718,6 @@ body {
   border-right: 0;
 }
 
-.react-app .player-shell > .native-player-frame,
-.react-app .player-shell > video {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
 .detail-interactions .react-form-message {
   flex: 1 0 100%;
   margin: 8px 0 0;
@@ -867,5 +866,205 @@ body {
   .migration-route-list li {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* React-only surfaces that are not present in the MacCMS template inherit the
+   same mineral palette and restrained caisson language as the shared theme. */
+html[data-theme="dunhuang-caisson"] .home-status-shell,
+html[data-theme="dunhuang-caisson"] .migration-shell {
+  background:
+    radial-gradient(circle at 16% 12%, rgba(47, 97, 116, 0.22), transparent 32%), radial-gradient(circle at 84% 86%, rgba(74, 100, 77, 0.16), transparent 34%),
+    linear-gradient(180deg, #17120d, #0f0c0a 58%, #090706);
+}
+
+html[data-theme="dunhuang-caisson"] .home-status-panel,
+html[data-theme="dunhuang-caisson"] .migration-panel {
+  border-color: rgba(200, 155, 74, 0.42);
+  border-right-color: rgba(163, 63, 44, 0.38);
+  border-left-color: rgba(47, 97, 116, 0.58);
+  border-radius: 10px;
+  background:
+    url("/template/pingfangvideo/images/dunhuang/wave-cloud-corner.svg") right top / 144px 144px no-repeat,
+    var(--cinema-glass);
+  box-shadow: var(--cinema-glass-shadow);
+}
+
+html[data-theme="dunhuang-caisson"] .home-status-panel h1,
+html[data-theme="dunhuang-caisson"] .migration-panel h1 {
+  color: var(--dunhuang-sand);
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "PingFang SC", serif;
+  letter-spacing: 0.015em;
+}
+
+html[data-theme="dunhuang-caisson"] .home-status-panel p,
+html[data-theme="dunhuang-caisson"] .migration-panel p {
+  color: rgba(232, 217, 183, 0.72);
+}
+
+html[data-theme="dunhuang-caisson"] .home-status-panel button {
+  border-color: rgba(232, 217, 183, 0.38);
+  border-radius: 5px;
+  background: linear-gradient(135deg, #dbb866, var(--dunhuang-gold) 58%, #a77532);
+  color: var(--dunhuang-ink);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-panel {
+  background:
+    url("/template/pingfangvideo/images/dunhuang/wave-cloud-corner.svg") right top / 144px 144px no-repeat,
+    radial-gradient(circle at 16% 14%, rgba(47, 97, 116, 0.2), transparent 32%),
+    linear-gradient(145deg, rgba(38, 30, 22, 0.98), rgba(15, 12, 10, 0.94));
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-panel::before {
+  background: linear-gradient(110deg, transparent 22%, rgba(47, 97, 116, 0.12) 42%, rgba(200, 155, 74, 0.22) 50%, rgba(163, 63, 44, 0.1) 58%, transparent 68%);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-orbit {
+  border-color: rgba(200, 155, 74, 0.32);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-orbit i {
+  background: var(--dunhuang-gold);
+  box-shadow: 0 0 12px rgba(200, 155, 74, 0.76);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-orbit i:nth-child(2) {
+  background: #76929a;
+  box-shadow: 0 0 12px rgba(47, 97, 116, 0.86);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-track {
+  background: rgba(232, 217, 183, 0.11);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-bar {
+  background: linear-gradient(90deg, var(--dunhuang-blue), var(--dunhuang-gold) 58%, var(--dunhuang-sand));
+  box-shadow: 0 0 14px rgba(200, 155, 74, 0.42);
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-stages i {
+  color: rgba(185, 170, 140, 0.58);
+  animation-name: dunhuang-loading-stage-focus;
+}
+
+html[data-theme="dunhuang-caisson"] .loading-status-panel.is-ready .loading-status-stages i {
+  color: var(--dunhuang-gold);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .header-search:focus-within,
+html[data-theme="dunhuang-caisson"] .react-app .channel-search:focus-within,
+html[data-theme="dunhuang-caisson"] .react-app .mobile-drawer-search:focus-within {
+  border-color: rgba(200, 155, 74, 0.62);
+  box-shadow:
+    0 0 0 1px rgba(200, 155, 74, 0.14),
+    0 0 20px rgba(47, 97, 116, 0.18);
+}
+
+html[data-theme="dunhuang-caisson"] .react-form-message,
+html[data-theme="dunhuang-caisson"] .react-inline-status {
+  border-color: rgba(200, 155, 74, 0.28);
+  background: rgba(232, 217, 183, 0.045);
+  color: var(--muted);
+}
+
+html[data-theme="dunhuang-caisson"] .react-form-message.is-error {
+  border-color: rgba(163, 63, 44, 0.62);
+  color: #dca18f;
+}
+
+html[data-theme="dunhuang-caisson"] .react-form-message.is-success {
+  border-color: rgba(74, 100, 77, 0.7);
+  color: #abc39e;
+}
+
+html[data-theme="dunhuang-caisson"] .react-captcha-preview img {
+  border-color: rgba(200, 155, 74, 0.4);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-main .summary {
+  color: rgba(232, 217, 183, 0.76);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions {
+  border-color: rgba(200, 155, 74, 0.16);
+}
+
+html[data-theme="dunhuang-caisson"] .score-summary em {
+  color: rgba(185, 170, 140, 0.7);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control,
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .digg-panel {
+  border-color: rgba(200, 155, 74, 0.16);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control select {
+  border-color: rgba(200, 155, 74, 0.24);
+  background: rgba(232, 217, 183, 0.05);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control button,
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .digg-panel button {
+  color: rgba(232, 217, 183, 0.78);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control button:hover,
+html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .digg-panel button:hover {
+  background: rgba(74, 100, 77, 0.34);
+  color: var(--dunhuang-sand);
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .detail-data,
+html[data-theme="dunhuang-caisson"] .react-app .detail-data div {
+  border-color: rgba(200, 155, 74, 0.14);
+}
+
+html[data-theme="dunhuang-caisson"] .migration-kicker {
+  color: var(--dunhuang-gold);
+}
+
+html[data-theme="dunhuang-caisson"] .migration-route-list li {
+  border: 1px solid rgba(200, 155, 74, 0.16);
+  border-radius: 6px;
+  background: rgba(232, 217, 183, 0.035);
+}
+
+html[data-theme="dunhuang-caisson"] .migration-route-list code {
+  color: rgba(185, 170, 140, 0.82);
+}
+
+@keyframes dunhuang-loading-stage-focus {
+  0%,
+  28%,
+  100% {
+    color: rgba(185, 170, 140, 0.5);
+    opacity: 0.64;
+    transform: translateY(0);
+  }
+
+  8%,
+  20% {
+    color: var(--dunhuang-sand);
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-theme="dunhuang-caisson"] .home-status-panel,
+  html[data-theme="dunhuang-caisson"] .migration-panel,
+  html[data-theme="dunhuang-caisson"] .loading-status-panel {
+    border-radius: 8px;
+    background-size:
+      112px 112px,
+      auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dunhuang-caisson"] .loading-status-stages i {
+    color: rgba(232, 217, 183, 0.72);
+    animation: none;
   }
 }

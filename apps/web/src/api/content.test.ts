@@ -252,9 +252,15 @@ describe("createContentApi", () => {
             episodeName: "正片",
             poster: "/poster-1.jpg",
             playSources: [{ id: 1, name: "高清线路", tip: "稳定", episodes: [{ id: 101, no: 1, name: "正片", sourceId: 1 }] }],
-            kind: "video",
-            url: "https://media.example.com/video.mp4",
-            mimeType: "video/mp4",
+            kind: "hls",
+            url: "/index.php/pingfangapi/stream/id/1/sid/1/nid/101.html",
+            mimeType: "application/vnd.apple.mpegurl",
+            playerHints: {
+              startupHintAfterMs: 5000,
+              bufferingHintEnabled: true,
+              prestrain: "//union.maccms.la/html/prestrain.html"
+            },
+            maxPlaybackSeconds: 300,
             internalPath: "/srv/media/video.mp4"
           }
         });
@@ -273,10 +279,16 @@ describe("createContentApi", () => {
       episodeName: "正片",
       poster: "/poster-1.jpg",
       playSources: [{ id: "1", name: "高清线路", tip: "稳定", episodes: [{ id: "101", no: 1, name: "正片", sourceId: "1" }] }],
-      kind: "video",
-      url: "https://media.example.com/video.mp4",
-      mimeType: "video/mp4"
+      kind: "hls",
+      url: "/index.php/pingfangapi/stream/id/1/sid/1/nid/101.html",
+      mimeType: "application/vnd.apple.mpegurl",
+      playerHints: {
+        startupHintAfterMs: 5000,
+        bufferingHintEnabled: true
+      },
+      maxPlaybackSeconds: 300
     });
+    expect(JSON.stringify(playback)).not.toContain("prestrain.html");
   });
 
   it("reports configuration, validation, business and DTO errors", async () => {
@@ -297,7 +309,7 @@ describe("createContentApi", () => {
     });
     await expect(deniedApi.getPlayback(1, 1, 1)).rejects.toMatchObject({ kind: "business", code: 403, message: "当前内容不可播放" });
 
-    const externalIframeApi = createContentApi({
+    const externalStreamApi = createContentApi({
       endpoint: "/react-api.php",
       fetchImpl: async () =>
         jsonResponse({
@@ -311,11 +323,11 @@ describe("createContentApi", () => {
             episodeName: "正片",
             poster: "/poster.jpg",
             playSources: [{ id: 1, name: "高清线路", tip: "", episodes: [{ id: 1, no: 1, name: "正片", sourceId: 1 }] }],
-            kind: "iframe",
-            url: "https://untrusted.example/player"
+            kind: "hls",
+            url: "https://untrusted.example/video.m3u8"
           }
         })
     });
-    await expect(externalIframeApi.getPlayback(1, 1, 1)).rejects.toMatchObject({ kind: "invalid-response" });
+    await expect(externalStreamApi.getPlayback(1, 1, 1)).rejects.toMatchObject({ kind: "invalid-response" });
   });
 });

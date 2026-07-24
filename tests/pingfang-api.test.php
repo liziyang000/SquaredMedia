@@ -18,6 +18,13 @@ if (!function_exists('mac_url_img')) {
     }
 }
 
+if (!function_exists('get_addon_config')) {
+    function get_addon_config($name)
+    {
+        return $GLOBALS['pingfangApiAddonConfig'][(string) $name] ?? [];
+    }
+}
+
 if (!function_exists('url')) {
     function url($route)
     {
@@ -321,8 +328,9 @@ final class PingfangApiFakeContent extends ContentService
                 'tip' => '',
                 'episodes' => [['id' => '1', 'no' => 1, 'name' => '第1集', 'sourceId' => '1']],
             ]],
-            'kind' => 'iframe',
-            'url' => '/index.php/pingfangapi/player/id/7/sid/1/nid/1.html',
+            'kind' => 'hls',
+            'url' => '/index.php/pingfangapi/stream/id/7/sid/1/nid/1.html',
+            'mimeType' => 'application/vnd.apple.mpegurl',
         ];
     }
 
@@ -452,6 +460,21 @@ final class PingfangApiContentTotalProbe extends ContentService
     public function checkPlaybackAccess(array $row, int $sourceId, int $episodeId): void
     {
         $this->assertPlaybackAccess($row, $sourceId, $episodeId);
+    }
+
+    public function mediaSource(array $source, array $episode): array
+    {
+        return $this->resolvePlaybackMedia($source, $episode);
+    }
+
+    public function playbackHints(): array
+    {
+        return $this->playerHints();
+    }
+
+    public function fallbackPoster(): string
+    {
+        return $this->fallbackImage();
     }
 
     public function typeIds(array $query, array $types): array
@@ -807,8 +830,8 @@ $assertSame([['name' => '第一集', 'detail' => '真实剧情']], $plot['items'
 $playbackResponse = $request('GET', 'playback', [], ['vod_id' => '7', 'source_id' => '1', 'episode_id' => '1']);
 $playback = $assertEnvelope($playbackResponse, 200, 'Playback');
 $assertSame('private, no-store', $playbackResponse['headers']['Cache-Control'], 'Playback must never be cached.');
-$assertSame('iframe', $playback['kind'], 'Production playback must use the native MacCMS iframe.');
-$assert(str_starts_with($playback['url'], '/index.php/pingfangapi/player/'), 'Playback must return only the access-controlled player route.');
+$assertSame('hls', $playback['kind'], 'Production playback must use the direct HLS descriptor.');
+$assert(str_starts_with($playback['url'], '/index.php/pingfangapi/stream/'), 'Playback must return only the access-controlled media route.');
 
 $wrongMethod = $request('POST', 'content', [], [], $writeHeaders);
 $assertEnvelope($wrongMethod, 405, 'Wrong method');
@@ -1126,6 +1149,55 @@ foreach (['area', 'year', 'lang', 'letter'] as $filter) {
 $assertSame('vod_time', $totalProbe->forcedIndex(['class' => '剧情'], 'latest'), 'LIKE-based class filters must keep the sequential sort index.');
 $assertSame('', $totalProbe->forcedIndex(['keyword' => ''], 'latest'), 'Even an empty search query must not force a full sort-index scan.');
 
+$playerConfig = $GLOBALS['config'] ?? [];
+$GLOBALS['config']['play'] = [
+    'second' => '5',
+    'prestrain' => '//union.maccms.la/html/prestrain.html',
+    'buffer' => '//union.maccms.la/html/loading.html',
+];
+$playerHints = $totalProbe->playbackHints();
+$assertSame(
+    ['startupHintAfterMs' => 5000, 'bufferingHintEnabled' => true],
+    $playerHints,
+    'React playback hints must preserve MacCMS player enablement and timing without exposing HTML pages.'
+);
+$assert(!str_contains(json_encode($playerHints, JSON_UNESCAPED_SLASHES), 'maccms.la'), 'React playback hints must not expose the configured prompt URL.');
+$GLOBALS['config']['play']['second'] = '300';
+$assertSame(30000, $totalProbe->playbackHints()['startupHintAfterMs'], 'React startup hints must clamp oversized MacCMS preload durations.');
+$GLOBALS['config']['play']['second'] = ['invalid'];
+$GLOBALS['config']['play']['prestrain'] = ['invalid'];
+$GLOBALS['config']['play']['buffer'] = ['invalid'];
+$assertSame(
+    ['startupHintAfterMs' => null, 'bufferingHintEnabled' => false],
+    $totalProbe->playbackHints(),
+    'Malformed MacCMS player settings must disable optional React hints without warnings.'
+);
+$GLOBALS['config']['play'] = ['second' => '5', 'prestrain' => '', 'buffer' => ''];
+$assertSame(
+    ['startupHintAfterMs' => null, 'bufferingHintEnabled' => false],
+    $totalProbe->playbackHints(),
+    'Clearing the native prompt pages in MacCMS must disable their React equivalents.'
+);
+$GLOBALS['config'] = $playerConfig;
+
+$GLOBALS['pingfangApiAddonConfig']['pingfangapi'] = [
+    'lazyload_image' => '/upload/react-lazyload.png',
+];
+$fallbackProbe = new PingfangApiContentTotalProbe(static function () {
+    return ['code' => 1, 'msg' => 'ok'];
+});
+$assertSame('/upload/react-lazyload.png', $fallbackProbe->fallbackPoster(), 'React missing posters must use the MacCMS plugin lazyload image.');
+$GLOBALS['pingfangApiAddonConfig']['pingfangapi']['lazyload_image'] = 'https://evil.example/tracker.png';
+$fallbackProbe = new PingfangApiContentTotalProbe(static function () {
+    return ['code' => 1, 'msg' => 'ok'];
+});
+$assertSame(
+    '/template/pingfangvideo/images/brand/lazyload.png',
+    $fallbackProbe->fallbackPoster(),
+    'React lazyload configuration must reject external image URLs.'
+);
+unset($GLOBALS['pingfangApiAddonConfig']);
+
 $scopeConfig = $GLOBALS['config'] ?? [];
 $GLOBALS['config']['app']['popedom_filter'] = 0;
 $scopeTypes = [
@@ -1193,6 +1265,13 @@ $allowedGate = new PingfangApiContentTotalProbe(static function () {
     return ['code' => 1, 'msg' => '允许访问', 'trysee' => 0];
 });
 $assertSame('copyright', $allowedGate->state($gateRow, 'playback', 1, 1)['state'], 'Copyright mode 4 must replace authorized player output.');
+$trialGate = new PingfangApiContentTotalProbe(static function () {
+    return ['code' => 3002, 'msg' => '允许试看', 'trysee' => 5];
+});
+$trialRow = array_merge($gateRow, ['vod_copyright' => 0]);
+$assertThrowsStatus(static function () use ($trialGate, $trialRow): void {
+    $trialGate->checkPlaybackAccess($trialRow, 1, 1);
+}, 403, 'Trial playback must fail closed until the media route can enforce the authorized duration.');
 
 $GLOBALS['config']['app']['copyright_status'] = 2;
 $permissionGate = new PingfangApiContentTotalProbe(static function () {
@@ -1204,6 +1283,28 @@ $assertThrowsStatus(static function () use ($permissionGate, $gateRow): void {
     $permissionGate->checkPlaybackAccess($gateRow, 1, 1);
 }, 403, 'Playback descriptors must not be returned before the native permission gate passes.');
 $allowedGate->checkPlaybackAccess($gateRow, 1, 1);
+$directHls = $totalProbe->mediaSource(
+    ['player_info' => ['ps' => '0', 'parse' => 'https://ping2video.xyz/static/player/artplayer.html?url=']],
+    ['url' => 'https://media.example/private/index.m3u8?token=secret']
+);
+$assertSame('hls', $directHls['kind'], 'MacCMS ps=0 HLS lines must stay direct media.');
+$assertSame('application/vnd.apple.mpegurl', $directHls['mimeType'], 'HLS lines must expose the native MIME type.');
+$assertSame('https://media.example/private/index.m3u8?token=secret', $directHls['url'], 'The stream route must preserve the exact authorized MacCMS media URL.');
+$directMp4 = $totalProbe->mediaSource(
+    ['player_info' => ['ps' => '0', 'parse' => '']],
+    ['url' => 'https://media.example/movie.mp4']
+);
+$assertSame('video', $directMp4['kind'], 'MacCMS ps=0 MP4 lines must use native video playback.');
+$assertSame('video/mp4', $directMp4['mimeType'], 'MP4 lines must expose the native MIME type.');
+$assertThrowsStatus(static function () use ($totalProbe): void {
+    $totalProbe->mediaSource(
+        ['player_info' => ['ps' => '1', 'parse' => 'https://parser.example/?url=']],
+        ['url' => 'https://provider.example/watch/123']
+    );
+}, 503, 'MacCMS ps=1 parser pages must not be passed to Artplayer as media.');
+$assertThrowsStatus(static function () use ($totalProbe): void {
+    $totalProbe->mediaSource(['player_info' => ['ps' => '0']], ['url' => "https://media.example/video.m3u8\r\nX-Test: injected"]);
+}, 503, 'Playback redirects must reject response-splitting characters.');
 $GLOBALS['config'] = $routeConfig;
 
 $addonSource = '';
@@ -1213,6 +1314,9 @@ foreach (glob(dirname(__DIR__) . '/addons/pingfangapi/**/*.php') ?: [] as $file)
 $assert(!str_contains($addonSource, 'preview/data.json'), 'Production API must not reference preview fixtures.');
 $assert(!str_contains($addonSource, 'demo123'), 'Production API must not contain demo credentials.');
 $assert(!str_contains($addonSource, 'mac_data_count('), 'The home API must not trigger MacCMS-wide aggregate statistics.');
+$contentSource = (string) file_get_contents(dirname(__DIR__) . '/addons/pingfangapi/service/ContentService.php');
+$assert(str_contains($contentSource, 'MacCMS 剧情解析服务不可用'), 'Plot output must fail closed when the native MacCMS parser is unavailable.');
+$assert(!str_contains($contentSource, 'fallbackPlotList'), 'Plot output must not duplicate the native MacCMS plot parser.');
 
 $accountSource = (string) file_get_contents(dirname(__DIR__) . '/addons/pingfangapi/service/AccountService.php');
 $methodSource = static function (string $name, string $next) use ($accountSource, $fail): string {
@@ -1261,7 +1365,13 @@ $GLOBALS['pingfangApiModels'] = [
 $nativeHome = (new ContentService(static function () {
     return ['code' => 1, 'msg' => 'ok'];
 }))->homeV2(true);
-$assertSame(['siteName', 'todayUpdated', 'categories', 'hero', 'ranking', 'latest', 'latestByCategory'], array_keys($nativeHome), 'Native compact home must use the lean response contract.');
+$assertSame(['siteName', 'todayUpdated', 'categories', 'hero', 'ranking', 'latest', 'latestByCategory', 'ui'], array_keys($nativeHome), 'Native compact home must use the lean response contract.');
+$assertSame('/template/pingfangvideo/images/brand/lazyload.png', $nativeHome['ui']['lazyloadImage'], 'Native home must expose the MacCMS-controlled React lazyload image.');
+$nativeNavigation = (new ContentService(static function () {
+    return ['code' => 1, 'msg' => 'ok'];
+}))->navigation();
+$assertSame(['siteName', 'categories', 'ui'], array_keys($nativeNavigation), 'Native navigation must expose shell metadata and React UI configuration.');
+$assertSame('/template/pingfangvideo/images/brand/lazyload.png', $nativeNavigation['ui']['lazyloadImage'], 'Native navigation must expose the same React lazyload image as home.');
 $assertSame(4, count($nativeVodModel->calls), 'One visible home category must use three shared shelves and one category shelf.');
 $pageUrls = [];
 foreach ($nativeVodModel->calls as $index => $call) {

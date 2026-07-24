@@ -269,6 +269,9 @@ describe("React migration routes", () => {
     expect(screen.getByRole("link", { name: "登录" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/categories"]')).toHaveTextContent("视频");
     expect(container.querySelector('.mobile-drawer-links a[href="/categories"]')).toHaveTextContent("视频");
+    expect((container.querySelector(".react-app") as HTMLElement).style.getPropertyValue("--react-lazyload-image")).toBe(
+      'url("/template/pingfangvideo/images/brand/lazyload.png")'
+    );
     const actions = vi.mocked(fetch).mock.calls.map(([input]) => requestAction(input));
     expect(actions.filter((action) => action === "home_v2")).toHaveLength(1);
     expect(actions).not.toContain("navigation");
@@ -556,7 +559,9 @@ describe("React migration routes", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "云端回声 - 正片" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "云端回声 正片 视频播放器" })).toBeInTheDocument();
-    expect(container.querySelector("video source")).toHaveAttribute("src", "https://media.example.com/video.mp4");
+    expect(container.querySelector("[data-maccms-player]")).toBeInTheDocument();
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.querySelector(".pf-player")).toBeNull();
     expectMigratedPage(container);
   });
 
@@ -629,7 +634,7 @@ describe("React migration routes", () => {
     await waitFor(() => expect(submittedBody).toEqual({ vodId: "1", scope: "detail", password: "secret" }));
   });
 
-  it("writes account history once when an authenticated iframe player starts", async () => {
+  it("writes account history once when an authenticated direct player starts", async () => {
     const historyBodies: Array<Record<string, unknown>> = [];
     vi.mocked(fetch).mockImplementation(async (input, init) => {
       const action = requestAction(input);
@@ -653,8 +658,9 @@ describe("React migration routes", () => {
             episodeName: "正片",
             poster: "/poster.jpg",
             playSources: detailFixtureResponse.video.playSources,
-            kind: "iframe",
-            url: "/index.php/pingfangapi/player/id/1/sid/1/nid/101.html"
+            kind: "hls",
+            url: "/index.php/pingfangapi/stream/id/1/sid/1/nid/101.html",
+            mimeType: "application/vnd.apple.mpegurl"
           }
         });
       }
@@ -666,7 +672,8 @@ describe("React migration routes", () => {
 
     renderRoutes("/watch/1/1/101");
 
-    expect(await screen.findByTitle("云端回声 - 正片 播放器")).toHaveAttribute("src", "/index.php/pingfangapi/player/id/1/sid/1/nid/101.html");
+    expect(await screen.findByLabelText("云端回声 - 正片 播放器")).toHaveAttribute("data-maccms-player");
+    expect(document.querySelector("iframe")).toBeNull();
     await waitFor(() => expect(historyBodies).toEqual([{ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 0 }]));
     expect(screen.queryByText("播放记录已保存")).not.toBeInTheDocument();
   });

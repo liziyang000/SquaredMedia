@@ -7723,8 +7723,15 @@ html[data-theme="dunhuang-caisson"] .banner-meta i {
 }
 
 html[data-theme="dunhuang-caisson"] .banner-dot.is-active {
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="dunhuang-caisson"] .banner-dot.is-active::after {
+  width: 30px;
+  height: 3px;
   background: var(--dunhuang-gold);
-  box-shadow: 0 0 0 1px rgba(232, 217, 183, 0.36), 0 0 14px rgba(200, 155, 74, 0.32);
+  box-shadow: 0 0 10px rgba(200, 155, 74, 0.36);
 }
 
 html[data-theme="dunhuang-caisson"] .hero-rank,

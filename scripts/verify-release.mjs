@@ -297,7 +297,8 @@ for (const pattern of [/preview\/data\.json/, /server\/react-api\.php/, /demo123
 }
 assert.match(apiPhp, /private, no-store/);
 assert.match(apiPhp, /X-CSRF-Token/);
-assert.match(apiPhp, /url\('pingfangapi\/player'/);
+assert.match(apiPhp, /url\('pingfangapi\/stream'/);
+assert.doesNotMatch(apiPhp, /url\('pingfangapi\/player'/);
 assert.doesNotMatch(apiPhp, /url\('vod\/player'/);
 assert.match(apiPhp, /check_user_popedom/);
 assert.match(apiPhp, /label_vod_play/);

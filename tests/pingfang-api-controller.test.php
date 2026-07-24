@@ -1,6 +1,37 @@
 <?php
 declare(strict_types=1);
 
+namespace think {
+    final class Db
+    {
+        public static function name($name)
+        {
+            return new PingfangApiControllerQuery();
+        }
+    }
+
+    final class PingfangApiControllerQuery
+    {
+        public function where($where)
+        {
+            return $this;
+        }
+
+        public function field($fields)
+        {
+            return $this;
+        }
+
+        public function find()
+        {
+            if (!empty($GLOBALS['pingfang_test_detail_throws'])) {
+                throw new \RuntimeException('detail failed');
+            }
+            return isset($GLOBALS['pingfang_test_vod_result']['info']) ? $GLOBALS['pingfang_test_vod_result']['info'] : [];
+        }
+    }
+}
+
 namespace app\common\controller {
     class All
     {
@@ -81,6 +112,27 @@ namespace {
         return ['id' => 42, 'sid' => 1, 'nid' => 1];
     }
 
+    function mac_play_list()
+    {
+        return [
+            1 => [
+                'sid' => 1,
+                'from' => 'dyttm3u8',
+                'player_info' => [
+                    'ps' => (string) ($GLOBALS['pingfang_test_player_ps'] ?? '0'),
+                    'parse' => 'https://ping2video.xyz/static/player/artplayer.html?url=',
+                ],
+                'urls' => [
+                    1 => [
+                        'nid' => 1,
+                        'name' => 'HD国语',
+                        'url' => 'https://media.example/video/index.m3u8?token=secret',
+                    ],
+                ],
+            ],
+        ];
+    }
+
     final class PingfangApiControllerVodModel
     {
         public function infoData($where, $fields = '*', $cache = 0)
@@ -150,6 +202,12 @@ namespace {
         'vod_copyright' => 0,
         'vod_tpl_play' => 'play',
         'vod_pwd_play' => '',
+        'vod_points' => 0,
+        'vod_points_play' => 0,
+        'vod_play_from' => 'dyttm3u8',
+        'vod_play_server' => '',
+        'vod_play_note' => '',
+        'vod_play_url' => 'HD国语$https://media.example/video/index.m3u8?token=secret',
     ];
     $GLOBALS['config'] = [
         'site' => ['site_status' => 1, 'mainland_ip_limit' => '0'],
@@ -201,6 +259,38 @@ namespace {
         'The API player must resolve its numeric Vod ID independently of the public rewrite mode.'
     );
     $assertPrivatePlayer($player, 'Authorized player HTML must never be shared-cacheable.');
+
+    \app\common\controller\All::$calls = [];
+    $GLOBALS['pingfang_test_player_ps'] = '0';
+    $stream = $controller->stream();
+    $assertSame(302, $stream['status'], 'Authorized direct playback must redirect through the protected media route.');
+    $assertSame(
+        'https://media.example/video/index.m3u8?token=secret',
+        $stream['headers']['Location'],
+        'The protected media route must preserve the exact MacCMS media URL.'
+    );
+    $assertPrivatePlayer($stream, 'Authorized media redirects must never be shared-cacheable.');
+    $assertSame(true, in_array('check_user_popedom', \app\common\controller\All::$calls, true), 'Media redirects must repeat the native playback permission check.');
+
+    \app\common\controller\All::$access = ['code' => 3002, 'trysee' => 5, 'msg' => '允许试看'];
+    $trialStream = $controller->stream();
+    $assertSame(403, $trialStream['status'], 'Trial media must fail closed when the redirect cannot enforce the viewing limit.');
+    $assertSame(false, isset($trialStream['headers']['Location']), 'Trial media responses must not expose the full source URL.');
+    $assertPrivatePlayer($trialStream, 'Trial media responses must never be shared-cacheable.');
+
+    \app\common\controller\All::$access = ['code' => 1, 'trysee' => 0];
+    $GLOBALS['pingfang_test_player_ps'] = '1';
+    $parserStream = $controller->stream();
+    $assertSame(503, $parserStream['status'], 'MacCMS parser pages must not be redirected into the direct media player.');
+    $assertSame(false, isset($parserStream['headers']['Location']), 'Unsupported parser lines must not expose a redirect target.');
+    $assertPrivatePlayer($parserStream, 'Unsupported parser responses must never be shared-cacheable.');
+    $GLOBALS['pingfang_test_player_ps'] = '0';
+
+    \app\common\controller\All::$access = ['code' => 3001, 'trysee' => 0, 'msg' => '无权播放'];
+    $deniedStream = $controller->stream();
+    $assertSame(403, $deniedStream['status'], 'Denied media redirects must preserve the native playback gate.');
+    $assertSame(false, isset($deniedStream['headers']['Location']), 'Denied media responses must not expose a redirect target.');
+    $assertPrivatePlayer($deniedStream, 'Denied media responses must never be shared-cacheable.');
 
     \app\common\controller\All::$access = ['code' => 3001, 'trysee' => 0];
     $denied = $controller->player();

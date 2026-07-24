@@ -18,6 +18,7 @@ import type {
 import { ApiError } from "../api/http";
 import { useAccount } from "../app/AccountContext";
 import { DetailBoundary } from "../components/ContentBoundary";
+import { MacCmsPlayer } from "../components/MacCmsPlayer";
 import { Artwork, EmptyState, PageHeader, PageStatus, VodCard } from "../components/PagePrimitives";
 import { upsertLocalHistory } from "../localHistory";
 import { VodFavoriteButton, VodInteractions } from "./InteractionPages";
@@ -402,36 +403,7 @@ function PlayerMedia({
   onCheckpoint: (element: HTMLVideoElement) => void;
   onComplete: () => void;
 }) {
-  if (playback.kind === "iframe") {
-    return (
-      <iframe
-        src={playback.url}
-        title={`${playback.title} - ${playback.episodeName} 播放器`}
-        className="native-player-frame"
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-        allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
-        sandbox="allow-forms allow-popups allow-presentation allow-same-origin allow-scripts"
-      />
-    );
-  }
-
-  return (
-    <video
-      controls
-      playsInline
-      preload="metadata"
-      poster={playback.poster || undefined}
-      onPause={(event) => onCheckpoint(event.currentTarget)}
-      onEnded={(event) => {
-        onCheckpoint(event.currentTarget);
-        onComplete();
-      }}
-    >
-      <source src={playback.url} type={playback.mimeType} />
-      你的浏览器不支持 HTML5 视频播放。
-    </video>
-  );
+  return <MacCmsPlayer playback={playback} onCheckpoint={onCheckpoint} onComplete={onComplete} />;
 }
 
 function AuthorizedPlayer({
@@ -454,10 +426,11 @@ function AuthorizedPlayer({
   const navigate = useNavigate();
   const [autoAdvance, setAutoAdvance] = useState(true);
   const startedHistoryKey = useRef("");
+  const isTrial = trial || Boolean(playback.maxPlaybackSeconds);
   const previousEpisode = activeGroup.episodes[activeIndex - 1];
   const nextEpisode = activeGroup.episodes[activeIndex + 1];
 
-  useDocumentTitle(`${trial ? "试看" : "播放"}：${video.title} - ${activeEpisode.name}`, playback.siteName);
+  useDocumentTitle(`${isTrial ? "试看" : "播放"}：${video.title} - ${activeEpisode.name}`, playback.siteName);
 
   useEffect(() => {
     upsertLocalHistory(window.localStorage, {
@@ -470,7 +443,7 @@ function AuthorizedPlayer({
   }, [activeEpisode, video.id, video.poster, video.title]);
 
   useEffect(() => {
-    if (trial || !account.session.authenticated) return;
+    if (isTrial || !account.session.authenticated) return;
     const key = `${video.id}:${activeEpisode.sourceId}:${activeEpisode.id}`;
     if (startedHistoryKey.current === key) return;
     startedHistoryKey.current = key;
@@ -484,7 +457,7 @@ function AuthorizedPlayer({
       .catch(() => {
         startedHistoryKey.current = "";
       });
-  }, [account.api, account.session.authenticated, activeEpisode.id, activeEpisode.sourceId, trial, video.id]);
+  }, [account.api, account.session.authenticated, activeEpisode.id, activeEpisode.sourceId, isTrial, video.id]);
 
   const checkpoint = (element: HTMLVideoElement) => {
     if (!Number.isFinite(element.currentTime)) return;
@@ -497,7 +470,7 @@ function AuthorizedPlayer({
       poster: video.poster,
       progress: `${activeEpisode.name} · 已看到 ${minutes}:${String(seconds).padStart(2, "0")}`
     });
-    if (trial || !account.session.authenticated) return;
+    if (isTrial || !account.session.authenticated) return;
     void account.api
       .saveHistory({
         vodId: video.id,
@@ -515,7 +488,7 @@ function AuthorizedPlayer({
         <div className="wrap">
           <div className="player-head">
             <div>
-              <span className="eyebrow">{trial ? "试看" : "正在播放"}</span>
+              <span className="eyebrow">{isTrial ? "试看" : "正在播放"}</span>
               <h1>
                 {video.title} - {activeEpisode.name}
               </h1>
@@ -529,7 +502,7 @@ function AuthorizedPlayer({
               playback={playback}
               onCheckpoint={checkpoint}
               onComplete={() => {
-                if (autoAdvance && nextEpisode) void navigate(playbackHref(video.id, nextEpisode, trial));
+                if (autoAdvance && nextEpisode) void navigate(playbackHref(video.id, nextEpisode, isTrial));
               }}
             />
           </div>
@@ -539,7 +512,7 @@ function AuthorizedPlayer({
             </span>
             <div className="player-toolbar-actions">
               {previousEpisode && (
-                <Link className="ghost-btn player-step-link" rel="prev" to={playbackHref(video.id, previousEpisode, trial)}>
+                <Link className="ghost-btn player-step-link" rel="prev" to={playbackHref(video.id, previousEpisode, isTrial)}>
                   上一集
                 </Link>
               )}
@@ -547,7 +520,7 @@ function AuthorizedPlayer({
                 选集
               </a>
               {nextEpisode && (
-                <Link className="ghost-btn player-step-link" rel="next" to={playbackHref(video.id, nextEpisode, trial)}>
+                <Link className="ghost-btn player-step-link" rel="next" to={playbackHref(video.id, nextEpisode, isTrial)}>
                   下一集
                 </Link>
               )}

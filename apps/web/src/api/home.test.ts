@@ -35,7 +35,8 @@ describe("createHomeApi", () => {
       siteName: "平方影视",
       hero: [{ id: "1", episodes: [{ id: "1", sourceId: "1" }] }],
       ranking: [{ id: "1", score: 8.8 }],
-      latestByCategory: [{ categoryId: "42", videos: [{ id: "1" }] }]
+      latestByCategory: [{ categoryId: "42", videos: [{ id: "1" }] }],
+      ui: { lazyloadImage: "/template/pingfangvideo/images/brand/lazyload.png" }
     });
     expect(data.hero[0]).not.toHaveProperty("actor");
     expect(data.hero[0]?.episodes[0]).not.toHaveProperty("src");

@@ -49,7 +49,10 @@ export const navigationFixtureResponse = {
     { id: "48", name: "综艺" },
     { id: "57", name: "动漫" },
     { id: "111", name: "纪录" }
-  ]
+  ],
+  ui: {
+    lazyloadImage: "/template/pingfangvideo/images/brand/lazyload.png"
+  }
 };
 
 export const homeV2FixtureResponse = {
@@ -71,5 +74,6 @@ export const homeV2FixtureResponse = {
   ],
   ranking: [homeFixtureCard],
   latest: [homeFixtureCard],
-  latestByCategory: [{ categoryId: "42", videos: [homeFixtureCard] }]
+  latestByCategory: [{ categoryId: "42", videos: [homeFixtureCard] }],
+  ui: navigationFixtureResponse.ui
 };

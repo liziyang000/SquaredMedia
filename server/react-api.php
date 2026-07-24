@@ -545,7 +545,7 @@ function react_api_playback(array $catalog, array $query): array
         'episodeName' => (string) $episode['name'],
         'poster' => (string) ($video['poster'] ?? ''),
         'playSources' => react_api_play_sources($video),
-        'kind' => 'video',
+        'kind' => react_api_mime_type($url) === 'application/vnd.apple.mpegurl' ? 'hls' : 'video',
         'url' => $url,
         'mimeType' => react_api_mime_type($url),
     ], '播放信息加载成功');

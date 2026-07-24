@@ -17,8 +17,11 @@ class ContentService
     const HOME_TYPE_IDS = '42,47,48,57,111';
 
     private $accessChecker;
+    private $addonConfigLoaded = false;
+    private $addonConfigValue = [];
     private $blockedTypeIdsLoaded = false;
     private $blockedTypeIdsValue = [];
+    private $fallbackImageValue;
 
     public function __construct(callable $accessChecker)
     {
@@ -29,7 +32,7 @@ class ContentService
     {
         $limit = $this->configInteger('home_limit', self::DEFAULT_HOME_LIMIT, 24, self::MAX_HOME_LIMIT);
         $cacheSeconds = $this->configInteger('cache_seconds', self::DEFAULT_CACHE_SECONDS, 0, 300);
-        $cacheKey = 'pingfangapi_home_' . self::CONTENT_CACHE_VERSION . '_' . $limit . '_' . $this->accessCacheKey();
+        $cacheKey = 'pingfangapi_home_' . self::CONTENT_CACHE_VERSION . '_' . $limit . '_' . substr(hash('sha256', $this->fallbackImage()), 0, 12) . '_' . $this->accessCacheKey();
 
         if ($cacheSeconds > 0 && function_exists('cache')) {
             $cached = cache($cacheKey);
@@ -69,6 +72,7 @@ class ContentService
         return [
             'siteName' => $this->siteName(),
             'categories' => $this->homeCategories($typeList),
+            'ui' => $this->uiConfig(),
         ];
     }
 
@@ -76,7 +80,7 @@ class ContentService
     {
         $compact = (bool) $compact;
         $cacheSeconds = $this->configInteger('cache_seconds', self::DEFAULT_CACHE_SECONDS, 0, 300);
-        $cacheKey = 'pingfangapi_home_v2_' . self::CONTENT_CACHE_VERSION . '_' . ($compact ? 'compact' : 'legacy') . '_' . $this->accessCacheKey();
+        $cacheKey = 'pingfangapi_home_v2_' . self::CONTENT_CACHE_VERSION . '_' . ($compact ? 'compact' : 'legacy') . '_' . substr(hash('sha256', $this->fallbackImage()), 0, 12) . '_' . $this->accessCacheKey();
         if ($cacheSeconds > 0 && function_exists('cache')) {
             $cached = cache($cacheKey);
             if (is_array($cached) && isset($cached['hero'], $cached['ranking'], $cached['latest'], $cached['latestByCategory'])) {
@@ -147,6 +151,7 @@ class ContentService
             'ranking' => $ranking,
             'latest' => $latest,
             'latestByCategory' => $latestByCategory,
+            'ui' => $this->uiConfig(),
         ];
         if (!$compact) {
             $home = array_slice($home, 0, 2, true)
@@ -268,32 +273,19 @@ class ContentService
 
     public function playback($vodId, $sourceId, $episodeId)
     {
-        $vodId = intval($vodId);
-        $sourceId = intval($sourceId);
-        $episodeId = intval($episodeId);
-        $row = $this->vodRow($vodId, $this->playbackFields(true));
-        if (empty($row)) {
-            throw new ApiException(404, '播放资源不存在');
-        }
-        if (intval(isset($row['vod_copyright']) ? $row['vod_copyright'] : 0) === 1
-            && intval(isset($GLOBALS['config']['app']['copyright_status']) ? $GLOBALS['config']['app']['copyright_status'] : 0) === 3) {
-            throw new ApiException(403, '该内容受版权限制');
-        }
-
-        $playList = $this->playList($row);
-        if (empty($playList[$sourceId]['urls'][$episodeId])) {
-            throw new ApiException(404, '播放资源不存在');
-        }
-        $this->assertPlaybackAccess($row, $sourceId, $episodeId);
-
-        $episode = $playList[$sourceId]['urls'][$episodeId];
+        $context = $this->playbackContext($vodId, $sourceId, $episodeId, true);
+        $vodId = $context['vodId'];
+        $sourceId = $context['sourceId'];
+        $episodeId = $context['episodeId'];
+        $row = $context['row'];
+        $playList = $context['playList'];
+        $episode = $context['episode'];
+        $media = $this->resolvePlaybackMedia($context['source'], $episode);
         $episodeName = self::nonEmptyText(
             isset($episode['name']) ? $episode['name'] : (isset($episode['title']) ? $episode['title'] : ''),
             '第' . $episodeId . '集'
         );
-        $playerUrl = $this->playerUrl($vodId, $sourceId, $episodeId);
-
-        return [
+        $response = [
             'siteName' => $this->siteName(),
             'vodId' => (string) $vodId,
             'sourceId' => (string) $sourceId,
@@ -302,9 +294,18 @@ class ContentService
             'episodeName' => $episodeName,
             'poster' => self::imageUrl(isset($row['vod_pic']) ? $row['vod_pic'] : '', $this->fallbackImage()),
             'playSources' => $this->playSources($playList),
-            'kind' => 'iframe',
-            'url' => $playerUrl,
+            'kind' => $media['kind'],
+            'url' => $this->streamUrl($vodId, $sourceId, $episodeId),
+            'mimeType' => $media['mimeType'],
+            'playerHints' => $this->playerHints(),
         ];
+        return $response;
+    }
+
+    public function playbackSource($vodId, $sourceId, $episodeId)
+    {
+        $context = $this->playbackContext($vodId, $sourceId, $episodeId, false);
+        return $this->resolvePlaybackMedia($context['source'], $context['episode']);
     }
 
     public function access($vodId, $scope, $sourceId = 0, $episodeId = 0)
@@ -416,15 +417,13 @@ class ContentService
         }
         $this->assertCategoryAccess($row);
 
-        $plotList = function_exists('mac_plot_list')
-            ? mac_plot_list(
-                isset($row['vod_plot_name']) ? $row['vod_plot_name'] : '',
-                isset($row['vod_plot_detail']) ? $row['vod_plot_detail'] : ''
-            )
-            : $this->fallbackPlotList(
-                isset($row['vod_plot_name']) ? $row['vod_plot_name'] : '',
-                isset($row['vod_plot_detail']) ? $row['vod_plot_detail'] : ''
-            );
+        if (!function_exists('mac_plot_list')) {
+            throw new ApiException(503, 'MacCMS 剧情解析服务不可用');
+        }
+        $plotList = mac_plot_list(
+            isset($row['vod_plot_name']) ? $row['vod_plot_name'] : '',
+            isset($row['vod_plot_detail']) ? $row['vod_plot_detail'] : ''
+        );
         $items = [];
         foreach ($this->rows($plotList) as $item) {
             $detail = self::plainText(isset($item['detail']) ? $item['detail'] : '', 10000);
@@ -1332,17 +1331,100 @@ class ContentService
         return $vodId;
     }
 
-    private function playerUrl($vodId, $sourceId, $episodeId)
+    private function streamUrl($vodId, $sourceId, $episodeId)
     {
         if (!function_exists('url')) {
-            throw new ApiException(503, 'MacCMS 播放器路由不可用');
+            throw new ApiException(503, 'MacCMS 媒体路由不可用');
         }
-        $value = url('pingfangapi/player', [
+        $value = url('pingfangapi/stream', [
             'id' => intval($vodId),
             'sid' => intval($sourceId),
             'nid' => intval($episodeId),
         ]);
-        return $this->safeSameOriginUrl($value, 'MacCMS 播放器路由不可用');
+        return $this->safeSameOriginUrl($value, 'MacCMS 媒体路由不可用');
+    }
+
+    private function playbackContext($vodId, $sourceId, $episodeId, $withDisplay)
+    {
+        $vodId = intval($vodId);
+        $sourceId = intval($sourceId);
+        $episodeId = intval($episodeId);
+        $row = $this->vodRow($vodId, $this->playbackFields((bool) $withDisplay));
+        if (empty($row)) {
+            throw new ApiException(404, '播放资源不存在');
+        }
+        if (intval(isset($row['vod_copyright']) ? $row['vod_copyright'] : 0) === 1
+            && intval(isset($GLOBALS['config']['app']['copyright_status']) ? $GLOBALS['config']['app']['copyright_status'] : 0) === 3) {
+            throw new ApiException(403, '该内容受版权限制');
+        }
+
+        $playList = $this->playList($row);
+        if (empty($playList[$sourceId]['urls'][$episodeId])) {
+            throw new ApiException(404, '播放资源不存在');
+        }
+        $access = $this->assertPlaybackAccess($row, $sourceId, $episodeId);
+
+        return [
+            'vodId' => $vodId,
+            'sourceId' => $sourceId,
+            'episodeId' => $episodeId,
+            'row' => $row,
+            'playList' => $playList,
+            'source' => $playList[$sourceId],
+            'episode' => $playList[$sourceId]['urls'][$episodeId],
+            'access' => $access,
+        ];
+    }
+
+    protected function resolvePlaybackMedia(array $source, array $episode)
+    {
+        $playerInfo = isset($source['player_info']) && is_array($source['player_info']) ? $source['player_info'] : [];
+        if (isset($playerInfo['ps']) && intval($playerInfo['ps']) !== 0) {
+            throw new ApiException(503, '当前线路依赖第三方解析，暂不支持无 iframe 播放');
+        }
+
+        $value = trim((string) (isset($episode['url']) ? $episode['url'] : ''));
+        if ($value === '' || preg_match('/[\x00-\x20\x7f<>"\\\\]/', $value)) {
+            throw new ApiException(503, '播放资源暂不可用');
+        }
+        if (substr($value, 0, 6) === 'upload') {
+            $basePath = defined('MAC_PATH') ? (string) constant('MAC_PATH') : '/';
+            $value = rtrim($basePath, '/') . '/' . ltrim($value, '/');
+        } elseif (strpos($value, '//') === 0) {
+            if ((string) parse_url('https:' . $value, PHP_URL_HOST) === '') {
+                throw new ApiException(503, '播放资源暂不可用');
+            }
+        } elseif (strpos($value, '/') !== 0) {
+            $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
+            if ($scheme === '') {
+                $basePath = defined('MAC_PATH') ? (string) constant('MAC_PATH') : '/';
+                $value = rtrim($basePath, '/') . '/' . ltrim($value, '/');
+            } elseif (!in_array($scheme, ['http', 'https'], true) || (string) parse_url($value, PHP_URL_HOST) === '') {
+                throw new ApiException(503, '播放资源暂不可用');
+            }
+        }
+
+        $extension = strtolower(pathinfo((string) parse_url($value, PHP_URL_PATH), PATHINFO_EXTENSION));
+        $nativeMimeTypes = [
+            'mp4' => 'video/mp4',
+            'm4v' => 'video/x-m4v',
+            'mov' => 'video/quicktime',
+            'webm' => 'video/webm',
+            'ogg' => 'video/ogg',
+            'ogv' => 'video/ogg',
+        ];
+        if (isset($nativeMimeTypes[$extension])) {
+            return [
+                'kind' => 'video',
+                'mimeType' => $nativeMimeTypes[$extension],
+                'url' => $value,
+            ];
+        }
+        return [
+            'kind' => 'hls',
+            'mimeType' => 'application/vnd.apple.mpegurl',
+            'url' => $value,
+        ];
     }
 
     private function safeSameOriginUrl($value, $errorMessage)
@@ -1475,9 +1557,13 @@ class ContentService
     protected function assertPlaybackAccess(array $row, $sourceId, $episodeId)
     {
         $access = $this->accessState($row, 'playback', $sourceId, $episodeId);
+        if (isset($access['state']) && $access['state'] === 'trial') {
+            throw new ApiException(403, '当前播放器暂不支持安全试看，请登录或开通权限后播放');
+        }
         if (empty($access['authorized'])) {
             throw new ApiException(403, isset($access['message']) ? $access['message'] : '无权播放该内容');
         }
+        return $access;
     }
 
     private function assertCategoryAccess(array $row)
@@ -1487,20 +1573,6 @@ class ContentService
             $message = is_array($result) && !empty($result['msg']) ? (string) $result['msg'] : '无权访问该内容';
             throw new ApiException(403, $message);
         }
-    }
-
-    private function fallbackPlotList($names, $details)
-    {
-        $nameList = trim((string) $names) === '' ? [] : explode('$$$', (string) $names);
-        $detailList = trim((string) $details) === '' ? [] : explode('$$$', (string) $details);
-        $items = [];
-        foreach ($nameList as $index => $name) {
-            $items[] = [
-                'name' => $name,
-                'detail' => isset($detailList[$index]) ? $detailList[$index] : '',
-            ];
-        }
-        return $items;
     }
 
     private function typeList()
@@ -2045,15 +2117,68 @@ class ContentService
         return isset($years[0]) ? $years[0] : (string) date('Y');
     }
 
-    private function fallbackImage()
+    protected function playerHints()
     {
+        $config = isset($GLOBALS['config']) && is_array($GLOBALS['config']) ? $GLOBALS['config'] : [];
+        $play = isset($config['play']) && is_array($config['play']) ? $config['play'] : [];
+        $second = isset($play['second']) && is_scalar($play['second']) && is_numeric($play['second'])
+            ? max(0, min(30, intval($play['second'])))
+            : 0;
+        $prestrain = isset($play['prestrain']) ? $play['prestrain'] : null;
+        $buffer = isset($play['buffer']) ? $play['buffer'] : null;
+        $startupEnabled = $second > 0 && is_scalar($prestrain) && trim((string) $prestrain) !== '';
+
+        return [
+            'startupHintAfterMs' => $startupEnabled ? $second * 1000 : null,
+            'bufferingHintEnabled' => is_scalar($buffer) && trim((string) $buffer) !== '',
+        ];
+    }
+
+    private function uiConfig()
+    {
+        return [
+            'lazyloadImage' => $this->fallbackImage(),
+        ];
+    }
+
+    protected function fallbackImage()
+    {
+        if ($this->fallbackImageValue !== null) {
+            return $this->fallbackImageValue;
+        }
         $base = defined('MAC_PATH') ? rtrim((string) MAC_PATH, '/') . '/' : '/';
-        return $base . 'template/pingfangvideo/images/brand/lazyload.png';
+        $fallback = $base . 'template/pingfangvideo/images/brand/lazyload.png';
+        $config = $this->addonConfig();
+        $value = isset($config['lazyload_image']) && is_scalar($config['lazyload_image'])
+            ? trim((string) $config['lazyload_image'])
+            : '';
+        $path = preg_split('/[?#]/', $value, 2)[0];
+        if ($value === ''
+            || strpos($value, '//') === 0
+            || preg_match('/[\x00-\x20\x7f<>"\'\\\\]/', $value)
+            || preg_match('#^[a-z][a-z0-9+.-]*:#i', $value)
+            || preg_match('#(^|/)\.{1,2}(/|$)#', $path)) {
+            $this->fallbackImageValue = $fallback;
+            return $this->fallbackImageValue;
+        }
+
+        $this->fallbackImageValue = strpos($value, '/') === 0 ? $value : $base . ltrim($value, '/');
+        return $this->fallbackImageValue;
+    }
+
+    private function addonConfig()
+    {
+        if (!$this->addonConfigLoaded) {
+            $config = function_exists('get_addon_config') ? get_addon_config('pingfangapi') : [];
+            $this->addonConfigValue = is_array($config) ? $config : [];
+            $this->addonConfigLoaded = true;
+        }
+        return $this->addonConfigValue;
     }
 
     private function configInteger($name, $default, $minimum, $maximum)
     {
-        $config = function_exists('get_addon_config') ? get_addon_config('pingfangapi') : [];
+        $config = $this->addonConfig();
         $value = is_array($config) && isset($config[$name]) ? intval($config[$name]) : intval($default);
         return max(intval($minimum), min(intval($maximum), $value));
     }

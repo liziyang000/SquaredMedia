@@ -2,6 +2,18 @@
 
 return [
     [
+        'name' => 'lazyload_image',
+        'title' => 'React 懒加载占位图',
+        'type' => 'image',
+        'content' => [],
+        'value' => 'template/pingfangvideo/images/brand/lazyload.png',
+        'rule' => 'required',
+        'msg' => '',
+        'tip' => '用于 React 图片加载中、空图片和加载失败回退；仅接受当前站点内的图片路径。',
+        'ok' => '',
+        'extend' => '',
+    ],
+    [
         'name' => 'home_limit',
         'title' => 'React 首页影片数',
         'type' => 'string',

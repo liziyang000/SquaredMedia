@@ -25,7 +25,7 @@ export function Artwork({ children, containerClassName, src, ...imageProps }: Ar
   useEffect(() => setFailed(false), [src]);
 
   return (
-    <span className={`${containerClassName}${missing ? " is-image-missing" : ""}`}>
+    <span className={`${containerClassName}${missing ? " is-image-missing" : ""}`} data-artwork>
       {!missing && <img {...imageProps} src={src} onError={() => setFailed(true)} />}
       {children}
     </span>

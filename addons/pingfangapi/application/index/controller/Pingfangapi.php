@@ -93,11 +93,49 @@ class Pingfangapi extends All
         }
     }
 
+    public function stream()
+    {
+        try {
+            $this->assertApiAccess();
+            $this->label_user();
+            $param = mac_param_url();
+            $content = new ContentService(function ($typeId, $popedom, array $route, $flag, array $info, $trysee) {
+                return $this->check_user_popedom($typeId, $popedom, $route, $flag, $info, $trysee);
+            });
+            $media = $content->playbackSource(
+                intval(isset($param['id']) ? $param['id'] : 0),
+                intval(isset($param['sid']) ? $param['sid'] : 0),
+                intval(isset($param['nid']) ? $param['nid'] : 0)
+            );
+            return response('', 302, [
+                'Location' => $media['url'],
+                'Cache-Control' => 'private, no-store',
+                'Pragma' => 'no-cache',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        } catch (ApiException $e) {
+            return $this->streamErrorResponse($e->getMessage(), $e->status());
+        } catch (\Throwable $e) {
+            $this->logFailure($e);
+            return $this->streamErrorResponse('服务器暂时无法处理请求', 500);
+        }
+    }
+
     private function playerResponse($content, $status = 200)
     {
         return response($content, intval($status), [
             'Cache-Control' => 'private, no-store',
             'Pragma' => 'no-cache',
+        ]);
+    }
+
+    private function streamErrorResponse($content, $status)
+    {
+        return response((string) $content, intval($status), [
+            'Content-Type' => 'text/plain; charset=utf-8',
+            'Cache-Control' => 'private, no-store',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 

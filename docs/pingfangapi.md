@@ -249,7 +249,7 @@ JSON 字段会被拒绝，而不是被静默忽略。
 | `access`     | 否   | 影片、访问范围及可选线路/剧集       | 不含敏感字段的访问状态与提示                       |
 | `downloads`  | 否   | `vod_id`                            | 下载线路、条目标识及同源 MacCMS 下载入口           |
 | `plot`       | 否   | `vod_id`                            | 影片简介和经清洗的分集剧情                         |
-| `playback`   | 否   | `vod_id`、`source_id`、`episode_id` | 同源受控媒体描述符                                 |
+| `playback`   | 否   | `vod_id`、`source_id`、`episode_id` | 同源受控媒体描述符；登录时可含精确云端续播位置     |
 | `session`    | 否   | 无                                  | 登录状态、CSRF、白名单用户资料和表单要求           |
 | `comments`   | 否   | `content_id`，可选 `mid`            | 已审核评论列表                                     |
 | `favorites`  | 是   | 无                                  | 当前用户最多 100 条收藏                            |
@@ -907,7 +907,8 @@ JSON 返回示例：
     "playerHints": {
       "startupHintAfterMs": 5000,
       "bufferingHintEnabled": true
-    }
+    },
+    "resumePositionSeconds": 125
   }
 }
 ```
@@ -916,6 +917,12 @@ JSON 返回示例：
 线路/剧集及 `check_user_popedom(..., popedom=3)`，然后返回当前剧集描述和不含
 源站媒体 URL 的完整 `playSources`。详情 `popedom=2`、`vod_pwd` 仍不叠加到播放；
 播放密码、试看、付费和播放版权由播放范围权限处理。
+
+登录用户存在当前“用户 + 影片 + 线路 + 剧集”的 Ulog 时，服务端仅在进度严格大于
+30 秒、时长有效且进度尚未达到 95% 时附加 `resumePositionSeconds`。匿名请求、
+其他线路或剧集、未知时长以及已接近片尾的记录都不返回该字段。React 在媒体
+`loadedmetadata` 后还会按实际时长复核并只恢复一次；Artplayer 自带本地续播关闭，
+避免本地进度覆盖 MacCMS 云端进度。
 
 `kind` 是 `hls` 或 `video`。HLS 使用当前 MacCMS Artplayer 的 hls.js 配置；MP4、
 WebM、Ogg、M4V 和 MOV 使用 Artplayer 原生视频路径。仅允许试看的会话不会取得
@@ -1323,6 +1330,9 @@ ulog_nid > 0
         "title": "影片名称",
         "episodeName": "第1集",
         "poster": "/upload/vod/example.jpg",
+        "positionSeconds": 125,
+        "durationSeconds": 3600,
+        "completed": false,
         "progress": "第1集 · 已看到 2:05",
         "watchedAt": "2026-07-22T10:00:00+08:00"
       }
@@ -1334,6 +1344,9 @@ ulog_nid > 0
 历史列表按影片折叠为最新一个可用剧集；`recordIds` 收集该折叠项所代表的原生
 `ulog_id`。删除这个页面项时应传回整个数组，否则同片的较旧记录可能在下次
 请求重新出现。
+`positionSeconds` 是非负整数；旧记录没有有效 `ulog_duration` 时
+`durationSeconds` 为 `null`。`completed` 仅在有效时长下按 95% 阈值由服务端
+计算，客户端不能通过 `history.save` 直接提交该状态。
 和收藏列表相同，影片会按启用状态、回收状态和分类黑名单过滤，但列表读取不会替代
 后续详情权限和受控媒体入口校验。无记录返回 `items=[]`；`limit` 越界返回 422，未登录返回
 401。
@@ -1355,15 +1368,22 @@ ulog_nid > 0
   "sourceId": "1",
   "episodeId": "1",
   "positionSeconds": 125.8,
-  "durationSeconds": 3600
+  "durationSeconds": 3600,
+  "checkpointAtMs": 1784846400123
 }
 ```
 
 - 影片必须已启用且未回收，线路和剧集必须能被播放列表解析。
 - `positionSeconds` 可为 0；`durationSeconds` 可省略，但提供时至少 1。
+- React 播放器必须为每次补写提供单调递增的 `checkpointAtMs`。服务端按当前会话和
+  精确影片/线路/剧集忽略更旧的并发请求，避免离页补写被先前尚未完成的请求反向覆盖。
+  同一键尚未建立时间戳水位时仍接受旧客户端请求；建立水位后忽略无时间戳的晚到请求。
+  新 React 遇到旧 API 对该字段返回精确的“存在未支持的请求字段”错误时，会使用旧请求体
+  重试。发布仍应先升级 API 再升级 React，回滚时二者联动，保证离页补写也能使用新协议。
 - 数值必须有限，服务端向下取整；进度不能大于时长。
 - 保存依赖 `ulog_point` 和 `ulog_duration` 两个数据库列。
 - 省略 `durationSeconds` 时，更新已有记录会保留旧时长；首次新增记录写入时长 0。
+- 时间戳水位只在数据库写入成功后推进；写入失败不会阻止随后旧协议请求重试。
 
 成功响应：
 

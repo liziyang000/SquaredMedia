@@ -1,4 +1,4 @@
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { PlaybackDescriptor } from "../api/content";
@@ -169,7 +169,7 @@ describe("MacCmsPlayer", () => {
     expect(art.options).toMatchObject({
       type: "m3u8",
       autoplay: true,
-      autoPlayback: true,
+      autoPlayback: false,
       miniProgressBar: true,
       playbackRate: true
     });
@@ -183,6 +183,7 @@ describe("MacCmsPlayer", () => {
       backBufferLength: 30
     });
 
+    art.video.currentTime = 12;
     art.emit("video:pause");
     art.emit("video:ended");
     expect(onCheckpoint).toHaveBeenCalledTimes(2);
@@ -199,6 +200,103 @@ describe("MacCmsPlayer", () => {
     await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
 
     expect(playerMocks.artInstances[0]!.options).not.toHaveProperty("poster");
+    view.unmount();
+  });
+
+  it("restores one explicit MacCMS cloud checkpoint after metadata is ready", async () => {
+    const view = render(<MacCmsPlayer playback={playback} resumePositionSeconds={48} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    Object.defineProperty(art.video, "duration", { configurable: true, value: 120 });
+    expect(art.options.autoPlayback).toBe(false);
+
+    act(() => art.emit("video:loadedmetadata"));
+    expect(art.video.currentTime).toBe(48);
+
+    art.video.currentTime = 62;
+    act(() => art.emit("video:canplay"));
+    expect(art.video.currentTime).toBe(62);
+    view.unmount();
+  });
+
+  it.each([30, 114])("does not resume at an ineligible %s-second checkpoint", async (resumePositionSeconds) => {
+    const view = render(<MacCmsPlayer playback={playback} resumePositionSeconds={resumePositionSeconds} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    Object.defineProperty(art.video, "duration", { configurable: true, value: 120 });
+    act(() => art.emit("video:loadedmetadata"));
+
+    expect(art.video.currentTime).toBe(0);
+    view.unmount();
+  });
+
+  it("keeps the latest page position when the player is reloaded", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const view = render(<MacCmsPlayer playback={playback} resumePositionSeconds={48} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const firstArt = playerMocks.artInstances[0]!;
+    Object.defineProperty(firstArt.video, "duration", { configurable: true, value: 120 });
+    act(() => firstArt.emit("video:loadedmetadata"));
+    expect(firstArt.video.currentTime).toBe(48);
+
+    act(() => firstArt.emit("video:playing"));
+    firstArt.video.currentTime = 20;
+    act(() => firstArt.emit("video:timeupdate"));
+    act(() => firstArt.emit("video:error"));
+    const errorTimer = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 7_000)?.[0];
+    act(() => errorTimer?.());
+    fireEvent.click(view.getByRole("button", { name: "重新加载" }));
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(2));
+    const retriedArt = playerMocks.artInstances[1]!;
+    Object.defineProperty(retriedArt.video, "duration", { configurable: true, value: 120 });
+    act(() => retriedArt.emit("video:loadedmetadata"));
+
+    expect(retriedArt.video.currentTime).toBe(20);
+    view.unmount();
+  });
+
+  it("checkpoints active playback every 20 seconds and when the page is hidden", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(10_000);
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+    const onCheckpoint = vi.fn();
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={onCheckpoint} onComplete={vi.fn()} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    Object.defineProperty(art.video, "paused", { configurable: true, value: false });
+    Object.defineProperty(art.video, "readyState", { configurable: true, value: 4 });
+    art.video.currentTime = 12;
+    act(() => art.emit("video:timeupdate"));
+    expect(onCheckpoint).not.toHaveBeenCalled();
+
+    now.mockReturnValue(29_999);
+    act(() => art.emit("video:timeupdate"));
+    expect(onCheckpoint).not.toHaveBeenCalled();
+
+    now.mockReturnValue(30_000);
+    act(() => art.emit("video:timeupdate"));
+    expect(onCheckpoint).toHaveBeenCalledTimes(1);
+
+    art.video.currentTime = 18;
+    hidden.mockReturnValue(true);
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(onCheckpoint).toHaveBeenCalledTimes(2);
+
+    act(() => window.dispatchEvent(new Event("pagehide")));
+    expect(onCheckpoint).toHaveBeenCalledTimes(3);
+
+    art.video.currentTime = 0;
+    act(() => art.emit("video:pause"));
+    expect(onCheckpoint).toHaveBeenCalledTimes(4);
+    expect(onCheckpoint.mock.calls.at(-1)?.[0]?.currentTime).toBe(0);
     view.unmount();
   });
 

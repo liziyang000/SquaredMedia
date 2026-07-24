@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountPage, LoginPage } from "../screens/AccountPages";
@@ -634,8 +634,11 @@ describe("React migration routes", () => {
     await waitFor(() => expect(submittedBody).toEqual({ vodId: "1", scope: "detail", password: "secret" }));
   });
 
-  it("writes account history once when an authenticated direct player starts", async () => {
+  it("does not overwrite an existing account checkpoint when an authenticated player starts", async () => {
     const historyBodies: Array<Record<string, unknown>> = [];
+    const historyKeepalive: Array<boolean | undefined> = [];
+    let historyRequestCount = 0;
+    let releaseFirstHistory: (() => void) | undefined;
     vi.mocked(fetch).mockImplementation(async (input, init) => {
       const action = requestAction(input);
       if (action === "session") {
@@ -660,12 +663,20 @@ describe("React migration routes", () => {
             playSources: detailFixtureResponse.video.playSources,
             kind: "hls",
             url: "/index.php/pingfangapi/stream/id/1/sid/1/nid/101.html",
-            mimeType: "application/vnd.apple.mpegurl"
+            mimeType: "application/vnd.apple.mpegurl",
+            resumePositionSeconds: 48
           }
         });
       }
       if (action === "history.save") {
         historyBodies.push(JSON.parse(String(init?.body || "{}")) as Record<string, unknown>);
+        historyKeepalive.push(init?.keepalive);
+        historyRequestCount += 1;
+        if (historyRequestCount === 1) {
+          await new Promise<void>((resolve) => {
+            releaseFirstHistory = resolve;
+          });
+        }
       }
       return apiFetch(input);
     });
@@ -674,7 +685,34 @@ describe("React migration routes", () => {
 
     expect(await screen.findByLabelText("云端回声 - 正片 播放器")).toHaveAttribute("data-maccms-player");
     expect(document.querySelector("iframe")).toBeNull();
-    await waitFor(() => expect(historyBodies).toEqual([{ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 0 }]));
+    expect(historyBodies).toEqual([]);
+
+    const video = await waitFor(() => {
+      const element = document.querySelector("video");
+      expect(element).toBeInstanceOf(HTMLVideoElement);
+      return element as HTMLVideoElement;
+    });
+    Object.defineProperty(video, "duration", { configurable: true, value: 120 });
+    video.currentTime = 42;
+    fireEvent.pause(video);
+    await waitFor(() =>
+      expect(historyBodies).toEqual([expect.objectContaining({ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 42, durationSeconds: 120 })])
+    );
+    act(() => window.dispatchEvent(new Event("pagehide")));
+    expect(historyBodies).toHaveLength(1);
+
+    video.currentTime = 43;
+    act(() => window.dispatchEvent(new Event("pagehide")));
+    await waitFor(() => expect(historyBodies).toHaveLength(2));
+    expect(historyBodies).toEqual([
+      expect.objectContaining({ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 42, durationSeconds: 120 }),
+      expect.objectContaining({ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 43, durationSeconds: 120 })
+    ]);
+    expect(historyBodies[0]?.checkpointAtMs).toEqual(expect.any(Number));
+    expect(Number(historyBodies[1]?.checkpointAtMs)).toBeGreaterThan(Number(historyBodies[0]?.checkpointAtMs));
+
+    releaseFirstHistory?.();
+    expect(historyKeepalive).toEqual([true, true]);
     expect(screen.queryByText("播放记录已保存")).not.toBeInTheDocument();
   });
 

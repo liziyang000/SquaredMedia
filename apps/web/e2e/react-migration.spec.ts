@@ -116,16 +116,24 @@ test("account writes cover selection, deletion, comments, devices and logout", a
   await page.getByRole("button", { name: "删除选中" }).click();
   await expect(page.getByText("还没有收藏", { exact: true })).toBeVisible();
 
-  const historyStatus = await page.evaluate(async () => {
+  const historyResult = await page.evaluate(async () => {
     const session = await fetch("/react-api.php?action=session").then((response) => response.json());
     const response = await fetch("/react-api.php?action=history.save", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": session.data.csrfToken },
-      body: JSON.stringify({ vodId: "1", sourceId: "1", episodeId: "101", positionSeconds: 42, durationSeconds: 120 })
+      body: JSON.stringify({
+        vodId: "1",
+        sourceId: "1",
+        episodeId: "101",
+        positionSeconds: 42,
+        durationSeconds: 120,
+        checkpointAtMs: Date.now()
+      })
     });
-    return response.status;
+    const playback = await fetch("/react-api.php?action=playback&vod_id=1&source_id=1&episode_id=101").then((result) => result.json());
+    return { status: response.status, resumePositionSeconds: playback.data.resumePositionSeconds };
   });
-  expect(historyStatus).toBe(200);
+  expect(historyResult).toEqual({ status: 200, resumePositionSeconds: 42 });
   await page.goto("/account/history");
   await page.getByLabel("选择播放记录 云端回声").check();
   page.once("dialog", (dialog) => dialog.accept());

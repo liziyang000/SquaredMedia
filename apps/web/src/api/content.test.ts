@@ -260,6 +260,7 @@ describe("createContentApi", () => {
               bufferingHintEnabled: true,
               prestrain: "//union.maccms.la/html/prestrain.html"
             },
+            resumePositionSeconds: 48,
             maxPlaybackSeconds: 300,
             internalPath: "/srv/media/video.mp4"
           }
@@ -286,6 +287,7 @@ describe("createContentApi", () => {
         startupHintAfterMs: 5000,
         bufferingHintEnabled: true
       },
+      resumePositionSeconds: 48,
       maxPlaybackSeconds: 300
     });
     expect(JSON.stringify(playback)).not.toContain("prestrain.html");

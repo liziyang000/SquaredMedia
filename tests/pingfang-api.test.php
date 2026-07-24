@@ -501,6 +501,8 @@ final class PingfangApiFakeAccount extends AccountService
     public array $favoriteInput = [];
     public array $historyInput = [];
     public array $historyLimits = [];
+    public ?int $resumePosition = null;
+    public array $resumeInputs = [];
     public array $feedbackInput = [];
     public array $reportInput = [];
     public array $commentInput = [];
@@ -574,9 +576,15 @@ final class PingfangApiFakeAccount extends AccountService
         return [];
     }
 
-    public function saveHistory($userId, $vodId, $sourceId, $episodeId, $position, $duration)
+    public function resumePosition($userId, $vodId, $sourceId, $episodeId)
     {
-        $this->historyInput = [$userId, $vodId, $sourceId, $episodeId, $position, $duration];
+        $this->resumeInputs[] = [(int) $userId, (int) $vodId, (int) $sourceId, (int) $episodeId];
+        return $this->resumePosition;
+    }
+
+    public function saveHistory($userId, $vodId, $sourceId, $episodeId, $position, $duration, $checkpointAtMs = null)
+    {
+        $this->historyInput = [$userId, $vodId, $sourceId, $episodeId, $position, $duration, $checkpointAtMs];
         return ['saved' => true];
     }
 
@@ -832,6 +840,8 @@ $playback = $assertEnvelope($playbackResponse, 200, 'Playback');
 $assertSame('private, no-store', $playbackResponse['headers']['Cache-Control'], 'Playback must never be cached.');
 $assertSame('hls', $playback['kind'], 'Production playback must use the direct HLS descriptor.');
 $assert(str_starts_with($playback['url'], '/index.php/pingfangapi/stream/'), 'Playback must return only the access-controlled media route.');
+$assert(!array_key_exists('resumePositionSeconds', $playback), 'Anonymous playback must not expose a cloud resume position.');
+$assertSame([], $account->resumeInputs, 'Anonymous playback must not query private history.');
 
 $wrongMethod = $request('POST', 'content', [], [], $writeHeaders);
 $assertEnvelope($wrongMethod, 405, 'Wrong method');
@@ -929,6 +939,14 @@ $assertSame(['alice', 'secret', '1234'], $account->loginInput, 'Login must pass 
 $assertSame(true, $login['authenticated'], 'Successful login must return an authenticated session.');
 $assertNoKeys($login, ['user_random', 'user_check', 'token_hash']);
 
+$account->resumePosition = 47;
+$resumedPlayback = $assertEnvelope($request('GET', 'playback', [], ['vod_id' => '7', 'source_id' => '1', 'episode_id' => '1']), 200, 'Authenticated resumed playback');
+$assertSame(47, $resumedPlayback['resumePositionSeconds'] ?? null, 'Authenticated playback must expose the exact eligible cloud resume position.');
+$assertSame([[42, 7, 1, 1]], $account->resumeInputs, 'Playback resume lookup must be scoped to the current user and exact episode.');
+$account->resumePosition = null;
+$completedPlayback = $assertEnvelope($request('GET', 'playback', [], ['vod_id' => '7', 'source_id' => '1', 'episode_id' => '1']), 200, 'Authenticated playback without eligible resume');
+$assert(!array_key_exists('resumePositionSeconds', $completedPlayback), 'Authenticated playback must omit resumePositionSeconds when no eligible position exists.');
+
 $devices = $assertEnvelope($request('GET', 'devices'), 200, 'Devices');
 $assertSame(['maxDevices', 'items'], array_keys($devices), 'Devices must expose the configured limit beside the session list.');
 $assertSame(
@@ -972,11 +990,15 @@ $historyBody = [
     'episodeId' => '1',
     'positionSeconds' => 37.9,
     'durationSeconds' => 120,
+    'checkpointAtMs' => 1784846400123,
 ];
 $history = $assertEnvelope($request('POST', 'history.save', $historyBody, [], $writeHeaders), 200, 'History save');
 $assertSame(['saved' => true], $history, 'History save must return the persisted state.');
-$assertSame([42, 7, 1, 1, 37, 120], $account->historyInput, 'History save must use validated integer seconds and current user.');
+$assertSame([42, 7, 1, 1, 37, 120, 1784846400123], $account->historyInput, 'History save must use validated progress ordering and current user.');
 $assertSame([7, 1, 1], $content->episodeChecks[array_key_last($content->episodeChecks)], 'History must verify episode ownership.');
+$invalidCheckpoint = $historyBody;
+$invalidCheckpoint['checkpointAtMs'] = 0;
+$assertEnvelope($request('POST', 'history.save', $invalidCheckpoint, [], $writeHeaders), 422, 'Invalid history checkpoint order');
 $invalidProgress = $historyBody;
 $invalidProgress['positionSeconds'] = 121;
 $assertEnvelope($request('POST', 'history.save', $invalidProgress, [], $writeHeaders), 422, 'History position beyond duration');
@@ -1447,5 +1469,7 @@ $assertSame(true, $requirements['commentEnabled'], 'Native comment availability 
 $assertSame(true, $requirements['commentAudit'], 'Native comment audit policy must be exposed.');
 $assertSame('/index.php/verify/index.html', $requirements['captchaUrl'], 'Captcha requirements must expose a same-origin native route.');
 $GLOBALS['config'] = $requirementsConfig;
+
+require __DIR__ . '/pingfang-api-account-history.test.php';
 
 echo "Pingfang production API contract tests passed.\n";

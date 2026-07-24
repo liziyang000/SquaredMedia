@@ -209,6 +209,7 @@ const playbackSchema = z
         bufferingHintEnabled: z.boolean()
       })
       .optional(),
+    resumePositionSeconds: z.coerce.number().int().positive().optional(),
     maxPlaybackSeconds: z.coerce.number().int().positive().optional()
   })
   .superRefine((playback, context) => {

@@ -73,6 +73,7 @@ class ApiRequest
             'session' => 'GET',
             'comments' => 'GET',
             'favorites' => 'GET',
+            'favorite.status' => 'GET',
             'history' => 'GET',
             'devices' => 'GET',
             'login' => 'POST',
@@ -304,6 +305,15 @@ class ApiRequest
             $mid = array_key_exists('mid', $query) ? $this->identifier($this->queryValue($query, 'mid'), 'mid') : 1;
             $vodId = $this->identifier($this->queryValue($query, 'content_id'), 'content_id');
             return self::success(['items' => $this->content->comments($vodId, $mid)], '评论加载成功');
+        }
+        if ($action === 'favorite.status') {
+            $this->assertQueryKeys($query, ['action', 'vod_id']);
+            $vodId = $this->identifier($this->queryValue($query, 'vod_id'), 'vod_id');
+            $user = $this->requireUser();
+            return self::success(
+                $this->account->favoriteStatus(intval($user['user_id']), $vodId),
+                '收藏状态加载成功'
+            );
         }
 
         if ($action === 'favorites') {

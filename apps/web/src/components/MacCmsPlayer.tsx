@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { PlaybackDescriptor } from "../api/content";
+import { requestJson } from "../api/http";
 import styles from "./MacCmsPlayer.module.css";
 
 const STARTUP_TIMEOUT_MS = 12_000;
@@ -20,11 +21,36 @@ const HLS_CONFIG = {
   maxMaxBufferLength: 60,
   backBufferLength: 30
 } as const;
+const NATIVE_PLAYBACK_URL_PATTERN = /^\/api\/native-playback-stream\/[a-f0-9]{64}$/;
+const SERVER_TICKET_PATTERN = /\/ticket\/[a-f0-9]{64}\.html(?:$|[?#])/;
+
+function isQuarkBrowser() {
+  return /\bquark(?:\/|\s|$)/i.test(navigator.userAgent);
+}
+
+async function createNativePlaybackUrl(streamUrl: string) {
+  const payload = await requestJson<unknown>("/api/native-playback-ticket", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ streamUrl })
+  });
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload) ||
+    typeof (payload as { url?: unknown }).url !== "string" ||
+    !NATIVE_PLAYBACK_URL_PATTERN.test((payload as { url: string }).url)
+  ) {
+    throw new Error("夸克播放授权响应无效");
+  }
+  return (payload as { url: string }).url;
+}
 
 function prefersNativeHls(video: HTMLVideoElement) {
+  const userAgent = navigator.userAgent;
+  if (isQuarkBrowser()) return true;
   if (!video.canPlayType("application/vnd.apple.mpegurl")) return false;
 
-  const userAgent = navigator.userAgent;
   const isAppleMobile = /(?:ipad|iphone|ipod)/i.test(userAgent) || (/macintosh/i.test(userAgent) && Number(navigator.maxTouchPoints) > 1);
   if (isAppleMobile) return true;
 
@@ -179,6 +205,15 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
     window.addEventListener("pagehide", checkpointOnPageExit);
 
     const mount = async () => {
+      let sourceUrl = playback.url;
+      if (playback.kind === "hls" && isQuarkBrowser() && !SERVER_TICKET_PATTERN.test(sourceUrl)) {
+        try {
+          sourceUrl = await createNativePlaybackUrl(sourceUrl);
+        } catch {
+          showStatus("夸克播放授权失败，请重新加载或切换线路。");
+          return;
+        }
+      }
       const [{ default: Artplayer }, { default: Hls }] = await Promise.all([import("artplayer"), import("hls.js")]);
       if (disposed || !containerRef.current) return;
 
@@ -232,7 +267,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
       const art = new Artplayer({
         id: `pingfang:/watch/${playback.vodId}/${playback.sourceId}/${playback.episodeId}`,
         container: containerRef.current,
-        url: playback.url,
+        url: sourceUrl,
         ...(playback.poster ? { poster: playback.poster } : {}),
         theme: "#d4aa65",
         lang: "zh-cn",

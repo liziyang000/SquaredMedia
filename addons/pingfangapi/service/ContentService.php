@@ -15,6 +15,8 @@ class ContentService
     const TODAY_CACHE_SECONDS = 60;
     const DEFAULT_COMMENT_LIMIT = 100;
     const HOME_TYPE_IDS = '42,47,48,57,111';
+    const STREAM_TICKET_CACHE_VERSION = 'v1';
+    const STREAM_TICKET_TTL_SECONDS = 120;
 
     private $accessChecker;
     private $addonConfigLoaded = false;
@@ -295,7 +297,12 @@ class ContentService
             'poster' => self::imageUrl(isset($row['vod_pic']) ? $row['vod_pic'] : '', $this->fallbackImage()),
             'playSources' => $this->playSources($playList),
             'kind' => $media['kind'],
-            'url' => $this->streamUrl($vodId, $sourceId, $episodeId),
+            'url' => $this->streamUrl(
+                $vodId,
+                $sourceId,
+                $episodeId,
+                $this->createStreamTicket($vodId, $sourceId, $episodeId, $media)
+            ),
             'mimeType' => $media['mimeType'],
             'playerHints' => $this->playerHints(),
         ];
@@ -306,6 +313,49 @@ class ContentService
     {
         $context = $this->playbackContext($vodId, $sourceId, $episodeId, false);
         return $this->resolvePlaybackMedia($context['source'], $context['episode']);
+    }
+
+    public function playbackTicketSource($vodId, $sourceId, $episodeId, $ticket)
+    {
+        $vodId = intval($vodId);
+        $sourceId = intval($sourceId);
+        $episodeId = intval($episodeId);
+        $ticket = trim((string) $ticket);
+        if ($vodId < 1 || $sourceId < 1 || $episodeId < 1 || !preg_match('/^[a-f0-9]{64}$/D', $ticket) || !function_exists('cache')) {
+            throw new ApiException(403, '播放凭证无效或已过期');
+        }
+
+        try {
+            $grant = cache($this->streamTicketCacheKey($ticket));
+        } catch (\Throwable $e) {
+            throw new ApiException(503, '播放凭证服务暂不可用');
+        }
+        if (!is_array($grant)
+            || intval(isset($grant['expiresAt']) ? $grant['expiresAt'] : 0) <= time()
+            || intval(isset($grant['vodId']) ? $grant['vodId'] : 0) !== $vodId
+            || intval(isset($grant['sourceId']) ? $grant['sourceId'] : 0) !== $sourceId
+            || intval(isset($grant['episodeId']) ? $grant['episodeId'] : 0) !== $episodeId
+            || empty($grant['media'])
+            || !is_array($grant['media'])) {
+            throw new ApiException(403, '播放凭证无效或已过期');
+        }
+
+        $media = $grant['media'];
+        $kind = isset($media['kind']) ? (string) $media['kind'] : '';
+        $mimeType = isset($media['mimeType']) ? trim((string) $media['mimeType']) : '';
+        $url = isset($media['url']) ? trim((string) $media['url']) : '';
+        if (!in_array($kind, ['hls', 'video'], true)
+            || $mimeType === ''
+            || $url === ''
+            || preg_match('/[\x00-\x20\x7f<>"\\\\]/', $url)) {
+            throw new ApiException(403, '播放凭证无效或已过期');
+        }
+
+        return [
+            'kind' => $kind,
+            'mimeType' => $mimeType,
+            'url' => $url,
+        ];
     }
 
     public function access($vodId, $scope, $sourceId = 0, $episodeId = 0)
@@ -1331,17 +1381,54 @@ class ContentService
         return $vodId;
     }
 
-    private function streamUrl($vodId, $sourceId, $episodeId)
+    private function streamUrl($vodId, $sourceId, $episodeId, $ticket = '')
     {
         if (!function_exists('url')) {
             throw new ApiException(503, 'MacCMS 媒体路由不可用');
         }
-        $value = url('pingfangapi/stream', [
+        $params = [
             'id' => intval($vodId),
             'sid' => intval($sourceId),
             'nid' => intval($episodeId),
-        ]);
+        ];
+        $ticket = trim((string) $ticket);
+        if ($ticket !== '') {
+            $params['ticket'] = $ticket;
+        }
+        $value = url('pingfangapi/stream', $params);
         return $this->safeSameOriginUrl($value, 'MacCMS 媒体路由不可用');
+    }
+
+    private function createStreamTicket($vodId, $sourceId, $episodeId, array $media)
+    {
+        if (!function_exists('cache')) {
+            return '';
+        }
+        try {
+            $ticket = bin2hex(random_bytes(32));
+            $grant = [
+                'vodId' => intval($vodId),
+                'sourceId' => intval($sourceId),
+                'episodeId' => intval($episodeId),
+                'expiresAt' => time() + self::STREAM_TICKET_TTL_SECONDS,
+                'media' => $media,
+            ];
+            $key = $this->streamTicketCacheKey($ticket);
+            cache($key, $grant, self::STREAM_TICKET_TTL_SECONDS);
+            $stored = cache($key);
+            if (!is_array($stored)
+                || intval(isset($stored['expiresAt']) ? $stored['expiresAt'] : 0) !== $grant['expiresAt']) {
+                return '';
+            }
+            return $ticket;
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    private function streamTicketCacheKey($ticket)
+    {
+        return 'pingfangapi_stream_ticket_' . self::STREAM_TICKET_CACHE_VERSION . '_' . hash('sha256', (string) $ticket);
     }
 
     private function playbackContext($vodId, $sourceId, $episodeId, $withDisplay)

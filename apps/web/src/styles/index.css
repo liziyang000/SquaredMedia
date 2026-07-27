@@ -429,8 +429,7 @@ body {
   padding: 0 18px;
 }
 
-.verify-form select,
-.rating-control select {
+.verify-form select {
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--line);
@@ -609,6 +608,17 @@ body {
   padding: clamp(26px, 3.2vw, 42px);
 }
 
+@media (min-width: 761px) {
+  .react-app .detail-panel,
+  .react-app .detail-poster {
+    align-self: stretch;
+  }
+
+  .react-app .detail-poster {
+    aspect-ratio: auto;
+  }
+}
+
 .react-app .detail-title-row {
   justify-content: flex-start;
 }
@@ -665,7 +675,6 @@ body {
 }
 
 .score-summary,
-.react-app .detail-interactions .rating-control,
 .react-app .detail-interactions .digg-panel {
   display: flex;
   align-items: center;
@@ -677,8 +686,7 @@ body {
   padding-right: 16px;
 }
 
-.score-summary span,
-.react-app .detail-interactions .rating-control > span {
+.score-summary span {
   color: var(--muted);
   font-size: 13px;
 }
@@ -695,22 +703,6 @@ body {
   font-style: normal;
 }
 
-.react-app .detail-interactions .rating-control {
-  margin: 0;
-  border-left: 1px solid rgba(222, 228, 255, 0.1);
-  padding: 0 16px;
-}
-
-.react-app .detail-interactions .rating-control select {
-  width: auto;
-  min-height: 30px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
-  font-size: 13px;
-  padding: 4px 24px 4px 8px;
-}
-
-.react-app .detail-interactions .rating-control button,
 .react-app .detail-interactions .digg-panel button {
   min-height: 30px;
   border: 0;
@@ -723,13 +715,11 @@ body {
   padding: 4px 8px;
 }
 
-.react-app .detail-interactions .rating-control button:hover,
 .react-app .detail-interactions .digg-panel button:hover {
   background: rgba(139, 124, 255, 0.1);
   color: #fff;
 }
 
-.react-app .detail-interactions .rating-control button:disabled,
 .react-app .detail-interactions .digg-panel button:disabled {
   cursor: wait;
   opacity: 0.58;
@@ -801,11 +791,6 @@ body {
 
   .react-app .detail-interactions {
     gap: 6px 0;
-  }
-
-  .react-app .detail-interactions .rating-control {
-    border-left: 0;
-    padding: 0 12px 0 0;
   }
 
   .react-app .detail-interactions .digg-panel {
@@ -1036,22 +1021,14 @@ html[data-theme="dunhuang-caisson"] .score-summary em {
   color: rgba(185, 170, 140, 0.7);
 }
 
-html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control,
 html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .digg-panel {
   border-color: rgba(200, 155, 74, 0.16);
 }
 
-html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control select {
-  border-color: rgba(200, 155, 74, 0.24);
-  background: rgba(232, 217, 183, 0.05);
-}
-
-html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control button,
 html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .digg-panel button {
   color: rgba(232, 217, 183, 0.78);
 }
 
-html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .rating-control button:hover,
 html[data-theme="dunhuang-caisson"] .react-app .detail-interactions .digg-panel button:hover {
   background: rgba(74, 100, 77, 0.34);
   color: var(--dunhuang-sand);

@@ -499,6 +499,7 @@ final class PingfangApiFakeAccount extends AccountService
     public string $csrf = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
     public array $loginInput = [];
     public array $favoriteInput = [];
+    public array $favoriteStatusInput = [];
     public array $favoritePageInput = [];
     public array $historyInput = [];
     public array $historyLimits = [];
@@ -559,6 +560,12 @@ final class PingfangApiFakeAccount extends AccountService
     public function favorites($userId)
     {
         return [];
+    }
+
+    public function favoriteStatus($userId, $vodId)
+    {
+        $this->favoriteStatusInput[] = [(int) $userId, (int) $vodId];
+        return ['vodId' => (string) $vodId, 'favorited' => true];
     }
 
     public function favoritesPage($userId, $page, $pageSize)
@@ -885,6 +892,7 @@ $assertSame($account->csrf, $session['csrfToken'], 'Anonymous session must boots
 $assertSame(false, $session['requirements']['feedbackLogin'], 'Session must expose the native feedback login policy.');
 $assertSame(false, $session['requirements']['commentLogin'], 'Session must expose the native comment login policy.');
 $assertEnvelope($request('GET', 'favorites'), 401, 'Anonymous favorites');
+$assertEnvelope($request('GET', 'favorite.status', [], ['vod_id' => '7']), 401, 'Anonymous favorite status');
 $assertEnvelope($request('GET', 'history'), 401, 'Anonymous history');
 $assertEnvelope($request('GET', 'devices'), 401, 'Anonymous devices');
 $assertEnvelope($request('POST', 'logout', [], [], $writeHeaders), 401, 'Anonymous logout');
@@ -999,6 +1007,11 @@ $assertEnvelope($request('POST', 'rating', ['vodId' => '7', 'score' => 8.5], [],
 $favorite = $assertEnvelope($request('POST', 'favorite', ['vodId' => '7', 'favorite' => true], [], $writeHeaders), 200, 'Favorite');
 $assertSame(['42', 7, true], [(string) $account->favoriteInput[0], $account->favoriteInput[1], $account->favoriteInput[2]], 'Favorite writes must be bound to the current user.');
 $assertSame(['vodId' => '7', 'favorited' => true], $favorite, 'Favorite must return persisted state.');
+$favoriteStatus = $assertEnvelope($request('GET', 'favorite.status', [], ['vod_id' => '7']), 200, 'Favorite status');
+$assertSame(['vodId' => '7', 'favorited' => true], $favoriteStatus, 'Favorite status must expose one exact persisted state.');
+$assertSame([[42, 7]], $account->favoriteStatusInput, 'Favorite status must be bound to the current user and requested video.');
+$assertEnvelope($request('GET', 'favorite.status'), 400, 'Missing favorite status video');
+$assertEnvelope($request('GET', 'favorite.status', [], ['vod_id' => '7', 'page' => '1']), 400, 'Unexpected favorite status query');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '7', 'favorite' => 1], [], $writeHeaders), 422, 'Non-boolean favorite');
 $assertEnvelope($request('POST', 'favorites.delete', [], [], $writeHeaders), 422, 'Empty favorite delete');
 $assertEnvelope($request('POST', 'favorites.delete', ['all' => true, 'recordIds' => ['71']], [], $writeHeaders), 422, 'Ambiguous favorite delete');

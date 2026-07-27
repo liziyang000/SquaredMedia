@@ -228,18 +228,6 @@ const reactionResultSchema = z.object({
   dislikes: z.coerce.number().int().nonnegative()
 });
 
-const ratingInputSchema = z.object({
-  vodId: identifierSchema,
-  score: z.number().min(1).max(10)
-});
-
-const ratingResultSchema = z.object({
-  vodId: identifierSchema,
-  score: z.number().min(1).max(10),
-  average: z.coerce.number().nonnegative(),
-  count: z.coerce.number().int().nonnegative()
-});
-
 export type AccountUser = z.infer<typeof accountUserSchema>;
 export type AccountSession = z.infer<typeof sessionSchema>;
 export type AccountPage<T> = {
@@ -263,7 +251,6 @@ export type ReportInput = z.input<typeof reportInputSchema>;
 export type CommentInput = z.input<typeof commentInputSchema>;
 export type CommentEntry = z.infer<typeof commentEntrySchema>;
 export type ReactionInput = z.input<typeof reactionInputSchema>;
-export type RatingInput = z.input<typeof ratingInputSchema>;
 
 type CsrfTokenSource = string | (() => string | null | undefined);
 
@@ -281,6 +268,7 @@ export type AccountApi = {
   logout(): Promise<ApiEnvelopeResult<z.infer<typeof logoutResultSchema>>>;
   getFavorites(): Promise<FavoriteEntry[]>;
   getFavoritesPage(page?: number, pageSize?: number): Promise<AccountPage<FavoriteEntry>>;
+  getFavoriteStatus(vodId: string | number): Promise<z.infer<typeof favoriteResultSchema>>;
   setFavorite(input: FavoriteInput): Promise<ApiEnvelopeResult<z.infer<typeof favoriteResultSchema>>>;
   deleteFavorites(input: RecordDeleteInput): Promise<ApiEnvelopeResult<z.infer<typeof recordDeleteResultSchema>>>;
   getHistory(limit?: number): Promise<AccountHistoryEntry[]>;
@@ -294,7 +282,6 @@ export type AccountApi = {
   getComments(vodId: string | number, mid?: string | number): Promise<CommentEntry[]>;
   submitComment(input: CommentInput): Promise<ApiEnvelopeResult<z.infer<typeof submissionResultSchema>>>;
   setReaction(input: ReactionInput): Promise<ApiEnvelopeResult<z.infer<typeof reactionResultSchema>>>;
-  submitRating(input: RatingInput): Promise<ApiEnvelopeResult<z.infer<typeof ratingResultSchema>>>;
 };
 
 function resolveCsrfToken(source: CsrfTokenSource | undefined) {
@@ -421,6 +408,11 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
       return readPage("favorites", favoriteSchema, "收藏加载失败", page, pageSize);
     },
 
+    async getFavoriteStatus(vodId) {
+      const id = parseApiInput(vodId, identifierSchema);
+      return read("favorite.status", favoriteResultSchema, "收藏状态加载失败", { vod_id: id });
+    },
+
     async setFavorite(input) {
       return write("favorite", parseApiInput(input, favoriteInputSchema), favoriteResultSchema, "收藏操作失败");
     },
@@ -485,10 +477,6 @@ export function createAccountApi({ endpoint = "", csrfToken, fetchImpl, timeoutM
 
     async setReaction(input) {
       return write("reaction", parseApiInput(input, reactionInputSchema), reactionResultSchema, "互动操作失败");
-    },
-
-    async submitRating(input) {
-      return write("rating", parseApiInput(input, ratingInputSchema), ratingResultSchema, "评分提交失败");
     }
   });
 }

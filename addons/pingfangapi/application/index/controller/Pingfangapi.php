@@ -114,11 +114,13 @@ class Pingfangapi extends All
             $content = new ContentService(function ($typeId, $popedom, array $route, $flag, array $info, $trysee) {
                 return $this->check_user_popedom($typeId, $popedom, $route, $flag, $info, $trysee);
             });
-            $media = $content->playbackSource(
-                intval(isset($param['id']) ? $param['id'] : 0),
-                intval(isset($param['sid']) ? $param['sid'] : 0),
-                intval(isset($param['nid']) ? $param['nid'] : 0)
-            );
+            $vodId = intval(isset($param['id']) ? $param['id'] : 0);
+            $sourceId = intval(isset($param['sid']) ? $param['sid'] : 0);
+            $episodeId = intval(isset($param['nid']) ? $param['nid'] : 0);
+            $ticket = trim((string) (isset($param['ticket']) ? $param['ticket'] : ''));
+            $media = $ticket === ''
+                ? $content->playbackSource($vodId, $sourceId, $episodeId)
+                : $content->playbackTicketSource($vodId, $sourceId, $episodeId, $ticket);
             return response('', 302, [
                 'Location' => $media['url'],
                 'Cache-Control' => 'private, no-store',

@@ -194,6 +194,65 @@ describe("MacCmsPlayer", () => {
     expect(hls.destroyed).toBe(true);
   });
 
+  it("keeps the authorized HLS URL on the video element for Quark native takeover", async () => {
+    vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Mobile Safari/537.36 Quark/7.9.9.999");
+    vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockReturnValue("");
+    const nativeUrl = `/api/native-playback-stream/${"a".repeat(64)}`;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ url: nativeUrl }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "/api/native-playback-ticket",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ streamUrl: playback.url }),
+        credentials: "same-origin"
+      })
+    );
+    expect(playerMocks.hlsInstances).toHaveLength(0);
+    expect(playerMocks.artInstances[0]!.video.getAttribute("src")).toBe(nativeUrl);
+    view.unmount();
+  });
+
+  it("uses a server-issued playback ticket directly without wrapping it again", async () => {
+    vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 Quark/10.13.0 Mobile");
+    vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockReturnValue("");
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const serverTicketUrl = `/index.php/pingfangapi/stream/id/1/sid/1/nid/101/ticket/${"b".repeat(64)}.html`;
+
+    const view = render(<MacCmsPlayer playback={{ ...playback, url: serverTicketUrl }} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(playerMocks.hlsInstances).toHaveLength(0);
+    expect(playerMocks.artInstances[0]!.video.getAttribute("src")).toBe(serverTicketUrl);
+    view.unmount();
+  });
+
+  it("shows an explicit Quark authorization failure instead of starting with an unusable stream URL", async () => {
+    vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 Quark/10.13.0 Mobile");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ message: "播放授权已失效" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" }
+      })
+    );
+
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+
+    expect(await view.findByRole("status")).toHaveTextContent("夸克播放授权失败");
+    expect(playerMocks.artInstances).toHaveLength(0);
+  });
+
   it("omits the optional Artplayer poster option when MacCMS has no poster", async () => {
     const view = render(<MacCmsPlayer playback={{ ...playback, poster: "" }} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
 

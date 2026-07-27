@@ -1112,6 +1112,10 @@
   var alternatePlaybackResumeKey = "pingfang_alternate_playback_resume_v1";
   var alternatePlaybackResumeMaxAge = 30 * 60 * 1000;
   var alternatePlaybackMinimumTime = 5;
+  var sourceQualityPreferencePrefix = "pingfang_source_quality_preference_v1_";
+  var sourceQualityPreferenceMaxAge = 60 * 1000;
+  var automaticLineSwitchKey = "pingfang_automatic_line_switch_v1";
+  var automaticLineSwitchMaxAge = 30 * 60 * 1000;
 
   function normalizePlaybackUrl(value) {
     var raw = String(value || "").trim();
@@ -1147,12 +1151,103 @@
     return label.replace(/\s+/g, " ").toLowerCase();
   }
 
-  function alternatePlaybackLinks() {
+  function positiveIntegerString(value) {
+    var number = Number(value);
+    return Number.isInteger(number) && number > 0 ? String(number) : "";
+  }
+
+  function sourceQualityPreferenceKey(vodId, nid) {
+    vodId = positiveIntegerString(vodId);
+    nid = positiveIntegerString(nid);
+    return vodId && nid ? sourceQualityPreferencePrefix + vodId + "_" + nid : "";
+  }
+
+  function readSourceQualityPreference(vodId, nid) {
+    var key = sourceQualityPreferenceKey(vodId, nid);
+    if (!key) return null;
+
+    var record;
+    try {
+      record = JSON.parse(window.sessionStorage.getItem(key) || "null");
+    } catch (error) {
+      record = null;
+    }
+    if (!record || record.version !== 1 || Number(record.expiresAt) <= Date.now() || !Array.isArray(record.rankedSids)) {
+      try {
+        window.sessionStorage.removeItem(key);
+      } catch (error) {}
+      return null;
+    }
+    return record;
+  }
+
+  function storeSourceQualityPreference(vodId, nid, payload) {
+    var key = sourceQualityPreferenceKey(vodId, nid);
+    if (!key) return null;
+
+    var sources =
+      payload && Array.isArray(payload.sources)
+        ? payload.sources.filter(function (source) {
+            return source && source.available && positiveIntegerString(source.sid);
+          })
+        : [];
+    sources.sort(function (left, right) {
+      var leftRank = Number(left.quality_rank);
+      var rightRank = Number(right.quality_rank);
+      if (Number.isFinite(leftRank) && leftRank > 0 && Number.isFinite(rightRank) && rightRank > 0 && leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+      var speedDifference = Number(right.speed_kbps || 0) - Number(left.speed_kbps || 0);
+      if (speedDifference) return speedDifference;
+      return Number(left.latency_ms || Number.MAX_SAFE_INTEGER) - Number(right.latency_ms || Number.MAX_SAFE_INTEGER);
+    });
+
+    if (!sources.length) {
+      try {
+        window.sessionStorage.removeItem(key);
+      } catch (error) {}
+      return null;
+    }
+
+    var rankedSids = sources.map(function (source) {
+      return positiveIntegerString(source.sid);
+    });
+    var recommendedSid = positiveIntegerString(payload.recommended_sid);
+    if (rankedSids.indexOf(recommendedSid) === -1) recommendedSid = rankedSids[0];
+    var record = {
+      version: 1,
+      vodId: positiveIntegerString(vodId),
+      nid: positiveIntegerString(nid),
+      recommendedSid: recommendedSid,
+      rankedSids: rankedSids,
+      expiresAt: Date.now() + sourceQualityPreferenceMaxAge
+    };
+    try {
+      window.sessionStorage.setItem(key, JSON.stringify(record));
+      window.sessionStorage.removeItem(automaticLineSwitchKey);
+    } catch (error) {}
+    return record;
+  }
+
+  function playbackQualityContext() {
+    var page = document.querySelector(".player-page[data-source-quality-vod-id]");
+    if (!page) return null;
+
+    var context = {
+      vodId: positiveIntegerString(page.getAttribute("data-source-quality-vod-id")),
+      sid: positiveIntegerString(page.getAttribute("data-source-quality-sid")),
+      nid: positiveIntegerString(page.getAttribute("data-source-quality-nid"))
+    };
+    return context.vodId && context.sid && context.nid ? context : null;
+  }
+
+  function alternatePlaybackLinks(healthyOnly) {
     var active = document.querySelector('#episodeList .episode-grid a.is-active[aria-current="page"], #episodeList .episode-grid a.is-active');
     if (!active) return [];
 
     var currentBox = active.closest(".episode-box");
     var episodeLabel = normalizeEpisodeLabel(active.textContent);
+    var episodeNid = positiveIntegerString(active.getAttribute("data-source-quality-nid"));
     var boxes = Array.prototype.slice.call(document.querySelectorAll("#episodeList .episode-box"));
     var currentIndex = boxes.indexOf(currentBox);
     if (!currentBox || !episodeLabel || currentIndex === -1 || boxes.length < 2) return [];
@@ -1161,7 +1256,8 @@
     for (var offset = 1; offset < boxes.length; offset += 1) {
       var box = boxes[(currentIndex + offset) % boxes.length];
       var matches = Array.prototype.slice.call(box.querySelectorAll(".episode-grid a")).filter(function (link) {
-        return normalizeEpisodeLabel(link.textContent) === episodeLabel;
+        var candidateNid = positiveIntegerString(link.getAttribute("data-source-quality-nid"));
+        return episodeNid && candidateNid ? candidateNid === episodeNid : normalizeEpisodeLabel(link.textContent) === episodeLabel;
       });
       if (matches.length !== 1) continue;
 
@@ -1171,10 +1267,35 @@
       } catch (error) {
         continue;
       }
-      links.push(matches[0]);
+      links.push({
+        link: matches[0],
+        sid: positiveIntegerString(box.getAttribute("data-source-quality-sid")),
+        order: links.length
+      });
     }
 
-    return links;
+    var context = playbackQualityContext();
+    var preference = context ? readSourceQualityPreference(context.vodId, context.nid) : null;
+    if (preference) {
+      var rank = {};
+      preference.rankedSids.forEach(function (sid, index) {
+        rank[String(sid)] = index;
+      });
+      if (healthyOnly) {
+        links = links.filter(function (item) {
+          return Object.prototype.hasOwnProperty.call(rank, item.sid);
+        });
+      }
+      links.sort(function (left, right) {
+        var leftRank = Object.prototype.hasOwnProperty.call(rank, left.sid) ? rank[left.sid] : Number.MAX_SAFE_INTEGER;
+        var rightRank = Object.prototype.hasOwnProperty.call(rank, right.sid) ? rank[right.sid] : Number.MAX_SAFE_INTEGER;
+        return leftRank === rightRank ? left.order - right.order : leftRank - rightRank;
+      });
+    }
+
+    return links.map(function (item) {
+      return item.link;
+    });
   }
 
   function hasAlternatePlaybackLine() {
@@ -1243,10 +1364,7 @@
     } catch (error) {}
   }
 
-  function switchToAlternatePlaybackLine(currentTime) {
-    var candidate = alternatePlaybackLinks()[0];
-    if (!candidate) return false;
-
+  function navigateToPlaybackLine(candidate, currentTime) {
     var target = normalizePlaybackUrl(candidate.href);
     if (!target) return false;
 
@@ -1258,6 +1376,61 @@
     storeAlternatePlaybackResume(target, time);
     window.location.href = target;
     return true;
+  }
+
+  function switchToAlternatePlaybackLine(currentTime) {
+    var candidate = alternatePlaybackLinks()[0];
+    return candidate ? navigateToPlaybackLine(candidate, currentTime) : false;
+  }
+
+  function readAutomaticLineSwitchState(context) {
+    var record;
+    try {
+      record = JSON.parse(window.sessionStorage.getItem(automaticLineSwitchKey) || "null");
+    } catch (error) {
+      record = null;
+    }
+    if (
+      !record ||
+      record.version !== 1 ||
+      record.vodId !== context.vodId ||
+      record.nid !== context.nid ||
+      Number(record.expiresAt) <= Date.now() ||
+      !Array.isArray(record.visitedSids)
+    ) {
+      return {
+        version: 1,
+        vodId: context.vodId,
+        nid: context.nid,
+        visitedSids: [],
+        expiresAt: Date.now() + automaticLineSwitchMaxAge
+      };
+    }
+    return record;
+  }
+
+  function autoSwitchToAlternatePlaybackLine(currentTime) {
+    var context = playbackQualityContext();
+    var candidates = alternatePlaybackLinks(true);
+    if (!context || !candidates.length) return false;
+
+    var state = readAutomaticLineSwitchState(context);
+    if (state.visitedSids.indexOf(context.sid) === -1) state.visitedSids.push(context.sid);
+    var candidate = candidates.find(function (link) {
+      var box = link.closest(".episode-box");
+      var sid = positiveIntegerString(box && box.getAttribute("data-source-quality-sid"));
+      return sid && state.visitedSids.indexOf(sid) === -1;
+    });
+    if (!candidate) return false;
+
+    var candidateBox = candidate.closest(".episode-box");
+    var candidateSid = positiveIntegerString(candidateBox && candidateBox.getAttribute("data-source-quality-sid"));
+    state.visitedSids.push(candidateSid);
+    state.expiresAt = Date.now() + automaticLineSwitchMaxAge;
+    try {
+      window.sessionStorage.setItem(automaticLineSwitchKey, JSON.stringify(state));
+    } catch (error) {}
+    return navigateToPlaybackLine(candidate, currentTime);
   }
 
   function consumeAlternatePlaybackResume() {
@@ -1440,6 +1613,228 @@
     });
   }
 
+  function formatSourceQualitySpeed(kbps) {
+    var value = Number(kbps);
+    if (!Number.isFinite(value) || value <= 0) return "";
+    if (value >= 1000) {
+      return (value / 1000).toFixed(value >= 10000 ? 1 : 2).replace(/\.?0+$/, "") + " Mbit/s";
+    }
+    return Math.round(value) + " kbit/s";
+  }
+
+  function formatSourceQualityResolution(source) {
+    var testedWidth = Number(source && source.tested_width);
+    var testedHeight = Number(source && source.tested_height);
+    var maxWidth = Number(source && source.max_width);
+    var maxHeight = Number(source && source.max_height);
+    var tested =
+      Number.isFinite(testedWidth) && testedWidth > 0 && Number.isFinite(testedHeight) && testedHeight > 0
+        ? Math.round(testedWidth) + "×" + Math.round(testedHeight)
+        : "";
+    var maximum =
+      Number.isFinite(maxWidth) && maxWidth > 0 && Number.isFinite(maxHeight) && maxHeight > 0 ? Math.round(maxWidth) + "×" + Math.round(maxHeight) : "";
+    if (!tested && !maximum) return "分辨率未知";
+
+    var note = source && source.resolution_basis === "manifest" ? "清单声明" : "";
+    if (source && source.fallback_used) note += (note ? "，" : "") + "已回退";
+    if (tested && maximum && tested !== maximum) {
+      return "最高 " + maximum + " · 本次 " + tested + (note ? "（" + note + "）" : "");
+    }
+    if (tested) return tested + (note ? "（" + note + "）" : "");
+    return "最高 " + maximum + (note ? "（" + note + "，未测通）" : "");
+  }
+
+  function sourceQualityText(source) {
+    var status = String((source && source.status) || "failed");
+    var speed = formatSourceQualitySpeed(source && source.speed_kbps);
+    var bandwidth = formatSourceQualitySpeed(source && source.variant_bandwidth_kbps);
+    var resolution = formatSourceQualityResolution(source);
+    var latency = Number(source && source.latency_ms);
+    var sampleCount = Number(source && source.sample_count);
+    var details = [];
+    if (resolution) details.push(resolution);
+    if (bandwidth) details.push("声明码率 " + bandwidth);
+    if (speed) details.push(speed);
+    if (Number.isFinite(latency) && latency > 0) details.push(Math.round(latency) + " ms");
+    if (Number.isFinite(sampleCount) && sampleCount > 0) details.push(Math.round(sampleCount) + " 次样本");
+    if (source && source.episode_name) details.push(String(source.episode_name));
+
+    var label = "不可用";
+    if (status === "available") label = "可用";
+    if (status === "slow") label = "可用但较慢";
+    if (status === "timeout") label = "检测超时";
+    if (status === "unsupported") label = "无法直测";
+    if (status === "missing") label = "缺少该集";
+    if (source && source.recommended) label = "推荐 · " + label;
+    if (
+      source &&
+      source.message &&
+      (status === "failed" || status === "timeout" || status === "unsupported" || status === "missing" || source.message === "可用，但测速样本不足")
+    ) {
+      details.unshift(String(source.message));
+    }
+    return label + (details.length ? " · " + details.join(" · ") : "");
+  }
+
+  function setSourceQualityResult(result, source, status) {
+    ["is-loading", "is-available", "is-slow", "is-failed", "is-timeout", "is-unsupported", "is-missing"].forEach(function (className) {
+      result.classList.remove(className);
+    });
+    result.classList.add("is-" + status);
+    result.classList.toggle("is-recommended", Boolean(source && source.recommended));
+    result.textContent = source ? sourceQualityText(source) : "检测中…";
+  }
+
+  function sourceQualityEpisodeLink(sourceBox, nid) {
+    return Array.prototype.slice.call(sourceBox.querySelectorAll("[data-source-quality-nid]")).find(function (link) {
+      return positiveIntegerString(link.getAttribute("data-source-quality-nid")) === positiveIntegerString(nid);
+    });
+  }
+
+  function resetSourceQualityRecommendation(section, nid) {
+    var firstLink = null;
+    section.querySelectorAll("[data-source-quality-sid]").forEach(function (sourceBox) {
+      sourceBox.classList.remove("is-source-recommended");
+      var link = sourceQualityEpisodeLink(sourceBox, nid);
+      if (link) {
+        link.classList.remove("is-source-recommended");
+        if (!firstLink) firstLink = link;
+      }
+    });
+
+    var primary = document.querySelector("[data-source-quality-primary]");
+    if (primary && firstLink) primary.href = firstLink.href;
+  }
+
+  function applySourceQualityRecommendation(vodId, section, nid, payload) {
+    resetSourceQualityRecommendation(section, nid);
+    var preference = storeSourceQualityPreference(vodId, nid, payload);
+    if (!preference) return "";
+
+    var recommendedBox = Array.prototype.slice.call(section.querySelectorAll("[data-source-quality-sid]")).find(function (sourceBox) {
+      return positiveIntegerString(sourceBox.getAttribute("data-source-quality-sid")) === preference.recommendedSid;
+    });
+    if (!recommendedBox) return "";
+
+    recommendedBox.classList.add("is-source-recommended");
+    var recommendedLink = sourceQualityEpisodeLink(recommendedBox, nid);
+    if (recommendedLink) {
+      recommendedLink.classList.add("is-source-recommended");
+      var primary = document.querySelector("[data-source-quality-primary]");
+      if (primary) primary.href = recommendedLink.href;
+    }
+
+    var recommendedSource = payload.sources.find(function (source) {
+      return positiveIntegerString(source.sid) === preference.recommendedSid;
+    });
+    return recommendedSource && recommendedSource.from ? String(recommendedSource.from) : "线路 " + preference.recommendedSid;
+  }
+
+  function initSourceQuality(root) {
+    if (!window.fetch || !window.FormData) return;
+    var scope = root || document;
+    scope.querySelectorAll("[data-source-quality-panel]").forEach(function (panel) {
+      if (panel.dataset.sourceQualityReady === "true") return;
+      panel.dataset.sourceQualityReady = "true";
+
+      var button = panel.querySelector("[data-source-quality-run]");
+      var episode = panel.querySelector("[data-source-quality-episode]");
+      var summary = panel.querySelector("[data-source-quality-summary]");
+      var section = panel.closest(".content-section");
+      var endpoint = panel.getAttribute("data-source-quality-endpoint") || "";
+      var vodId = panel.getAttribute("data-source-quality-vod-id") || "";
+      if (!button || !episode || !summary || !section || !endpoint || !vodId || !episode.value) {
+        if (button) button.disabled = true;
+        if (summary) summary.textContent = "当前视频没有可检测的集数。";
+        return;
+      }
+
+      var requestNumber = 0;
+      function runSourceQuality(manual) {
+        var currentRequest = ++requestNumber;
+        var requestedNid = episode.value;
+        var results = section.querySelectorAll("[data-source-quality-result]");
+        var selected = episode.options[episode.selectedIndex];
+        resetSourceQualityRecommendation(section, requestedNid);
+        button.disabled = true;
+        button.textContent = "检测中…";
+        summary.textContent = (manual ? "正在重新检测 " : "正在自动检测 ") + (selected ? selected.textContent : "所选集数") + " 的各条线路，请稍候。";
+        results.forEach(function (result) {
+          setSourceQualityResult(result, null, "loading");
+        });
+
+        var sourceQualityBody = new FormData();
+        sourceQualityBody.append("vod_id", vodId);
+        sourceQualityBody.append("nid", requestedNid);
+        fetch(endpoint, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            Accept: "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: sourceQualityBody
+        })
+          .then(function (response) {
+            return response.json();
+          })
+          .then(function (response) {
+            if (currentRequest !== requestNumber) return;
+            if (!response || String(response.code) !== "1" || !response.data || !Array.isArray(response.data.sources)) {
+              throw new Error((response && response.msg) || "线路检测失败");
+            }
+
+            var availableCount = 0;
+            var sourceMap = {};
+            response.data.sources.forEach(function (source) {
+              sourceMap[String(source.sid)] = source;
+              if (source.available) availableCount++;
+            });
+            section.querySelectorAll("[data-source-quality-sid]").forEach(function (sourceBox) {
+              var result = sourceBox.querySelector("[data-source-quality-result]");
+              var source = sourceMap[String(sourceBox.getAttribute("data-source-quality-sid"))];
+              if (!result) return;
+              if (!source) {
+                setSourceQualityResult(result, { status: "unsupported", message: "超出单次检测上限" }, "unsupported");
+                return;
+              }
+              setSourceQualityResult(result, source, String(source.status || "failed"));
+            });
+
+            var recommendedFrom = applySourceQualityRecommendation(vodId, section, requestedNid, response.data);
+            summary.textContent =
+              "检测完成：" +
+              availableCount +
+              "/" +
+              response.data.sources.length +
+              " 条已检测线路可用" +
+              (recommendedFrom ? "；推荐 " + recommendedFrom : "") +
+              (response.data.cached ? "（1 分钟内缓存结果）" : "") +
+              "。";
+            button.disabled = false;
+            button.textContent = "重新检测";
+          })
+          .catch(function (error) {
+            if (currentRequest !== requestNumber) return;
+            results.forEach(function (result) {
+              setSourceQualityResult(result, { status: "failed", message: "检测失败" }, "failed");
+            });
+            summary.textContent = (error && error.message) || "线路检测失败，请稍后重试。";
+            button.disabled = false;
+            button.textContent = "重新检测";
+          });
+      }
+
+      button.addEventListener("click", function () {
+        if (!button.disabled) runSourceQuality(true);
+      });
+      episode.addEventListener("change", function () {
+        runSourceQuality(false);
+      });
+      runSourceQuality(false);
+    });
+  }
+
   function safeContinueResource(value, allowImageData) {
     var raw = String(value || "").trim();
     if (!raw) return "";
@@ -1579,8 +1974,10 @@
   window.PingFangVideo.initAutoNextPlayback = initAutoNextPlayback;
   window.PingFangVideo.hasAlternatePlaybackLine = hasAlternatePlaybackLine;
   window.PingFangVideo.switchToAlternatePlaybackLine = switchToAlternatePlaybackLine;
+  window.PingFangVideo.autoSwitchToAlternatePlaybackLine = autoSwitchToAlternatePlaybackLine;
   window.PingFangVideo.consumeAlternatePlaybackResume = consumeAlternatePlaybackResume;
   window.PingFangVideo.initDynamicVodFilters = initDynamicVodFilters;
+  window.PingFangVideo.initSourceQuality = initSourceQuality;
   window.PingFangVideo.initThemeSwitchers = initThemeSwitchers;
   window.PingFangVideo.initLoginControls = initLoginControls;
   window.PingFangVideo.initLoginGlass = initLoginGlass;
@@ -1600,6 +1997,7 @@
   initHomeContinueWatching(document);
   initAutoNextPlayback();
   initDynamicVodFilters(document);
+  initSourceQuality(document);
 
   function initRandomAvatars(root) {
     var colors = ["#ef4444", "#f97316", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b"];

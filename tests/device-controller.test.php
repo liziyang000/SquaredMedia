@@ -50,6 +50,21 @@ namespace addons\pingfangdevice\service {
             return ['code' => 1];
         }
     }
+
+    class VodSourceQuality
+    {
+        public static $calls = [];
+        public static $exception = false;
+
+        public static function check($vodId, $nid)
+        {
+            self::$calls[] = [$vodId, $nid];
+            if (self::$exception) {
+                throw new \RuntimeException('probe failed');
+            }
+            return ['code' => 1, 'data' => ['vod_id' => $vodId, 'nid' => $nid]];
+        }
+    }
 }
 
 namespace app\index\controller {
@@ -74,6 +89,7 @@ namespace think\addons {
 
 namespace {
     use addons\pingfangdevice\service\DeviceSession;
+    use addons\pingfangdevice\service\VodSourceQuality;
 
     $controllerInput = [];
     $controllerRequest = new class {
@@ -178,6 +194,8 @@ namespace {
         DeviceSession::$registerCalls = 0;
         DeviceSession::$registerException = false;
         DeviceSession::$logoutCurrentCalls = 0;
+        VodSourceQuality::$calls = [];
+        VodSourceQuality::$exception = false;
     };
 
     $reset();
@@ -219,6 +237,28 @@ namespace {
     $response = $controller->logout();
     $assertSame(1, $response['data']['code'], 'A valid logout request should succeed even when native login is stale.');
     $assertSame(1, DeviceSession::$logoutCurrentCalls, 'Logout must always clear the current device token.');
+
+    $reset();
+    $controllerInput = ['vod_id' => 88, 'nid' => 3];
+    $response = $controller->sourceQuality();
+    $assertSame(1, $response['data']['code'], 'A valid source quality request should succeed.');
+    $assertSame([[88, 3]], VodSourceQuality::$calls, 'Source quality should forward the video and episode IDs.');
+
+    $reset();
+    $controllerRequest->post = false;
+    $response = $controller->sourceQuality();
+    $assertSame(405, $response['status'], 'Source quality must reject GET requests.');
+    $assertSame([], VodSourceQuality::$calls, 'Rejected source quality requests must not start probes.');
+
+    $reset();
+    $controllerRequest->ajax = false;
+    $response = $controller->sourceQuality();
+    $assertSame(405, $response['status'], 'Source quality must require a same-origin Ajax request.');
+
+    $reset();
+    VodSourceQuality::$exception = true;
+    $response = $controller->sourceQuality();
+    $assertSame(1003, $response['data']['code'], 'Probe failures should return a stable public error.');
 
     echo "Device controller behavior tests passed.\n";
 }

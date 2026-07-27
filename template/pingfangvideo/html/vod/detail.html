@@ -23,7 +23,7 @@
         {maccms:foreach name="obj.vod_play_list" id="vo" key="key"}
         {if condition="$key eq 1"}
         {maccms:foreach name="vo.urls" id="vo2" key="key2"}
-        {if condition="$key2 eq 1"}<a class="primary-btn" href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">立即播放</a>{/if}
+        {if condition="$key2 eq 1"}<a class="primary-btn" href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}" data-source-quality-primary data-source-quality-nid="{$vo2.nid}">立即播放</a>{/if}
         {/maccms:foreach}
         {/if}
         {/maccms:foreach}
@@ -40,15 +40,38 @@
 </section>
 
 <section class="wrap content-section">
+  <div class="source-quality-panel" data-source-quality-panel data-source-quality-endpoint="{:url('pingfangdevice/sourceQuality')}" data-source-quality-vod-id="{$obj.vod_id}">
+    <div class="source-quality-copy">
+      <strong>播放线路测速</strong>
+      <span>页面会自动检测所选集数，并推荐当前可用且测速更优的播放线路。</span>
+    </div>
+    <div class="source-quality-controls">
+      <label for="sourceQualityEpisode">测速集数</label>
+      <select id="sourceQualityEpisode" data-source-quality-episode>
+        {maccms:foreach name="obj.vod_play_list" id="vo" key="key"}
+        {if condition="$key eq 1"}
+        {maccms:foreach name="vo.urls" id="vo2"}
+        <option value="{$vo2.nid}">{$vo2.name}</option>
+        {/maccms:foreach}
+        {/if}
+        {/maccms:foreach}
+      </select>
+      <button class="ghost-btn" type="button" data-source-quality-run>重新检测</button>
+    </div>
+    <p class="source-quality-summary" data-source-quality-summary aria-live="polite">即将自动检测；结果代表站点服务器到播放源的当前连接状况。</p>
+  </div>
   {maccms:foreach name="obj.vod_play_list" id="vo"}
-  <div class="episode-box">
+  <div class="episode-box" data-source-quality-sid="{$vo.sid}">
     <div class="section-head compact">
       <h2>{$vo.from}-在线播放</h2>
-      <span>{$vo.player_info.tip}</span>
+      <span class="source-quality-heading-meta">
+        <span>{$vo.player_info.tip}</span>
+        <span class="source-quality-result" data-source-quality-result aria-live="polite">未检测</span>
+      </span>
     </div>
     <div class="episode-grid">
       {maccms:foreach name="vo.urls" id="vo2"}
-      <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{$vo2.name}</a>
+      <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}" data-source-quality-nid="{$vo2.nid}">{$vo2.name}</a>
       {/maccms:foreach}
     </div>
   </div>

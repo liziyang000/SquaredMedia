@@ -120,6 +120,7 @@ const requiredAddonEntries = [
   "pingfangdevice/install.sql",
   "pingfangdevice/service/DeviceSession.php",
   "pingfangdevice/service/VodFilterOptions.php",
+  "pingfangdevice/service/VodSourceQuality.php",
   "pingfangdevice/view/index/index.html",
 ];
 

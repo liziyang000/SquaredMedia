@@ -4,6 +4,7 @@ namespace addons\pingfangdevice\controller;
 
 use addons\pingfangdevice\service\DeviceSession;
 use addons\pingfangdevice\service\VodFilterOptions;
+use addons\pingfangdevice\service\VodSourceQuality;
 
 trait DeviceActions
 {
@@ -63,6 +64,22 @@ trait DeviceActions
             return json(VodFilterOptions::filters(input()));
         } catch (\Throwable $e) {
             return json(['code' => 1002, 'msg' => '筛选项加载失败', 'data' => ['filters' => []]]);
+        }
+    }
+
+    public function sourceQuality()
+    {
+        if (!Request()->isPost() || !Request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
+        }
+
+        try {
+            return json(VodSourceQuality::check(input('vod_id/d', 0), input('nid/d', 1)));
+        } catch (\Throwable $e) {
+            if (function_exists('trace')) {
+                trace('[pingfangdevice] Source quality check failed: ' . $e->getMessage(), 'error');
+            }
+            return json(['code' => 1003, 'msg' => '线路检测失败，请稍后重试'], 500);
         }
     }
 

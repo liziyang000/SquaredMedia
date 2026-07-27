@@ -46,7 +46,7 @@ SquaredMedia/
 | `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
 | `maccms-player/` | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
-| `addons/pingfangdevice/` | 将 MacCMS 登录态纳入设备会话管理，提供设备查看与撤销能力 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
+| `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态视频筛选、按集线路检测和健康线路排序 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `addons/videolint/` | 扫描视频库缺失字段、播放源、封面和重复数据，支持导出问题清单 | 否，当前需单独安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |

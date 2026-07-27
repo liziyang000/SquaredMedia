@@ -94,7 +94,7 @@ dist/
 
 ### 独立播放器包边界
 
-`dist/pingfangplayer-player.tar.gz` 是 HLS 播放性能优先方案，不属于 MacCMS 主题目录。它保留 ArtPlayer 控制、倍速、进度恢复、Safari/iOS 原生 HLS 回退、hls.js 有界媒体错误恢复和慢线路操作提示；首播关键路径不再请求旧播放器使用的 jQuery、CryptoJS、FLV、广告、弹幕和 PHP 配置接口。与当前主题配套使用时，慢线路提示可切换到其他播放组中名称唯一且完全一致的同一集，并通过当前标签页的 `sessionStorage` 恢复换线前进度；找不到可靠匹配时只滚动到选集区，不按 `nid` 猜测。若站点必须保留旧播放器功能，应先做兼容版设计和独立验收，不要直接安装此性能版。
+`dist/pingfangplayer-player.tar.gz` 是 HLS 播放性能优先方案，不属于 MacCMS 主题目录。它保留 ArtPlayer 控制、倍速、进度恢复、Safari/iOS 原生 HLS 回退和 hls.js 有界媒体错误恢复；首播关键路径不再请求旧播放器使用的 jQuery、CryptoJS、FLV、广告、弹幕和 PHP 配置接口。与当前主题配套使用时，播放器会在启动超时、持续缓冲、致命 HLS 错误或原生视频错误后，按详情页短期健康排序自动切换到同一集的下一条可用线路，并通过当前标签页的 `sessionStorage` 恢复换线前进度、记录已尝试线路以避免循环；没有健康记录时回退页面线路顺序，没有候选时保留手动提示。若站点必须保留旧播放器功能，应先做兼容版设计和独立验收，不要直接安装此性能版。
 
 播放器包只包含 5 个静态文件。将来获得明确发布授权后，应先备份站点根目录中的 `static/player/artplayer.html`，再把 4 个版本化资产写入 `static/player/artplayer/`，最后替换入口 HTML。不得整体删除或覆盖现有 `static/player/artplayer/` 目录，因为现网目录还可能包含 PHP、数据库类、配置、插件和旧版回滚文件。回滚只需恢复旧入口 HTML；版本化新资产可以在确认无引用后另行清理。
 

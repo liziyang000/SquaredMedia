@@ -124,6 +124,7 @@
     var stallTimer = 0;
     var hasPlayed = false;
     var resumeChecked = false;
+    var autoSwitching = false;
 
     function clearTimer(timer) {
       if (timer) global.clearTimeout(timer);
@@ -162,6 +163,20 @@
       } catch (error) {
         return false;
       }
+    }
+
+    function tryAutomaticLineSwitch(message) {
+      if (autoSwitching) return true;
+
+      var bridge = parentPlayerBridge();
+      try {
+        if (bridge && bridge.autoSwitchToAlternatePlaybackLine && bridge.autoSwitchToAlternatePlaybackLine(currentPlaybackTime())) {
+          autoSwitching = true;
+          showStatus(message);
+          return true;
+        }
+      } catch (error) {}
+      return false;
     }
 
     function updateLinesButton() {
@@ -274,6 +289,7 @@
         }
 
         clearPlaybackTimers();
+        if (tryAutomaticLineSwitch("当前线路异常，正在自动切换…")) return;
         if (data.type === global.Hls.ErrorTypes.NETWORK_ERROR) {
           showStatus("视频线路连接失败，请重新加载或切换线路。");
         } else {
@@ -334,6 +350,7 @@
 
     var art = new global.Artplayer(options);
     startupTimer = global.setTimeout(function showSlowStartup() {
+      if (tryAutomaticLineSwitch("当前线路启动超时，正在自动切换…")) return;
       showStatus("视频加载较慢，可以重新加载或切换线路。");
     }, STARTUP_TIMEOUT_MS);
 
@@ -370,6 +387,7 @@
     function scheduleStallWarning() {
       if (!hasPlayed || stallTimer) return;
       stallTimer = global.setTimeout(function showStallWarning() {
+        if (tryAutomaticLineSwitch("当前线路持续缓冲，正在自动切换…")) return;
         showStatus("视频缓冲时间较长，可以重新加载或切换线路。");
       }, STALL_TIMEOUT_MS);
     }
@@ -389,6 +407,7 @@
     art.on("video:stalled", scheduleStallWarning);
     art.on("video:error", function onVideoError() {
       clearPlaybackTimers();
+      if (tryAutomaticLineSwitch("当前线路播放失败，正在自动切换…")) return;
       showStatus("视频播放失败，请重新加载或切换线路。");
     });
     art.once("destroy", clearPlaybackTimers);

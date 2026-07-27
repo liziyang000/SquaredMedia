@@ -21,7 +21,9 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
   const buttons = new Map();
   const links = [];
   const lineSwitches = [];
+  const autoLineSwitches = [];
   const playerHandlers = new Map();
+  const timers = new Map();
   const fakeVideo = {
     currentTime: videoCurrentTime,
     duration: videoDuration,
@@ -142,6 +144,10 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
           lineSwitches.push(currentTime);
           return alternateAvailable;
         },
+        autoSwitchToAlternatePlaybackLine(currentTime) {
+          autoLineSwitches.push(currentTime);
+          return alternateAvailable;
+        },
         consumeAlternatePlaybackResume() {
           return resumeTime;
         }
@@ -179,10 +185,14 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
     },
     Artplayer: FakeArtplayer,
     Hls: FakeHls,
-    setTimeout() {
-      return nextTimer++;
+    setTimeout(handler, delay) {
+      const timer = nextTimer++;
+      timers.set(timer, { handler, delay });
+      return timer;
     },
-    clearTimeout() {}
+    clearTimeout(timer) {
+      timers.delete(timer);
+    }
   };
 
   context.window = context;
@@ -195,12 +205,21 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
     statusMessage,
     links,
     lineSwitches,
+    autoLineSwitches,
+    timers,
     fakeArt,
     fakeVideo,
     buttons,
     FakeArtplayer,
     FakeHls
   };
+}
+
+function runTimer(runtime, delay) {
+  const entry = [...runtime.timers.entries()].find(([, timer]) => timer.delay === delay);
+  assert.ok(entry, `Expected a ${delay}ms timer`);
+  runtime.timers.delete(entry[0]);
+  entry[1].handler();
 }
 
 const runtime = createRuntime();
@@ -332,6 +351,35 @@ const alternateRuntime = createRuntime({
 assert.equal(alternateRuntime.buttons.get("lines").textContent, "切换备用线路");
 alternateRuntime.buttons.get("lines").click();
 assert.deepEqual(alternateRuntime.lineSwitches, [37.5], "A manual line switch should carry the current playback position");
+
+const startupFailoverRuntime = createRuntime({
+  alternateAvailable: true,
+  videoCurrentTime: 0
+});
+runTimer(startupFailoverRuntime, 12000);
+assert.deepEqual(startupFailoverRuntime.autoLineSwitches, [0], "A startup timeout should automatically switch to a healthy alternate");
+
+const stallFailoverRuntime = createRuntime({
+  alternateAvailable: true,
+  videoCurrentTime: 48
+});
+stallFailoverRuntime.fakeArt.emit("video:playing");
+stallFailoverRuntime.fakeArt.emit("video:waiting");
+runTimer(stallFailoverRuntime, 8000);
+assert.deepEqual(stallFailoverRuntime.autoLineSwitches, [48], "A sustained playback stall should automatically switch and retain progress");
+
+const fatalFailoverRuntime = createRuntime({
+  alternateAvailable: true,
+  videoCurrentTime: 63
+});
+const fatalPlayM3u8 = fatalFailoverRuntime.FakeArtplayer.options.customType.m3u8;
+fatalPlayM3u8(video, "https://cdn.example/fatal.m3u8", fatalFailoverRuntime.fakeArt);
+const fatalHls = fatalFailoverRuntime.FakeHls.instances[0];
+fatalHls.emit(fatalFailoverRuntime.FakeHls.Events.ERROR, {
+  fatal: true,
+  type: fatalFailoverRuntime.FakeHls.ErrorTypes.NETWORK_ERROR
+});
+assert.deepEqual(fatalFailoverRuntime.autoLineSwitches, [63], "A fatal HLS network error should automatically switch lines");
 
 let fallbackScrolls = 0;
 const fallbackRuntime = createRuntime({

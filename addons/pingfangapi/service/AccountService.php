@@ -194,17 +194,64 @@ class AccountService
 
     public function favoritesPage($userId, $page, $pageSize)
     {
-        $rows = Db::name('Ulog')
-            ->field('ulog_id,ulog_rid,ulog_time')
+        $page = max(1, min(100000, intval($page)));
+        $pageSize = max(1, min(self::PRIVATE_LIST_LIMIT, intval($pageSize)));
+        $total = intval($this->favoritePageQuery($userId)->count('u.ulog_id'));
+        $totalPages = $total > 0 ? intval(ceil($total / $pageSize)) : 0;
+        $page = $totalPages > 0 ? min($page, $totalPages) : 1;
+        if ($total === 0) {
+            return [
+                'items' => [],
+                'page' => 1,
+                'pageSize' => $pageSize,
+                'total' => 0,
+                'totalPages' => 0,
+            ];
+        }
+
+        $rows = $this->favoritePageQuery($userId)
+            ->field('u.ulog_id,u.ulog_rid,u.ulog_time,v.vod_name,v.vod_pic,v.vod_remarks')
+            ->order('u.ulog_time desc,u.ulog_id desc')
+            ->limit(($page - 1) * $pageSize, $pageSize)
+            ->select();
+        $items = [];
+        foreach ($this->rows($rows) as $row) {
+            $items[] = [
+                'recordIds' => [(string) intval(isset($row['ulog_id']) ? $row['ulog_id'] : 0)],
+                'vodId' => (string) intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0),
+                'title' => self::text(isset($row['vod_name']) ? $row['vod_name'] : '', '未命名影片'),
+                'poster' => self::imageUrl(isset($row['vod_pic']) ? $row['vod_pic'] : ''),
+                'remark' => self::text(isset($row['vod_remarks']) ? $row['vod_remarks'] : '', '已收藏'),
+                'createdAt' => self::formatTime(isset($row['ulog_time']) ? $row['ulog_time'] : 0),
+            ];
+        }
+
+        return [
+            'items' => $items,
+            'page' => $page,
+            'pageSize' => $pageSize,
+            'total' => $total,
+            'totalPages' => $totalPages,
+        ];
+    }
+
+    public function favoriteStatus($userId, $vodId)
+    {
+        $vodId = intval($vodId);
+        $row = Db::name('Ulog')
+            ->field('ulog_id')
             ->where([
                 'user_id' => intval($userId),
                 'ulog_mid' => 1,
                 'ulog_type' => 2,
+                'ulog_rid' => $vodId,
             ])
-            ->order('ulog_time desc,ulog_id desc')
-            ->select();
+            ->find();
 
-        return $this->privateListPage($this->favoriteItems($this->rows($rows)), $page, $pageSize);
+        return [
+            'vodId' => (string) $vodId,
+            'favorited' => !empty($row),
+        ];
     }
 
     public function setFavorite($userId, $vodId, $favorite)
@@ -320,8 +367,91 @@ class AccountService
 
     public function historyPage($userId, $page, $pageSize)
     {
-        $rows = Db::name('Ulog')
-            ->field('ulog_id,ulog_rid,ulog_sid,ulog_nid,ulog_point,ulog_duration,ulog_time')
+        $items = [];
+        $seen = [];
+        $excluded = [];
+        $videos = [];
+        $playLists = [];
+        $offset = 0;
+        $batchSize = self::PRIVATE_LIST_LIMIT;
+
+        while (true) {
+            $rows = Db::name('Ulog')
+                ->field('ulog_id,ulog_rid,ulog_sid,ulog_nid,ulog_point,ulog_duration,ulog_time')
+                ->where([
+                    'user_id' => intval($userId),
+                    'ulog_mid' => 1,
+                    'ulog_type' => 4,
+                ])
+                ->where('ulog_sid', 'gt', 0)
+                ->where('ulog_nid', 'gt', 0)
+                ->order('ulog_time desc,ulog_id desc')
+                ->limit($offset, $batchSize)
+                ->select();
+            $rows = $this->rows($rows);
+            if (empty($rows)) {
+                break;
+            }
+
+            $unknownVideoIds = [];
+            foreach ($this->recordIds($rows) as $vodId) {
+                if (!isset($videos[$vodId]) && !isset($excluded[$vodId])) {
+                    $unknownVideoIds[$vodId] = $vodId;
+                }
+            }
+            if (!empty($unknownVideoIds)) {
+                $loadedVideos = $this->videosByIds($unknownVideoIds, true);
+                foreach ($unknownVideoIds as $vodId) {
+                    if (isset($loadedVideos[$vodId])) {
+                        $videos[$vodId] = $loadedVideos[$vodId];
+                    } else {
+                        $excluded[$vodId] = true;
+                    }
+                }
+            }
+
+            foreach ($rows as $row) {
+                $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
+                if (isset($seen[$vodId]) || !isset($videos[$vodId])) {
+                    continue;
+                }
+                if (!isset($playLists[$vodId])) {
+                    $playLists[$vodId] = $this->videoPlayList($videos[$vodId]);
+                }
+                $sourceId = intval(isset($row['ulog_sid']) ? $row['ulog_sid'] : 0);
+                $episodeId = intval(isset($row['ulog_nid']) ? $row['ulog_nid'] : 0);
+                $episodeName = $this->episodeName($videos[$vodId], $sourceId, $episodeId, $playLists[$vodId]);
+                if ($episodeName === null) {
+                    continue;
+                }
+                $recordId = intval(isset($row['ulog_id']) ? $row['ulog_id'] : 0);
+                if ($recordId < 1) {
+                    continue;
+                }
+                $seen[$vodId] = true;
+                $items[] = $this->historyItem($row, $videos[$vodId], $episodeName, [(string) $recordId]);
+            }
+
+            $offset += count($rows);
+            if (count($rows) < $batchSize) {
+                break;
+            }
+        }
+
+        $result = $this->privateListPage($items, $page, $pageSize);
+        if (empty($result['items'])) {
+            return $result;
+        }
+
+        $pageVideoIds = [];
+        foreach ($result['items'] as $item) {
+            $vodId = intval(isset($item['vodId']) ? $item['vodId'] : 0);
+            if ($vodId > 0) {
+                $pageVideoIds[$vodId] = $vodId;
+            }
+        }
+        $recordRows = Db::name('Ulog')
+            ->field('ulog_id,ulog_rid')
             ->where([
                 'user_id' => intval($userId),
                 'ulog_mid' => 1,
@@ -329,16 +459,14 @@ class AccountService
             ])
             ->where('ulog_sid', 'gt', 0)
             ->where('ulog_nid', 'gt', 0)
+            ->where('ulog_rid', 'in', array_values($pageVideoIds))
             ->order('ulog_time desc,ulog_id desc')
             ->select();
-        $rows = $this->rows($rows);
-        $videos = $this->videosByIds($this->recordIds($rows), true);
         $recordIdsByVideo = [];
-
-        foreach ($rows as $row) {
+        foreach ($this->rows($recordRows) as $row) {
             $recordId = intval(isset($row['ulog_id']) ? $row['ulog_id'] : 0);
             $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
-            if ($recordId < 1 || !isset($videos[$vodId])) {
+            if ($recordId < 1 || !isset($pageVideoIds[$vodId])) {
                 continue;
             }
             if (!isset($recordIdsByVideo[$vodId])) {
@@ -346,30 +474,15 @@ class AccountService
             }
             $recordIdsByVideo[$vodId][] = (string) $recordId;
         }
-
-        $items = [];
-        $seen = [];
-        $playLists = [];
-        foreach ($rows as $row) {
-            $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
-            if (isset($seen[$vodId]) || !isset($recordIdsByVideo[$vodId])) {
-                continue;
+        foreach ($result['items'] as &$item) {
+            $vodId = intval(isset($item['vodId']) ? $item['vodId'] : 0);
+            if (!empty($recordIdsByVideo[$vodId])) {
+                $item['recordIds'] = $recordIdsByVideo[$vodId];
             }
-            $video = $videos[$vodId];
-            if (!isset($playLists[$vodId])) {
-                $playLists[$vodId] = $this->videoPlayList($video);
-            }
-            $sourceId = intval(isset($row['ulog_sid']) ? $row['ulog_sid'] : 0);
-            $episodeId = intval(isset($row['ulog_nid']) ? $row['ulog_nid'] : 0);
-            $episodeName = $this->episodeName($video, $sourceId, $episodeId, $playLists[$vodId]);
-            if ($episodeName === null) {
-                continue;
-            }
-            $seen[$vodId] = true;
-            $items[] = $this->historyItem($row, $video, $episodeName, $recordIdsByVideo[$vodId]);
         }
+        unset($item);
 
-        return $this->privateListPage($items, $page, $pageSize);
+        return $result;
     }
 
     public function resumePosition($userId, $vodId, $sourceId, $episodeId)
@@ -785,6 +898,22 @@ class AccountService
         return $items;
     }
 
+    private function favoritePageQuery($userId)
+    {
+        $query = Db::name('Ulog')
+            ->alias('u')
+            ->join('__VOD__ v', 'v.vod_id = u.ulog_rid')
+            ->where([
+                'u.user_id' => intval($userId),
+                'u.ulog_mid' => 1,
+                'u.ulog_type' => 2,
+                'v.vod_status' => 1,
+                'v.vod_recycle_time' => 0,
+            ]);
+
+        return $this->applyVodListAccess($query, 'v.type_id');
+    }
+
     private function historyItem(array $row, array $video, $episodeName, array $recordIds)
     {
         $vodId = intval(isset($row['ulog_rid']) ? $row['ulog_rid'] : 0);
@@ -853,7 +982,7 @@ class AccountService
         return $out;
     }
 
-    private function applyVodListAccess($query)
+    private function applyVodListAccess($query, $typeField = 'type_id')
     {
         if (intval(isset($GLOBALS['config']['app']['popedom_filter']) ? $GLOBALS['config']['app']['popedom_filter'] : 0) !== 1) {
             return $query;
@@ -866,7 +995,7 @@ class AccountService
         $blocked = array_values(array_filter(array_map('intval', explode(',', (string) mac_get_popedom_filter($groupType))), function ($id) {
             return $id > 0;
         }));
-        return empty($blocked) ? $query : $query->where('type_id', 'not in', $blocked);
+        return empty($blocked) ? $query : $query->where($typeField, 'not in', $blocked);
     }
 
     private function videoPlayList(array $video)

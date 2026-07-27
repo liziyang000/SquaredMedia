@@ -2372,10 +2372,11 @@ textarea:focus-visible,
 
 .rank-item em {
   display: block;
+  min-width: 0;
+  overflow: hidden;
   line-height: 1.35;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rank-meta {
@@ -2621,16 +2622,15 @@ textarea:focus-visible,
   grid-row: 2;
   align-self: start;
   display: block;
-  overflow: visible;
+  min-width: 0;
+  overflow: hidden;
   color: var(--text);
   font-size: 16px;
   font-weight: 850;
   line-height: 1.35;
   padding: 0 2px;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-shelf-body small {
@@ -2638,15 +2638,14 @@ textarea:focus-visible,
   grid-row: 3;
   align-self: end;
   display: block;
-  overflow: visible;
+  min-width: 0;
+  overflow: hidden;
   color: rgba(244, 240, 232, 0.6);
   font-size: 13px;
   line-height: 1.35;
   padding: 0 0 1px 2px;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  white-space: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-shelf-score {
@@ -2866,19 +2865,21 @@ textarea:focus-visible,
 }
 
 .vod-card strong {
-  display: block;
+  display: -webkit-box;
+  height: 2.7em;
   min-width: 0;
-  overflow: visible;
+  overflow: hidden;
   min-height: 2.7em;
   margin: 10px 2px 0;
   color: var(--text);
   font-size: 16px;
   font-weight: 800;
   line-height: 1.35;
-  text-overflow: clip;
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .card-meta {
@@ -6516,8 +6517,12 @@ body::before {
 
 .rank-body strong,
 .hero-rank .rank-item:first-of-type strong {
+  min-width: 0;
+  overflow: hidden;
   font-size: 14px;
   line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rank-meta {
@@ -6752,10 +6757,13 @@ body::before {
 }
 
 .home-continue-body strong {
+  min-width: 0;
+  overflow: hidden;
   color: rgba(246, 248, 255, 0.94);
   font-size: 14px;
   line-height: 1.4;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-continue-body small {
@@ -6927,14 +6935,29 @@ body::before {
 }
 
 .vod-card .card-meta {
+  min-width: 0;
+  overflow: hidden;
+  flex-wrap: nowrap;
   padding: 5px 2px 0;
 }
 
 .vod-card .card-meta span {
+  min-width: 0;
+  overflow: hidden;
   border: 0;
   background: transparent;
   color: rgba(203, 210, 232, 0.72);
   padding: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vod-card .card-meta span:first-child {
+  flex: 1 1 auto;
+}
+
+.vod-card .card-meta span:last-child {
+  flex: 0 0 auto;
 }
 
 .vod-card .card-meta span + span::before {

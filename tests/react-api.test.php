@@ -204,6 +204,7 @@ $csrfHeader = ['X-CSRF-Token' => $csrf];
 foreach (['account', 'favorites', 'history', 'devices'] as $privateAction) {
     $assertEnvelope($request('GET', $privateAction), 401, 'Anonymous ' . $privateAction);
 }
+$assertEnvelope($request('GET', 'favorite.status', [], ['vod_id' => '1']), 401, 'Anonymous favorite status');
 $assertEnvelope($request('POST', 'login', ['username' => 'demo', 'password' => 'demo123']), 403, 'Login without CSRF');
 $assertEnvelope(
     $request('POST', 'login', ['username' => 'demo', 'password' => 'wrong-password'], [], $csrfHeader),
@@ -232,12 +233,17 @@ $assertSame([], $session[REACT_API_SESSION_KEY]['favorites'], 'Rejected favorite
 $assertEnvelope($request('POST', 'favorite', ['vodId' => [], 'favorite' => true], [], $csrfHeader), 422, 'Favorite with a non-scalar video ID');
 $favoriteResult = $assertEnvelope($request('POST', 'favorite', $favoriteBody, [], $csrfHeader), 200, 'Favorite add');
 $assertSame(['vodId' => '1', 'favorited' => true], $favoriteResult, 'Favorite writes must report the persisted state.');
+$favoriteStatus = $assertEnvelope($request('GET', 'favorite.status', [], ['vod_id' => '1']), 200, 'Favorite status after add');
+$assertSame(['vodId' => '1', 'favorited' => true], $favoriteStatus, 'Favorite status must read one persisted favorite.');
+$assertEnvelope($request('GET', 'favorite.status'), 400, 'Favorite status without video id');
 $assertEnvelope($request('POST', 'favorite', $favoriteBody, [], $csrfHeader), 409, 'Duplicate favorite');
 $favorites = $assertEnvelope($request('GET', 'favorites'), 200, 'Favorites after add');
 $assertSame(1, count($favorites['items']), 'A successful favorite write must be observable through the getter.');
 $assertSame(['recordIds', 'vodId', 'title', 'poster', 'remark', 'createdAt'], array_keys($favorites['items'][0]), 'Favorite entries must match the React DTO.');
 $assertSame(['items'], array_keys($favorites), 'Legacy favorites must retain the unpaginated response shape.');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '1', 'favorite' => false], [], $csrfHeader), 200, 'Favorite remove');
+$removedFavoriteStatus = $assertEnvelope($request('GET', 'favorite.status', [], ['vod_id' => '1']), 200, 'Favorite status after remove');
+$assertSame(['vodId' => '1', 'favorited' => false], $removedFavoriteStatus, 'Favorite status must reflect removal.');
 $assertSame([], $assertEnvelope($request('GET', 'favorites'), 200, 'Favorites after remove')['items'], 'Favorite removal must persist.');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '1', 'favorite' => true], [], $csrfHeader), 200, 'Favorite add before batch delete');
 $assertEnvelope($request('POST', 'favorite', ['vodId' => '2', 'favorite' => true], [], $csrfHeader), 200, 'Second favorite add before batch delete');

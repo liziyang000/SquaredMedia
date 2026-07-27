@@ -89,6 +89,7 @@ export function AccountProvider({ children }: PropsWithChildren) {
       logout: recoverUnauthorized(baseApi.logout, queryClient),
       getFavorites: recoverUnauthorized(baseApi.getFavorites, queryClient),
       getFavoritesPage: recoverUnauthorized(baseApi.getFavoritesPage, queryClient),
+      getFavoriteStatus: recoverUnauthorized(baseApi.getFavoriteStatus, queryClient),
       setFavorite: recoverUnauthorized(baseApi.setFavorite, queryClient),
       deleteFavorites: recoverUnauthorized(baseApi.deleteFavorites, queryClient),
       getHistory: recoverUnauthorized(baseApi.getHistory, queryClient),

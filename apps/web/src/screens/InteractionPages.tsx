@@ -333,18 +333,13 @@ export function VodInteractions({
   const account = useAccount();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [rating, setRating] = useState(String(Math.max(1, Math.round(score))));
-  const [displayScore, setDisplayScore] = useState(score);
-  const [displayScoreCount, setDisplayScoreCount] = useState(scoreCount);
   const [displayLikes, setDisplayLikes] = useState(likes);
   const [displayDislikes, setDisplayDislikes] = useState(dislikes);
   const [pending, setPending] = useState(false);
   useEffect(() => {
-    setDisplayScore(score);
-    setDisplayScoreCount(scoreCount);
     setDisplayLikes(likes);
     setDisplayDislikes(dislikes);
-  }, [vodId, score, scoreCount, likes, dislikes]);
+  }, [vodId, likes, dislikes]);
 
   const run = async <T extends { message: string }>(operation: () => Promise<T>, onSuccess?: (result: T) => void) => {
     setMessage("");
@@ -365,34 +360,9 @@ export function VodInteractions({
     <div className="detail-interactions" aria-label="影片互动">
       <div className="score-summary">
         <span>评分</span>
-        <strong>{displayScore.toFixed(1)}</strong>
-        <em>{displayScoreCount > 0 ? `${displayScoreCount} 人评分` : "暂无评分"}</em>
+        <strong>{score.toFixed(1)}</strong>
+        <em>{scoreCount > 0 ? `${scoreCount} 人评分` : "暂无评分"}</em>
       </div>
-      <label className="rating-control">
-        <span>我的评分</span>
-        <select value={rating} onChange={(event) => setRating(event.currentTarget.value)}>
-          {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
-            <option key={value} value={value}>
-              {value} 分
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            void run(
-              () => account.api.submitRating({ vodId, score: Number(rating) }),
-              (result) => {
-                setDisplayScore(result.data.average);
-                setDisplayScoreCount(result.data.count);
-              }
-            )
-          }
-        >
-          评分
-        </button>
-      </label>
       <div className="digg-panel">
         <button
           type="button"
@@ -433,15 +403,18 @@ export function VodInteractions({
 export function VodFavoriteButton({ vodId }: { vodId: string }) {
   const account = useAccount();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const favorites = useQuery({
-    queryKey: ["account", "favorites"],
-    queryFn: () => account.api.getFavorites(),
+  const favoriteStatus = useQuery({
+    queryKey: ["account", "favorite-status", vodId],
+    queryFn: () => account.api.getFavoriteStatus(vodId),
     enabled: account.session.authenticated
   });
-  const favorited = favorites.data?.some((item) => item.vodId === vodId) ?? false;
+  const favorited = favoriteStatus.data?.favorited ?? false;
+  const statusError =
+    account.session.authenticated && favoriteStatus.error ? (favoriteStatus.error instanceof Error ? favoriteStatus.error.message : "收藏状态加载失败") : "";
 
   return (
     <div className="detail-favorite-action">
@@ -461,18 +434,19 @@ export function VodFavoriteButton({ vodId }: { vodId: string }) {
             .setFavorite({ vodId, favorite: true })
             .then(async (result) => {
               setMessage(result.message);
-              await favorites.refetch();
+              queryClient.setQueryData(["account", "favorite-status", vodId], result.data);
+              await queryClient.invalidateQueries({ queryKey: ["account", "favorites"] });
             })
             .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : "收藏失败"))
             .finally(() => setPending(false));
         }}
-        disabled={pending || (account.session.authenticated && favorites.isPending) || favorited}
+        disabled={pending || (account.session.authenticated && (favoriteStatus.isPending || favoriteStatus.isError)) || favorited}
       >
-        {pending ? "收藏中…" : favorited ? "已收藏" : "收藏"}
+        {pending ? "收藏中…" : account.session.authenticated && favoriteStatus.isPending ? "检查中…" : favorited ? "已收藏" : "收藏"}
       </button>
-      {(message || error) && (
-        <span className={`favorite-feedback${error ? " is-error" : ""}`} role="status">
-          {error || message}
+      {(message || error || statusError) && (
+        <span className={`favorite-feedback${error || statusError ? " is-error" : ""}`} role="status">
+          {error || statusError || message}
         </span>
       )}
     </div>

@@ -121,6 +121,48 @@ test("catalog filters, playback completion and system routes keep their behavior
   expect(browserErrors.filter((error) => !error.includes("status of 404"))).toEqual([]);
 });
 
+test("detail poster matches the desktop panel height without manual rating controls", async ({ page }) => {
+  await blockExternalResources(page);
+  const browserErrors = observeBrowserErrors(page);
+
+  for (const width of [761, 920, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/vod/1");
+    await expect(page.getByRole("heading", { name: "云端回声", exact: true })).toBeVisible();
+    await expect(page.locator(".score-summary")).toContainText("评分8.8");
+    await expect(page.locator(".detail-poster")).toHaveClass(/is-image-missing/);
+    expect(await page.locator(".detail-poster").evaluate((element) => getComputedStyle(element).backgroundImage)).toContain("lazyload.png");
+    await expect(page.getByText("我的评分", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "评分", exact: true })).toHaveCount(0);
+
+    const poster = await page.locator(".detail-poster").boundingBox();
+    const panel = await page.locator(".detail-panel").boundingBox();
+    expect(poster).not.toBeNull();
+    expect(panel).not.toBeNull();
+    expect(Math.abs((poster?.height ?? 0) - (panel?.height ?? 0))).toBeLessThanOrEqual(1);
+    await expectNoOverflow(page);
+
+    if (width === 920) {
+      await page.locator(".detail-panel > *").evaluateAll((elements) => elements.forEach((element) => element.setAttribute("hidden", "")));
+      const compactPoster = await page.locator(".detail-poster").boundingBox();
+      const compactPanel = await page.locator(".detail-panel").boundingBox();
+      expect(Math.abs((compactPoster?.height ?? 0) - (compactPanel?.height ?? 0))).toBeLessThanOrEqual(1);
+    }
+  }
+
+  for (const width of [390, 760]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/vod/1");
+    await expect(page.getByRole("heading", { name: "云端回声", exact: true })).toBeVisible();
+    const poster = await page.locator(".detail-poster").boundingBox();
+    expect(poster).not.toBeNull();
+    expect(Math.abs((poster?.height ?? 0) / (poster?.width ?? 1) - 1.5)).toBeLessThanOrEqual(0.01);
+    await expectNoOverflow(page);
+  }
+
+  expect(browserErrors).toEqual([]);
+});
+
 test("account writes cover selection, deletion, comments, devices and logout", async ({ page }) => {
   await blockExternalResources(page);
   const browserErrors = observeBrowserErrors(page);

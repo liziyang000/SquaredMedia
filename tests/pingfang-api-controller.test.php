@@ -180,7 +180,43 @@ namespace {
 
     function mac_param_url()
     {
-        return ['id' => 42, 'sid' => 1, 'nid' => 1];
+        return isset($GLOBALS['pingfang_test_route_param'])
+            ? $GLOBALS['pingfang_test_route_param']
+            : ['id' => 42, 'sid' => 1, 'nid' => 1];
+    }
+
+    function url($route, array $params = [])
+    {
+        if ((string) $route === 'verify/index') {
+            return '';
+        }
+        $path = '/index.php/' . trim((string) $route, '/');
+        foreach ($params as $name => $value) {
+            $path .= '/' . rawurlencode((string) $name) . '/' . rawurlencode((string) $value);
+        }
+        return $path . '.html';
+    }
+
+    function cache($key, $value = '__pingfang_cache_read__', $ttl = null)
+    {
+        $key = (string) $key;
+        if ($value === '__pingfang_cache_read__') {
+            $entry = isset($GLOBALS['pingfang_test_cache'][$key]) ? $GLOBALS['pingfang_test_cache'][$key] : null;
+            if (!is_array($entry) || (isset($entry['expiresAt']) && intval($entry['expiresAt']) < time())) {
+                unset($GLOBALS['pingfang_test_cache'][$key]);
+                return null;
+            }
+            return isset($entry['value']) ? $entry['value'] : null;
+        }
+        if ($value === null) {
+            unset($GLOBALS['pingfang_test_cache'][$key]);
+            return null;
+        }
+        $GLOBALS['pingfang_test_cache'][$key] = [
+            'value' => $value,
+            'expiresAt' => $ttl === null ? null : time() + intval($ttl),
+        ];
+        return true;
     }
 
     function mac_play_list()
@@ -394,6 +430,8 @@ namespace {
     ];
     $GLOBALS['pingfang_test_vod_result'] = ['code' => 1, 'info' => $baseInfo];
     $GLOBALS['pingfang_test_sessions'] = [];
+    $GLOBALS['pingfang_test_cache'] = [];
+    $GLOBALS['pingfang_test_route_param'] = ['id' => 42, 'sid' => 1, 'nid' => 1];
     $GLOBALS['pingfang_test_detail_throws'] = false;
     $GLOBALS['pingfang_test_device_logout_throws'] = false;
     $GLOBALS['user'] = [];
@@ -453,6 +491,55 @@ namespace {
     $streamRequestId = $assertRequestId($stream, 'Stream responses must include a request ID.');
     $assertSame(false, hash_equals($playerRequestId, $streamRequestId), 'Each controller request must receive a new server-generated request ID.');
     $assertSame(true, in_array('check_user_popedom', \app\common\controller\All::$calls, true), 'Media redirects must repeat the native playback permission check.');
+
+    $ticketService = new \addons\pingfangapi\service\ContentService(static function () {
+        return ['code' => 1, 'trysee' => 0];
+    });
+    $ticketPlayback = $ticketService->playback(42, 1, 1);
+    $assertSame(
+        1,
+        preg_match('#/ticket/([a-f0-9]{64})\\.html$#D', (string) $ticketPlayback['url'], $ticketMatches),
+        'Authorized playback must issue a short-lived opaque ticket for native players that do not retain the browser session.'
+    );
+    $GLOBALS['pingfang_test_route_param'] = [
+        'id' => 42,
+        'sid' => 1,
+        'nid' => 1,
+        'ticket' => $ticketMatches[1],
+    ];
+    \app\common\controller\All::$access = ['code' => 3001, 'trysee' => 0, 'msg' => '缺少网页会话'];
+    \app\common\controller\All::$calls = [];
+    $nativeStream = $controller->stream();
+    $assertSame(302, $nativeStream['status'], 'A valid playback ticket must bridge the authorized browser request to a cookie-less native player request.');
+    $assertSame(
+        'https://media.example/video/index.m3u8?token=secret',
+        $nativeStream['headers']['Location'],
+        'Ticket redemption must preserve the exact authorized MacCMS media URL.'
+    );
+    $assertSame(
+        false,
+        in_array('check_user_popedom', \app\common\controller\All::$calls, true),
+        'Ticket redemption must use the already-authorized media grant instead of re-running a missing browser session.'
+    );
+
+    $GLOBALS['pingfang_test_route_param']['ticket'] = str_repeat('f', 64);
+    $forgedTicketStream = $controller->stream();
+    $assertSame(403, $forgedTicketStream['status'], 'A forged playback ticket must fail closed.');
+    $assertSame(false, isset($forgedTicketStream['headers']['Location']), 'Forged ticket failures must not expose the media URL.');
+
+    $GLOBALS['pingfang_test_route_param']['ticket'] = $ticketMatches[1];
+    $GLOBALS['pingfang_test_route_param']['nid'] = 2;
+    $otherEpisodeStream = $controller->stream();
+    $assertSame(403, $otherEpisodeStream['status'], 'A playback ticket must not be redeemable for another episode.');
+    $assertSame(false, isset($otherEpisodeStream['headers']['Location']), 'Cross-episode ticket failures must not expose the media URL.');
+
+    $GLOBALS['pingfang_test_route_param']['nid'] = 1;
+    $ticketCacheKey = 'pingfangapi_stream_ticket_v1_' . hash('sha256', $ticketMatches[1]);
+    $GLOBALS['pingfang_test_cache'][$ticketCacheKey]['value']['expiresAt'] = time() - 1;
+    $expiredTicketStream = $controller->stream();
+    $assertSame(403, $expiredTicketStream['status'], 'An expired playback ticket must fail closed.');
+    $assertSame(false, isset($expiredTicketStream['headers']['Location']), 'Expired ticket failures must not expose the media URL.');
+    $GLOBALS['pingfang_test_route_param'] = ['id' => 42, 'sid' => 1, 'nid' => 1];
 
     \app\common\controller\All::$access = ['code' => 3002, 'trysee' => 5, 'msg' => '允许试看'];
     $trialStream = $controller->stream();

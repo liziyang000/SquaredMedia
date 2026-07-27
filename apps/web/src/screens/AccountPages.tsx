@@ -314,10 +314,16 @@ export function FavoritesPage() {
     mutationFn: (input: { recordIds?: string[]; all?: boolean }) => account.api.deleteFavorites(input),
     onError: async () => {
       setSelected(new Set());
-      await queryClient.invalidateQueries({
-        queryKey: ["account", "favorites"],
-        refetchType: "active"
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["account", "favorites"],
+          refetchType: "active"
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["account", "favorite-status"],
+          refetchType: "none"
+        })
+      ]);
     },
     onSuccess: async (result, input) => {
       setSelected(new Set());
@@ -325,6 +331,10 @@ export function FavoritesPage() {
       await queryClient.invalidateQueries({
         queryKey: ["account", "favorites"],
         refetchType: nextPage === page ? "active" : "none"
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["account", "favorite-status"],
+        refetchType: "none"
       });
       if (nextPage !== page) void navigate(`/account/favorites?page=${nextPage}`, { replace: true });
     }

@@ -1253,6 +1253,7 @@ function react_api_handle(array &$session, array $catalog, string $method, array
         'comments' => ['GET'],
         'account' => ['GET'],
         'favorites' => ['GET', 'POST'],
+        'favorite.status' => ['GET'],
         'favorite' => ['POST'],
         'favorites.delete' => ['POST'],
         'history' => ['GET', 'POST'],
@@ -1319,6 +1320,19 @@ function react_api_handle(array &$session, array $catalog, string $method, array
         return match ($action) {
             'account' => react_api_success(react_api_account($state), '账户加载成功'),
             'favorites' => react_api_private_list_response($state['favorites'], $query, 'createdAt', '收藏加载成功'),
+            'favorite.status' => (function () use ($state, $query): array {
+                if (array_diff(array_keys($query), ['action', 'vod_id']) !== []) {
+                    return react_api_error(400, '存在未支持的查询参数');
+                }
+                $vodId = react_api_identifier_value($query['vod_id'] ?? null);
+                if ($vodId === null) {
+                    return react_api_error(400, '缺少影片参数');
+                }
+                return react_api_success(
+                    ['vodId' => $vodId, 'favorited' => isset($state['favorites'][$vodId])],
+                    '收藏状态加载成功'
+                );
+            })(),
             'history' => react_api_private_list_response(react_api_fold_history_items($state['history'], $catalog), $query, 'watchedAt', '播放记录加载成功', true),
             'devices' => react_api_success(['maxDevices' => 3, 'items' => array_values($state['devices'])], '登录设备加载成功'),
             default => react_api_error(404, '接口不存在'),

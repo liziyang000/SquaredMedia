@@ -180,6 +180,16 @@ npm run deploy:web
 
 Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；两个 PHP 入口只检查真实的 `index.php` 或 `api.php` 文件，并显式把 `SCRIPT_NAME` 与 `PATH_INFO` 传给 FastCGI，保证插件 action 和 provider 路由不会被完整 URI 的物理文件检查误拦。旧播放页 `/index.php/vod/play/id/<vod_id>/sid/<sid>/nid/<nid>.html` 和 rewrite `/vodplay/<vod_id>-<sid>-<nid>.html` 的 GET/HEAD 会在通用 PHP 规则之前交给同一条 Next 迁移规则并返回单跳 `301`，因此两种别名共享 1～2147483647 的正整数校验。数字形态旧地址的 POST 等其他方法继续进入 MacCMS PHP；非数字动态地址仍由 PHP 处理，非数字 rewrite 地址由 Next 返回 404，避免把写请求或无效标识误重定向。`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
 
+测试域名的夸克兼容凭证由 Next 路由隔离承载，不修改共享 MacCMS PHP：
+`POST /api/native-playback-ticket` 只接受 `react.ping2.my` 的同源 JSON，并且只允许
+现有 `pingfangapi/stream/id/.../sid/.../nid/...` 路径。Next 通过服务器回环请求把
+浏览器 Cookie 和 Nginx 提供的客户端 IP 交给原 `stream` 再授权，只有得到 302 后才
+在当前 Node 进程内保存 120 秒媒体凭证；无 Cookie 的
+`GET /api/native-playback-stream/<ticket>` 校验后返回不可缓存的 302。凭证最多
+同时保留 5000 条，服务重启或版本切换会立即失效，不写数据库、文件或共享 PHP
+缓存。生产 API 将来若直接返回服务端 ticket，React 会直接使用，不再套一层
+staging ticket。
+
 回滚：
 
 ```bash

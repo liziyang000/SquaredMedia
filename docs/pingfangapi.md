@@ -49,10 +49,10 @@ flowchart LR
     Content --> Core["MacCMS 原生模型与函数"]
     Account --> Core
     Core --> DB["MacCMS 数据库与缓存"]
-    Content -->|"仅返回同源媒体路径"| Stream["/index.php/pingfangapi/stream/..."]
-    Stream --> Native["再次执行 MacCMS 原生播放权限"]
-    Native -->|"HTTP 302"| Media["直连 HLS / MP4"]
-    Media --> Artplayer["React Artplayer + hls.js"]
+    Content -->|"仅返回同源短时媒体凭证"| Stream["/index.php/pingfangapi/stream/..."]
+    Stream --> Grant["校验站点、地区与短时凭证\n无凭证时回退原生播放权限"]
+    Grant -->|"HTTP 302"| Media["直连 HLS / MP4"]
+    Media --> Player["React Artplayer / 夸克原生播放器"]
 ```
 
 一次 JSON 请求的主要流程是：
@@ -65,9 +65,10 @@ flowchart LR
 5. 控制器统一返回 JSON envelope，并禁止共享 HTTP 缓存。
 
 浏览器先请求 `action=playback`。该 action 验证站点、地区、剧集和当前播放权限，
-完整授权后返回同源 `stream` 路径和媒体类型。Artplayer/HLS 请求 `stream` 时，
-控制器再次执行相同权限判断，成功后 302 到实际媒体；权限、试看或线路不支持时
-直接返回 4xx/5xx，不加载 iframe。
+完整授权后返回带 120 秒随机凭证的同源 `stream` 路径和媒体类型。Artplayer/HLS
+或夸克原生播放器请求 `stream` 时，控制器重新检查站点和地区，并校验该凭证只对应
+当前影片、线路和剧集，成功后 302 到实际媒体。无凭证的旧地址仍按当前会话再次执行
+播放权限；权限、试看、凭证过期或线路不支持时直接返回 4xx/5xx，不加载 iframe。
 
 ## 3. 目录结构
 
@@ -90,7 +91,7 @@ flowchart LR
 /index.php/pingfangapi/index?action=<action>
 ```
 
-当前共有 27 个 action：14 个 GET 和 13 个 POST。action 必须精确匹配白名单；
+当前共有 28 个 action：15 个 GET 和 13 个 POST。action 必须精确匹配白名单；
 未知 action 返回 404，Method 不匹配返回 405，并携带 `Allow` 响应头。
 
 ### 4.2 受控媒体入口与原生回滚入口
@@ -98,12 +99,15 @@ flowchart LR
 React 使用：
 
 ```text
-/index.php/pingfangapi/stream/id/<vod_id>/sid/<source_id>/nid/<episode_id>.html
+/index.php/pingfangapi/stream/id/<vod_id>/sid/<source_id>/nid/<episode_id>/ticket/<opaque_ticket>.html
 ```
 
-该入口不使用 JSON envelope。它再次检查站点、地区、影片、剧集、播放权限、密码和
-版权状态；成功时返回私有、不可缓存的 302，`Location` 是 MacCMS 当前剧集的媒体
-地址。React 不得直接拼接该路径，应使用 `action=playback` 返回的 `url`。
+该入口不使用 JSON envelope。短时凭证由已经通过影片、剧集、播放权限、密码和版权
+检查的 `playback` 请求生成，只在服务端缓存 120 秒，并绑定当前 `id/sid/nid`；
+`stream` 重新检查站点和地区后校验凭证。这样夸克切到不携带网页 Cookie 的原生
+播放器时仍能完成授权交接。成功时返回私有、不可缓存的 302，`Location` 是 MacCMS
+当前剧集的媒体地址。React 不得拼接或持久化该路径，应使用 `action=playback`
+每次返回的 `url`。不带 `ticket` 的旧地址保留兼容，并继续按当前会话完整鉴权。
 
 原 MacCMS HTML 播放入口仍保留供原生模板和回滚使用：
 
@@ -880,7 +884,7 @@ localStorage 或 React Query 缓存。错误密码返回 422，过于频繁返�
 | 项目         | 值                                                    |
 | ------------ | ----------------------------------------------------- |
 | 方法与地址   | `GET /index.php/pingfangapi/index?action=playback`    |
-| 登录         | 不要求；JSON 与 `stream` 都执行当前会话的播放权限校验 |
+| 登录         | 不要求；JSON 执行当前会话播放权限，`stream` 校验对应短时凭证 |
 | `vod_id`     | 必填，影片 ID                                         |
 | `source_id`  | 必填，来自 `detail.video.episodes[].sourceId`         |
 | `episode_id` | 必填，来自 `detail.video.episodes[].id`               |
@@ -912,7 +916,7 @@ JSON 返回示例：
       }
     ],
     "kind": "hls",
-    "url": "/index.php/pingfangapi/stream/id/371745/sid/1/nid/1.html",
+    "url": "/index.php/pingfangapi/stream/id/371745/sid/1/nid/1/ticket/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef.html",
     "mimeType": "application/vnd.apple.mpegurl",
     "playerHints": {
       "startupHintAfterMs": 5000,
@@ -953,10 +957,14 @@ WebM、Ogg、M4V 和 MOV 使用 Artplayer 原生视频路径。仅允许试看�
 - `ps=1`：线路依赖第三方网页解析。通用解析页不能安全地当作媒体 URL，`playback`
   返回 503，前端提示切换线路；不会偷偷回退 iframe。
 
-通过后使用 `url('pingfangapi/stream', ... )` 生成同源路径。`stream` 会重新执行
-同一播放权限并返回 302；它拒绝控制字符、非 HTTP(S) scheme 和非法地址，防止响应
-头注入。仅有试看权限时 `playback` 和 `stream` 都返回 403，不返回片源。原
-`player` HTML 入口保留，但只服务 MacCMS 原生模板与回滚。
+通过后生成 256 位随机 `ticket`，在 MacCMS 缓存中保存 120 秒，并使用
+`url('pingfangapi/stream', ... )` 生成同源路径。`stream` 校验凭证未过期且
+`id/sid/nid` 完全一致后返回 302；伪造、过期或挪用到其他剧集均返回 403。凭证
+只保存已授权的媒体描述，不包含在普通列表或详情响应中；缓存不可用时回退到不带
+凭证的旧路径，并在 `stream` 再次执行当前会话权限。两条路径都拒绝控制字符、
+非 HTTP(S) scheme 和非法地址，防止响应头注入。仅有试看权限时 `playback` 和
+`stream` 都返回 403，不返回片源。原 `player` HTML 入口保留，但只服务 MacCMS
+原生模板与回滚。
 
 前端使用：
 
@@ -971,8 +979,8 @@ envelope。原 `player` HTML 入口仍可能渲染原生受限页，但 React �
 
 主要失败：缺少参数返回 400；ID 格式错误返回 422；影片、线路或剧集不存在返回
 404；播放权限、密码或版权限制返回 403；`ps=1` 第三方解析线路、非法媒体地址或
-无法生成安全同源 `stream` 路径时返回 503。JSON 成功后 `stream` 仍会再次授权，
-用于阻止描述符取得后会话状态发生变化的请求。
+无法生成安全同源 `stream` 路径时返回 503。凭证无效、过期或与剧集不匹配时
+`stream` 返回 403；不带凭证的兼容路径仍会再次执行当前会话授权。
 
 ### 6.11 `comments`
 
@@ -1215,8 +1223,9 @@ ulog_type = 2
 GET /index.php/pingfangapi/index?action=favorites&page=1&page_size=24
 ```
 
-`page` 范围为 1～100000，`page_size` 范围为 1～100。分页响应在过滤不可见影片后
-计算 `total`，请求超过末页时收敛到最后一页；空列表返回
+`page` 范围为 1～100000，`page_size` 范围为 1～100。分页查询先联表过滤不可见
+影片，再在数据库中计算 `total` 并以 `offset/limit` 只读取当前页；请求超过末页时
+收敛到最后一页；空列表返回
 `page=1,total=0,totalPages=0`。不传分页参数时保留旧 `{items}` 响应和最多 100 条
 上限，供旧 React 发布包回滚。
 
@@ -1254,6 +1263,26 @@ GET /index.php/pingfangapi/index?action=favorites&page=1&page_size=24
   "totalPages": 0
 }
 ```
+
+#### `favorite.status`：读取单片收藏状态
+
+| 项目       | 值                                                                     |
+| ---------- | ---------------------------------------------------------------------- |
+| 方法与地址 | `GET /index.php/pingfangapi/index?action=favorite.status&vod_id=<id>` |
+| 登录       | 必须登录                                                               |
+
+该接口只按“当前用户 + `ulog_mid=1` + `ulog_type=2` + `vod_id`”检查一条收藏状态，
+不下载收藏列表。详情页使用它判断收藏按钮：
+
+```json
+{
+  "code": 1,
+  "msg": "收藏状态加载成功",
+  "data": { "vodId": "371745", "favorited": true }
+}
+```
+
+`vod_id` 必须是正整数。未登录返回 401；缺少参数返回 400；参数格式错误返回 422。
 
 #### `favorite`：设置单片收藏状态
 
@@ -1393,7 +1422,10 @@ ulog_nid > 0
 计算，客户端不能通过 `history.save` 直接提交该状态。
 和收藏列表相同，影片会按启用状态、回收状态和分类黑名单过滤，但列表读取不会替代
 后续详情权限和受控媒体入口校验。分页模式必须先完成有效剧集校验、按影片折叠和
-全部 `recordIds` 聚合，再切当前页，因此 `total` 是可展示影片数，不是原始 Ulog 行数。
+排序，因此 `total` 是可展示影片数，不是原始 Ulog 行数。服务端以每批 100 条扫描
+候选 Ulog，避免一次返回无界结果集；确定最终当前页后，才为该页影片补查并聚合全部
+`recordIds`。由于剧集有效性依赖 PHP 解析 `vod_play_url`，准确页码模式仍会遍历全部
+候选记录，并不等同于数据库直接 `offset/limit`。
 分页元数据、超页与空列表规则和收藏一致；`limit` 或分页参数越界返回 422，未登录返回
 401。不传分页参数时继续返回最多 100 个折叠项。
 
@@ -2117,7 +2149,8 @@ await fetch("/index.php/pingfangapi/index?action=favorite", {
 | `playback`         | `contentApi.getPlayback(vodId, sourceId, episodeId)` | 生产结果必须是同源受控媒体描述符                  |
 | `session`          | `accountApi.getSession()`                            | 应在应用启动时首先调用                            |
 | `comments`         | `accountApi.getComments(vodId, mid?)`                | 生产只支持 `mid=1`                                |
-| `favorites`        | `accountApi.getFavorites()`                          | 返回时已解包为数组                                |
+| `favorites`        | `accountApi.getFavoritesPage(page, pageSize)`        | 账号页使用数据库分页；旧无分页读取保留兼容        |
+| `favorite.status`  | `accountApi.getFavoriteStatus(vodId)`                | 只读取当前影片收藏状态                            |
 | `history`          | `accountApi.getHistory(limit?)`                      | 首页传 4，历史页可省略                            |
 | `devices`          | `accountApi.getDevices()`                            | 返回 `{maxDevices, items}`                        |
 | `login`            | `accountApi.login(input)`                            | 成功后调用方还需 `adoptSession(result.data)`      |
@@ -2132,7 +2165,7 @@ await fetch("/index.php/pingfangapi/index?action=favorite", {
 | `report`           | `accountApi.submitReport(input)`                     | 片源报错                                          |
 | `comment`          | `accountApi.submitComment(input)`                    | 发表评论或回复                                    |
 | `reaction`         | `accountApi.setReaction(input)`                      | `none` 仅读取计数                                 |
-| `rating`           | `accountApi.submitRating(input)`                     | 生产只接受整数评分                                |
+| `rating`           | React 前台不再调用，保留兼容接口                     | 生产只接受整数评分                                |
 
 `AccountApi` 的写方法返回 `{data, message}` 形式的前端结果包装，而不是原始 HTTP
 envelope；页面应显示 `message`，并从 `data` 读取上文列出的业务结果。API 实例只会
@@ -2159,7 +2192,7 @@ envelope；页面应显示 `message`，并从 `data` 读取上文列出的业务
   限流；本地成功不能证明这些安全链路通过。
 - 生产 `reaction.value=none` 只读取计数；生产重复收藏会刷新收藏时间；退出不会
   删除会员的收藏或历史。不要依赖本地内存状态的不同表现。
-- 本地适配器存在不属于生产 27-action 白名单的兼容路由；生产请求必须始终显式
+- 本地适配器存在不属于生产 28-action 白名单的兼容路由；生产请求必须始终显式
   提供本文列出的 action。
 
 ### 15.3 curl 联调

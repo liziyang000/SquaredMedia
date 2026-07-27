@@ -177,10 +177,10 @@ async function apiFetch(input: RequestInfo | URL): Promise<Response> {
       return jsonResponse({ code: 1, msg: "留言已提交", data: { id: 11, status: "pending" } });
     case "report":
       return jsonResponse({ code: 1, msg: "报错已提交", data: { id: 12, status: "pending" } });
+    case "favorite.status":
+      return jsonResponse({ code: 1, msg: "收藏状态加载成功", data: { vodId: 1, favorited: false } });
     case "reaction":
       return jsonResponse({ code: 1, msg: "互动状态已更新", data: { target: "vod", targetId: 1, value: "like", likes: 10, dislikes: 1 } });
-    case "rating":
-      return jsonResponse({ code: 1, msg: "评分已提交", data: { vodId: 1, score: 8, average: 8.5, count: 13 } });
     case "password.verify":
       return jsonResponse({ code: 1, msg: "密码验证成功", data: { vodId: 1, scope: "detail", authorized: true } });
     case "history.save":
@@ -303,6 +303,43 @@ describe("React migration routes", () => {
 
     expect(await screen.findByRole("link", { name: "用户中心：测试会员" })).toHaveAttribute("href", "/account");
     expect(sessionAttempts).toBe(2);
+  });
+
+  it("finishes the initial session request before starting navigation queries", async () => {
+    const actions: Array<string | null> = [];
+    let resolveSession: ((response: Response) => void) | undefined;
+    const sessionResponse = new Promise<Response>((resolve) => {
+      resolveSession = resolve;
+    });
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const action = requestAction(input);
+      actions.push(action);
+      if (action === "session") return sessionResponse;
+      return apiFetch(input);
+    });
+
+    renderRoutes("/login");
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(actions).toEqual(["session"]);
+    expect(screen.queryByRole("heading", { name: "欢迎回来" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveSession?.(
+        jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: false, user: null, csrfToken: "test-csrf-token" }
+        })
+      );
+      await sessionResponse;
+    });
+
+    expect(await screen.findByRole("heading", { name: "欢迎回来" })).toBeInTheDocument();
+    await waitFor(() => expect(actions).toEqual(["session", "navigation"]));
   });
 
   it("reads the favorites page from the URL and clears this-page selection when paging", async () => {
@@ -482,6 +519,7 @@ describe("React migration routes", () => {
     expect(await screen.findByLabelText("选择收藏记录 保留的收藏")).toBeInTheDocument();
     expect(favoritePages).toEqual(["2", "1"]);
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["account", "favorites"], refetchType: "none" });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["account", "favorite-status"], refetchType: "none" });
     invalidateQueries.mockRestore();
   });
 
@@ -719,18 +757,46 @@ describe("React migration routes", () => {
     expect(submittedBody).toEqual({ reason: "无法播放", details: "旧地址直接报错" });
   });
 
-  it("allows anonymous MacCMS rating and digg while keeping counts in sync", async () => {
+  it("keeps the aggregate score read-only while allowing anonymous digg", async () => {
     const { container } = renderRoutes("/vod/1");
 
     expect(await screen.findByRole("heading", { level: 1, name: "云端回声" })).toBeInTheDocument();
     expect(container.querySelector(".detail-actions > .primary-btn + .detail-favorite-action")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "下载" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "评论" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "评分" }));
-    expect(await screen.findByText("评分已提交")).toBeInTheDocument();
-    expect(screen.getByText("13 人评分")).toBeInTheDocument();
+    expect(screen.getByText("12 人评分")).toBeInTheDocument();
+    expect(screen.queryByText("我的评分")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "评分" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "点赞 9" }));
     expect(await screen.findByRole("button", { name: "点赞 10" })).toBeInTheDocument();
+  });
+
+  it("loads only the current video's favorite status on an authenticated detail page", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const action = requestAction(input);
+      if (action === "session") {
+        return jsonResponse({
+          code: 1,
+          msg: "会话加载成功",
+          data: { authenticated: true, user: { id: 7, name: "测试会员" }, csrfToken: "test-csrf-token" }
+        });
+      }
+      if (action === "favorite.status") {
+        return jsonResponse({ code: 1, msg: "收藏状态加载成功", data: { vodId: 1, favorited: true } });
+      }
+      return apiFetch(input);
+    });
+
+    renderRoutes("/vod/1");
+
+    expect(await screen.findByRole("button", { name: "已收藏" })).toBeDisabled();
+    const accountActions = vi
+      .mocked(fetch)
+      .mock.calls.map(([input]) => requestAction(input))
+      .filter((action) => action === "favorite.status" || action === "favorites");
+    expect(accountActions).toEqual(["favorite.status"]);
+    const statusCall = vi.mocked(fetch).mock.calls.find(([input]) => requestAction(input) === "favorite.status")?.[0];
+    expect(requestParam(statusCall!, "vod_id")).toBe("1");
   });
 
   it("requests the scoped paginated library without repeating the category entry cards", async () => {

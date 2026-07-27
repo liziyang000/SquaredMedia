@@ -55,6 +55,7 @@ function responseFor(action: string | null) {
         }
       ]
     },
+    "favorite.status": { vodId: 1, favorited: true },
     favorite: { vodId: 1, favorited: true },
     "favorites.delete": { removed: 2 },
     history: {
@@ -115,14 +116,27 @@ function responseFor(action: string | null) {
         }
       ]
     },
-    reaction: { target: "vod", targetId: 1, value: "like", likes: 9, dislikes: 1 },
-    rating: { vodId: 1, score: 9, average: 8.6, count: 120 }
+    reaction: { target: "vod", targetId: 1, value: "like", likes: 9, dislikes: 1 }
   };
 
   return { code: 1, msg: `${action} ok`, data: dataByAction[action || ""] };
 }
 
 describe("createAccountApi reads", () => {
+  it("reads one exact favorite status without loading the favorites collection", async () => {
+    const calls: string[] = [];
+    const api = createAccountApi({
+      endpoint: "/react-api.php?locale=zh",
+      fetchImpl: async (input) => {
+        calls.push(String(input));
+        return jsonResponse(responseFor(requestAction(input)));
+      }
+    });
+
+    await expect(api.getFavoriteStatus(1)).resolves.toEqual({ vodId: "1", favorited: true });
+    expect(calls).toEqual(["/react-api.php?locale=zh&action=favorite.status&vod_id=1"]);
+  });
+
   it("requests and parses paginated favorites and history", async () => {
     const calls: string[] = [];
     const api = createAccountApi({
@@ -379,7 +393,6 @@ describe("createAccountApi writes", () => {
     await api.submitReport({ vodId: 1, sourceId: 1, episodeId: 101, reason: "无法播放", details: "播放器无响应", captcha: "5678" });
     await api.submitComment({ mid: 1, vodId: 1, content: "很好看" });
     await api.setReaction({ target: "vod", targetId: 1, value: "like" });
-    await api.submitRating({ vodId: 1, score: 9 });
 
     expect(calls.map((call) => call.action)).toEqual([
       "login",
@@ -393,8 +406,7 @@ describe("createAccountApi writes", () => {
       "feedback",
       "report",
       "comment",
-      "reaction",
-      "rating"
+      "reaction"
     ]);
     calls.forEach(({ init }) => {
       const headers = new Headers(init?.headers);
@@ -428,7 +440,6 @@ describe("createAccountApi writes", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
 
     const invalidApi = createAccountApi({ endpoint: "/react-api.php", csrfToken: "csrf", fetchImpl });
-    await expect(invalidApi.submitRating({ vodId: 1, score: 11 })).rejects.toMatchObject({ kind: "validation" });
     await expect(invalidApi.deleteFavorites({ recordIds: [] })).rejects.toMatchObject({ kind: "validation" });
     await expect(invalidApi.deleteFavorites({ all: true, recordIds: [21] })).rejects.toMatchObject({ kind: "validation" });
     await expect(invalidApi.deleteFavorites({ recordIds: [...Array.from({ length: 100 }, (_, index) => index + 1), "invalid/id"] })).rejects.toMatchObject({

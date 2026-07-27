@@ -15,6 +15,8 @@ final class PingfangApiAccountHistoryQuery
 {
     private string $table;
     private array $where = [];
+    private bool $joinVod = false;
+    private int $offset = 0;
     private ?int $limit = null;
 
     public function __construct(string $table)
@@ -24,6 +26,19 @@ final class PingfangApiAccountHistoryQuery
 
     public function field($fields)
     {
+        return $this;
+    }
+
+    public function alias($alias)
+    {
+        return $this;
+    }
+
+    public function join($table, $condition)
+    {
+        if ($this->table === 'ulog' && stripos((string) $table, 'vod') !== false) {
+            $this->joinVod = true;
+        }
         return $this;
     }
 
@@ -39,15 +54,31 @@ final class PingfangApiAccountHistoryQuery
         return $this;
     }
 
-    public function limit($limit)
+    public function limit(...$arguments)
     {
-        $this->limit = max(0, (int) $limit);
+        if (count($arguments) > 1) {
+            $this->offset = max(0, (int) $arguments[0]);
+            $this->limit = max(0, (int) $arguments[1]);
+        } else {
+            $this->limit = max(0, (int) ($arguments[0] ?? 0));
+        }
+        $GLOBALS['pingfangApiAccountHistoryLimits'][$this->table][] = [$this->offset, $this->limit];
         return $this;
     }
 
     public function select()
     {
         $rows = $GLOBALS['pingfangApiAccountHistoryRows'][$this->table] ?? [];
+        if ($this->joinVod) {
+            $videos = [];
+            foreach ($GLOBALS['pingfangApiAccountHistoryRows']['vod'] ?? [] as $video) {
+                $videos[(int) ($video['vod_id'] ?? 0)] = $video;
+            }
+            $rows = array_values(array_filter(array_map(static function (array $row) use ($videos): ?array {
+                $video = $videos[(int) ($row['ulog_rid'] ?? 0)] ?? null;
+                return $video === null ? null : array_merge($row, $video);
+            }, $rows)));
+        }
         $rows = array_values(array_filter($rows, function (array $row): bool {
             foreach ($this->where as $arguments) {
                 if (count($arguments) === 1 && is_array($arguments[0])) {
@@ -68,9 +99,15 @@ final class PingfangApiAccountHistoryQuery
             return true;
         }));
         if ($this->limit !== null) {
-            $rows = array_slice($rows, 0, $this->limit);
+            $rows = array_slice($rows, $this->offset, $this->limit);
         }
         return $rows;
+    }
+
+    public function count($field = '*')
+    {
+        $GLOBALS['pingfangApiAccountHistoryCounts'][$this->table][] = (string) $field;
+        return count($this->select());
     }
 
     public function find()
@@ -81,6 +118,10 @@ final class PingfangApiAccountHistoryQuery
 
     private function matches(array $row, string $field, string $operator, $expected): bool
     {
+        if (strpos($field, '.') !== false) {
+            $parts = explode('.', $field);
+            $field = (string) end($parts);
+        }
         if (!array_key_exists($field, $row)) {
             return true;
         }
@@ -219,6 +260,7 @@ $GLOBALS['pingfangApiAccountHistoryRows'] = [
 ];
 
 $paginationService = new AccountService(['user_id' => 42, 'user_name' => 'alice']);
+$GLOBALS['pingfangApiAccountHistoryLimits'] = [];
 $historyPage = $paginationService->historyPage(42, 1, 1);
 $assertSame(
     ['items', 'page', 'pageSize', 'total', 'totalPages'],
@@ -227,6 +269,7 @@ $assertSame(
 );
 $assertSame([1, 1, 3, 3], [$historyPage['page'], $historyPage['pageSize'], $historyPage['total'], $historyPage['totalPages']], 'History totals must be computed after validity filtering and folding by video.');
 $assertSame('8', $historyPage['items'][0]['vodId'], 'History order must use the newest valid episode instead of a newer removed episode.');
+$assertSame([[0, 100]], $GLOBALS['pingfangApiAccountHistoryLimits']['ulog'] ?? [], 'History must scan Ulog in bounded batches instead of one unbounded result set.');
 $paidHistoryPage = $paginationService->historyPage(42, 2, 1);
 $assertSame('7', $paidHistoryPage['items'][0]['vodId'], 'Paginated history must retain the next valid video after folding.');
 $assertSame('1', $paidHistoryPage['items'][0]['episodeId'], 'History must use the first valid episode when a newer row points to a removed episode.');
@@ -236,12 +279,51 @@ $assertSame([3, '10'], [$lastHistoryPage['page'], $lastHistoryPage['items'][0]['
 $emptyHistoryPage = $paginationService->historyPage(123, 4, 10);
 $assertSame([[], 1, 10, 0, 0], array_values($emptyHistoryPage), 'Empty history pagination must normalize to page one with zero pages.');
 
+$GLOBALS['pingfangApiAccountHistoryLimits'] = [];
+$GLOBALS['pingfangApiAccountHistoryCounts'] = [];
 $favoritePage = $paginationService->favoritesPage(42, 2, 1);
 $assertSame([2, 1, 2, 2, '8'], [$favoritePage['page'], $favoritePage['pageSize'], $favoritePage['total'], $favoritePage['totalPages'], $favoritePage['items'][0]['vodId']], 'Favorites must paginate only visible records for the current user.');
+$assertSame(['u.ulog_id'], $GLOBALS['pingfangApiAccountHistoryCounts']['ulog'] ?? [], 'Favorites must count only the joined visible result set.');
+$assertSame([[1, 1]], $GLOBALS['pingfangApiAccountHistoryLimits']['ulog'] ?? [], 'Favorites must fetch only the requested database page.');
+$assertSame(['7', true], array_values($paginationService->favoriteStatus(42, 7)), 'Favorite status must query the exact user and video.');
+$assertSame(['10', false], array_values($paginationService->favoriteStatus(42, 10)), 'Favorite status must not match another user or an absent favorite.');
 $lastFavoritePage = $paginationService->favoritesPage(42, 99, 1);
 $assertSame(2, $lastFavoritePage['page'], 'Favorite pages beyond the end must clamp to the last page.');
 $emptyFavoritePage = $paginationService->favoritesPage(123, 4, 10);
 $assertSame([[], 1, 10, 0, 0], array_values($emptyFavoritePage), 'Empty favorite pagination must normalize to page one with zero pages.');
+
+$batchedHistoryRows = [];
+for ($index = 0; $index < 100; $index++) {
+    $batchedHistoryRows[] = [
+        'ulog_id' => 1000 + $index,
+        'user_id' => 42,
+        'ulog_mid' => 1,
+        'ulog_type' => 4,
+        'ulog_rid' => 7,
+        'ulog_sid' => 1,
+        'ulog_nid' => 1,
+        'ulog_point' => 10,
+        'ulog_duration' => 100,
+        'ulog_time' => 1721622000 - $index,
+    ];
+}
+$batchedHistoryRows[] = [
+    'ulog_id' => 2000,
+    'user_id' => 42,
+    'ulog_mid' => 1,
+    'ulog_type' => 4,
+    'ulog_rid' => 8,
+    'ulog_sid' => 1,
+    'ulog_nid' => 1,
+    'ulog_point' => 20,
+    'ulog_duration' => 100,
+    'ulog_time' => 1721621800,
+];
+$GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = $batchedHistoryRows;
+$GLOBALS['pingfangApiAccountHistoryLimits'] = [];
+$batchedHistoryPage = $paginationService->historyPage(42, 2, 1);
+$assertSame('8', $batchedHistoryPage['items'][0]['vodId'], 'History pagination must continue across bounded Ulog batches.');
+$assertSame([[0, 100], [100, 100]], $GLOBALS['pingfangApiAccountHistoryLimits']['ulog'] ?? [], 'History batches must advance by a bounded offset.');
 
 $GLOBALS['pingfangApiAccountHistoryWhere'] = [];
 $GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = [

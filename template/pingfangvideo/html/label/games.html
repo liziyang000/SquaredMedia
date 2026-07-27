@@ -1,0 +1,64 @@
+{include file="public/head" seo_title="游戏大厅" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{if condition="$user.user_id gt 0"}
+<section class="wrap game-hub" aria-labelledby="gameHubTitle">
+  <header class="game-hub-hero">
+    <div>
+      <span class="eyebrow">MEMBER ARCADE</span>
+      <h1 id="gameHubTitle">片刻放松，随时开局</h1>
+      <p>为观影间隙准备的轻量小游戏，游戏代码本地加载，不额外接入广告或统计模块。</p>
+    </div>
+    <span class="game-hub-status"><i aria-hidden="true"></i>会员已解锁</span>
+  </header>
+
+  <div class="game-grid">
+    <article class="game-card game-card-2048">
+      <div class="game-card-art game-card-art-2048" aria-hidden="true">
+        <span>2</span><span>0</span><span>4</span><span>8</span>
+      </div>
+      <div class="game-card-copy">
+        <div class="game-card-meta"><span>数字益智</span><span>键盘 · 滑动</span></div>
+        <h2>2048</h2>
+        <p>合并相同数字，在有限棋盘里冲击 2048。</p>
+        <div class="game-card-actions">
+          <a class="primary-btn" href="{:mac_url('label/game-2048')}">开始游戏</a>
+          <a class="game-source-link" href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">MIT · GitHub</a>
+        </div>
+      </div>
+    </article>
+
+    <article class="game-card game-card-blockrain">
+      <div class="game-card-art game-card-art-blockrain" aria-hidden="true">
+        <span class="block-shape block-shape-a"></span>
+        <span class="block-shape block-shape-b"></span>
+        <span class="block-shape block-shape-c"></span>
+        <span class="block-floor"></span>
+      </div>
+      <div class="game-card-copy">
+        <div class="game-card-meta"><span>经典消除</span><span>键盘 · 触控</span></div>
+        <h2>俄罗斯方块</h2>
+        <p>旋转、移动、快速下落，在节奏加快前完成整行消除。</p>
+        <div class="game-card-actions">
+          <a class="primary-btn" href="{:mac_url('label/game-blockrain')}">开始游戏</a>
+          <a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">MIT · GitHub</a>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <p class="game-hub-note">游戏进度只保存在当前浏览器中，不会上传到服务器。</p>
+</section>
+{else/}
+<section class="wrap game-access-page" aria-labelledby="gameLoginTitle">
+  <div class="game-login-gate">
+    <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
+    <span class="eyebrow">MEMBER ARCADE</span>
+    <h1 id="gameLoginTitle">登录后开启游戏大厅</h1>
+    <p>小游戏仅向已登录会员开放。登录后即可使用键盘、触控或滑动操作开始游戏。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">前往登录</a>
+      <a class="ghost-btn" href="{$maccms.path}">返回首页</a>
+    </div>
+  </div>
+</section>
+{/if}
+{include file="public/foot" /}

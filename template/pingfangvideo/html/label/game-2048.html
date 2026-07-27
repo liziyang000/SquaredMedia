@@ -1,0 +1,66 @@
+{include file="public/head" seo_title="2048" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{if condition="$user.user_id gt 0"}
+<section class="wrap game-play-page game-play-page-2048" data-game-authenticated aria-labelledby="game2048Title">
+  <header class="game-play-head">
+    <div>
+      <span class="eyebrow">NUMBER PUZZLE</span>
+      <h1 id="game2048Title">2048</h1>
+      <p>使用方向键或在棋盘上滑动，让相同数字合并。</p>
+    </div>
+    <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+  </header>
+
+  <div class="game-stage-panel">
+    <div class="game-2048">
+      <div class="game-2048-toolbar">
+        <div class="scores-container" aria-label="游戏分数">
+          <div class="score-container">0</div>
+          <div class="best-container">0</div>
+        </div>
+        <button class="restart-button" type="button">重新开始</button>
+      </div>
+
+      <div class="game-container" role="application" aria-label="2048 游戏棋盘">
+        <div class="game-message" aria-live="polite">
+          <p></p>
+          <div class="lower">
+            <button class="keep-playing-button" type="button">继续挑战</button>
+            <button class="retry-button" type="button">再来一局</button>
+          </div>
+        </div>
+        <div class="grid-container" aria-hidden="true">
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+        </div>
+        <div class="tile-container" aria-hidden="true"></div>
+      </div>
+
+      <p class="game-control-tip"><span>电脑：方向键 / WASD</span><span>手机：在棋盘上滑动</span></p>
+      <a class="game-source-link" href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">基于 Gabriele Cirulli 的 2048 · MIT License</a>
+    </div>
+  </div>
+</section>
+<script src="{$maccms.path_tpl}games/2048/js/keyboard_input_manager.js"></script>
+<script src="{$maccms.path_tpl}games/2048/js/html_actuator.js"></script>
+<script src="{$maccms.path_tpl}games/2048/js/grid.js"></script>
+<script src="{$maccms.path_tpl}games/2048/js/tile.js"></script>
+<script src="{$maccms.path_tpl}games/2048/js/local_storage_manager.js"></script>
+<script src="{$maccms.path_tpl}games/2048/js/game_manager.js"></script>
+<script src="{$maccms.path_tpl}games/2048/js/application.js"></script>
+{else/}
+<section class="wrap game-access-page" aria-labelledby="game2048LoginTitle">
+  <div class="game-login-gate">
+    <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
+    <span class="eyebrow">MEMBER ONLY</span>
+    <h1 id="game2048LoginTitle">登录后才能开始游戏</h1>
+    <p>登录会员账号后即可进入 2048，未登录状态不会加载游戏脚本。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">前往登录</a>
+      <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+    </div>
+  </div>
+</section>
+{/if}
+{include file="public/foot" /}

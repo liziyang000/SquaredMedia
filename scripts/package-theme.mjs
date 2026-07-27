@@ -17,6 +17,7 @@ const assetVersionInputs = {
   __PINGFANG_STYLE_VERSION__: "css/style.css",
   __PINGFANG_APP_VERSION__: "js/app.js",
   __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
+  __PINGFANG_GAME_VERSION__: "games/init.js",
 };
 const excludedThemePackageFiles = new Set([
   "js/hls.min.js",
@@ -24,6 +25,7 @@ const excludedThemePackageFiles = new Set([
   "js/react.production.min.js",
   "js/react-dom.production.min.js",
   "js/rank-react.js",
+  "games/blockrain/jquery-1.11.1.min.js",
 ]);
 
 function assetVersion(relativePath) {

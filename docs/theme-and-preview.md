@@ -25,9 +25,10 @@
 - `html/vod/`：视频分类、筛选、搜索、详情、播放、试看、下载、版权、密码和剧情页面。
 - `html/user/`、`comment/`、`gbook/`、`book/`：用户和反馈相关页面。
 - `html/art/`、`topic/`、`actor/`、`role/`、`plot/`、`website/`：标准模块的页面或兜底页面。
-- `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、站点地图和订阅输出。
+- `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、站点地图和订阅输出。
 - `css/style.css`：全站样式、语义 token、三套主题和响应式规则。
 - `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效。
+- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证；不提供可匿名打开的独立 `index.html`，具体游玩页由 `html/label/game-*.html` 按 `$user.user_id` 服务端分支加载脚本。
 - `images/`：站点和品牌图片；生产模板通过 `{$maccms.path_tpl}` 引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
@@ -90,7 +91,7 @@ HTTP GET /preview/index.html
   -> 重新调用首页标签页、轮播和动效初始化器
 ```
 
-静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、用户态、线路检测插件接口或原生播放器数据。
+静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只用于模拟会员视觉与本地玩法验证，不代表生产鉴权。
 
 ### PHP 预览链
 
@@ -101,7 +102,7 @@ server/index.php
   -> 浏览器加载生产 CSS 与 app.js
 ```
 
-PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。它加载共享 GSAP、`app.js` 和与生产头部一致的主题切换标记以复现主题动效，但不加载 MacCMS `home.js`、用户态或实验播放器脚本。
+PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。它加载共享 GSAP、`app.js` 和与生产头部一致的主题切换标记以复现主题动效，但不加载 MacCMS `home.js`、真实用户态或实验播放器脚本。游戏预览同样使用 `member=1` 模拟登录分支。
 
 ## 开发约束
 
@@ -126,6 +127,15 @@ php -S 127.0.0.1:8099 -t .
 ```text
 http://127.0.0.1:8099/preview/index.html?route=home
 ```
+
+游戏权限与玩法可分别访问：
+
+```text
+http://127.0.0.1:8099/preview/index.html?route=games
+http://127.0.0.1:8099/preview/index.html?route=games&member=1
+```
+
+前者验证未登录拦截，后者仅模拟本地会员状态。生产环境仍以 MacCMS 注入的 `$user.user_id` 为准，游戏大厅和具体游玩页在未登录分支都不会输出游戏脚本。
 
 PHP 渲染回归使用仓库脚本：
 

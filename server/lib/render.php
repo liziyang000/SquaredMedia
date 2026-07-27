@@ -38,6 +38,7 @@ function render_layout(array $data, string $title, string $content): string
 {
     $nav = '<a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>';
+    $nav .= '<a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>';
     $drawerCategories = implode('', array_map(
         static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category])) . '">' . e($category) . '</a>',
         array_slice($data['categories'], 0, 12),
@@ -103,6 +104,7 @@ function render_layout(array $data, string $title, string $content): string
   <nav class="mobile-drawer-links" aria-label="移动端快捷导航">
     <a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>
     <a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>
+    <a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account"><span>账号</span><div class="mobile-drawer-user"><a class="mobile-drawer-login" href="' . e(path_for('login')) . '">登录</a></div></div>
   <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>
@@ -314,6 +316,113 @@ function render_player_preview(array $data, array $video, array $episode, string
     return render_layout($data, $video['title'], $content);
 }
 
+function preview_member_enabled(array $query): bool
+{
+    return (string) ($query['member'] ?? '') === '1';
+}
+
+function render_game_login_gate(string $id, string $title, string $description): string
+{
+    return '<section class="wrap game-access-page" aria-labelledby="' . e($id) . '">
+  <div class="game-login-gate">
+    <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
+    <span class="eyebrow">MEMBER ONLY</span>
+    <h1 id="' . e($id) . '">' . e($title) . '</h1>
+    <p>' . e($description) . '</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="' . e(path_for('login')) . '">前往登录</a>
+      <a class="ghost-btn" href="' . e(path_for('home')) . '">返回首页</a>
+    </div>
+  </div>
+</section>';
+}
+
+function render_game_hub_preview(): string
+{
+    $game2048Href = e(path_for('game-2048', ['member' => 1]));
+    $blockrainHref = e(path_for('game-blockrain', ['member' => 1]));
+
+    return '<section class="wrap game-hub" aria-labelledby="phpGameHubTitle">
+  <header class="game-hub-hero">
+    <div><span class="eyebrow">MEMBER ARCADE</span><h1 id="phpGameHubTitle">片刻放松，随时开局</h1><p>为观影间隙准备的轻量小游戏，游戏代码本地加载，不额外接入广告或统计模块。</p></div>
+    <span class="game-hub-status"><i aria-hidden="true"></i>会员已解锁</span>
+  </header>
+  <div class="game-grid">
+    <article class="game-card game-card-2048">
+      <div class="game-card-art game-card-art-2048" aria-hidden="true"><span>2</span><span>0</span><span>4</span><span>8</span></div>
+      <div class="game-card-copy"><div class="game-card-meta"><span>数字益智</span><span>键盘 · 滑动</span></div><h2>2048</h2><p>合并相同数字，在有限棋盘里冲击 2048。</p><div class="game-card-actions"><a class="primary-btn" href="' . $game2048Href . '">开始游戏</a><a class="game-source-link" href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">MIT · GitHub</a></div></div>
+    </article>
+    <article class="game-card game-card-blockrain">
+      <div class="game-card-art game-card-art-blockrain" aria-hidden="true"><span class="block-shape block-shape-a"></span><span class="block-shape block-shape-b"></span><span class="block-shape block-shape-c"></span><span class="block-floor"></span></div>
+      <div class="game-card-copy"><div class="game-card-meta"><span>经典消除</span><span>键盘 · 触控</span></div><h2>俄罗斯方块</h2><p>旋转、移动、快速下落，在节奏加快前完成整行消除。</p><div class="game-card-actions"><a class="primary-btn" href="' . $blockrainHref . '">开始游戏</a><a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">MIT · GitHub</a></div></div>
+    </article>
+  </div>
+  <p class="game-hub-note">游戏进度只保存在当前浏览器中，不会上传到服务器。</p>
+</section>';
+}
+
+function render_game_2048_preview(): string
+{
+    return '<section class="wrap game-play-page game-play-page-2048" data-game-authenticated aria-labelledby="phpGame2048Title">
+  <header class="game-play-head"><div><span class="eyebrow">NUMBER PUZZLE</span><h1 id="phpGame2048Title">2048</h1><p>使用方向键或在棋盘上滑动，让相同数字合并。</p></div><a class="ghost-btn" href="' . e(path_for('games', ['member' => 1])) . '">返回游戏大厅</a></header>
+  <div class="game-stage-panel">
+    <div class="game-2048">
+      <div class="game-2048-toolbar"><div class="scores-container" aria-label="游戏分数"><div class="score-container">0</div><div class="best-container">0</div></div><button class="restart-button" type="button">重新开始</button></div>
+      <div class="game-container" role="application" aria-label="2048 游戏棋盘">
+        <div class="game-message" aria-live="polite"><p></p><div class="lower"><button class="keep-playing-button" type="button">继续挑战</button><button class="retry-button" type="button">再来一局</button></div></div>
+        <div class="grid-container" aria-hidden="true">
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+          <div class="grid-row"><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div><div class="grid-cell"></div></div>
+        </div>
+        <div class="tile-container" aria-hidden="true"></div>
+      </div>
+      <p class="game-control-tip"><span>电脑：方向键 / WASD</span><span>手机：在棋盘上滑动</span></p>
+      <a class="game-source-link" href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">基于 Gabriele Cirulli 的 2048 · MIT License</a>
+    </div>
+  </div>
+</section>
+<script src="/template/pingfangvideo/games/2048/js/keyboard_input_manager.js"></script>
+<script src="/template/pingfangvideo/games/2048/js/html_actuator.js"></script>
+<script src="/template/pingfangvideo/games/2048/js/grid.js"></script>
+<script src="/template/pingfangvideo/games/2048/js/tile.js"></script>
+<script src="/template/pingfangvideo/games/2048/js/local_storage_manager.js"></script>
+<script src="/template/pingfangvideo/games/2048/js/game_manager.js"></script>
+<script src="/template/pingfangvideo/games/2048/js/application.js"></script>';
+}
+
+function render_game_blockrain_preview(): string
+{
+    return '<section class="wrap game-play-page game-play-page-blockrain" data-game-authenticated aria-labelledby="phpGameBlockrainTitle">
+  <header class="game-play-head"><div><span class="eyebrow">BLOCK PUZZLE</span><h1 id="phpGameBlockrainTitle">俄罗斯方块</h1><p>完成整行即可消除。支持方向键、WASD 和棋盘下方触控按钮。</p></div><a class="ghost-btn" href="' . e(path_for('games', ['member' => 1])) . '">返回游戏大厅</a></header>
+  <div class="game-stage-panel game-blockrain-stage">
+    <div class="blockrain-shell">
+      <div class="blockrain-board-column">
+        <div class="blockrain-game" data-blockrain-game role="application" aria-label="俄罗斯方块游戏区域"></div>
+        <div class="blockrain-controls" role="group" aria-label="俄罗斯方块触控按钮">
+          <button class="blockrain-control" type="button" data-blockrain-action="left"><span aria-hidden="true">←</span><small>左移</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="rotate-left"><span aria-hidden="true">↶</span><small>左转</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="drop"><span aria-hidden="true">↓</span><small>下落</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="rotate-right"><span aria-hidden="true">↷</span><small>右转</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="right"><span aria-hidden="true">→</span><small>右移</small></button>
+        </div>
+      </div>
+      <aside class="blockrain-next-panel" data-blockrain-next aria-label="下一个方块：准备中">
+        <span class="blockrain-next-label">下一个</span>
+        <span class="blockrain-next-grid" data-blockrain-next-grid aria-hidden="true"></span>
+        <strong data-blockrain-next-name>准备中</strong>
+      </aside>
+    </div>
+    <p class="game-control-tip"><span>电脑：方向键 / WASD</span><span>手机：使用棋盘下方触控按钮</span></p>
+    <a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">基于 Aerolab Blockrain.js · MIT License</a>
+  </div>
+</section>
+<script src="/template/pingfangvideo/games/blockrain/jquery-1.11.1.min.js"></script>
+<script src="/template/pingfangvideo/games/blockrain/blockrain.jquery.min.js"></script>
+<script src="/template/pingfangvideo/games/init.js"></script>';
+}
+
 function render_page(array $data, string $route, array $query): string
 {
     if ($route === 'login') {
@@ -407,7 +516,24 @@ function render_page(array $data, string $route, array $query): string
     }
 
     if ($route === 'games') {
-        return render_layout($data, '游戏', '<section class="wrap system-page"><div class="system-box module-fallback"><span class="eyebrow">游戏</span><h1>游戏入口维护中</h1><p>游戏模块暂未启用，请先浏览影片内容。</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('videos')) . '">浏览影片库</a><a class="ghost-btn" href="' . e(path_for('home')) . '">返回首页</a></div></div></section>');
+        $content = preview_member_enabled($query)
+            ? render_game_hub_preview()
+            : render_game_login_gate('phpGameLoginTitle', '登录后开启游戏大厅', '小游戏仅向已登录会员开放。本地预览可在地址后加入 member=1 查看登录状态。');
+        return render_layout($data, '游戏大厅', $content);
+    }
+
+    if ($route === 'game-2048') {
+        $content = preview_member_enabled($query)
+            ? render_game_2048_preview()
+            : render_game_login_gate('phpGame2048LoginTitle', '登录后才能开始游戏', '登录会员账号后即可进入 2048，未登录状态不会加载游戏脚本。');
+        return render_layout($data, '2048', $content);
+    }
+
+    if ($route === 'game-blockrain') {
+        $content = preview_member_enabled($query)
+            ? render_game_blockrain_preview()
+            : render_game_login_gate('phpGameBlockrainLoginTitle', '登录后才能开始游戏', '登录会员账号后即可进入俄罗斯方块，未登录状态不会加载游戏脚本。');
+        return render_layout($data, '俄罗斯方块', $content);
     }
 
     if ($route === 'comics') {

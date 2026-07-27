@@ -1,0 +1,51 @@
+{include file="public/head" seo_title="俄罗斯方块" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{if condition="$user.user_id gt 0"}
+<section class="wrap game-play-page game-play-page-blockrain" data-game-authenticated aria-labelledby="gameBlockrainTitle">
+  <header class="game-play-head">
+    <div>
+      <span class="eyebrow">BLOCK PUZZLE</span>
+      <h1 id="gameBlockrainTitle">俄罗斯方块</h1>
+      <p>完成整行即可消除。支持方向键、WASD 和棋盘下方触控按钮。</p>
+    </div>
+    <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+  </header>
+
+  <div class="game-stage-panel game-blockrain-stage">
+    <div class="blockrain-shell">
+      <div class="blockrain-board-column">
+        <div class="blockrain-game" data-blockrain-game role="application" aria-label="俄罗斯方块游戏区域"></div>
+        <div class="blockrain-controls" role="group" aria-label="俄罗斯方块触控按钮">
+          <button class="blockrain-control" type="button" data-blockrain-action="left"><span aria-hidden="true">←</span><small>左移</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="rotate-left"><span aria-hidden="true">↶</span><small>左转</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="drop"><span aria-hidden="true">↓</span><small>下落</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="rotate-right"><span aria-hidden="true">↷</span><small>右转</small></button>
+          <button class="blockrain-control" type="button" data-blockrain-action="right"><span aria-hidden="true">→</span><small>右移</small></button>
+        </div>
+      </div>
+      <aside class="blockrain-next-panel" data-blockrain-next aria-label="下一个方块：准备中">
+        <span class="blockrain-next-label">下一个</span>
+        <span class="blockrain-next-grid" data-blockrain-next-grid aria-hidden="true"></span>
+        <strong data-blockrain-next-name>准备中</strong>
+      </aside>
+    </div>
+    <p class="game-control-tip"><span>电脑：方向键 / WASD</span><span>手机：使用棋盘下方触控按钮</span></p>
+    <a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">基于 Aerolab Blockrain.js · MIT License</a>
+  </div>
+</section>
+<script src="{$maccms.path_tpl}games/blockrain/blockrain.jquery.min.js"></script>
+<script src="{$maccms.path_tpl}games/init.js?v=__PINGFANG_GAME_VERSION__"></script>
+{else/}
+<section class="wrap game-access-page" aria-labelledby="gameBlockrainLoginTitle">
+  <div class="game-login-gate">
+    <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
+    <span class="eyebrow">MEMBER ONLY</span>
+    <h1 id="gameBlockrainLoginTitle">登录后才能开始游戏</h1>
+    <p>登录会员账号后即可进入俄罗斯方块，未登录状态不会加载游戏脚本。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">前往登录</a>
+      <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+    </div>
+  </div>
+</section>
+{/if}
+{include file="public/foot" /}

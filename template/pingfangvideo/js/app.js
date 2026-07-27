@@ -193,6 +193,9 @@
       ) {
         return "videos";
       }
+      if (route === "games" || route === "game-2048" || route === "game-blockrain") {
+        return "games";
+      }
       if (route) return "";
 
       var moduleName = String(currentUrl.searchParams.get("m") || "").toLowerCase();
@@ -204,6 +207,9 @@
 
     if (currentPath.indexOf("/vod") !== -1 || /\/label\/(categories|videos|hot|history)(?:\/|$)/.test(currentPath)) {
       return "videos";
+    }
+    if (/\/label\/(games|game-2048|game-blockrain)(?:\.html)?(?:\/|$)/.test(currentPath)) {
+      return "games";
     }
 
     var homeLink = document.querySelector('.site-nav a[data-nav-section="home"], .mobile-drawer-links a[data-nav-section="home"]');

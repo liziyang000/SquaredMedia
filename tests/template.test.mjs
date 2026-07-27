@@ -11,6 +11,7 @@ const nonAdultVodTypeScope = "42,47,48,57,111";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
 const appVersionPlaceholder = "__PINGFANG_APP_VERSION__";
 const promptVersionPlaceholder = "__PINGFANG_PROMPT_VERSION__";
+const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
 
 const requiredFiles = [
   "info.ini",
@@ -27,6 +28,20 @@ const requiredFiles = [
   "images/dunhuang/scrolling-vine-band.svg",
   "images/dunhuang/wave-cloud-corner.svg",
   "images/site-logo.png",
+  "games/2048/LICENSE.txt",
+  "games/2048/js/application.js",
+  "games/2048/js/game_manager.js",
+  "games/2048/js/grid.js",
+  "games/2048/js/html_actuator.js",
+  "games/2048/js/keyboard_input_manager.js",
+  "games/2048/js/local_storage_manager.js",
+  "games/2048/js/tile.js",
+  "games/blockrain/Copyright",
+  "games/blockrain/LICENSE.txt",
+  "games/blockrain/blockrain.jquery.min.js",
+  "games/blockrain/jquery-1.11.1.min.js",
+  "games/README.md",
+  "games/init.js",
   "js/gsap.min.js",
   "js/react.production.min.js",
   "js/react-dom.production.min.js",
@@ -56,6 +71,9 @@ const requiredFiles = [
   "html/index/index.html",
   "html/label/categories.html",
   "html/label/comics.html",
+  "html/label/game-2048.html",
+  "html/label/game-blockrain.html",
+  "html/label/games.html",
   "html/label/history.html",
   "html/label/hot.html",
   "html/label/videos.html",
@@ -285,19 +303,21 @@ assert.match(head, /data-theme-option="dunhuang-caisson" aria-pressed="false"[\s
 assert.match(head, /class="mobile-drawer-section mobile-theme-section"/);
 assert.match(head, /data-theme-switcher-mobile/);
 const desktopNavLinks = head.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(desktopNavLinks), ["首页", "视频"]);
+assert.deepEqual(extractAnchorTexts(desktopNavLinks), ["首页", "视频", "游戏"]);
 assert.match(desktopNavLinks, /<a href="\{\$maccms\.path\}" data-nav-section="home">首页<\/a>/);
 assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/categories'\)\}" data-nav-section="videos">视频<\/a>/);
+assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/games'\)\}" data-nav-section="games">游戏<\/a>/);
 assert.doesNotMatch(desktopNavLinks, /nav-video-menu/);
 assert.doesNotMatch(desktopNavLinks, /nav-video-panel/);
-assert.doesNotMatch(desktopNavLinks, />漫画<\/a>|>文章<\/a>|>游戏<\/a>/);
+assert.doesNotMatch(desktopNavLinks, />漫画<\/a>|>文章<\/a>/);
 assert.doesNotMatch(desktopNavLinks, />分类<\/a>/);
 assert.doesNotMatch(desktopNavLinks, />收藏<\/a>/);
 const mobileDrawerLinks = head.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(mobileDrawerLinks), ["首页", "视频"]);
+assert.deepEqual(extractAnchorTexts(mobileDrawerLinks), ["首页", "视频", "游戏"]);
 assert.match(mobileDrawerLinks, /data-nav-section="home">首页<\/a>/);
 assert.match(mobileDrawerLinks, /data-nav-section="videos">视频<\/a>/);
-assert.doesNotMatch(mobileDrawerLinks, />漫画<\/a>|>文章<\/a>|>游戏<\/a>/);
+assert.match(mobileDrawerLinks, /data-nav-section="games">游戏<\/a>/);
+assert.doesNotMatch(mobileDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(head, /aria-controls="mobileDrawer"/);
 assert.match(head, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
 assert.match(head, /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/);
@@ -426,6 +446,69 @@ assert.match(comicsPage, /module-fallback/);
 assert.match(comicsPage, /漫画入口维护中/);
 assert.match(comicsPage, /mac_url\('vod\/show'\)/);
 assert.match(comicsPage, /\{include file="public\/foot" \/\}/);
+
+const gamesPage = readThemeFile("html/label/games.html");
+assert.match(gamesPage, /seo_title="游戏大厅"/);
+assert.match(gamesPage, /\{if condition="\$user\.user_id gt 0"\}/);
+assert.match(gamesPage, /class="[^"]*\bgame-hub\b/);
+assert.match(gamesPage, /class="game-grid"/);
+assert.match(gamesPage, /mac_url\('label\/game-2048'\)/);
+assert.match(gamesPage, /mac_url\('label\/game-blockrain'\)/);
+assert.match(gamesPage, />2048</);
+assert.match(gamesPage, />俄罗斯方块</);
+assert.match(gamesPage, /\{else\/\}[\s\S]*class="game-login-gate"/);
+assert.match(gamesPage, /登录后开启游戏大厅/);
+assert.match(gamesPage, /mac_url\('user\/login'\)/);
+assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
+
+const game2048Page = readThemeFile("html/label/game-2048.html");
+const game2048AuthBranch = game2048Page.slice(
+  game2048Page.indexOf('{if condition="$user.user_id gt 0"}'),
+  game2048Page.indexOf("{else/}"),
+);
+assert.match(game2048Page, /seo_title="2048"/);
+assert.match(game2048AuthBranch, /data-game-authenticated/);
+assert.match(game2048AuthBranch, /class="game-2048"/);
+assert.match(game2048AuthBranch, /\{\$maccms\.path_tpl\}games\/2048\/js\/game_manager\.js/);
+assert.match(game2048AuthBranch, /\{\$maccms\.path_tpl\}games\/2048\/js\/application\.js/);
+assert.match(game2048Page, /\{else\/\}[\s\S]*登录后才能开始游戏/);
+assert.match(game2048Page, /mac_url\('user\/login'\)/);
+assert.match(game2048Page, /\{include file="public\/foot" \/\}/);
+
+const gameBlockrainPage = readThemeFile("html/label/game-blockrain.html");
+const gameBlockrainAuthBranch = gameBlockrainPage.slice(
+  gameBlockrainPage.indexOf('{if condition="$user.user_id gt 0"}'),
+  gameBlockrainPage.indexOf("{else/}"),
+);
+assert.match(gameBlockrainPage, /seo_title="俄罗斯方块"/);
+assert.match(gameBlockrainAuthBranch, /data-game-authenticated/);
+assert.match(gameBlockrainAuthBranch, /data-blockrain-game/);
+assert.match(gameBlockrainAuthBranch, /class="blockrain-shell"/);
+assert.match(gameBlockrainAuthBranch, /data-blockrain-next/);
+assert.equal((gameBlockrainAuthBranch.match(/data-blockrain-action=/g) || []).length, 5);
+assert.match(gameBlockrainAuthBranch, /data-blockrain-action="drop"/);
+assert.match(gameBlockrainAuthBranch, /\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js/);
+assert.match(gameBlockrainAuthBranch, new RegExp(`\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}`));
+assert.doesNotMatch(gameBlockrainAuthBranch, /jquery-1\.11\.1\.min\.js/);
+assert.match(gameBlockrainPage, /\{else\/\}[\s\S]*登录后才能开始游戏/);
+assert.match(gameBlockrainPage, /mac_url\('user\/login'\)/);
+assert.match(gameBlockrainPage, /\{include file="public\/foot" \/\}/);
+
+assert.ok(!existsSync(path.join(themeRoot, "games/2048/index.html")), "2048 should not expose an anonymous static HTML entry");
+assert.ok(!existsSync(path.join(themeRoot, "games/blockrain/index.html")), "Blockrain should not expose an anonymous static HTML entry");
+assert.match(readThemeFile("games/2048/LICENSE.txt"), /MIT License/);
+assert.match(readThemeFile("games/blockrain/LICENSE.txt"), /MIT License/);
+const gameInit = readThemeFile("games/init.js");
+assert.match(gameInit, /data-blockrain-game/);
+assert.match(gameInit, /getComputedStyle/);
+assert.match(gameInit, /--accent/);
+assert.match(gameInit, /backgroundGrid: color\("--bg"/);
+assert.match(gameInit, /touchControls", false/);
+assert.doesNotMatch(gameInit, /touchControls", true/);
+assert.match(gameInit, /data-blockrain-action/);
+assert.match(gameInit, /_board\.next/);
+assert.match(gameInit, /blockType/);
+assert.doesNotMatch(gameInit, /https?:\/\//);
 assert.match(categoriesPage, /\{maccms:type ids="parent" mid="1" order="asc" by="sort"/);
 assert.match(categoriesPage, /num="100"/);
 assert.doesNotMatch(categoriesPage, /paging="yes"/);
@@ -1897,6 +1980,7 @@ assert.match(packageScript, /assetVersionInputs/);
 assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
 assert.match(packageScript, /__PINGFANG_APP_VERSION__/);
 assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
+assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
 assert.match(packageScript, /excludedThemePackageFiles/);
 assert.match(packageScript, /"js\/rank-react\.js"/);
 assert.match(packageScript, /"player\/prompt\.css"/);
@@ -2310,8 +2394,9 @@ assert.match(preview, /class="mobile-drawer-login" href="\?route=login" data-rou
 assert.match(preview, /<form class="mobile-drawer-search" role="search">/);
 assert.match(preview, /id="previewMobileSearch" type="search" name="wd"/);
 const previewStaticDrawerLinks = preview.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(previewStaticDrawerLinks), ["首页", "视频"]);
-assert.doesNotMatch(previewStaticDrawerLinks, />漫画<\/a>|>文章<\/a>|>游戏<\/a>/);
+assert.deepEqual(extractAnchorTexts(previewStaticDrawerLinks), ["首页", "视频", "游戏"]);
+assert.match(previewStaticDrawerLinks, /data-route="games" data-nav-section="games">游戏<\/a>/);
+assert.doesNotMatch(previewStaticDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(preview, /id="mobileDrawerCats"/);
 assert.match(preview, /function renderMobileDrawerCategories/);
 assert.match(preview, /mobileDrawerCats\.innerHTML = store\.categories\.slice\(0, 12\)\.map/);
@@ -2409,6 +2494,13 @@ assert.match(previewLoginFunction, /login-captcha-preview/);
 assert.match(preview, /initLoginControls\?\.\(app\)/);
 assert.match(preview, /initLoginGlass\?\.\(app\)/);
 assert.match(preview, /function renderGamesPage/);
+assert.match(preview, /function renderGame2048Page/);
+assert.match(preview, /function renderGameBlockrainPage/);
+assert.match(preview, /function previewMemberEnabled/);
+assert.match(preview, /member=1/);
+assert.match(preview, /登录后开启游戏大厅/);
+assert.match(preview, /data-game-authenticated/);
+assert.match(preview, /data-blockrain-game/);
 assert.match(preview, /function renderComicsPage/);
 assert.match(preview, /function renderArticlesPage/);
 assert.match(preview, /store\.categories\.map\(\(category\) =>/);
@@ -2416,10 +2508,11 @@ assert.doesNotMatch(preview, /function renderVideoNavCategories/);
 assert.doesNotMatch(preview, /nav-video-panel/);
 assert.doesNotMatch(preview, /nav-video-trigger/);
 const previewRenderNavFunction = preview.match(/function renderNav\(\) \{[\s\S]*?\n\}/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(previewRenderNavFunction), ["首页", "视频"]);
+assert.deepEqual(extractAnchorTexts(previewRenderNavFunction), ["首页", "视频", "游戏"]);
 assert.match(previewRenderNavFunction, /href="\$\{url\("home"\)\}" data-route="home" data-nav-section="home">首页/);
 assert.match(previewRenderNavFunction, /href="\$\{url\("categories"\)\}" data-route="categories" data-nav-section="videos">视频/);
-assert.doesNotMatch(previewRenderNavFunction, /data-route="comics"|data-route="articles"|data-route="games"/);
+assert.match(previewRenderNavFunction, /href="\$\{url\("games"\)\}" data-route="games" data-nav-section="games">游戏/);
+assert.doesNotMatch(previewRenderNavFunction, /data-route="comics"|data-route="articles"/);
 assert.doesNotMatch(previewRenderNavFunction, /data-route="categories">分类/);
 assert.match(preview, /<a href="\?route=categories" data-route="categories" data-nav-section="videos">视频<\/a>/);
 assert.match(preview, /category-index/);
@@ -2484,7 +2577,12 @@ assert.match(phpRender, /\$route === 'videos'/);
 assert.match(phpRender, /\$route === 'comics'/);
 assert.match(phpRender, /\$route === 'articles'/);
 assert.match(phpRender, /\$route === 'games'/);
-assert.match(phpRender, /游戏入口/);
+assert.match(phpRender, /游戏大厅/);
+assert.match(phpRender, /preview_member_enabled/);
+assert.match(phpRender, /render_game_login_gate/);
+assert.match(phpRender, /\$route === 'game-2048'/);
+assert.match(phpRender, /\$route === 'game-blockrain'/);
+assert.match(phpRender, /data-game-authenticated/);
 assert.match(phpRender, /漫画入口/);
 assert.match(phpRender, /文章入口/);
 assert.doesNotMatch(phpRender, /\$navVideoCategories = implode/);
@@ -2492,17 +2590,19 @@ assert.doesNotMatch(phpRender, /class="nav-video-menu"/);
 assert.doesNotMatch(phpRender, /class="nav-video-trigger"/);
 assert.doesNotMatch(phpRender, /class="nav-video-panel"/);
 const phpNavSnippet = phpRender.match(/\$nav = [\s\S]*?\$drawerCategories = implode/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(phpNavSnippet), ["首页", "视频"]);
+assert.deepEqual(extractAnchorTexts(phpNavSnippet), ["首页", "视频", "游戏"]);
 assert.match(phpNavSnippet, /path_for\('categories'\)[\s\S]*>视频<\/a>/);
+assert.match(phpNavSnippet, /path_for\('games'\)[\s\S]*data-nav-section="games">游戏<\/a>/);
 assert.match(phpNavSnippet, /data-nav-section="home"/);
 assert.match(phpNavSnippet, /data-nav-section="videos"/);
-assert.doesNotMatch(phpNavSnippet, />漫画<\/a>|>文章<\/a>|>游戏<\/a>/);
+assert.doesNotMatch(phpNavSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.doesNotMatch(phpNavSnippet, />分类<\/a>/);
 const phpMobileDrawerLinksSnippet = phpRender.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(phpMobileDrawerLinksSnippet), ["首页", "视频"]);
+assert.deepEqual(extractAnchorTexts(phpMobileDrawerLinksSnippet), ["首页", "视频", "游戏"]);
 assert.match(phpMobileDrawerLinksSnippet, /path_for\('categories'\)[\s\S]*>视频<\/a>/);
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, /path_for\('videos'\)[\s\S]*>视频<\/a>/);
-assert.doesNotMatch(phpMobileDrawerLinksSnippet, />漫画<\/a>|>文章<\/a>|>游戏<\/a>/);
+assert.match(phpMobileDrawerLinksSnippet, /path_for\('games'\)[\s\S]*>游戏<\/a>/);
+assert.doesNotMatch(phpMobileDrawerLinksSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.match(phpRender, /class="theme-switcher" data-theme-switcher/);
 assert.match(phpRender, /class="brand-logo"[^>]*width="58"[^>]*height="58"[^>]*decoding="async"/);
 assert.match(phpRender, /<nav class="site-nav" aria-label="主导航">/);
@@ -2662,6 +2762,8 @@ assert.match(appJs, /window\.matchMedia\("\(min-width: 1181px\)"\)/);
 assert.match(appJs, /\.site-nav a\[data-nav-section\], \.mobile-drawer-links a\[data-nav-section\]/);
 assert.match(appJs, /function currentNavSection\(\)/);
 assert.match(appJs, /data-nav-section/);
+assert.match(appJs, /game-2048/);
+assert.match(appJs, /game-blockrain/);
 assert.doesNotMatch(appJs, /var fallback = links\[0\]/);
 assert.match(appJs, /window\.PingFangVideo\.markCurrentNav = markCurrentNav/);
 assert.match(appJs, /initLoginForms/);

@@ -10,11 +10,20 @@ const assetVersionPlaceholders = [
   "__PINGFANG_STYLE_VERSION__",
   "__PINGFANG_APP_VERSION__",
   "__PINGFANG_PROMPT_VERSION__",
+  "__PINGFANG_GAME_VERSION__",
 ];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
   "pingfangvideo/info.ini",
   "pingfangvideo/css/style.css",
+  "pingfangvideo/games/2048/LICENSE.txt",
+  "pingfangvideo/games/2048/js/application.js",
+  "pingfangvideo/games/2048/js/game_manager.js",
+  "pingfangvideo/games/blockrain/Copyright",
+  "pingfangvideo/games/blockrain/LICENSE.txt",
+  "pingfangvideo/games/blockrain/blockrain.jquery.min.js",
+  "pingfangvideo/games/README.md",
+  "pingfangvideo/games/init.js",
   "pingfangvideo/js/gsap.min.js",
   "pingfangvideo/js/app.js",
   "pingfangvideo/images/site-logo.png",
@@ -36,6 +45,9 @@ const requiredEntries = [
   "pingfangvideo/html/index/index.html",
   "pingfangvideo/html/label/categories.html",
   "pingfangvideo/html/label/comics.html",
+  "pingfangvideo/html/label/game-2048.html",
+  "pingfangvideo/html/label/game-blockrain.html",
+  "pingfangvideo/html/label/games.html",
   "pingfangvideo/html/label/history.html",
   "pingfangvideo/html/label/hot.html",
   "pingfangvideo/html/label/videos.html",
@@ -99,6 +111,9 @@ const excludedEntries = [
   "pingfangvideo/js/react.production.min.js",
   "pingfangvideo/js/react-dom.production.min.js",
   "pingfangvideo/js/rank-react.js",
+  "pingfangvideo/games/2048/index.html",
+  "pingfangvideo/games/blockrain/index.html",
+  "pingfangvideo/games/blockrain/jquery-1.11.1.min.js",
 ];
 const forbiddenProductionPatterns = [
   /preview\/data\.json/,
@@ -205,6 +220,8 @@ assert.match(includeHtml, new RegExp(`css/style\\.css${assetVersionPattern.sourc
 
 const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/foot.html"], { encoding: "utf8" });
 assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
+const blockrainHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-blockrain.html"], { encoding: "utf8" });
+assert.match(blockrainHtml, new RegExp(`games/init\\.js${assetVersionPattern.source}`));
 const styleVersion = includeHtml.match(/css\/style\.css\?v=([a-f0-9]{12})/)?.[1];
 const appVersion = footHtml.match(/js\/app\.js\?v=([a-f0-9]{12})/)?.[1];
 assert.ok(styleVersion && appVersion, "Active assets should include generated versions");

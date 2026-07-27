@@ -6,6 +6,21 @@ const routes = [
   ["route=videos", ["影片库", "vod-grid"]],
   ["route=comics", ["漫画入口维护中", "module-fallback"]],
   ["route=articles", ["文章入口维护中", "module-fallback"]],
+  ["route=games", ["game-login-gate", "登录后开启游戏大厅"]],
+  ["route=games&member=1", ["game-hub", "2048", "俄罗斯方块"]],
+  ["route=game-2048", ["game-login-gate", "登录后才能开始游戏"]],
+  ["route=game-2048&member=1", ["data-game-authenticated", "game-2048", "games/2048/js/application.js"]],
+  ["route=game-blockrain", ["game-login-gate", "登录后才能开始游戏"]],
+  [
+    "route=game-blockrain&member=1",
+    [
+      "data-game-authenticated",
+      "data-blockrain-game",
+      "data-blockrain-next",
+      'data-blockrain-action="drop"',
+      "games/blockrain/blockrain.jquery.min.js",
+    ],
+  ],
   ["route=categories", ["category-index", "视频分类"]],
   ["route=categories&page=2", ["category-index", "page-state"]],
   ["route=category&name=电影&sort=score", ["分类浏览", "vod-grid"]],
@@ -57,6 +72,14 @@ for (const [query, expected] of routes) {
 
   for (const marker of expected) {
     assert.ok(html.includes(marker), `${query} should include ${marker}`);
+  }
+
+  if (query === "route=game-2048") {
+    assert.doesNotMatch(html, /games\/2048\/js\//, "guest 2048 page should not load game scripts");
+  }
+
+  if (query === "route=game-blockrain") {
+    assert.doesNotMatch(html, /games\/blockrain\//, "guest blockrain page should not load game scripts");
   }
 
   if (query === "route=home") {

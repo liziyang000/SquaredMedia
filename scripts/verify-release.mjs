@@ -11,6 +11,7 @@ const assetVersionPlaceholders = [
   "__PINGFANG_APP_VERSION__",
   "__PINGFANG_PROMPT_VERSION__",
   "__PINGFANG_GAME_VERSION__",
+  "__PINGFANG_MULTIPLAYER_VERSION__",
 ];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
@@ -26,6 +27,7 @@ const requiredEntries = [
   "pingfangvideo/games/init.js",
   "pingfangvideo/js/gsap.min.js",
   "pingfangvideo/js/app.js",
+  "pingfangvideo/js/multiplayer-games.js",
   "pingfangvideo/images/site-logo.png",
   "pingfangvideo/player/preload.html",
   "pingfangvideo/player/buffering.html",
@@ -47,6 +49,8 @@ const requiredEntries = [
   "pingfangvideo/html/label/comics.html",
   "pingfangvideo/html/label/game-2048.html",
   "pingfangvideo/html/label/game-blockrain.html",
+  "pingfangvideo/html/label/game-drawguess.html",
+  "pingfangvideo/html/label/game-gomoku.html",
   "pingfangvideo/html/label/games.html",
   "pingfangvideo/html/label/history.html",
   "pingfangvideo/html/label/hot.html",
@@ -134,6 +138,7 @@ const requiredAddonEntries = [
   "pingfangdevice/info.ini",
   "pingfangdevice/install.sql",
   "pingfangdevice/service/DeviceSession.php",
+  "pingfangdevice/service/GameAccessTicket.php",
   "pingfangdevice/service/VodFilterOptions.php",
   "pingfangdevice/service/VodSourceQuality.php",
   "pingfangdevice/view/index/index.html",
@@ -222,6 +227,10 @@ const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/publi
 assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
 const blockrainHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-blockrain.html"], { encoding: "utf8" });
 assert.match(blockrainHtml, new RegExp(`games/init\\.js${assetVersionPattern.source}`));
+const gomokuHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-gomoku.html"], { encoding: "utf8" });
+assert.match(gomokuHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
+const drawguessHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-drawguess.html"], { encoding: "utf8" });
+assert.match(drawguessHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
 const styleVersion = includeHtml.match(/css\/style\.css\?v=([a-f0-9]{12})/)?.[1];
 const appVersion = footHtml.match(/js\/app\.js\?v=([a-f0-9]{12})/)?.[1];
 assert.ok(styleVersion && appVersion, "Active assets should include generated versions");

@@ -193,7 +193,7 @@
       ) {
         return "videos";
       }
-      if (route === "games" || route === "game-2048" || route === "game-blockrain") {
+      if (route === "games" || route === "game-2048" || route === "game-blockrain" || route === "game-gomoku" || route === "game-drawguess") {
         return "games";
       }
       if (route) return "";
@@ -208,7 +208,7 @@
     if (currentPath.indexOf("/vod") !== -1 || /\/label\/(categories|videos|hot|history)(?:\/|$)/.test(currentPath)) {
       return "videos";
     }
-    if (/\/label\/(games|game-2048|game-blockrain)(?:\.html)?(?:\/|$)/.test(currentPath)) {
+    if (/\/label\/(games|game-2048|game-blockrain|game-gomoku|game-drawguess)(?:\.html)?(?:\/|$)/.test(currentPath)) {
       return "games";
     }
 

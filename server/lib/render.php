@@ -341,6 +341,8 @@ function render_game_hub_preview(): string
 {
     $game2048Href = e(path_for('game-2048', ['member' => 1]));
     $blockrainHref = e(path_for('game-blockrain', ['member' => 1]));
+    $gomokuHref = e(path_for('game-gomoku', ['member' => 1]));
+    $drawguessHref = e(path_for('game-drawguess', ['member' => 1]));
 
     return '<section class="wrap game-hub" aria-labelledby="phpGameHubTitle">
   <header class="game-hub-hero">
@@ -356,8 +358,16 @@ function render_game_hub_preview(): string
       <div class="game-card-art game-card-art-blockrain" aria-hidden="true"><span class="block-shape block-shape-a"></span><span class="block-shape block-shape-b"></span><span class="block-shape block-shape-c"></span><span class="block-floor"></span></div>
       <div class="game-card-copy"><div class="game-card-meta"><span>经典消除</span><span>键盘 · 触控</span></div><h2>俄罗斯方块</h2><p>旋转、移动、快速下落，在节奏加快前完成整行消除。</p><div class="game-card-actions"><a class="primary-btn" href="' . $blockrainHref . '">开始游戏</a><a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">MIT · GitHub</a></div></div>
     </article>
+    <article class="game-card game-card-gomoku">
+      <div class="game-card-art game-card-art-gomoku" aria-hidden="true"><span class="gomoku-art-grid"></span><i class="gomoku-art-piece gomoku-art-piece-black"></i><i class="gomoku-art-piece gomoku-art-piece-white"></i><i class="gomoku-art-piece gomoku-art-piece-win"></i></div>
+      <div class="game-card-copy"><div class="game-card-meta"><span>双人对弈</span><span>实时联机</span></div><h2>五子棋</h2><p>创建六位房间码邀请好友，轮流落子，率先连成五子获胜。</p><div class="game-card-actions"><a class="primary-btn" href="' . $gomokuHref . '">创建对局</a><span class="game-online-label"><i aria-hidden="true"></i>2 人联机</span></div></div>
+    </article>
+    <article class="game-card game-card-drawguess">
+      <div class="game-card-art game-card-art-drawguess" aria-hidden="true"><span class="draw-art-paper"><i class="draw-art-sun"></i><i class="draw-art-hill"></i><i class="draw-art-line"></i></span><span class="draw-art-pencil"></span></div>
+      <div class="game-card-copy"><div class="game-card-meta"><span>聚会互动</span><span>2–8 人联机</span></div><h2>你画我猜</h2><p>轮流作画、实时猜题，答案仅对当前画手可见。</p><div class="game-card-actions"><a class="primary-btn" href="' . $drawguessHref . '">创建房间</a><span class="game-online-label"><i aria-hidden="true"></i>实时同步</span></div></div>
+    </article>
   </div>
-  <p class="game-hub-note">游戏进度只保存在当前浏览器中，不会上传到服务器。</p>
+  <p class="game-hub-note">单机游戏进度保存在当前浏览器；联机房间仅保留在游戏服务内存中，服务重启后自动结束。</p>
 </section>';
 }
 
@@ -421,6 +431,53 @@ function render_game_blockrain_preview(): string
 <script src="/template/pingfangvideo/games/blockrain/jquery-1.11.1.min.js"></script>
 <script src="/template/pingfangvideo/games/blockrain/blockrain.jquery.min.js"></script>
 <script src="/template/pingfangvideo/games/init.js"></script>';
+}
+
+function render_multiplayer_room_panel(string $prefix, bool $drawGame): string
+{
+    $title = $drawGame ? '召集你的朋友' : '创建或加入房间';
+    $description = $drawGame ? '房主分享邀请链接，至少两人即可开始；同一账号也可多页面测试。' : '每个房间最多两人，同一账号的不同标签页也可分别加入。';
+    $start = $drawGame ? '<button class="primary-btn online-start-button" type="button" data-draw-start hidden>开始游戏</button>' : '';
+
+    return '<aside class="online-room-panel" aria-label="联机房间">
+  <div class="online-connection" data-game-connection data-state="connecting"><i aria-hidden="true"></i><span>正在连接</span></div>
+  <div class="online-room-entry" data-room-entry>
+    <span class="online-kicker">开始联机</span><h2>' . e($title) . '</h2><p>' . e($description) . '</p>
+    <button class="primary-btn online-create-button" type="button" data-room-create disabled>创建新房间</button><span class="online-divider">或</span>
+    <form class="online-join-form" data-room-join-form><label for="' . e($prefix) . 'RoomCode">输入房间码</label><div><input id="' . e($prefix) . 'RoomCode" type="text" maxlength="6" autocomplete="off" placeholder="ABC234" data-room-code-input><button class="ghost-btn" type="submit" disabled data-room-join>加入</button></div></form>
+  </div>
+  <div class="online-room-details" data-room-details hidden><span class="online-kicker">当前房间</span><div class="online-room-code"><strong data-room-code>------</strong><button type="button" data-room-copy>复制邀请链接</button></div><ul class="online-player-list" data-player-list aria-label="房间玩家"></ul>' . $start . '<button class="ghost-btn online-leave-button" type="button" data-room-leave>离开房间</button></div>
+  <button class="ghost-btn online-reconnect-button" type="button" data-game-reconnect hidden>重新连接</button><p class="online-error" data-game-message role="alert" aria-live="polite"></p>
+</aside>';
+}
+
+function render_game_gomoku_preview(): string
+{
+    return '<section class="wrap game-play-page multiplayer-page multiplayer-page-gomoku" data-multiplayer-game data-game-type="gomoku" data-game-ticket-endpoint="/preview/game-ticket.json" aria-labelledby="phpGomokuTitle">
+  <header class="game-play-head"><div><span class="eyebrow">LIVE BOARD</span><h1 id="phpGomokuTitle">联机五子棋</h1><p>创建房间后把六位房间码发给好友，黑方先手，胜负由房间服务统一判定。</p></div><a class="ghost-btn" href="' . e(path_for('games', ['member' => 1])) . '">返回游戏大厅</a></header>
+  <div class="multiplayer-layout">
+    <main class="online-game-surface gomoku-surface"><div class="online-game-toolbar"><div><span class="online-kicker">对局状态</span><strong data-game-round-status>正在连接联机服务…</strong></div><span class="online-turn-badge" data-gomoku-turn>等待开局</span></div><div class="gomoku-board" data-gomoku-board role="grid" aria-label="十五路五子棋棋盘"></div><div class="online-game-actions"><button class="primary-btn" type="button" data-gomoku-rematch hidden>申请再来一局</button><span class="online-game-tip">最后一手会以光环标记</span></div></main>
+    ' . render_multiplayer_room_panel('phpGomoku', false) . '
+  </div>
+</section>
+<script src="/template/pingfangvideo/js/multiplayer-games.js"></script>';
+}
+
+function render_game_drawguess_preview(): string
+{
+    return '<section class="wrap game-play-page multiplayer-page multiplayer-page-drawguess" data-multiplayer-game data-game-type="drawguess" data-game-ticket-endpoint="/preview/game-ticket.json" aria-labelledby="phpDrawGuessTitle">
+  <header class="game-play-head"><div><span class="eyebrow">DRAW TOGETHER</span><h1 id="phpDrawGuessTitle">联机你画我猜</h1><p>2–8 人轮流作画，每人一轮；答案只发送给当前画手，猜中越快得分越高。</p></div><a class="ghost-btn" href="' . e(path_for('games', ['member' => 1])) . '">返回游戏大厅</a></header>
+  <div class="multiplayer-layout multiplayer-layout-draw">
+    <main class="online-game-surface drawguess-surface">
+      <div class="drawguess-heading"><div><span class="online-kicker">本轮题目</span><strong data-draw-word>等待开局</strong></div><time class="drawguess-timer" data-draw-timer>--</time></div>
+      <div class="drawguess-canvas-frame"><canvas data-draw-canvas width="960" height="600" aria-label="你画我猜画布"></canvas><span class="drawguess-canvas-lock" data-draw-canvas-lock>等待画手开始</span></div>
+      <div class="drawguess-tools" data-draw-tools><div class="drawguess-colors"><button class="is-selected" type="button" data-draw-color="#111111"></button><button type="button" data-draw-color="#ef4444"></button><button type="button" data-draw-color="#2563eb"></button><button type="button" data-draw-color="#16a34a"></button><button type="button" data-draw-color="#f59e0b"></button><button type="button" data-draw-color="#7c3aed"></button></div><label>粗细 <input type="range" min="2" max="18" value="4" data-draw-width></label><button class="ghost-btn" type="button" data-draw-clear>清空画布</button></div>
+      <div class="drawguess-guess-panel"><ol class="drawguess-feed" data-draw-feed></ol><form class="drawguess-guess-form" data-draw-guess-form><label for="phpDrawGuessInput">输入你的答案</label><div><input id="phpDrawGuessInput" type="text" maxlength="40" placeholder="看懂了就快猜…" data-draw-guess-input><button class="primary-btn" type="submit" data-draw-guess>发送答案</button></div></form></div>
+    </main>
+    ' . render_multiplayer_room_panel('phpDrawGuess', true) . '
+  </div>
+</section>
+<script src="/template/pingfangvideo/js/multiplayer-games.js"></script>';
 }
 
 function render_page(array $data, string $route, array $query): string
@@ -534,6 +591,20 @@ function render_page(array $data, string $route, array $query): string
             ? render_game_blockrain_preview()
             : render_game_login_gate('phpGameBlockrainLoginTitle', '登录后才能开始游戏', '登录会员账号后即可进入俄罗斯方块，未登录状态不会加载游戏脚本。');
         return render_layout($data, '俄罗斯方块', $content);
+    }
+
+    if ($route === 'game-gomoku') {
+        $content = preview_member_enabled($query)
+            ? render_game_gomoku_preview()
+            : render_game_login_gate('phpGomokuLoginTitle', '登录后才能联机对弈', '五子棋房间仅向已登录会员开放，未登录状态不会请求联机票据或加载游戏脚本。');
+        return render_layout($data, '联机五子棋', $content);
+    }
+
+    if ($route === 'game-drawguess') {
+        $content = preview_member_enabled($query)
+            ? render_game_drawguess_preview()
+            : render_game_login_gate('phpDrawGuessLoginTitle', '登录后才能加入画室', '你画我猜房间仅向已登录会员开放，未登录状态不会请求联机票据或加载游戏脚本。');
+        return render_layout($data, '联机你画我猜', $content);
     }
 
     if ($route === 'comics') {

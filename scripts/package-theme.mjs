@@ -18,6 +18,7 @@ const assetVersionInputs = {
   __PINGFANG_APP_VERSION__: "js/app.js",
   __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
   __PINGFANG_GAME_VERSION__: "games/init.js",
+  __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js",
 };
 const excludedThemePackageFiles = new Set([
   "js/hls.min.js",

@@ -1,4 +1,4 @@
-name: Theme, Addon, and Player CI
+name: Theme, Addon, Player, and Games CI
 
 on:
   push:
@@ -68,3 +68,9 @@ jobs:
         with:
           name: pingfangplayer-player
           path: dist/pingfangplayer-player.tar.gz
+
+      - name: Upload game server package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pingfanggames-server
+          path: dist/pingfanggames-server.tar.gz

@@ -43,9 +43,47 @@
         </div>
       </div>
     </article>
+
+    <article class="game-card game-card-gomoku">
+      <div class="game-card-art game-card-art-gomoku" aria-hidden="true">
+        <span class="gomoku-art-grid"></span>
+        <i class="gomoku-art-piece gomoku-art-piece-black"></i>
+        <i class="gomoku-art-piece gomoku-art-piece-white"></i>
+        <i class="gomoku-art-piece gomoku-art-piece-win"></i>
+      </div>
+      <div class="game-card-copy">
+        <div class="game-card-meta"><span>双人对弈</span><span>实时联机</span></div>
+        <h2>五子棋</h2>
+        <p>创建六位房间码邀请好友，轮流落子，率先连成五子获胜。</p>
+        <div class="game-card-actions">
+          <a class="primary-btn" href="{:mac_url('label/game-gomoku')}">创建对局</a>
+          <span class="game-online-label"><i aria-hidden="true"></i>2 人联机</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="game-card game-card-drawguess">
+      <div class="game-card-art game-card-art-drawguess" aria-hidden="true">
+        <span class="draw-art-paper">
+          <i class="draw-art-sun"></i>
+          <i class="draw-art-hill"></i>
+          <i class="draw-art-line"></i>
+        </span>
+        <span class="draw-art-pencil"></span>
+      </div>
+      <div class="game-card-copy">
+        <div class="game-card-meta"><span>聚会互动</span><span>2–8 人联机</span></div>
+        <h2>你画我猜</h2>
+        <p>轮流作画、实时猜题，答案仅对当前画手可见。</p>
+        <div class="game-card-actions">
+          <a class="primary-btn" href="{:mac_url('label/game-drawguess')}">创建房间</a>
+          <span class="game-online-label"><i aria-hidden="true"></i>实时同步</span>
+        </div>
+      </div>
+    </article>
   </div>
 
-  <p class="game-hub-note">游戏进度只保存在当前浏览器中，不会上传到服务器。</p>
+  <p class="game-hub-note">单机游戏进度保存在当前浏览器；联机房间仅保留在游戏服务内存中，服务重启后自动结束。</p>
 </section>
 {else/}
 <section class="wrap game-access-page" aria-labelledby="gameLoginTitle">

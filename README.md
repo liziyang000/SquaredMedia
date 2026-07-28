@@ -93,8 +93,9 @@ That archive has its own `pingfangplayer-player/` root and contains only the
 approved files under `static/player/`: the player HTML, versioned ArtPlayer and
 hls.js distributions, and the first-party player JavaScript and CSS. PHP,
 hidden files, and links are rejected by `npm run verify:player-release`. The
-existing `npm run deploy` and `npm run rollback` commands remain scoped to the
-theme and addon; they do not install or remove this player archive.
+`npm run deploy` installs the theme, addon, and multiplayer game service, while
+`npm run rollback` remains theme-only. Neither command installs or removes this
+player archive.
 
 This player is the performance-first HLS profile: it keeps ArtPlayer controls,
 playback-rate selection, progress restore, native HLS fallback, bounded hls.js
@@ -175,6 +176,12 @@ controller is packaged in the addon's standard
 `application/index/controller/Pingfangdevice.php` payload and copied to the
 matching MacCMS application path during SSH deployment.
 
+After the theme and addon pass verification, deployment installs the versioned
+`pingfanggames-server` release under `/opt/pingfanggames`, preserves or creates
+the shared ticket secret, updates the addon and Nginx configuration, restarts
+the systemd service, and checks `/healthz`. Use `npm run deploy:games` when only
+the multiplayer service needs to be updated.
+
 Rollback to the latest remote backup:
 
 ```bash
@@ -206,8 +213,9 @@ same release gate on pushes and pull requests: `npm test`, `npm run lint`,
 `npm run package`, and `npm run verify:release`. After verification, the CI
 workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
 `dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, plus
-`dist/pingfangplayer-player.tar.gz` as `pingfangplayer-player`, keeping all
-three release units separate.
+`dist/pingfangplayer-player.tar.gz` as `pingfangplayer-player` and
+`dist/pingfanggames-server.tar.gz` as `pingfanggames-server`, keeping all four
+release units separate.
 
 `npm run lint` checks first-party browser JavaScript with ESLint, theme CSS with
 Stylelint, and JavaScript/config formatting with Prettier. Vendored minified

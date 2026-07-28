@@ -65,6 +65,25 @@ namespace addons\pingfangdevice\service {
             return ['code' => 1, 'data' => ['vod_id' => $vodId, 'nid' => $nid]];
         }
     }
+
+    class GameAccessTicket
+    {
+        public static $calls = [];
+        public static $exception = false;
+
+        public static function issue(array $user, $game, $clientId)
+        {
+            self::$calls[] = [$user, $game, $clientId];
+            if (self::$exception) {
+                throw new \RuntimeException('ticket unavailable');
+            }
+            return [
+                'ticket' => 'signed-ticket',
+                'socket_path' => '/game-socket',
+                'expires_in' => 60,
+            ];
+        }
+    }
 }
 
 namespace app\index\controller {
@@ -89,6 +108,7 @@ namespace think\addons {
 
 namespace {
     use addons\pingfangdevice\service\DeviceSession;
+    use addons\pingfangdevice\service\GameAccessTicket;
     use addons\pingfangdevice\service\VodSourceQuality;
 
     $controllerInput = [];
@@ -196,6 +216,8 @@ namespace {
         DeviceSession::$logoutCurrentCalls = 0;
         VodSourceQuality::$calls = [];
         VodSourceQuality::$exception = false;
+        GameAccessTicket::$calls = [];
+        GameAccessTicket::$exception = false;
     };
 
     $reset();
@@ -259,6 +281,48 @@ namespace {
     VodSourceQuality::$exception = true;
     $response = $controller->sourceQuality();
     $assertSame(1003, $response['data']['code'], 'Probe failures should return a stable public error.');
+
+    $reset();
+    $controllerInput = ['game' => 'gomoku', 'client_id' => 'client-tab-alpha-0001'];
+    DeviceSession::$currentUser = ['user_id' => 42, 'user_name' => 'Alice'];
+    $response = $controller->gameTicket();
+    $assertSame(1, $response['data']['code'], 'A logged-in member should receive a game ticket.');
+    $assertSame(
+        [[['user_id' => 42, 'user_name' => 'Alice'], 'gomoku', 'client-tab-alpha-0001']],
+        GameAccessTicket::$calls,
+        'Game tickets must be scoped to the current user, requested game, and browser tab.'
+    );
+    $assertSame('signed-ticket', $response['data']['data']['ticket'], 'The signed ticket must be returned to the browser.');
+
+    $reset();
+    $controllerInput = ['game' => 'drawguess', 'client_id' => 'client-tab-alpha-0002'];
+    DeviceSession::$currentUser = null;
+    $response = $controller->gameTicket();
+    $assertSame(401, $response['status'], 'Guests must not receive game tickets.');
+    $assertSame([], GameAccessTicket::$calls, 'Guest ticket requests must not reach the ticket service.');
+
+    $reset();
+    $controllerRequest->ajax = false;
+    $controllerInput = ['game' => 'gomoku', 'client_id' => 'client-tab-alpha-0003'];
+    $response = $controller->gameTicket();
+    $assertSame(405, $response['status'], 'Game tickets must require same-origin Ajax requests.');
+
+    $reset();
+    $controllerInput = ['game' => 'unknown', 'client_id' => 'client-tab-alpha-0004'];
+    $response = $controller->gameTicket();
+    $assertSame(400, $response['status'], 'Game tickets must reject unknown game types.');
+
+    $reset();
+    $controllerInput = ['game' => 'gomoku', 'client_id' => 'short'];
+    $response = $controller->gameTicket();
+    $assertSame(400, $response['status'], 'Game tickets must reject invalid browser tab identities.');
+    $assertSame([], GameAccessTicket::$calls, 'Invalid browser tab identities must not reach the ticket service.');
+
+    $reset();
+    $controllerInput = ['game' => 'gomoku', 'client_id' => 'client-tab-alpha-0005'];
+    GameAccessTicket::$exception = true;
+    $response = $controller->gameTicket();
+    $assertSame(1004, $response['data']['code'], 'Ticket service failures should return a stable public error.');
 
     echo "Device controller behavior tests passed.\n";
 }

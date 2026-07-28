@@ -12,6 +12,7 @@ const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
 const appVersionPlaceholder = "__PINGFANG_APP_VERSION__";
 const promptVersionPlaceholder = "__PINGFANG_PROMPT_VERSION__";
 const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
+const multiplayerVersionPlaceholder = "__PINGFANG_MULTIPLAYER_VERSION__";
 
 const requiredFiles = [
   "info.ini",
@@ -47,6 +48,7 @@ const requiredFiles = [
   "js/react-dom.production.min.js",
   "js/rank-react.js",
   "js/app.js",
+  "js/multiplayer-games.js",
   "player/preload.html",
   "player/buffering.html",
   "player/prompt.css",
@@ -73,6 +75,8 @@ const requiredFiles = [
   "html/label/comics.html",
   "html/label/game-2048.html",
   "html/label/game-blockrain.html",
+  "html/label/game-drawguess.html",
+  "html/label/game-gomoku.html",
   "html/label/games.html",
   "html/label/history.html",
   "html/label/hot.html",
@@ -156,6 +160,7 @@ const requiredRootFiles = [
   "addons/pingfangdevice/info.ini",
   "addons/pingfangdevice/install.sql",
   "addons/pingfangdevice/service/DeviceSession.php",
+  "addons/pingfangdevice/service/GameAccessTicket.php",
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
   "preview/data.json",
@@ -164,14 +169,21 @@ const requiredRootFiles = [
   "scripts/deploy-theme.sh",
   "scripts/rollback-theme.sh",
   "scripts/package-player.mjs",
+  "scripts/package-game-server.mjs",
   "scripts/package-theme.mjs",
   "scripts/verify-compat.mjs",
   "scripts/verify-preview.mjs",
   "scripts/verify-player-release.mjs",
+  "scripts/verify-game-server-release.mjs",
   "scripts/verify-release.mjs",
   "server/index.php",
   "server/lib/data.php",
   "server/lib/render.php",
+  "services/game-server/index.mjs",
+  "services/game-server/package.json",
+  "services/game-server/src/game-service.mjs",
+  "services/game-server/src/server.mjs",
+  "services/game-server/src/ticket.mjs",
 ];
 
 for (const file of requiredRootFiles) {
@@ -454,8 +466,12 @@ assert.match(gamesPage, /class="[^"]*\bgame-hub\b/);
 assert.match(gamesPage, /class="game-grid"/);
 assert.match(gamesPage, /mac_url\('label\/game-2048'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-blockrain'\)/);
+assert.match(gamesPage, /mac_url\('label\/game-gomoku'\)/);
+assert.match(gamesPage, /mac_url\('label\/game-drawguess'\)/);
 assert.match(gamesPage, />2048</);
 assert.match(gamesPage, />俄罗斯方块</);
+assert.match(gamesPage, />五子棋</);
+assert.match(gamesPage, />你画我猜</);
 assert.match(gamesPage, /\{else\/\}[\s\S]*class="game-login-gate"/);
 assert.match(gamesPage, /登录后开启游戏大厅/);
 assert.match(gamesPage, /mac_url\('user\/login'\)/);
@@ -493,6 +509,39 @@ assert.doesNotMatch(gameBlockrainAuthBranch, /jquery-1\.11\.1\.min\.js/);
 assert.match(gameBlockrainPage, /\{else\/\}[\s\S]*登录后才能开始游戏/);
 assert.match(gameBlockrainPage, /mac_url\('user\/login'\)/);
 assert.match(gameBlockrainPage, /\{include file="public\/foot" \/\}/);
+
+for (const [file, game, marker, loginText] of [
+  ["html/label/game-gomoku.html", "gomoku", "data-gomoku-board", "登录后才能联机对弈"],
+  ["html/label/game-drawguess.html", "drawguess", "data-draw-canvas", "登录后才能加入画室"],
+]) {
+  const page = readThemeFile(file);
+  const authBranch = page.slice(page.indexOf('{if condition="$user.user_id gt 0"}'), page.indexOf("{else/}"));
+  const guestBranch = page.slice(page.indexOf("{else/}"));
+  assert.match(authBranch, /data-multiplayer-game/);
+  assert.match(authBranch, new RegExp(`data-game-type="${game}"`));
+  assert.match(authBranch, new RegExp(marker));
+  assert.match(authBranch, /data-game-ticket-endpoint="\{:url\('pingfangdevice\/gameTicket'\)\}"/);
+  assert.match(authBranch, new RegExp(`\\{\\$maccms\\.path_tpl\\}js/multiplayer-games\\.js\\?v=${multiplayerVersionPlaceholder}`));
+  assert.match(guestBranch, new RegExp(loginText));
+  assert.doesNotMatch(guestBranch, /data-game-ticket-endpoint|js\/multiplayer-games\.js/);
+  assert.match(page, /mac_url\('user\/login'\)/);
+  assert.match(page, /\{include file="public\/foot" \/\}/);
+}
+
+const multiplayerGameJs = readThemeFile("js/multiplayer-games.js");
+assert.match(multiplayerGameJs, /new WebSocket/);
+assert.match(multiplayerGameJs, /pfv-ticket\./);
+assert.match(multiplayerGameJs, /client_id/);
+assert.match(multiplayerGameJs, /sessionStorage/);
+assert.match(multiplayerGameJs, /BroadcastChannel/);
+assert.match(multiplayerGameJs, /searchParams\.get\("room"\)/);
+assert.match(multiplayerGameJs, /searchParams\.set\("room"/);
+assert.match(multiplayerGameJs, /复制邀请链接/);
+assert.match(multiplayerGameJs, /data-gomoku-board/);
+assert.match(multiplayerGameJs, /draw\.stroke/);
+assert.match(multiplayerGameJs, /clearDrawFeed/);
+assert.match(multiplayerGameJs, /textContent/);
+assert.doesNotMatch(multiplayerGameJs, /localhost|127\.0\.0\.1/);
 
 assert.ok(!existsSync(path.join(themeRoot, "games/2048/index.html")), "2048 should not expose an anonymous static HTML entry");
 assert.ok(!existsSync(path.join(themeRoot, "games/blockrain/index.html")), "Blockrain should not expose an anonymous static HTML entry");
@@ -1176,6 +1225,7 @@ assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
 
 const style = readThemeFile("css/style.css");
+assert.match(style, /\.multiplayer-page \[hidden\]\s*\{\s*display: none !important;/);
 const appScript = readThemeFile("js/app.js");
 const dunhuangAssets = [
   readThemeFile("images/dunhuang/caisson-frame.svg"),
@@ -1958,6 +2008,9 @@ assert.doesNotMatch(style, /\.sort-score::before/);
 assert.match(style, /\.history-timeline/);
 assert.match(style, /\.timeline-date/);
 assert.match(style, /\.timeline-item/);
+assert.match(style, /\.multiplayer-layout/);
+assert.match(style, /\.gomoku-board/);
+assert.match(style, /\.drawguess-canvas-frame/);
 assert.match(style, /\.interaction-panel/);
 assert.match(style, /\.star-meter/);
 assert.doesNotMatch(style, /border(?:-color)?: [^;]*rgba\(40, 199, 167/);
@@ -1981,6 +2034,7 @@ assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
 assert.match(packageScript, /__PINGFANG_APP_VERSION__/);
 assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
 assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
+assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
 assert.match(packageScript, /excludedThemePackageFiles/);
 assert.match(packageScript, /"js\/rank-react\.js"/);
 assert.match(packageScript, /"player\/prompt\.css"/);
@@ -2000,12 +2054,20 @@ assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.m
 assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");
 assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
 assert.equal(packageJson.scripts["package:player"], "node scripts/package-player.mjs");
+assert.equal(packageJson.scripts["package:games"], "node scripts/package-game-server.mjs");
 assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify-player-release.mjs");
+assert.equal(packageJson.scripts["verify:game-server-release"], "node scripts/verify-game-server-release.mjs");
+assert.equal(packageJson.scripts["start:games"], "node services/game-server/index.mjs");
+assert.equal(packageJson.scripts["deploy:games"], "bash scripts/deploy-game-server.sh");
 assert.match(packageJson.scripts.package, /package-theme\.mjs/);
 assert.match(packageJson.scripts.package, /package:player/);
+assert.match(packageJson.scripts.package, /package:games/);
 assert.match(packageJson.scripts["verify:release"], /verify-release\.mjs/);
 assert.match(packageJson.scripts["verify:release"], /verify:player-release/);
-assert.equal(packageJson.scripts.deploy, "bash scripts/deploy-theme.sh");
+assert.match(packageJson.scripts["verify:release"], /verify:game-server-release/);
+assert.equal(packageJson.dependencies.ws, "8.21.1");
+assert.match(packageJson.scripts.deploy, /deploy-theme\.sh/);
+assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
@@ -2063,7 +2125,70 @@ assert.match(deployScript, /runtime\/cache/);
 assert.match(deployScript, /runtime\/temp/);
 assert.match(deployScript, /view\/_cache/);
 assert.match(deployScript, /find "\$cache_dir" -mindepth 1/);
+assert.match(deployScript, /existing.*config/i);
 assert.doesNotMatch(deployScript, /DEPLOY_PASSWORD=/);
+
+const gameDeployScript = readFileSync(path.join(root, "scripts/deploy-game-server.sh"), "utf8");
+const gameDeployMode = statSync(path.join(root, "scripts/deploy-game-server.sh")).mode & 0o777;
+assert.equal(gameDeployMode & 0o111, 0o111, "game deployment script must remain executable");
+assert.match(gameDeployScript, /^#!\/usr\/bin\/env bash/);
+assert.match(gameDeployScript, /set -euo pipefail/);
+assert.match(gameDeployScript, /dist\/pingfanggames-server\.tar\.gz/);
+assert.match(gameDeployScript, /GAME_TICKET_SECRET/);
+assert.match(gameDeployScript, /GAME_ALLOWED_ORIGINS/);
+assert.match(gameDeployScript, /pingfanggames\.service/);
+assert.match(gameDeployScript, /pingfanggames\.conf/);
+assert.match(gameDeployScript, /systemctl restart/);
+assert.match(gameDeployScript, /healthz/);
+assert.match(gameDeployScript, /nginx -t/);
+assert.match(gameDeployScript, /\/etc\/init\.d\/nginx reload/);
+assert.match(gameDeployScript, /pingfangdevice\/config\.php/);
+assert.doesNotMatch(gameDeployScript, /source "\$service_env"/);
+assert.doesNotMatch(gameDeployScript, /DEPLOY_PASSWORD=/);
+
+const invalidGameDeploySiteHost = spawnSync("bash", ["scripts/deploy-game-server.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SITE_HOST: "https://www.example.com/",
+  },
+});
+assert.notEqual(invalidGameDeploySiteHost.status, 0);
+assert.match(invalidGameDeploySiteHost.stderr, /DEPLOY_SITE_HOST must be a hostname/);
+
+const invalidGameDeploySiteScheme = spawnSync("bash", ["scripts/deploy-game-server.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SITE_HOST: "www.example.com",
+    DEPLOY_SITE_SCHEME: "ftp",
+  },
+});
+assert.notEqual(invalidGameDeploySiteScheme.status, 0);
+assert.match(invalidGameDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
+
+const invalidGameDeployOrigin = spawnSync("bash", ["scripts/deploy-game-server.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SITE_HOST: "www.example.com",
+    DEPLOY_GAME_ALLOWED_ORIGINS: "https://www.example.com/path",
+  },
+});
+assert.notEqual(invalidGameDeployOrigin.status, 0);
+assert.match(invalidGameDeployOrigin.stderr, /DEPLOY_GAME_ALLOWED_ORIGINS must contain exact HTTP origins/);
 
 const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy-theme.sh"], {
   cwd: root,
@@ -2113,7 +2238,7 @@ assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
 
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
-assert.match(ciWorkflow, /name: Theme, Addon, and Player CI/);
+assert.match(ciWorkflow, /name: Theme, Addon, Player, and Games CI/);
 assert.match(ciWorkflow, /pull_request:/);
 assert.match(ciWorkflow, /actions\/checkout@v4/);
 assert.match(ciWorkflow, /actions\/setup-node@v4/);
@@ -2132,6 +2257,7 @@ assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
 assert.match(ciWorkflow, /name: pingfangvideo-theme[\s\S]*path: dist\/pingfangvideo\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangdevice\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangplayer-player[\s\S]*path: dist\/pingfangplayer-player\.tar\.gz/);
+assert.match(ciWorkflow, /name: pingfanggames-server[\s\S]*path: dist\/pingfanggames-server\.tar\.gz/);
 
 const deviceAddonInfo = readAddonFile("info.ini");
 assert.match(deviceAddonInfo, /name = pingfangdevice/);
@@ -2142,6 +2268,8 @@ assert.match(deviceAddonConfig, /max_devices/);
 assert.match(deviceAddonConfig, /'value'\s*=>\s*'3'/);
 assert.match(deviceAddonConfig, /pfv_device_token/);
 assert.match(deviceAddonConfig, /session_lifetime_days/);
+assert.match(deviceAddonConfig, /game_ticket_secret/);
+assert.match(deviceAddonConfig, /game_websocket_path/);
 
 const deviceAddonHook = readAddonFile("Pingfangdevice.php");
 assert.match(deviceAddonHook, /namespace addons\\pingfangdevice/);
@@ -2166,6 +2294,8 @@ assert.match(deviceActions, /\$param \+= \['verify' => '', 'openid' => '', 'col'
 assert.match(deviceActions, /isPost\(\) \|\| !Request\(\)->isAjax\(\)/);
 assert.match(deviceActions, /VodFilterOptions::filters\(input\(\)\)/);
 assert.match(deviceActions, /public function filters\(\)/);
+assert.match(deviceActions, /public function gameTicket\(\)/);
+assert.match(deviceActions, /GameAccessTicket::issue\(\$user, \$game, \$clientId\)/);
 
 const deviceAddonController = readAddonFile("controller/Index.php");
 assert.match(deviceAddonController, /use DeviceActions/);
@@ -2327,6 +2457,7 @@ assert.match(releaseVerifier, /assetVersionPlaceholders/);
 assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
+assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);
 assert.match(releaseVerifier, /excludedEntries/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
 assert.match(releaseVerifier, /pingfangvideo\/js\/hls\.min\.js/);

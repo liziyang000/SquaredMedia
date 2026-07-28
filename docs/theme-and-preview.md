@@ -27,8 +27,8 @@
 - `html/art/`、`topic/`、`actor/`、`role/`、`plot/`、`website/`：标准模块的页面或兜底页面。
 - `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、站点地图和订阅输出。
 - `css/style.css`：全站样式、语义 token、三套主题和响应式规则。
-- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效。
-- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证；不提供可匿名打开的独立 `index.html`，具体游玩页由 `html/label/game-*.html` 按 `$user.user_id` 服务端分支加载脚本。
+- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间。
+- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证；不提供可匿名打开的独立 `index.html`。五子棋和你画我猜是一方实现，浏览器协议位于 `js/multiplayer-games.js`。所有游玩页都由 `html/label/game-*.html` 按 `$user.user_id` 服务端分支加载脚本。
 - `images/`：站点和品牌图片；生产模板通过 `{$maccms.path_tpl}` 引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
@@ -91,7 +91,7 @@ HTTP GET /preview/index.html
   -> 重新调用首页标签页、轮播和动效初始化器
 ```
 
-静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只用于模拟会员视觉与本地玩法验证，不代表生产鉴权。
+静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只模拟会员视觉。2048 与俄罗斯方块可本地操作，联机页面因没有真实 MacCMS 登录票据会显示未连接，不能把该参数当作联机鉴权。
 
 ### PHP 预览链
 
@@ -112,7 +112,7 @@ PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。�
 - 播放相关修改不得移除 `{$player_data}`、`{$player_js}` 或原生回退链。
 - 改动共享 CSS/JS 标记时，要同时检查生产模板、静态预览和 PHP renderer，但不要把预览标记直接复制到生产模板。
 - `preview/data.json` 使用远程图片和演示视频，离线或受限网络下媒体加载失败不代表生产主题故障。
-- `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__` 和 `__PINGFANG_PROMPT_VERSION__` 由打包流程按文件内容处理，不应在源码中手工替换为一次性版本号。
+- `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__`、`__PINGFANG_PROMPT_VERSION__`、`__PINGFANG_GAME_VERSION__` 和 `__PINGFANG_MULTIPLAYER_VERSION__` 由打包流程按文件内容处理，不应在源码中手工替换为一次性版本号。
 
 ## 本地使用与验证
 
@@ -133,9 +133,11 @@ http://127.0.0.1:8099/preview/index.html?route=home
 ```text
 http://127.0.0.1:8099/preview/index.html?route=games
 http://127.0.0.1:8099/preview/index.html?route=games&member=1
+http://127.0.0.1:8099/preview/index.html?route=game-gomoku&member=1
+http://127.0.0.1:8099/preview/index.html?route=game-drawguess&member=1
 ```
 
-前者验证未登录拦截，后者仅模拟本地会员状态。生产环境仍以 MacCMS 注入的 `$user.user_id` 为准，游戏大厅和具体游玩页在未登录分支都不会输出游戏脚本。
+第一条验证未登录拦截，其余地址只用于检查会员分支视觉。生产环境仍以 MacCMS 注入的 `$user.user_id` 为准，游戏大厅和具体游玩页在未登录分支都不会输出游戏脚本。联机行为需同时运行 `services/game-server`、配置同源代理，并由已登录 MacCMS 页面取得短票据。
 
 PHP 渲染回归使用仓库脚本：
 

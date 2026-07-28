@@ -4,11 +4,11 @@
 
 ## 环境要求
 
-- Node.js：CI 使用 Node.js 22；先用 `npm ci` 安装锁定版本的检查工具，以及用于播放器发布包的 ArtPlayer 和 hls.js。
+- Node.js：CI 和联机游戏服务使用 Node.js 22；先用 `npm ci` 安装锁定版本的检查工具、播放器依赖和 `ws` 8.21.1。
 - PHP：目标版本为 PHP 8.4。完整测试会调用 PHP CLI；海报修复工具还要求 `curl`、`mbstring`、`pdo_mysql` 扩展。
 - 打包：需要系统 `tar`，且当前脚本使用 `--no-xattrs`。
 - 部署：本机需要 `bash`、`ssh`、`scp`；使用密码认证时还需要 `sshpass`，日常发布优先使用 SSH 密钥。
-- 远端：需要可执行 `bash`、`tar`、PHP CLI 和 PDO MySQL，并且发布账号必须能写入 MacCMS 模板、插件、控制器、配置和缓存目录。
+- 远端：需要可执行 `bash`、`tar`、PHP CLI、PDO MySQL、Node.js 22、systemd、Nginx 和 `curl`，并且发布账号必须能写入 MacCMS 模板、插件、控制器、配置和缓存目录以及 `/opt/pingfanggames`、`/etc/systemd/system` 和站点 Nginx 扩展配置。
 
 ## 开发验证
 
@@ -19,14 +19,18 @@
 | `npm ci` | 按 `package-lock.json` 安装前端检查工具与播放器发布依赖 | 只写入已忽略的 `node_modules/` |
 | `npm run lint` | 依次检查一方浏览器 JavaScript、主题 CSS 和 Prettier 格式 | 否 |
 | `npm run format` | 用 Prettier 格式化一方 JavaScript 与配置文件 | 是，直接修改被覆盖的源码与配置 |
-| `npm test` | 运行模板、播放器发布包、设备会话与控制器 PHP 测试、海报修复单元测试 | 否；测试只使用系统临时目录 |
+| `npm test` | 运行模板、播放器、联机房间/WebSocket、设备会话与控制器 PHP 测试、海报修复单元测试 | 否；WebSocket 测试只临时监听本机随机端口 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
-| `npm run package` | 重建主题、`pingfangdevice` 插件和独立播放器发布包 | 是，先重建整个 `dist/` 再加入播放器产物 |
+| `npm run package` | 重建主题、`pingfangdevice`、独立播放器和联机游戏服务发布包 | 是，先重建整个 `dist/` 再加入独立产物 |
 | `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物 | 是，仅替换播放器目录和归档 |
-| `npm run verify:release` | 解包检查三个归档的结构、生产边界、资源版本和插件表结构 | 只读 `dist/` |
+| `npm run package:games` | 只重建自包含的联机游戏服务包 | 是，仅替换游戏服务目录和归档 |
+| `npm run verify:release` | 解包检查四个归档的结构、生产边界、资源版本和依赖版本 | 只读 `dist/` |
 | `npm run verify:player-release` | 单独检查播放器归档的严格白名单、文件一致性与链接边界 | 只读 `dist/` |
+| `npm run verify:game-server-release` | 检查游戏服务源码、部署样例、固定 `ws` 版本和敏感文件边界 | 只读 `dist/` |
+| `npm run start:games` | 启动本机联机游戏服务；必须先设置签名密钥和允许的 Origin | 否 |
+| `npm run deploy:games` | 单独验证、打包并部署联机游戏服务，复用现有签名密钥 | 写入远端服务、插件配置和 Nginx 配置 |
 
 提交主题相关修改前，至少执行：
 
@@ -61,6 +65,8 @@ npm run verify:release
 - `scripts/verify-preview.mjs` 从仓库根目录调用 PHP CLI，验证本地模拟数据能够渲染主要路由；它不连接真实 MacCMS 数据库。
 - `scripts/verify-release.mjs` 只验证已经生成的归档，不会自动执行打包。
 - `scripts/verify-player-release.mjs` 只接受播放器白名单内的静态文件，并拒绝 PHP、隐藏路径、符号链接和硬链接。
+- `tests/game-server.test.mjs` 覆盖票据伪造/过期、房间人数、落子顺序与五子胜负、绘画权限、答案隔离、Origin 拒绝和真实 WebSocket 握手。
+- `scripts/verify-game-server-release.mjs` 确认服务包自带精确的 `ws` 8.21.1，且不包含环境文件或签名密钥。
 
 本地静态预览必须通过 HTTP 服务打开，因为 `preview/index.html` 使用绝对路径请求 `/preview/data.json`。直接以 `file://` 打开不能视为有效验证。Docker 通过 `PINGFANG_PREVIEW_DATA=/var/www/html/preview/data.json` 对齐容器挂载路径；不使用 Docker 时，`server/lib/data.php` 默认从仓库根目录读取相同样例数据。PHP 路由验证以 `npm run verify:preview` 为准。
 
@@ -75,7 +81,9 @@ dist/
 ├── pingfangdevice/
 ├── pingfangdevice.tar.gz
 ├── pingfangplayer-player/
-└── pingfangplayer-player.tar.gz
+├── pingfangplayer-player.tar.gz
+├── pingfanggames-server/
+└── pingfanggames-server.tar.gz
 ```
 
 打包过程有以下固定行为：
@@ -83,10 +91,11 @@ dist/
 - `pingfangvideo` 来自 `template/pingfangvideo/`，`pingfangdevice` 来自 `addons/pingfangdevice/`。
 - `pingfangdevice/application/` 保留 MacCMS 标准插件应用载荷结构；SSH 部署会把其中的兼容控制器复制到对应 CMS 应用目录。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
-- 主题 HTML 中的 `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__` 和 `__PINGFANG_PROMPT_VERSION__` 会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。新增需要内容版本的资源时，应同步维护打包映射和发布验证。
+- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
-- 当前自动化打包主题、`pingfangdevice` 和独立播放器，不会自动打包或部署其他 `addons/` 子目录；现有主题部署与回滚脚本也不会安装或删除独立播放器。
+- `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
+- 当前自动化打包主题、`pingfangdevice`、独立播放器和联机游戏服务，不会打包其他 `addons/` 子目录；`npm run deploy` 会部署主题、插件与游戏服务，但不会安装独立播放器。`npm run rollback` 仍只回滚主题，不删除播放器或游戏服务。
 
 `dist/` 已被 `.gitignore` 忽略，是可重复生成的发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
@@ -100,9 +109,21 @@ dist/
 
 当前 `npm run deploy` 和 `npm run rollback` 不操作播放器包。MacCMS 后台中的播放器线路、解析状态和 `/static/js/playerconfig.js` 也不由这个仓库生成；其中解析接口及播放前等待秒数必须在后台按实际配置单独核对。
 
+### 联机游戏服务包边界
+
+`dist/pingfanggames-server.tar.gz` 是独立 Node.js 服务，不属于 MacCMS 主题或 PHP 插件。它只在内存中保存房间，不持久化画作、猜词、战绩或聊天；重启进程会结束现有房间。默认监听 `127.0.0.1:8787`，消息上限 16 KiB，关闭 WebSocket 压缩；断线席位保留 45 秒用于重连，超时后自动清理，空房间同样在 45 秒后回收。
+
+安装时需要完成三方一致配置：
+
+1. 用随机值设置服务的 `GAME_TICKET_SECRET`，并把同一个值保存到 MacCMS `pingfangdevice` 的“联机游戏签名密钥”。
+2. 设置精确的 `GAME_ALLOWED_ORIGINS`，通过 Nginx 将同源 `/game-socket` 反代到本机服务。
+3. 使用归档内的 systemd 样例启动服务，确认 `/healthz`、错误 Origin 403、游客无法取票，以及两个真实会员能进入同一房间。
+
+详细环境变量和配置样例见 `services/game-server/README.md`。密钥轮换会让尚未使用的旧票据立即失效，但不会主动关闭已经完成握手的连接；需要强制断开时应重启服务。`npm run deploy` 会在主题和插件成功后自动执行这些主机级配置；仅更新游戏服务时可使用 `npm run deploy:games`。
+
 ## 部署
 
-`npm run deploy` 调用 `scripts/deploy-theme.sh`。必须提供：
+`npm run deploy` 先调用 `scripts/deploy-theme.sh`，再调用 `scripts/deploy-game-server.sh`。必须提供：
 
 ```bash
 DEPLOY_HOST=example.com \
@@ -122,12 +143,15 @@ npm run deploy
 发布顺序如下：
 
 1. 在本地重新执行测试、模板检查、兼容验证和预览验证。
-2. 重建 `dist/`，验证主题、插件和播放器三个发布归档。
+2. 重建 `dist/`，验证主题、插件、播放器和联机游戏服务四个发布归档。
 3. 上传主题与 `pingfangdevice` 归档到远端临时路径。
 4. 先安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
-5. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
-6. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
-7. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
+5. 把旧插件配置中仍存在的同名设置值合并到新配置，避免主题发布清空设备限制或联机签名密钥。
+6. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
+7. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
+8. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
+9. 上传联机服务包，原子切换 `/opt/pingfanggames/current`，复用已有密钥或首次生成密钥，同步插件配置、systemd 与 Nginx。
+10. 校验 Nginx 配置、重启并启用游戏服务、检查 `/healthz`，再按服务器实际管理方式无中断重载 Nginx。
 
 需要保留缓存时可设置 `DEPLOY_CLEAR_CACHE=0`，但只能用于明确的维护场景。站点回环验证能识别 PHP/Nginx 错误页、错误虚拟主机和缓存重建失败，但不会检查浏览器登录流程、外部 DNS/CDN 可达性，因此脚本成功仍不等于完整线上验收。
 
@@ -148,6 +172,7 @@ npm run deploy
 - 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
 - 站点回环验证发生在文件、hook 和数据库更新之后；验证失败会让部署命令返回非零，但不会自动回滚已经应用的变化，应先检查响应和备份，再决定修复或执行明确回滚。
 - 脚本会为插件目录、应用兼容控制器和 hook 配置创建备份，但不会自动执行插件回滚。
+- 游戏服务部署会单独备份服务环境、systemd、Nginx 和插件配置；该阶段失败时自动恢复上一个服务版本，但不会回滚此前已成功更新的主题与插件代码。
 
 ## 回滚
 
@@ -222,6 +247,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 pingfangvideo-theme  -> dist/pingfangvideo.tar.gz
 pingfangdevice-addon -> dist/pingfangdevice.tar.gz
 pingfangplayer-player -> dist/pingfangplayer-player.tar.gz
+pingfanggames-server -> dist/pingfanggames-server.tar.gz
 ```
 
 CI 只构建和保存归档，不连接生产服务器，也不执行部署、回滚或数据库维护。下载 CI 产物后仍应核对对应提交和归档内容，再进入有授权的发布流程。

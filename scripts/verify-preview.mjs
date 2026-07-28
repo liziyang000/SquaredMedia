@@ -7,7 +7,7 @@ const routes = [
   ["route=comics", ["漫画入口维护中", "module-fallback"]],
   ["route=articles", ["文章入口维护中", "module-fallback"]],
   ["route=games", ["game-login-gate", "登录后开启游戏大厅"]],
-  ["route=games&member=1", ["game-hub", "2048", "俄罗斯方块"]],
+  ["route=games&member=1", ["game-hub", "2048", "俄罗斯方块", "五子棋", "你画我猜"]],
   ["route=game-2048", ["game-login-gate", "登录后才能开始游戏"]],
   ["route=game-2048&member=1", ["data-game-authenticated", "game-2048", "games/2048/js/application.js"]],
   ["route=game-blockrain", ["game-login-gate", "登录后才能开始游戏"]],
@@ -20,6 +20,13 @@ const routes = [
       'data-blockrain-action="drop"',
       "games/blockrain/blockrain.jquery.min.js",
     ],
+  ],
+  ["route=game-gomoku", ["game-login-gate", "登录后才能联机对弈"]],
+  ["route=game-gomoku&member=1", ["data-multiplayer-game", 'data-game-type="gomoku"', "data-gomoku-board", "js/multiplayer-games.js"]],
+  ["route=game-drawguess", ["game-login-gate", "登录后才能加入画室"]],
+  [
+    "route=game-drawguess&member=1",
+    ["data-multiplayer-game", 'data-game-type="drawguess"', "data-draw-canvas", "data-draw-guess-form", "js/multiplayer-games.js"],
   ],
   ["route=categories", ["category-index", "视频分类"]],
   ["route=categories&page=2", ["category-index", "page-state"]],
@@ -80,6 +87,11 @@ for (const [query, expected] of routes) {
 
   if (query === "route=game-blockrain") {
     assert.doesNotMatch(html, /games\/blockrain\//, "guest blockrain page should not load game scripts");
+  }
+
+  if (query === "route=game-gomoku" || query === "route=game-drawguess") {
+    assert.doesNotMatch(html, /js\/multiplayer-games\.js/, "guest multiplayer pages should not load game scripts");
+    assert.doesNotMatch(html, /data-game-ticket-endpoint/, "guest multiplayer pages should not expose the ticket endpoint");
   }
 
   if (query === "route=home") {

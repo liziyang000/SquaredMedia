@@ -17,5 +17,17 @@ export default [
       "no-empty": ["error", { allowEmptyCatch: true }],
       "no-unused-vars": ["error", { caughtErrors: "none" }]
     }
+  },
+  {
+    files: ["services/game-server/**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: globals.node
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      "no-unused-vars": ["error", { caughtErrors: "none" }]
+    }
   }
 ];

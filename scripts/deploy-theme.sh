@@ -146,6 +146,7 @@ install_device_addon() {
   maccms_root="$(dirname "$DEPLOY_PATH")"
   addon_dir="$maccms_root/addons/$ADDON_NAME"
   application_target="$maccms_root/application/index/controller/Pingfangdevice.php"
+  backup=""
   mkdir -p "$maccms_root/addons"
 
   tmp_dir="$deploy_tmp_dir/addon"
@@ -167,6 +168,39 @@ install_device_addon() {
 
   rm -rf "$addon_dir"
   mv "$tmp_dir/$ADDON_NAME" "$addon_dir"
+
+  if [[ -n "$backup" && -f "$maccms_root/addons/$backup/config.php" ]]; then
+    EXISTING_ADDON_CONFIG="$maccms_root/addons/$backup/config.php" NEW_ADDON_CONFIG="$addon_dir/config.php" php <<'PHP_ADDON_CONFIG'
+<?php
+$existingPath = getenv('EXISTING_ADDON_CONFIG');
+$newPath = getenv('NEW_ADDON_CONFIG');
+$existing = include $existingPath;
+$new = include $newPath;
+if (!is_array($existing) || !is_array($new)) {
+    fwrite(STDERR, "Addon config preservation failed: invalid config file.\n");
+    exit(1);
+}
+$values = [];
+foreach ($existing as $item) {
+    if (is_array($item) && isset($item['name'])) {
+        $values[(string) $item['name']] = $item['value'] ?? '';
+    }
+}
+foreach ($new as &$item) {
+    if (is_array($item) && isset($item['name']) && array_key_exists((string) $item['name'], $values)) {
+        $item['value'] = $values[(string) $item['name']];
+    }
+}
+unset($item);
+$content = "<?php\n\nreturn " . var_export($new, true) . ";\n";
+$tempPath = $newPath . '.tmp.' . getmypid();
+if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newPath)) {
+    @unlink($tempPath);
+    fwrite(STDERR, "Addon config preservation failed: unable to update config.\n");
+    exit(1);
+}
+PHP_ADDON_CONFIG
+  fi
 
   application_source="$addon_dir/application/index/controller/Pingfangdevice.php"
   if [[ ! -f "$application_source" ]]; then

@@ -1,0 +1,76 @@
+{include file="public/head" seo_title="联机五子棋" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{if condition="$user.user_id gt 0"}
+<section class="wrap game-play-page multiplayer-page multiplayer-page-gomoku" data-multiplayer-game data-game-type="gomoku" data-game-ticket-endpoint="{:url('pingfangdevice/gameTicket')}" aria-labelledby="gomokuTitle">
+  <header class="game-play-head">
+    <div>
+      <span class="eyebrow">LIVE BOARD</span>
+      <h1 id="gomokuTitle">联机五子棋</h1>
+      <p>创建房间后把六位房间码发给好友，黑方先手，胜负由房间服务统一判定。</p>
+    </div>
+    <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+  </header>
+
+  <div class="multiplayer-layout">
+    <main class="online-game-surface gomoku-surface">
+      <div class="online-game-toolbar">
+        <div>
+          <span class="online-kicker">对局状态</span>
+          <strong data-game-round-status>正在连接联机服务…</strong>
+        </div>
+        <span class="online-turn-badge" data-gomoku-turn>等待开局</span>
+      </div>
+      <div class="gomoku-board" data-gomoku-board role="grid" aria-label="十五路五子棋棋盘"></div>
+      <div class="online-game-actions">
+        <button class="primary-btn" type="button" data-gomoku-rematch hidden>申请再来一局</button>
+        <span class="online-game-tip">最后一手会以光环标记</span>
+      </div>
+    </main>
+
+    <aside class="online-room-panel" aria-label="联机房间">
+      <div class="online-connection" data-game-connection data-state="connecting">
+        <i aria-hidden="true"></i><span>正在连接</span>
+      </div>
+      <div class="online-room-entry" data-room-entry>
+        <span class="online-kicker">开始联机</span>
+        <h2>创建或加入房间</h2>
+        <p>每个房间最多两人，同一账号的不同标签页也可分别加入。</p>
+        <button class="primary-btn online-create-button" type="button" data-room-create disabled>创建新房间</button>
+        <span class="online-divider">或</span>
+        <form class="online-join-form" data-room-join-form>
+          <label for="gomokuRoomCode">输入房间码</label>
+          <div>
+            <input id="gomokuRoomCode" type="text" inputmode="text" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABC234" data-room-code-input>
+            <button class="ghost-btn" type="submit" disabled data-room-join>加入</button>
+          </div>
+        </form>
+      </div>
+      <div class="online-room-details" data-room-details hidden>
+        <span class="online-kicker">当前房间</span>
+        <div class="online-room-code">
+          <strong data-room-code>------</strong>
+          <button type="button" data-room-copy>复制邀请链接</button>
+        </div>
+        <ul class="online-player-list" data-player-list aria-label="房间玩家"></ul>
+        <button class="ghost-btn online-leave-button" type="button" data-room-leave>离开房间</button>
+      </div>
+      <button class="ghost-btn online-reconnect-button" type="button" data-game-reconnect hidden>重新连接</button>
+      <p class="online-error" data-game-message role="alert" aria-live="polite"></p>
+    </aside>
+  </div>
+</section>
+<script src="{$maccms.path_tpl}js/multiplayer-games.js?v=__PINGFANG_MULTIPLAYER_VERSION__"></script>
+{else/}
+<section class="wrap game-access-page" aria-labelledby="gomokuLoginTitle">
+  <div class="game-login-gate">
+    <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
+    <span class="eyebrow">MEMBER ONLY</span>
+    <h1 id="gomokuLoginTitle">登录后才能联机对弈</h1>
+    <p>五子棋房间仅向已登录会员开放，未登录状态不会请求联机票据或加载游戏脚本。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">前往登录</a>
+      <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+    </div>
+  </div>
+</section>
+{/if}
+{include file="public/foot" /}

@@ -29,6 +29,7 @@ SquaredMedia/
 ├── preview/                      # 浏览器预览页面及模拟数据
 ├── scripts/                      # 校验、打包、部署、回滚和数据维护脚本
 ├── server/                       # PHP 后端联动预览入口与渲染器
+├── services/game-server/         # 五子棋与你画我猜 WebSocket 房间服务
 ├── template/pingfangvideo/       # 可部署的 MacCMS 主题源码
 ├── maccms-player/                # 独立 HLS 性能版播放器源码
 ├── tests/                        # Node.js 与 PHP 回归测试
@@ -45,8 +46,9 @@ SquaredMedia/
 | --- | --- | --- | --- |
 | `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
 | `maccms-player/` | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
+| `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
-| `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态视频筛选、按集线路检测和健康线路排序 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
+| `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态筛选、线路检测和联机游戏短票据 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `addons/videolint/` | 扫描视频库缺失字段、播放源、封面和重复数据，支持导出问题清单 | 否，当前需单独安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
@@ -80,7 +82,7 @@ npm run package
 npm run verify:release
 ```
 
-当前打包脚本只生成 `pingfangvideo` 主题和 `pingfangdevice` 插件两个归档；`videolint` 不在自动打包或部署范围内。部署与回滚的环境变量、远端备份和缓存处理见 [开发、发布与运维](development-and-operations.md)。
+当前打包脚本生成主题、`pingfangdevice` 插件、独立播放器和联机游戏服务四个归档。`npm run deploy` 安装主题、`pingfangdevice` 并更新联机游戏进程，不安装独立播放器；`videolint` 也不在自动打包或部署范围内。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
 
 ### 数据维护
 

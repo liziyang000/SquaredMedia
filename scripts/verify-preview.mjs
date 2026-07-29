@@ -76,6 +76,8 @@ for (const [query, expected] of routes) {
   assert.equal((html.match(/data-theme-option="default"/g) || []).length, 2, `${query} should include both default theme options`);
   assert.equal((html.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2, `${query} should include both aurora theme options`);
   assert.equal((html.match(/data-theme-option="poster-magazine"/g) || []).length, 2, `${query} should include both poster theme options`);
+  assert.equal((html.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2, `${query} should include both Dunhuang theme options`);
+  assert.equal((html.match(/data-theme-option="pixel-frog"/g) || []).length, 2, `${query} should include both pixel frog theme options`);
 
   for (const marker of expected) {
     assert.ok(html.includes(marker), `${query} should include ${marker}`);

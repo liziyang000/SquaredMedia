@@ -1,0 +1,3046 @@
+{
+  "schemaVersion": 2,
+  "baselineId": "squaredmedia-maccms-303e3b5-2026-07-28",
+  "source": {
+    "repository": "SquaredMedia",
+    "branch": "master",
+    "commit": "303e3b5",
+    "snapshot": "master@303e3b5 + working tree",
+    "workingTree": true,
+    "runtime": "MacCMS V10",
+    "sourceRoots": ["template/pingfangvideo", "addons/pingfangdevice", "maccms-player", "services/game-server"]
+  },
+  "sourceCoverage": {
+    "trackedExtensions": [".html", ".css", ".js", ".mjs", ".php", ".json", ".ini", ".svg", ".webmanifest"],
+    "excludedDirectories": ["node_modules", "vendor"],
+    "expectedTrackedFileCount": 150,
+    "policy": "Every tracked file under the current source roots must be mapped by an archetype, component, interaction, flow, setting surface, asset entry, machine output, player evidence, or explicit code-coverage addendum."
+  },
+  "figma": {
+    "fileKey": "Q2QxBpgexgeL4CcXgSYX9v",
+    "currentTitle": "Squared Media — Next.js Code to Design",
+    "targetTitle": "Squared Media — Product Design Baseline (MacCMS)",
+    "planTier": "Starter",
+    "themeModeStrategy": "one semantic collection per theme; consolidate into modes only after plan upgrade"
+  },
+  "guardrails": [
+    "Current production code wins for values, layout, content, and interaction.",
+    "Reuse existing editable pages, components, variables, and styles before creating anything.",
+    "Keep the raw html.to.design import and Production Prototype as protected evidence.",
+    "Do not silently redesign; record existing design problems on Issues / Recorded Only.",
+    "Do not replace editable structures with whole-page screenshots.",
+    "Keep Drawer / Open as an independent mobile reference and overlay its hotspot on the menu control.",
+    "Document missing states as Not implemented in current code."
+  ],
+  "contentPolicy": {
+    "videoMedia": "placeholder",
+    "videoText": "测试文本",
+    "preserveStructuralCopy": true,
+    "rawEvidenceReadOnly": true
+  },
+  "defaultPrototype": {
+    "fullCoverageTheme": "liquid-cinema",
+    "viewports": [1440, 768, 390],
+    "coverageByTheme": {
+      "liquid-cinema": "full",
+      "blue-pink-purple": "documentation-only",
+      "poster-magazine": "documentation-only",
+      "dunhuang-caisson": "documentation-only",
+      "pixel-frog": "documentation-only"
+    },
+    "nonDefaultThemeDeliverables": [
+      "colors",
+      "radii",
+      "gradients-and-shadows",
+      "unique-svg",
+      "special-layout-rules",
+      "source-references"
+    ]
+  },
+  "rawEvidenceProtection": {
+    "pageName": "92 · Raw Evidence · html.to.design · 2026-07-28",
+    "operation": "rename-only",
+    "readOnly": true,
+    "expectedTopLevelCount": 26,
+    "expectedSignature": "fnv1a32:c87a024c",
+    "prohibitedMutations": ["move", "delete", "overwrite", "rename-import-roots", "set-plugin-data"],
+    "indexRequired": true,
+    "indexKeys": [
+      "archetypeId",
+      "state",
+      "viewport",
+      "rawPageId",
+      "topLevelImportRootId",
+      "exactViewportNodeId",
+      "captureUrl",
+      "width",
+      "height",
+      "textSignatures",
+      "sourceKind"
+    ],
+    "sourceKinds": ["raw-captured", "code-derived", "runtime-only"],
+    "disambiguationKeys": ["captureUrl", "viewport", "textSignatures", "topLevelImportRootId"],
+    "promotionPolicy": "Clone only an exact 1440, 768, or 390 viewport node as temporary geometry reference; rebuild the formal frame with editable structure, components, variables, placeholder media, and test text."
+  },
+  "componentAliases": {
+    "SiteHeader": "Navigation/SiteHeader",
+    "MobileDrawer": "Navigation/MobileDrawer",
+    "ActionButton": "Action/StandardButton",
+    "FavoriteButton": "Action/FavoriteButton",
+    "TextField": "Form/LoginField",
+    "CaptchaField": "Form/CaptchaField",
+    "VodCard": "Media/VodCard",
+    "QualityBadge": "Media/CardQualityBadge",
+    "Dialog": "Reference/BrowserConfirm",
+    "Notice": "Feedback/SiteNotice",
+    "MacCmsPlayer": "Player/MacCmsPlayer",
+    "PageStatus": "Status/PageStatus",
+    "EmptyState": "Status/EmptyState",
+    "Pagination": "Navigation/Pagination"
+  },
+  "requiredPageStates": ["normal", "loading", "empty", "error", "permission"],
+  "requiredComponentStates": ["default", "hover", "pressed", "disabled", "loading", "error"],
+  "missingStatePolicy": "Show the state with source evidence; otherwise add a clearly labeled Not implemented in current code record.",
+  "statusTokens": [
+    {
+      "id": "loading",
+      "label": "Loading / Info",
+      "foreground": "var(--accent-2)",
+      "border": "var(--line-accent-soft)",
+      "background": "var(--panel)",
+      "opacity": 1,
+      "sourceSelectors": [".source-quality-result.is-loading"]
+    },
+    {
+      "id": "success",
+      "label": "Success / Available",
+      "foreground": "var(--accent-2)",
+      "border": "var(--line-accent)",
+      "background": "var(--selected-bg)",
+      "opacity": 1,
+      "sourceSelectors": [".source-quality-result.is-available", ".site-notice.is-visible"]
+    },
+    {
+      "id": "warning",
+      "label": "Warning / Slow",
+      "foreground": "var(--gold)",
+      "border": "var(--line-gold)",
+      "background": "var(--surface-strong)",
+      "opacity": 1,
+      "sourceSelectors": [".source-quality-result.is-slow"]
+    },
+    {
+      "id": "error",
+      "label": "Error / Failed",
+      "foreground": "var(--accent)",
+      "border": "var(--line-warm)",
+      "background": "var(--surface-strong)",
+      "opacity": 1,
+      "sourceSelectors": [".source-quality-result.is-failed", ".source-quality-result.is-timeout", ".site-notice.is-error"]
+    },
+    {
+      "id": "neutral",
+      "label": "Unsupported / Missing",
+      "foreground": "var(--muted)",
+      "border": "var(--line)",
+      "background": "var(--panel)",
+      "opacity": 1,
+      "sourceSelectors": [".source-quality-result.is-unsupported", ".source-quality-result.is-missing"]
+    },
+    {
+      "id": "disabled",
+      "label": "Disabled",
+      "foreground": "var(--text)",
+      "border": "var(--line)",
+      "background": "var(--panel)",
+      "opacity": 0.72,
+      "sourceSelectors": [".primary-btn:disabled", ".header-search button:disabled", ".hero-search button:disabled"]
+    }
+  ],
+  "breakpoints": [
+    {
+      "id": "desktop-nav",
+      "max": 1180,
+      "axis": "width",
+      "scope": "Theme shell",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "desktop navigation gives way to compact navigation rules"
+    },
+    {
+      "id": "large-tablet",
+      "max": 1020,
+      "axis": "width",
+      "scope": "Theme layouts",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "hero, poster-magazine, and content grids reflow"
+    },
+    {
+      "id": "multiplayer-stack",
+      "max": 980,
+      "axis": "width",
+      "scope": "Multiplayer games",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "Gomoku and Draw & Guess multiplayer layouts stack and the room panel stops sticking"
+    },
+    {
+      "id": "tablet",
+      "max": 920,
+      "axis": "width",
+      "scope": "Hero and detail",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "banner content narrows, the banner title scales down, and detail keeps a 230px poster column"
+    },
+    {
+      "id": "mobile-nav",
+      "max": 760,
+      "axis": "width",
+      "scope": "Theme mobile layout",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "mobile drawer navigation, compact header, and touch-first layout; Pixel Frog reduces the Hero emblem to 68px, switches to a vertical darkening overlay, spans its mobile theme option across both columns, and tightens the login panel"
+    },
+    {
+      "id": "player-status-compact",
+      "max": 640,
+      "axis": "width",
+      "scope": "Artplayer status overlay",
+      "sourceFile": "maccms-player/static/player/artplayer/pingfang-player-1.0.0.css",
+      "behavior": "player status and status-card padding reduce to 16px"
+    },
+    {
+      "id": "player-prompt-mobile",
+      "max": 560,
+      "axis": "width",
+      "scope": "Preload and buffering prompts",
+      "sourceFile": "template/pingfangvideo/player/prompt.css",
+      "behavior": "prompt width caps at min(90vw, 420px) and the prompt heading scales down"
+    },
+    {
+      "id": "small-mobile",
+      "max": 520,
+      "axis": "width",
+      "scope": "Theme narrow-mobile details",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "brand and login spacing reduce, one banner metadata item hides, and the captcha field moves above its image and refresh action; Pixel Frog compacts its pass avatar to 44px, pass copy, READY badge, and login title to 38px"
+    },
+    {
+      "id": "narrow-game-controls",
+      "max": 420,
+      "axis": "width",
+      "scope": "Multiplayer and game controls",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "multiplayer and game actions stack, room codes shrink, and color controls spread across the available width"
+    },
+    {
+      "id": "narrow-mobile",
+      "max": 360,
+      "axis": "width",
+      "scope": "Home banner pagination",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "banner dot spacing reduces to zero; no other global layout change is declared at this threshold"
+    },
+    {
+      "id": "short-landscape",
+      "max": 520,
+      "axis": "height",
+      "scope": "Theme short landscape",
+      "sourceFile": "template/pingfangvideo/css/style.css",
+      "behavior": "low-height landscape drawer and player safeguards"
+    },
+    {
+      "id": "player-prompt-short",
+      "max": 300,
+      "axis": "height",
+      "scope": "Preload and buffering prompts",
+      "sourceFile": "template/pingfangvideo/player/prompt.css",
+      "behavior": "prompt gaps and vertical padding reduce, and preload/buffering signal artwork shrinks"
+    }
+  ],
+  "mediaConditions": [
+    {
+      "query": "(hover: hover) and (pointer: fine)",
+      "behavior": "enable pointer-only hover feedback such as the carousel autoplay control and Pixel Frog brand/card hard-shadow lift"
+    },
+    {
+      "query": "(prefers-reduced-motion: reduce)",
+      "behavior": "disable carousel, login, Dunhuang, Pixel Frog particle/emblem/login/READY motion, multiplayer, and game transition or animation effects"
+    },
+    {
+      "query": "(orientation: landscape) and (max-height: 520px)",
+      "behavior": "use the compact landscape header and edge-to-edge player treatment"
+    },
+    {
+      "query": "(max-width: 1180px) and (orientation: landscape) and (max-height: 520px)",
+      "behavior": "hide the header search when compact landscape width also falls below the navigation breakpoint"
+    }
+  ],
+  "referenceViewports": [
+    {
+      "name": "Desktop",
+      "width": 1440
+    },
+    {
+      "name": "Tablet",
+      "width": 768
+    },
+    {
+      "name": "Mobile",
+      "width": 390
+    }
+  ],
+  "responsivePatterns": [
+    {
+      "id": "global-navigation",
+      "families": ["global"],
+      "sourceSelectors": [".header-inner", ".site-nav", ".header-search-wrap", ".nav-toggle", ".mobile-drawer"],
+      "desktop": "Above 1180px: full navigation, header search, theme switcher, history, and user controls remain in the sticky header.",
+      "tablet": "At 768px reference width: desktop navigation, header search, and theme switcher are hidden; the 44px menu control opens the mobile drawer.",
+      "mobile": "At 390px: compact two-cell header, hidden header search/history text, 44px menu control, independent drawer/open state, and scroll locking.",
+      "visibility": "Search, site-nav, theme switcher, history, and user surfaces change visibility at 1180/760 and short-landscape conditions.",
+      "navigation": "Desktop inline navigation becomes an inert-background, focus-trapped mobile drawer with Escape/backdrop/close/focus-restoration behavior.",
+      "cards": "Not applicable."
+    },
+    {
+      "id": "theme-pixel-frog",
+      "families": ["theme"],
+      "sourceSelectors": [
+        "html[data-theme=\"pixel-frog\"] .hero-carousel::before",
+        "html[data-theme=\"pixel-frog\"] .login-pixel-pass",
+        "html[data-theme=\"pixel-frog\"] .mobile-theme-section .theme-option[data-theme-option=\"pixel-frog\"]"
+      ],
+      "desktop": "1440 reference: retain the default information architecture and 6-column content grid; use a 96px Hero frog emblem, 4px SVG panel borders, hard pixel shadows, and a centered 640px Pixel Pass login panel.",
+      "tablet": "768 reference: inherit the global 4-column and drawer rules until the 760px breakpoint; the Pixel Frog login panel remains source-sized while surrounding padding contracts.",
+      "mobile": "390 reference: reduce the Hero emblem to 68px, use a vertical darkening overlay, span the Pixel Frog theme choice across the drawer grid, and compact the login panel; below 520px the Pixel Pass avatar becomes 44px and the login title is 38px.",
+      "visibility": "Pixel Pass is visible only for Pixel Frog; the Liquid Cinema login glow/highlight layers are hidden. Reduced motion removes particles, emblem hop, login entrance, and READY blinking without hiding content.",
+      "navigation": "Uses the same inert, focus-trapped mobile drawer as the default theme; only the Pixel Frog option spans the full mobile theme grid.",
+      "cards": "Inherits the global 6 → 4 → 2 grid. Fine-pointer hover moves eligible Pixel Frog cards -3px/-3px and expands the hard shadow to 8px; coarse-pointer/mobile layouts do not receive that hover lift."
+    },
+    {
+      "id": "home-discovery",
+      "families": ["home"],
+      "sourceSelectors": [".hero-grid", ".rank-list", ".genre-dock", ".home-shelf-rail", ".vod-grid"],
+      "desktop": "1440 reference: one large hero, five-column rank list, six genre chips, six-column video grids, and four continue-watching cards.",
+      "tablet": "768 reference: rank becomes a horizontal rail, genres reduce to three columns, and video/catalog grids use four columns.",
+      "mobile": "390 reference: hero actions use two equal columns; rank, genre, tabs, and continue-watching become touch-scroll rails; video shelves use two columns.",
+      "visibility": "Compact mobile hides selected banner metadata and collapses the header while scrolling; reduced motion disables autoplay movement.",
+      "navigation": "Hero/card actions continue to detail/player routes; carousel pause remains an explicit control.",
+      "cards": "6 → 4 → 2 video columns; rank 5-column grid → horizontal rail; genre 6 → 3 → horizontal rail."
+    },
+    {
+      "id": "catalog-search",
+      "families": ["catalog"],
+      "sourceSelectors": [".vod-grid", ".category-index", ".filter-row", ".filter-panel", ".channel-search"],
+      "desktop": "1440 reference: six video columns, four category tiles, multi-row filters, and inline channel search.",
+      "tablet": "768 reference: four video/category columns; filters retain scrollable options and compact spacing.",
+      "mobile": "390 reference: two video/category columns, one-column filter rows, full-width channel search, and wrapped paging controls.",
+      "visibility": "Filter options remain horizontally reachable; empty results replace grids with a single full-width state.",
+      "navigation": "Search/category/filter selections resolve to MacCMS URL-helper routes and pagination retains page-jump behavior.",
+      "cards": "Video cards 6 → 4 → 2; category tiles 4 → 4 → 2."
+    },
+    {
+      "id": "content-detail",
+      "families": ["detail"],
+      "sourceSelectors": [".detail-grid", ".detail-poster", ".detail-panel", ".detail-interactions", ".source-quality-panel"],
+      "desktop": "1440 reference: 240–290px poster beside the detail panel, three interaction columns, and inline source-quality controls.",
+      "tablet": "768 reference: 230px poster beside content until the mobile breakpoint; spacing and title scale reduce.",
+      "mobile": "390 reference: poster and content stack; poster centers at min(250px, 62vw); actions stretch and interaction/source-quality panels become one column.",
+      "visibility": "No core detail action is removed; source metadata wraps and quality controls stack.",
+      "navigation": "Primary action opens the selected episode; episode/source links retain sid/nid; download, plot, favorite, and feedback routes remain explicit.",
+      "cards": "Two-column hero → one-column stack; three interaction panels → one column."
+    },
+    {
+      "id": "player",
+      "families": ["player"],
+      "sourceSelectors": [".player-head", ".player-toolbar", ".player-shell", ".pf-player-controls", ".episode-grid"],
+      "desktop": "1440 reference: titled player page, 16:9 shell, inline toolbar, and eight-column episode grid.",
+      "tablet": "768 reference: the 16:9 shell and standard controls remain; the episode grid reduces to five columns through the 1020px theme rule.",
+      "mobile": "390 reference: head/toolbar stack, episode grid uses three columns, toolbar label hides, and theme-player controls become 38px. Artplayer status padding reduces below 640px; preload/buffering prompts narrow below 560px.",
+      "visibility": "Toolbar descriptive text hides at 760px; short landscape at height 520px hides the player head and makes the shell edge-to-edge; prompt artwork compacts again below 300px height.",
+      "navigation": "Episode, failover, retry, auto-next, and same-episode line-switch behavior remain tied to player data and playback recovery.",
+      "cards": "Episode links 8 → 5 → 3; player remains 16:9 except short-landscape full-height mode."
+    },
+    {
+      "id": "account-authentication",
+      "families": ["account"],
+      "sourceSelectors": [".login-panel", ".login-fields", ".login-captcha-row", ".record-item", ".favorite-card", ".device-card"],
+      "desktop": "1440 reference: centered glass authentication panel; history/favorite/device records retain multi-column metadata and action layouts.",
+      "tablet": "768 reference: record toolbars and action groups wrap; device and secondary account layouts prepare to stack.",
+      "mobile": "390 reference: login padding and title scale reduce, captcha becomes two rows below 520px, record actions stretch, and device cards become one column.",
+      "visibility": "No authentication field is removed; decorative motion is disabled for reduced motion.",
+      "navigation": "Login/register/find-password return through MacCMS user routes; account dashboard links to records, favorites, and device management.",
+      "cards": "Record/favorite/device multi-column layouts → compact metadata rows → stacked action layouts."
+    },
+    {
+      "id": "access-feedback-system",
+      "families": ["feedback", "system"],
+      "sourceSelectors": [".comment-layout", ".download-list", ".system-page", ".system-box", ".paging"],
+      "desktop": "1440 reference: feedback/content plus sticky system/form panels where implemented; download links and paging stay inline.",
+      "tablet": "768 reference: layouts reduce spacing while keeping the same route/form hierarchy.",
+      "mobile": "390 reference: comment/download/detail interaction layouts become one column; system box padding reduces; paging and page-jump controls wrap full width.",
+      "visibility": "Captcha, permission, copyright, password, and error messages remain present; unsupported states are recorded rather than hidden.",
+      "navigation": "Submit, verification, jump, report, pagination, and protected-content routes remain MacCMS-native.",
+      "cards": "Multi-column feedback/download layouts → one-column form and result flow."
+    },
+    {
+      "id": "games",
+      "families": ["games"],
+      "sourceSelectors": [".game-grid", ".multiplayer-layout", ".multiplayer-layout-draw", ".game-card-actions", ".blockrain-shell"],
+      "desktop": "1440 reference: two-column game hub; multiplayer game/room panels share the canvas; 2048 and Blockrain use desktop board controls.",
+      "tablet": "At 980px and below: multiplayer layouts stack and the room panel stops sticking.",
+      "mobile": "390 reference: one game card per row, vertically stacked actions, responsive board widths, Blockrain next panel above the board; below 420px actions and color controls stack further.",
+      "visibility": "Guest/member access states switch the hub content; reduced motion removes tile/stone/orbit animations.",
+      "navigation": "Guest gate leads to login; member hub leads to each game and multiplayer lobby/room flows.",
+      "cards": "Game hub 2 → 2/stacked multiplayer → 1; board controls reorganize without removing gameplay actions."
+    },
+    {
+      "id": "content-modules",
+      "families": ["content"],
+      "sourceSelectors": [".content-section", ".content-empty-state", ".vod-list", ".list-item", ".category-index"],
+      "desktop": "1440 reference: directory grids/lists use the shared six-card or four-category patterns; details use full content width with related modules.",
+      "tablet": "768 reference: shared directory grids use four columns and long metadata wraps.",
+      "mobile": "390 reference: directory grids use two columns, list thumbnails reduce to 86px, and content/related modules stack.",
+      "visibility": "Empty directories replace their grid with one full-width empty state; machine RSS/map outputs never receive visual frames.",
+      "navigation": "Directory, search, pagination, and detail routes remain specific to article/topic/actor/role/website modules.",
+      "cards": "Shared directory cards 6 → 4 → 2; list rows retain thumbnail + content at compact widths."
+    }
+  ],
+  "navigationFlows": [
+    {
+      "id": "F01",
+      "name": "Discovery to playback",
+      "entry": "Home / global navigation",
+      "steps": ["Home", "Categories / Videos / Popular / Search", "Video detail", "Video player"],
+      "transition": "Header, hero, category, search, and video-card links resolve through MacCMS URL helpers; detail episode actions retain sid/nid into playback.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/public/head.html",
+        "template/pingfangvideo/html/index/index.html",
+        "template/pingfangvideo/html/vod/detail.html",
+        "template/pingfangvideo/html/vod/play.html"
+      ]
+    },
+    {
+      "id": "F02",
+      "name": "Episode and playback recovery",
+      "entry": "Video detail or current player",
+      "steps": ["Select source / episode", "Player loading", "Retry or same-episode failover", "Auto-next episode"],
+      "transition": "Playback preserves episode identity, prevents failover loops, and advances only through the current playlist route data.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/vod/detail.html",
+        "template/pingfangvideo/html/vod/play.html",
+        "template/pingfangvideo/js/app.js",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.js"
+      ]
+    },
+    {
+      "id": "F03",
+      "name": "Authentication and account",
+      "entry": "Guest user menu or permission gate",
+      "steps": ["Login / Register / Find password", "Account dashboard", "Playback records / Favorites / Login devices", "Logout to home"],
+      "transition": "Successful authentication redirects through the configured home URL; protected account pages return permission/error feedback when the session is absent.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/public/head.html",
+        "template/pingfangvideo/html/user/login.html",
+        "template/pingfangvideo/html/user/index.html",
+        "template/pingfangvideo/html/user/plays.html",
+        "template/pingfangvideo/html/user/favs.html",
+        "template/pingfangvideo/html/pingfangdevice/index.html"
+      ]
+    },
+    {
+      "id": "F04",
+      "name": "Feedback and reporting",
+      "entry": "Content detail, comment, guestbook, or report surface",
+      "steps": ["Open form", "Enter content and captcha", "Submit", "Success notice or error state", "Paginated feedback list"],
+      "transition": "MacCMS forms retain verification and paging behavior; site notices report success/error without inventing an optimistic state.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/comment/index.html",
+        "template/pingfangvideo/html/gbook/index.html",
+        "template/pingfangvideo/html/book/report.html",
+        "template/pingfangvideo/html/public/verify.html",
+        "template/pingfangvideo/js/app.js"
+      ]
+    },
+    {
+      "id": "F05",
+      "name": "Protected content and system response",
+      "entry": "Detail, player, download, or article route",
+      "steps": ["Copyright / confirmation / password gate", "Verification", "Allowed target or system message", "Timed/manual jump"],
+      "transition": "Protected routes remain server-driven; message, jump, and verification fragments document success, error, and permission outcomes.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/vod/confirm.html",
+        "template/pingfangvideo/html/vod/copyright.html",
+        "template/pingfangvideo/html/vod/player_pwd.html",
+        "template/pingfangvideo/html/vod/downer_pwd.html",
+        "template/pingfangvideo/html/public/msg.html",
+        "template/pingfangvideo/html/public/jump.html"
+      ]
+    },
+    {
+      "id": "F06",
+      "name": "Games and multiplayer",
+      "entry": "Games navigation",
+      "steps": ["Guest gate or member hub", "Select 2048 / Blockrain / Gomoku / Draw & Guess", "Local game or multiplayer lobby", "Room / turn / round flow"],
+      "transition": "Guest access leads to login; member games retain local state or room/participant/turn/round data according to the selected game.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/label/games.html",
+        "template/pingfangvideo/html/label/game-2048.html",
+        "template/pingfangvideo/html/label/game-blockrain.html",
+        "template/pingfangvideo/html/label/game-gomoku.html",
+        "template/pingfangvideo/html/label/game-drawguess.html"
+      ]
+    },
+    {
+      "id": "F07",
+      "name": "Content directories to detail",
+      "entry": "Article / Topic / Actor / Role / Website directory",
+      "steps": ["Directory or search", "Filter / type / pagination", "Content detail", "Related modules or protected article gate"],
+      "transition": "Each MacCMS content module retains its own type/search/detail helpers and data names; machine RSS/map outputs do not become UI destinations.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/art/index.html",
+        "template/pingfangvideo/html/topic/index.html",
+        "template/pingfangvideo/html/actor/index.html",
+        "template/pingfangvideo/html/role/index.html",
+        "template/pingfangvideo/html/website/index.html"
+      ]
+    },
+    {
+      "id": "F08",
+      "name": "Settings surfaces",
+      "entry": "Header, drawer, player, home, or account",
+      "steps": ["Theme preference", "Player settings", "Carousel autoplay", "Login device management"],
+      "transition": "Settings remain embedded in their current surfaces; no standalone settings route is introduced.",
+      "sourceFiles": [
+        "template/pingfangvideo/html/public/head.html",
+        "template/pingfangvideo/html/index/index.html",
+        "template/pingfangvideo/html/pingfangdevice/index.html",
+        "template/pingfangvideo/js/app.js",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.js"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "00 · Project Overview",
+      "role": "formal project cover, file map, coverage summary, quick links, and maintenance entry",
+      "operation": "create"
+    },
+    {
+      "name": "00 · Baseline Guide",
+      "role": "scope, maintenance contract, ownership, and update workflow",
+      "operation": "update"
+    },
+    {
+      "name": "00 · Code Map · MacCMS Current",
+      "role": "current source, route, selector, and Figma mapping",
+      "operation": "create"
+    },
+    {
+      "name": "01 · Foundations",
+      "role": "tokens, typography, spacing, radius, elevation, and grids",
+      "operation": "update"
+    },
+    {
+      "name": "01 · Themes",
+      "role": "five code-backed themes and Starter-plan token strategy",
+      "operation": "create"
+    },
+    {
+      "name": "02 · Components",
+      "role": "reusable components and source-backed state matrices",
+      "operation": "update"
+    },
+    {
+      "name": "03 · Assets & Symbols",
+      "role": "logos, SVGs, images, icons, usage, sizes, and color behavior",
+      "operation": "update"
+    },
+    {
+      "name": "04 · Responsive Rules",
+      "role": "viewport examples and all real CSS breakpoints",
+      "operation": "update"
+    },
+    {
+      "name": "05 · Interaction & States",
+      "role": "motion, feedback, focus, loading, errors, and reduced motion",
+      "operation": "update"
+    },
+    {
+      "name": "06 · Developer Reference",
+      "role": "routes, templates, data, components, and implementation notes",
+      "operation": "update"
+    },
+    {
+      "name": "10 · Home",
+      "role": "home page family",
+      "operation": "update"
+    },
+    {
+      "name": "11 · Catalog & Search",
+      "role": "discovery page family",
+      "operation": "update"
+    },
+    {
+      "name": "12 · Content Detail",
+      "role": "video detail family",
+      "operation": "update"
+    },
+    {
+      "name": "13 · Player",
+      "role": "playback family",
+      "operation": "update"
+    },
+    {
+      "name": "14 · Account",
+      "role": "authentication, account, history, favorites, and devices",
+      "operation": "update"
+    },
+    {
+      "name": "15 · Access & Feedback",
+      "role": "comments, guestbook, reports, plot, and feedback",
+      "operation": "update"
+    },
+    {
+      "name": "16 · Games",
+      "role": "guest/member game hub and four game experiences",
+      "operation": "rename-from:16 · Issues"
+    },
+    {
+      "name": "17 · Content Modules",
+      "role": "article, topic, actor, role, and website directories/details",
+      "operation": "create"
+    },
+    {
+      "name": "18 · System & Restrictions",
+      "role": "download, copyright, password, confirm, message, jump, and verify",
+      "operation": "create"
+    },
+    {
+      "name": "19 · User Flows",
+      "role": "source-backed clickable discovery, playback, account, games, and mobile-navigation flows",
+      "operation": "create"
+    },
+    {
+      "name": "20 · Production Prototype",
+      "role": "connected canonical flows and responsive acceptance frames",
+      "operation": "update"
+    },
+    {
+      "name": "90 · Issues / Recorded Only",
+      "role": "observations without redesign authorization",
+      "operation": "create"
+    },
+    {
+      "name": "91 · Archive · Next.js Code Map · 2026-07-24",
+      "role": "historical mapping, explicitly non-current",
+      "operation": "rename-from:00 · Code Map"
+    },
+    {
+      "name": "92 · Raw Evidence · html.to.design · 2026-07-28",
+      "role": "protected editable import evidence",
+      "operation": "rename-only"
+    }
+  ],
+  "formalPrototype": {
+    "pageOrder": [
+      "00 · Project Overview",
+      "00 · Baseline Guide",
+      "00 · Code Map · MacCMS Current",
+      "01 · Foundations",
+      "01 · Themes",
+      "02 · Components",
+      "03 · Assets & Symbols",
+      "04 · Responsive Rules",
+      "05 · Interaction & States",
+      "06 · Developer Reference",
+      "10 · Home",
+      "11 · Catalog & Search",
+      "12 · Content Detail",
+      "13 · Player",
+      "14 · Account",
+      "15 · Access & Feedback",
+      "16 · Games",
+      "17 · Content Modules",
+      "18 · System & Restrictions",
+      "19 · User Flows",
+      "20 · Production Prototype",
+      "90 · Issues / Recorded Only",
+      "91 · Archive · Next.js Code Map · 2026-07-24",
+      "92 · Raw Evidence · html.to.design · 2026-07-28"
+    ],
+    "maintainedTextStylePrefixes": ["Display/", "Heading/", "Body/", "Label/", "Mono/"],
+    "maintainedEffectStylePrefixes": ["Shadow/", "Cinema/", "Focus/", "Selected/"],
+    "componentCategories": [
+      {
+        "id": "navigation",
+        "name": "Navigation",
+        "purpose": "global entry, compact navigation, and page traversal",
+        "components": ["SiteHeader", "MobileDrawer", "Pagination"]
+      },
+      {
+        "id": "action-form",
+        "name": "Action & Form",
+        "purpose": "source-backed controls and data entry",
+        "components": [
+          "Action/StandardButton",
+          "Action/FavoriteButton",
+          "Action/LoginSubmit",
+          "Form/HeaderSearch",
+          "Form/LoginField",
+          "CaptchaField"
+        ]
+      },
+      {
+        "id": "media-discovery",
+        "name": "Media & Discovery",
+        "purpose": "artwork, media cards, chips, and discovery rails",
+        "components": ["VodCard", "Artwork", "ContinueCard", "ShelfCard", "GenreChip", "GenreDock", "Media/CardQualityBadge"]
+      },
+      {
+        "id": "home-modules",
+        "name": "Home Modules",
+        "purpose": "home-page composition modules",
+        "components": ["HeroCarousel", "LatestShelf", "RankBoard", "RankItem"]
+      },
+      {
+        "id": "page-status",
+        "name": "Page & Status",
+        "purpose": "page framing, loading, empty, error, and permission feedback",
+        "components": ["PageHeader", "PageStatus", "EmptyState"]
+      },
+      {
+        "id": "playback",
+        "name": "Playback",
+        "purpose": "player lifecycle and source-quality feedback",
+        "components": ["MacCmsPlayer", "Playback/SourceQualityStatus"]
+      },
+      {
+        "id": "feedback",
+        "name": "Feedback",
+        "purpose": "browser-native confirmation reference and site notices",
+        "components": ["Reference/BrowserConfirm", "Feedback/SiteNotice"]
+      }
+    ],
+    "prototypeFlows": [
+      {
+        "id": "PF01",
+        "sourceFlowId": "F01",
+        "name": "Discovery → Detail → Playback",
+        "steps": [
+          { "label": "首页", "target": "prototype", "hint": "10.01", "viewport": 1440 },
+          { "label": "视频分类", "target": "prototype", "hint": "10.02", "viewport": 1440 },
+          { "label": "视频详情", "target": "prototype", "hint": "10.08", "viewport": 1440 },
+          { "label": "视频播放", "target": "prototype", "hint": "10.09", "viewport": 1440 }
+        ]
+      },
+      {
+        "id": "PF02",
+        "sourceFlowId": "F02",
+        "name": "Playback Loading & Recovery",
+        "steps": [
+          { "label": "选择剧集", "target": "prototype", "hint": "10.08", "viewport": 1440 },
+          { "label": "准备播放", "target": "player-evidence", "hint": "preload", "viewport": 1440 },
+          { "label": "播放页", "target": "prototype", "hint": "10.09", "viewport": 1440 },
+          { "label": "续接画面", "target": "player-evidence", "hint": "buffering", "viewport": 1440 }
+        ]
+      },
+      {
+        "id": "PF03",
+        "sourceFlowId": "F03",
+        "name": "Authentication → Account → Devices",
+        "steps": [
+          { "label": "登录", "target": "prototype", "hint": "20.01", "viewport": 1440 },
+          { "label": "用户中心", "target": "prototype", "hint": "20.04", "viewport": 1440 },
+          { "label": "登录设备", "target": "prototype", "hint": "20.07", "viewport": 1440 },
+          { "label": "退出至首页", "target": "prototype", "hint": "10.01", "viewport": 1440 }
+        ]
+      },
+      {
+        "id": "PF04",
+        "sourceFlowId": "F06",
+        "name": "Games & Multiplayer",
+        "steps": [
+          { "label": "游戏大厅", "target": "prototype", "hint": "30.01", "viewport": 1440 },
+          { "label": "2048", "target": "prototype", "hint": "30.03", "viewport": 1440 },
+          { "label": "五子棋", "target": "prototype", "hint": "30.05", "viewport": 1440 },
+          { "label": "你画我猜", "target": "prototype", "hint": "30.06", "viewport": 1440 }
+        ]
+      },
+      {
+        "id": "PF05",
+        "sourceFlowId": "F08",
+        "name": "Mobile Navigation Drawer",
+        "steps": [
+          { "label": "移动端首页", "target": "prototype", "hint": "10.02 · 首页 · 移动端抽屉交互", "viewport": 390 },
+          { "label": "打开抽屉", "target": "drawer", "hint": "Drawer / Open", "viewport": 390 },
+          { "label": "选择入口", "target": "prototype", "hint": "10.02", "viewport": 390 },
+          { "label": "关闭并恢复焦点", "target": "drawer", "hint": "Hotspot / Open Drawer", "viewport": 390 }
+        ]
+      }
+    ],
+    "playerEvidence": [
+      {
+        "id": "preload",
+        "name": "Player / Preload",
+        "sourceFiles": ["template/pingfangvideo/player/preload.html", "template/pingfangvideo/player/prompt.css"],
+        "textSignatures": ["PLAYER / PREPARE", "正在准备播放"],
+        "expectedViewports": [1440, 768, 390]
+      },
+      {
+        "id": "buffering",
+        "name": "Player / Buffering",
+        "sourceFiles": ["template/pingfangvideo/player/buffering.html", "template/pingfangvideo/player/prompt.css"],
+        "textSignatures": ["PLAYER / BUFFERING", "正在续接画面"],
+        "expectedViewports": [1440, 768, 390]
+      }
+    ],
+    "codeCoverageAddendum": [
+      {
+        "id": "C01",
+        "name": "Player prompt states",
+        "classification": "visual-state",
+        "representation": "editable Raw Evidence frames promoted to 13 · Player; no redraw",
+        "sourceFiles": [
+          "template/pingfangvideo/player/preload.html",
+          "template/pingfangvideo/player/buffering.html",
+          "template/pingfangvideo/player/prompt.css"
+        ]
+      },
+      {
+        "id": "C02",
+        "name": "Comics label page",
+        "classification": "public-page",
+        "representation": "coverage blueprint until an exact runtime capture is imported",
+        "sourceFiles": ["template/pingfangvideo/html/label/comics.html"]
+      },
+      {
+        "id": "C03",
+        "name": "Pingfang device addon admin view",
+        "classification": "addon-admin",
+        "representation": "developer reference only; public device route remains A16",
+        "sourceFiles": ["addons/pingfangdevice/view/index/index.html"]
+      },
+      {
+        "id": "C04",
+        "name": "Videolint addon admin view",
+        "classification": "optional-addon-admin",
+        "representation": "developer reference only; not promoted as a shipped public page",
+        "sourceFiles": ["addons/videolint/view/index/index.html"]
+      },
+      {
+        "id": "C05",
+        "name": "Content interaction partials",
+        "classification": "partial",
+        "representation": "component and developer mapping; not separate pages",
+        "sourceFiles": [
+          "template/pingfangvideo/html/public/digg.html",
+          "template/pingfangvideo/html/public/score.html",
+          "template/pingfangvideo/html/public/star.html"
+        ]
+      },
+      {
+        "id": "C06",
+        "name": "Catalog filter and result partials",
+        "classification": "partial",
+        "representation": "11 · Catalog & Search component mapping",
+        "sourceFiles": [
+          "template/pingfangvideo/html/public/vod_filter_common.html",
+          "template/pingfangvideo/html/public/vod_grid_results.html"
+        ]
+      },
+      {
+        "id": "C07",
+        "name": "Shared public shell partials",
+        "classification": "partial",
+        "representation": "global shell/component mapping; not separate pages",
+        "sourceFiles": ["template/pingfangvideo/html/public/foot.html", "template/pingfangvideo/html/public/include.html"]
+      },
+      {
+        "id": "C08",
+        "name": "Shared account shell partials",
+        "classification": "partial",
+        "representation": "14 · Account shell/component mapping; not separate pages",
+        "sourceFiles": [
+          "template/pingfangvideo/html/user/head.html",
+          "template/pingfangvideo/html/user/foot.html",
+          "template/pingfangvideo/html/user/include.html"
+        ]
+      },
+      {
+        "id": "C09",
+        "name": "Theme package metadata and home-motion runtime",
+        "classification": "shipping-runtime",
+        "representation": "01 · Foundations, 05 · Interaction & States, and 06 · Developer Reference; no standalone visual page",
+        "sourceFiles": [
+          "template/pingfangvideo/info.ini",
+          "template/pingfangvideo/js/gsap.min.js"
+        ]
+      },
+      {
+        "id": "C10",
+        "name": "2048 local game runtime",
+        "classification": "vendored-game-runtime",
+        "representation": "16 · Games implementation mapping; visual states remain A19 and the protected Production Prototype",
+        "sourceFiles": [
+          "template/pingfangvideo/games/2048/js/animframe_polyfill.js",
+          "template/pingfangvideo/games/2048/js/application.js",
+          "template/pingfangvideo/games/2048/js/bind_polyfill.js",
+          "template/pingfangvideo/games/2048/js/classlist_polyfill.js",
+          "template/pingfangvideo/games/2048/js/game_manager.js",
+          "template/pingfangvideo/games/2048/js/grid.js",
+          "template/pingfangvideo/games/2048/js/html_actuator.js",
+          "template/pingfangvideo/games/2048/js/keyboard_input_manager.js",
+          "template/pingfangvideo/games/2048/js/local_storage_manager.js",
+          "template/pingfangvideo/games/2048/js/tile.js"
+        ]
+      },
+      {
+        "id": "C11",
+        "name": "Blockrain local game runtime",
+        "classification": "vendored-game-runtime",
+        "representation": "16 · Games implementation mapping; visual states remain A20 and the protected Production Prototype",
+        "sourceFiles": [
+          "template/pingfangvideo/games/init.js",
+          "template/pingfangvideo/games/blockrain/blockrain.jquery.min.js",
+          "template/pingfangvideo/games/blockrain/jquery-1.11.1.min.js"
+        ]
+      },
+      {
+        "id": "C12",
+        "name": "Multiplayer browser client and authoritative game service",
+        "classification": "browser-and-service-runtime",
+        "representation": "16 · Games, PF04, and 06 · Developer Reference; service-side room, ticket, turn, and round behavior remains non-visual",
+        "sourceFiles": [
+          "template/pingfangvideo/js/multiplayer-games.js",
+          "services/game-server/package.json",
+          "services/game-server/index.mjs",
+          "services/game-server/src/game-service.mjs",
+          "services/game-server/src/server.mjs",
+          "services/game-server/src/ticket.mjs"
+        ]
+      },
+      {
+        "id": "C13",
+        "name": "Pingfang device addon backend",
+        "classification": "addon-backend",
+        "representation": "06 · Developer Reference for A16, dynamic filters, source quality, playback recovery, and multiplayer-ticket boundaries; not extra canvas pages",
+        "sourceFiles": [
+          "addons/pingfangdevice/Pingfangdevice.php",
+          "addons/pingfangdevice/application/index/controller/Pingfangdevice.php",
+          "addons/pingfangdevice/config.php",
+          "addons/pingfangdevice/controller/DeviceActions.php",
+          "addons/pingfangdevice/controller/Index.php",
+          "addons/pingfangdevice/info.ini",
+          "addons/pingfangdevice/service/DeviceSession.php",
+          "addons/pingfangdevice/service/GameAccessTicket.php",
+          "addons/pingfangdevice/service/VodFilterOptions.php",
+          "addons/pingfangdevice/service/VodSourceQuality.php"
+        ]
+      },
+      {
+        "id": "C14",
+        "name": "Videolint addon backend",
+        "classification": "optional-addon-backend",
+        "representation": "06 · Developer Reference only; the optional admin tool has no shipped public product route or separate visual frame",
+        "sourceFiles": [
+          "addons/videolint/Videolint.php",
+          "addons/videolint/config.php",
+          "addons/videolint/controller/Index.php",
+          "addons/videolint/info.ini",
+          "addons/videolint/service/QualityScanner.php"
+        ]
+      },
+      {
+        "id": "C15",
+        "name": "Retained but unshipped theme experiments",
+        "classification": "excluded-runtime",
+        "representation": "90 · Issues and 06 · Developer Reference only; not loaded by current production templates and not valid prototype evidence",
+        "sourceFiles": [
+          "template/pingfangvideo/js/hls.min.js",
+          "template/pingfangvideo/js/pingfang-player.js",
+          "template/pingfangvideo/js/rank-react.js",
+          "template/pingfangvideo/js/react-dom.production.min.js",
+          "template/pingfangvideo/js/react.production.min.js"
+        ]
+      },
+      {
+        "id": "C16",
+        "name": "Pixel Frog font and particle runtime",
+        "classification": "shipping-theme-runtime",
+        "representation": "01 · Foundations, 01 · Themes, 03 · Assets & Symbols, 05 · Interaction & States, and 06 · Developer Reference; alternate-theme documentation only, with no cloned A01–A30 pages",
+        "sourceFiles": [
+          "template/pingfangvideo/css/fonts/FUSION-PIXEL-OFL-1.1.txt",
+          "template/pingfangvideo/css/fonts/fusion-pixel-12px-proportional-zh-hans.woff2",
+          "template/pingfangvideo/js/CANVAS-CONFETTI-ISC.txt",
+          "template/pingfangvideo/js/canvas-confetti.min.js"
+        ]
+      }
+    ]
+  },
+  "themes": [
+    {
+      "id": "liquid-cinema",
+      "label": "液态影院",
+      "option": "default",
+      "collection": "Semantic · Liquid Cinema",
+      "radius": {
+        "default": 18,
+        "small": 12
+      },
+      "tokens": [
+        {
+          "name": "color/background/canvas",
+          "css": "--bg",
+          "value": "#05070d",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel",
+          "css": "--panel",
+          "value": "rgba(15, 19, 34, 0.76)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel-soft",
+          "css": "--panel-soft",
+          "value": "rgba(23, 28, 48, 0.82)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/text/primary",
+          "css": "--text",
+          "value": "#f4f6ff",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/text/muted",
+          "css": "--muted",
+          "value": "#9da6bd",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/border/default",
+          "css": "--line",
+          "value": "rgba(221, 228, 255, 0.16)",
+          "scopes": ["STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/primary",
+          "css": "--accent",
+          "value": "#8b7cff",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/secondary",
+          "css": "--accent-2",
+          "value": "#6ee7f9",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/gold",
+          "css": "--gold",
+          "value": "#f3c97d",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/background/surface",
+          "css": "--surface",
+          "value": "rgba(255, 255, 255, 0.045)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/surface-strong",
+          "css": "--surface-strong",
+          "value": "rgba(255, 255, 255, 0.085)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/selected",
+          "css": "--selected-bg",
+          "value": "rgba(139, 124, 255, 0.14)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "radius/default",
+          "css": "--radius",
+          "value": 18,
+          "scopes": ["CORNER_RADIUS"]
+        },
+        {
+          "name": "radius/small",
+          "css": "--radius-sm",
+          "value": 12,
+          "scopes": ["CORNER_RADIUS"]
+        }
+      ]
+    },
+    {
+      "id": "blue-pink-purple",
+      "label": "极光夜幕",
+      "option": "blue-pink-purple",
+      "collection": "Semantic · Aurora Night",
+      "radius": {
+        "default": 18,
+        "small": 12
+      },
+      "tokens": [
+        {
+          "name": "color/background/canvas",
+          "css": "--bg",
+          "value": "#070917",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel",
+          "css": "--panel",
+          "value": "rgba(17, 20, 45, 0.74)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel-soft",
+          "css": "--panel-soft",
+          "value": "rgba(35, 29, 72, 0.78)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/text/primary",
+          "css": "--text",
+          "value": "#fbf7ff",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/text/muted",
+          "css": "--muted",
+          "value": "#c9c1df",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/border/default",
+          "css": "--line",
+          "value": "rgba(211, 224, 255, 0.18)",
+          "scopes": ["STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/primary",
+          "css": "--accent",
+          "value": "#f472b6",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/secondary",
+          "css": "--accent-2",
+          "value": "#38bdf8",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/gold",
+          "css": "--gold",
+          "value": "#c084fc",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/background/surface",
+          "css": "--surface",
+          "value": "rgba(255, 255, 255, 0.062)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/surface-strong",
+          "css": "--surface-strong",
+          "value": "rgba(255, 255, 255, 0.105)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/selected",
+          "css": "--selected-bg",
+          "value": "rgba(244, 114, 182, 0.15)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "radius/default",
+          "css": "--radius",
+          "value": 18,
+          "scopes": ["CORNER_RADIUS"]
+        },
+        {
+          "name": "radius/small",
+          "css": "--radius-sm",
+          "value": 12,
+          "scopes": ["CORNER_RADIUS"]
+        }
+      ]
+    },
+    {
+      "id": "poster-magazine",
+      "label": "海报画廊",
+      "option": "poster-magazine",
+      "collection": "Semantic · Poster Magazine",
+      "radius": {
+        "default": 18,
+        "small": 12
+      },
+      "tokens": [
+        {
+          "name": "color/background/canvas",
+          "css": "--bg",
+          "value": "#050613",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel",
+          "css": "--panel",
+          "value": "rgba(9, 12, 31, 0.72)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel-soft",
+          "css": "--panel-soft",
+          "value": "rgba(25, 17, 52, 0.76)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/text/primary",
+          "css": "--text",
+          "value": "#f8f3ff",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/text/muted",
+          "css": "--muted",
+          "value": "#d7cbe8",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/border/default",
+          "css": "--line",
+          "value": "rgba(248, 243, 255, 0.16)",
+          "scopes": ["STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/primary",
+          "css": "--accent",
+          "value": "#ff4fd8",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/secondary",
+          "css": "--accent-2",
+          "value": "#38bdf8",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/gold",
+          "css": "--gold",
+          "value": "#b6ff6a",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/background/surface",
+          "css": "--surface",
+          "value": "rgba(255, 255, 255, 0.07)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/surface-strong",
+          "css": "--surface-strong",
+          "value": "rgba(255, 255, 255, 0.13)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/selected",
+          "css": "--selected-bg",
+          "value": "rgba(255, 79, 216, 0.16)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "radius/default",
+          "css": "--radius",
+          "value": 18,
+          "scopes": ["CORNER_RADIUS"]
+        },
+        {
+          "name": "radius/small",
+          "css": "--radius-sm",
+          "value": 12,
+          "scopes": ["CORNER_RADIUS"]
+        }
+      ]
+    },
+    {
+      "id": "dunhuang-caisson",
+      "label": "敦煌流光",
+      "option": "dunhuang-caisson",
+      "collection": "Semantic · Dunhuang Caisson",
+      "radius": {
+        "default": 7,
+        "small": 5
+      },
+      "tokens": [
+        {
+          "name": "color/background/canvas",
+          "css": "--bg",
+          "value": "#0f0c0a",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel",
+          "css": "--panel",
+          "value": "rgba(23, 18, 13, 0.94)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel-soft",
+          "css": "--panel-soft",
+          "value": "rgba(38, 30, 22, 0.92)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/text/primary",
+          "css": "--text",
+          "value": "#e8d9b7",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/text/muted",
+          "css": "--muted",
+          "value": "#b9aa8c",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/border/default",
+          "css": "--line",
+          "value": "rgba(200, 155, 74, 0.34)",
+          "scopes": ["STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/primary",
+          "css": "--accent",
+          "value": "#a33f2c",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/secondary",
+          "css": "--accent-2",
+          "value": "#c89b4a",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/gold",
+          "css": "--gold",
+          "value": "#c89b4a",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/background/surface",
+          "css": "--surface",
+          "value": "rgba(232, 217, 183, 0.035)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/surface-strong",
+          "css": "--surface-strong",
+          "value": "rgba(232, 217, 183, 0.075)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/selected",
+          "css": "--selected-bg",
+          "value": "rgba(74, 100, 77, 0.72)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "radius/default",
+          "css": "--radius",
+          "value": 7,
+          "scopes": ["CORNER_RADIUS"]
+        },
+        {
+          "name": "radius/small",
+          "css": "--radius-sm",
+          "value": 5,
+          "scopes": ["CORNER_RADIUS"]
+        }
+      ]
+    },
+    {
+      "id": "pixel-frog",
+      "label": "像素蛙",
+      "option": "pixel-frog",
+      "collection": "Semantic · Pixel Frog",
+      "radius": {
+        "default": 4,
+        "small": 2
+      },
+      "tokens": [
+        {
+          "name": "color/background/canvas",
+          "css": "--bg",
+          "value": "#071309",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel",
+          "css": "--panel",
+          "value": "rgba(16, 38, 23, 0.96)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/panel-soft",
+          "css": "--panel-soft",
+          "value": "rgba(23, 57, 31, 0.96)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/text/primary",
+          "css": "--text",
+          "value": "#fff0c6",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/text/muted",
+          "css": "--muted",
+          "value": "#c5d7a2",
+          "scopes": ["TEXT_FILL"]
+        },
+        {
+          "name": "color/border/default",
+          "css": "--line",
+          "value": "rgba(185, 232, 74, 0.36)",
+          "scopes": ["STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/primary",
+          "css": "--accent",
+          "value": "#ff8a78",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/secondary",
+          "css": "--accent-2",
+          "value": "#b9e84a",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/accent/gold",
+          "css": "--gold",
+          "value": "#ddef72",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/background/surface",
+          "css": "--surface",
+          "value": "rgba(185, 232, 74, 0.055)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/surface-strong",
+          "css": "--surface-strong",
+          "value": "rgba(185, 232, 74, 0.11)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "color/background/selected",
+          "css": "--selected-bg",
+          "value": "rgba(185, 232, 74, 0.16)",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL"]
+        },
+        {
+          "name": "radius/default",
+          "css": "--radius",
+          "value": 4,
+          "scopes": ["CORNER_RADIUS"]
+        },
+        {
+          "name": "radius/small",
+          "css": "--radius-sm",
+          "value": 2,
+          "scopes": ["CORNER_RADIUS"]
+        },
+        {
+          "name": "color/pixel/ink",
+          "css": "--pixel-ink",
+          "value": "#302b1d",
+          "scopes": ["TEXT_FILL", "FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/pixel/green-dark",
+          "css": "--pixel-green-dark",
+          "value": "#6f8128",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        },
+        {
+          "name": "color/pixel/red",
+          "css": "--pixel-red",
+          "value": "#ef4f48",
+          "scopes": ["FRAME_FILL", "SHAPE_FILL", "STROKE_COLOR"]
+        }
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "Navigation/SiteHeader",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/html/public/head.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["desktop", "tablet", "mobile", "compact", "authenticated", "guest"]
+    },
+    {
+      "name": "Navigation/MobileDrawer",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/html/public/head.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["closed", "open", "focus-trap", "closing"]
+    },
+    {
+      "name": "Action/StandardButton",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "states": ["default", "hover", "focus", "disabled"]
+    },
+    {
+      "name": "Action/FavoriteButton",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "loading", "favorited"]
+    },
+    {
+      "name": "Action/LoginSubmit",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/html/user/login.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "hover", "loading"]
+    },
+    {
+      "name": "Form/HeaderSearch",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/html/public/head.html", "template/pingfangvideo/css/style.css"],
+      "states": ["default", "focus", "button-disabled"]
+    },
+    {
+      "name": "Form/LoginField",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/html/user/login.html", "template/pingfangvideo/css/style.css"],
+      "states": ["default", "focus"]
+    },
+    {
+      "name": "Form/CaptchaField",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/html/public/verify.html", "template/pingfangvideo/css/style.css"],
+      "states": ["default", "refreshing", "error"]
+    },
+    {
+      "name": "Media/VodCard",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/html/public/vod_card.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "hover", "focus", "image-missing", "loading"]
+    },
+    {
+      "name": "Reference/BrowserConfirm",
+      "status": "planned",
+      "sourceFiles": [
+        "template/pingfangvideo/html/user/plays.html",
+        "template/pingfangvideo/html/user/favs.html",
+        "template/pingfangvideo/html/pingfangdevice/index.html"
+      ],
+      "states": ["history", "favorites", "device"]
+    },
+    {
+      "name": "Feedback/SiteNotice",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["success", "error"]
+    },
+    {
+      "name": "Media/CardQualityBadge",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/html/public/vod_card.html", "template/pingfangvideo/css/style.css"],
+      "states": ["visible"]
+    },
+    {
+      "name": "Playback/SourceQualityStatus",
+      "status": "planned",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["loading", "available", "slow", "failed", "timeout", "unsupported", "missing", "recommended"]
+    },
+    {
+      "name": "Player/MacCmsPlayer",
+      "status": "existing",
+      "sourceFiles": [
+        "template/pingfangvideo/html/vod/play.html",
+        "template/pingfangvideo/html/vod/player.html",
+        "template/pingfangvideo/js/app.js",
+        "maccms-player/static/player/artplayer.html",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.css",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.js"
+      ],
+      "states": ["default", "loading", "buffering", "error", "retry", "failover", "auto-next"]
+    },
+    {
+      "name": "Status/PageStatus",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["loading", "empty", "error", "permission"]
+    },
+    {
+      "name": "Status/EmptyState",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["empty", "no-results", "no-history", "no-favorites"]
+    },
+    {
+      "name": "Navigation/Pagination",
+      "status": "existing",
+      "sourceFiles": ["template/pingfangvideo/html/public/paging.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "hover", "focus", "current", "disabled"]
+    }
+  ],
+  "existingFigmaComponents": [
+    "VodCard",
+    "CaptchaField",
+    "PageHeader",
+    "ContinueCard",
+    "GenreChip",
+    "GenreDock",
+    "HeroCarousel",
+    "LatestShelf",
+    "RankBoard",
+    "RankItem",
+    "ShelfCard",
+    "Artwork",
+    "MobileDrawer",
+    "Pagination",
+    "SiteHeader",
+    "MacCmsPlayer",
+    "EmptyState",
+    "PageStatus"
+  ],
+  "existingComponentStateContracts": [
+    {
+      "name": "VodCard",
+      "sourceFiles": ["template/pingfangvideo/html/public/vod_card.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "hover", "focus", "image-missing", "loading"]
+    },
+    {
+      "name": "CaptchaField",
+      "sourceFiles": ["template/pingfangvideo/html/public/verify.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "refreshing", "error"]
+    },
+    {
+      "name": "PageHeader",
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "states": ["default", "desktop", "tablet", "mobile"]
+    },
+    {
+      "name": "ContinueCard",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "hover", "focus", "empty", "horizontal-mobile"]
+    },
+    {
+      "name": "GenreChip",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css"],
+      "states": ["default", "hover", "focus", "featured", "horizontal-mobile"]
+    },
+    {
+      "name": "GenreDock",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css"],
+      "states": ["desktop-six-column", "tablet-three-column", "mobile-horizontal"]
+    },
+    {
+      "name": "HeroCarousel",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "active", "loading", "image-missing", "autoplay", "paused", "reduced-motion"]
+    },
+    {
+      "name": "LatestShelf",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "loading", "empty", "tab-active", "desktop", "tablet", "mobile"]
+    },
+    {
+      "name": "RankBoard",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "loading", "empty", "desktop-grid", "tablet-mobile-horizontal"]
+    },
+    {
+      "name": "RankItem",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css"],
+      "states": ["default", "hover", "focus", "image-missing", "first-ranked"]
+    },
+    {
+      "name": "ShelfCard",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/css/style.css"],
+      "states": ["default", "hover", "focus", "image-missing", "featured"]
+    },
+    {
+      "name": "Artwork",
+      "sourceFiles": ["template/pingfangvideo/html/vod/detail.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "image-missing", "desktop", "tablet", "mobile"]
+    },
+    {
+      "name": "MobileDrawer",
+      "sourceFiles": ["template/pingfangvideo/html/public/head.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["closed", "open", "focus-trap", "closing"]
+    },
+    {
+      "name": "Pagination",
+      "sourceFiles": ["template/pingfangvideo/html/public/paging.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "hover", "focus", "current", "disabled"]
+    },
+    {
+      "name": "SiteHeader",
+      "sourceFiles": ["template/pingfangvideo/html/public/head.html", "template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["desktop", "tablet", "mobile", "compact", "authenticated", "guest"]
+    },
+    {
+      "name": "MacCmsPlayer",
+      "sourceFiles": [
+        "template/pingfangvideo/html/vod/play.html",
+        "template/pingfangvideo/html/vod/player.html",
+        "template/pingfangvideo/js/app.js",
+        "maccms-player/static/player/artplayer.html",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.css",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.js"
+      ],
+      "states": ["default", "loading", "buffering", "error", "retry", "failover", "auto-next"]
+    },
+    {
+      "name": "EmptyState",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["empty", "no-results", "no-history", "no-favorites"]
+    },
+    {
+      "name": "PageStatus",
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "states": ["default", "loading", "empty", "error", "permission"]
+    }
+  ],
+  "componentBuilds": [
+    {
+      "id": "action-button",
+      "name": "Action/StandardButton",
+      "displayName": "StandardButton",
+      "variantDimensions": {
+        "Style": ["Primary", "Ghost"],
+        "State": ["Default", "Hover", "Focus", "Disabled"]
+      },
+      "variants": [
+        { "Style": "Primary", "State": "Default" },
+        { "Style": "Primary", "State": "Hover" },
+        { "Style": "Primary", "State": "Focus" },
+        { "Style": "Primary", "State": "Disabled" },
+        { "Style": "Ghost", "State": "Default" },
+        { "Style": "Ghost", "State": "Hover" },
+        { "Style": "Ghost", "State": "Focus" }
+      ],
+      "variantCount": 7,
+      "stateEvidence": {
+        "Default": [".primary-btn", ".ghost-btn"],
+        "Hover": [".primary-btn:hover", ".ghost-btn:hover"],
+        "Focus": [".primary-btn:focus-visible", ".ghost-btn:focus-visible"],
+        "Disabled": [".primary-btn:disabled"]
+      },
+      "notImplemented": ["Pressed", "Ghost/Disabled", "generic Loading"],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "action-favorite-button",
+      "name": "Action/FavoriteButton",
+      "displayName": "FavoriteButton",
+      "variantDimensions": {
+        "State": ["Default", "Loading", "Favorited"]
+      },
+      "variantCount": 3,
+      "stateEvidence": {
+        "Default": [".favorite-btn"],
+        "Loading": [".favorite-btn.is-loading", "收藏中…"],
+        "Favorited": [".favorite-btn.is-favorited", "is-favorited"]
+      },
+      "notImplemented": [],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "action-login-submit",
+      "name": "Action/LoginSubmit",
+      "displayName": "LoginSubmit",
+      "variantDimensions": {
+        "State": ["Default", "Hover", "Loading"]
+      },
+      "variantCount": 3,
+      "stateEvidence": {
+        "Default": [".login-submit"],
+        "Hover": [".login-submit:hover"],
+        "Loading": ["setLoginSubmitting", "登录中"]
+      },
+      "notImplemented": [],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "form-header-search",
+      "name": "Form/HeaderSearch",
+      "displayName": "HeaderSearch",
+      "variantDimensions": {
+        "State": ["Default", "Focus", "ButtonDisabled"]
+      },
+      "variantCount": 3,
+      "stateEvidence": {
+        "Default": [".header-search"],
+        "Focus": [".header-search:focus-within"],
+        "ButtonDisabled": [".header-search button:disabled"]
+      },
+      "notImplemented": ["visual Error treatment"],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "form-login-field",
+      "name": "Form/LoginField",
+      "displayName": "LoginField",
+      "variantDimensions": {
+        "Kind": ["Account", "Password"],
+        "State": ["Default", "Focus"]
+      },
+      "variantCount": 4,
+      "stateEvidence": {
+        "Default": [".login-control"],
+        "Focus": [".login-control:focus-within"]
+      },
+      "notImplemented": ["Disabled", "Loading", "visual Error treatment"],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "feedback-dialog",
+      "name": "Reference/BrowserConfirm",
+      "displayName": "BrowserConfirm",
+      "variantDimensions": {
+        "UseCase": ["History", "Favorites", "Device"]
+      },
+      "variantCount": 3,
+      "stateEvidence": {
+        "History": ["确定要", "播放记录吗"],
+        "Favorites": ["确定要", "收藏记录吗"],
+        "Device": ["window.confirm", "踢下线吗"]
+      },
+      "notImplemented": ["custom themed dialog"],
+      "notImplementedVariants": [],
+      "referenceOnly": true
+    },
+    {
+      "id": "feedback-notice",
+      "name": "Feedback/SiteNotice",
+      "displayName": "SiteNotice",
+      "variantDimensions": {
+        "Tone": ["Success", "Error"]
+      },
+      "variantCount": 2,
+      "stateEvidence": {
+        "Success": [".site-notice", "showSiteNotice"],
+        "Error": [".site-notice.is-error", "showSiteNotice"]
+      },
+      "notImplemented": [],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "tag-quality-badge",
+      "name": "Playback/SourceQualityStatus",
+      "displayName": "SourceQualityStatus",
+      "variantDimensions": {
+        "State": ["Loading", "Available", "Slow", "Failed", "Timeout", "Unsupported", "Missing", "Recommended"]
+      },
+      "variantCount": 8,
+      "stateEvidence": {
+        "Loading": [".source-quality-result.is-loading"],
+        "Available": [".source-quality-result.is-available"],
+        "Slow": [".source-quality-result.is-slow"],
+        "Failed": [".source-quality-result.is-failed"],
+        "Timeout": [".source-quality-result.is-timeout"],
+        "Unsupported": [".source-quality-result.is-unsupported"],
+        "Missing": [".source-quality-result.is-missing"],
+        "Recommended": [".source-quality-result.is-recommended"]
+      },
+      "notImplemented": [],
+      "notImplementedVariants": []
+    },
+    {
+      "id": "media-card-quality-badge",
+      "name": "Media/CardQualityBadge",
+      "displayName": "CardQualityBadge",
+      "variantDimensions": {
+        "State": ["Visible"]
+      },
+      "variantCount": 1,
+      "stateEvidence": {
+        "Visible": [".quality-badge", "vod_remarks"]
+      },
+      "notImplemented": ["not rendered when vod_remarks is empty"],
+      "notImplementedVariants": []
+    }
+  ],
+  "archetypes": [
+    {
+      "id": "A01",
+      "name": "Home",
+      "family": "home",
+      "figmaPage": "10 · Home",
+      "route": "/",
+      "templates": ["template/pingfangvideo/html/index/index.html"],
+      "components": ["SiteHeader", "HeroCarousel", "RankBoard", "GenreDock", "LatestShelf"],
+      "data": ["maccms", "vod", "type", "user"],
+      "states": ["normal", "loading", "empty", "error"]
+    },
+    {
+      "id": "A02",
+      "name": "Categories",
+      "family": "catalog",
+      "figmaPage": "11 · Catalog & Search",
+      "route": "/index.php/label/categories.html",
+      "templates": ["template/pingfangvideo/html/label/categories.html"],
+      "components": ["SiteHeader", "CategoryTile"],
+      "data": ["type"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A03",
+      "name": "Video browse",
+      "family": "catalog",
+      "figmaPage": "11 · Catalog & Search",
+      "route": "/index.php/label/videos.html",
+      "templates": ["template/pingfangvideo/html/label/videos.html"],
+      "components": ["SiteHeader", "VodCard", "Pagination"],
+      "data": ["vod", "type", "param"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A04",
+      "name": "Popular",
+      "family": "catalog",
+      "figmaPage": "11 · Catalog & Search",
+      "route": "/index.php/label/hot.html",
+      "templates": ["template/pingfangvideo/html/label/hot.html"],
+      "components": ["SiteHeader", "VodCard", "Pagination"],
+      "data": ["vod"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A05",
+      "name": "History",
+      "family": "catalog",
+      "figmaPage": "11 · Catalog & Search",
+      "route": "/index.php/label/history.html",
+      "templates": ["template/pingfangvideo/html/label/history.html"],
+      "components": ["SiteHeader", "HistoryItem", "EmptyState"],
+      "data": ["browser-history"],
+      "states": ["normal", "empty"]
+    },
+    {
+      "id": "A06",
+      "name": "Type and filter results",
+      "family": "catalog",
+      "figmaPage": "11 · Catalog & Search",
+      "route": "/index.php/vod/type/id/{id}.html",
+      "templates": ["template/pingfangvideo/html/vod/type.html", "template/pingfangvideo/html/vod/show.html"],
+      "components": ["SiteHeader", "FilterPanel", "VodCard", "Pagination"],
+      "data": ["obj", "param", "vod", "type"],
+      "states": ["normal", "empty"]
+    },
+    {
+      "id": "A07",
+      "name": "Search results",
+      "family": "catalog",
+      "figmaPage": "11 · Catalog & Search",
+      "route": "/index.php/vod/search/wd/{keyword}.html",
+      "templates": ["template/pingfangvideo/html/vod/search.html"],
+      "components": ["SiteHeader", "HeaderSearch", "FilterPanel", "SearchResultItem", "Pagination", "EmptyState"],
+      "data": ["param.wd", "vod"],
+      "states": ["normal", "empty"]
+    },
+    {
+      "id": "A08",
+      "name": "Video detail",
+      "family": "detail",
+      "figmaPage": "12 · Content Detail",
+      "route": "/index.php/vod/detail/id/{id}.html",
+      "templates": ["template/pingfangvideo/html/vod/detail.html"],
+      "components": ["SiteHeader", "Artwork", "QualityBadge", "EpisodeList", "ActionButton"],
+      "data": ["obj", "param", "user", "sourceQuality"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A09",
+      "name": "Video player",
+      "family": "player",
+      "figmaPage": "13 · Player",
+      "route": "/index.php/vod/play/id/{id}/sid/{sid}/nid/{nid}.html",
+      "templates": [
+        "template/pingfangvideo/html/vod/play.html",
+        "template/pingfangvideo/html/vod/player.html",
+        "template/pingfangvideo/player/preload.html",
+        "template/pingfangvideo/player/buffering.html"
+      ],
+      "components": ["SiteHeader", "MacCmsPlayer", "EpisodeList", "PageStatus"],
+      "data": ["obj", "param", "player_data", "player_js"],
+      "states": ["normal", "loading", "error"]
+    },
+    {
+      "id": "A10",
+      "name": "Login",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/user/login.html",
+      "templates": ["template/pingfangvideo/html/user/login.html"],
+      "components": ["TextField", "CaptchaField", "ActionButton", "Notice"],
+      "data": ["user", "verify"],
+      "states": ["normal", "loading", "error"]
+    },
+    {
+      "id": "A11",
+      "name": "Register",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/user/reg.html",
+      "templates": ["template/pingfangvideo/html/user/reg.html"],
+      "components": ["TextField", "ActionButton"],
+      "data": ["user", "verify"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A12",
+      "name": "Find password",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/user/findpass.html",
+      "templates": ["template/pingfangvideo/html/user/findpass.html"],
+      "components": ["TextField", "ActionButton"],
+      "data": ["user", "verify"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A13",
+      "name": "Account dashboard",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/user/index.html",
+      "templates": ["template/pingfangvideo/html/user/index.html"],
+      "components": ["SiteHeader", "SystemBox", "ActionButton"],
+      "data": ["user"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A14",
+      "name": "Playback records",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/user/plays.html",
+      "templates": ["template/pingfangvideo/html/user/plays.html"],
+      "components": ["SiteHeader", "RecordItem", "EmptyState", "Dialog", "ActionButton"],
+      "data": ["user", "ulog"],
+      "states": ["normal", "empty"]
+    },
+    {
+      "id": "A15",
+      "name": "Favorites",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/user/favs.html",
+      "templates": ["template/pingfangvideo/html/user/favs.html"],
+      "components": ["SiteHeader", "FavoriteCard", "EmptyState", "Dialog", "ActionButton"],
+      "data": ["user", "ulog"],
+      "states": ["normal", "empty"]
+    },
+    {
+      "id": "A16",
+      "name": "Login devices",
+      "family": "account",
+      "figmaPage": "14 · Account",
+      "route": "/index.php/pingfangdevice/index.html",
+      "templates": ["template/pingfangvideo/html/pingfangdevice/index.html"],
+      "components": ["SiteHeader", "DeviceCard", "Dialog", "ActionButton"],
+      "data": ["user", "device-sessions"],
+      "states": ["normal", "empty"]
+    },
+    {
+      "id": "A17",
+      "name": "Games hub guest",
+      "family": "games",
+      "figmaPage": "16 · Games",
+      "route": "/index.php/label/games.html",
+      "condition": "guest",
+      "evidenceTextSignatures": ["登录后开启游戏大厅", "前往登录"],
+      "templates": ["template/pingfangvideo/html/label/games.html"],
+      "components": ["SiteHeader", "GameCard", "PermissionState"],
+      "data": ["user"],
+      "states": ["permission"]
+    },
+    {
+      "id": "A18",
+      "name": "Games hub member",
+      "family": "games",
+      "figmaPage": "16 · Games",
+      "route": "/index.php/label/games.html",
+      "condition": "member",
+      "evidenceTextSignatures": ["片刻放松，随时开局", "会员已解锁"],
+      "templates": ["template/pingfangvideo/html/label/games.html"],
+      "components": ["SiteHeader", "GameCard"],
+      "data": ["user"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A19",
+      "name": "2048",
+      "family": "games",
+      "figmaPage": "16 · Games",
+      "route": "/index.php/label/game-2048.html",
+      "templates": ["template/pingfangvideo/html/label/game-2048.html"],
+      "components": ["SiteHeader", "GameShell", "PermissionState"],
+      "data": ["user", "local-game-state"],
+      "states": ["normal", "permission"]
+    },
+    {
+      "id": "A20",
+      "name": "Blockrain",
+      "family": "games",
+      "figmaPage": "16 · Games",
+      "route": "/index.php/label/game-blockrain.html",
+      "templates": ["template/pingfangvideo/html/label/game-blockrain.html"],
+      "components": ["SiteHeader", "GameShell", "PermissionState"],
+      "data": ["user", "local-game-state"],
+      "states": ["normal", "permission"]
+    },
+    {
+      "id": "A21",
+      "name": "Gomoku",
+      "family": "games",
+      "figmaPage": "16 · Games",
+      "route": "/index.php/label/game-gomoku.html",
+      "templates": ["template/pingfangvideo/html/label/game-gomoku.html"],
+      "components": ["SiteHeader", "MultiplayerLobby", "GameBoard", "PermissionState"],
+      "data": ["user", "room", "participants", "turn"],
+      "states": ["normal", "loading", "empty", "error", "permission"]
+    },
+    {
+      "id": "A22",
+      "name": "Draw and guess",
+      "family": "games",
+      "figmaPage": "16 · Games",
+      "route": "/index.php/label/game-drawguess.html",
+      "templates": ["template/pingfangvideo/html/label/game-drawguess.html"],
+      "components": ["SiteHeader", "MultiplayerLobby", "DrawingCanvas", "Chat", "PermissionState"],
+      "data": ["user", "room", "participants", "round", "messages"],
+      "states": ["normal", "loading", "empty", "error", "permission"]
+    },
+    {
+      "id": "A23",
+      "name": "Download",
+      "family": "system",
+      "figmaPage": "18 · System & Restrictions",
+      "route": "/index.php/vod/down/id/{id}/sid/{sid}/nid/{nid}.html",
+      "templates": ["template/pingfangvideo/html/vod/down.html", "template/pingfangvideo/html/vod/downer_pwd.html"],
+      "components": ["SiteHeader", "DownloadList", "PasswordGate", "ActionButton"],
+      "data": ["obj", "param", "user"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A24",
+      "name": "Copyright confirm and password gates",
+      "family": "system",
+      "figmaPage": "18 · System & Restrictions",
+      "route": "multiple protected content routes",
+      "templates": [
+        "template/pingfangvideo/html/vod/confirm.html",
+        "template/pingfangvideo/html/vod/copyright.html",
+        "template/pingfangvideo/html/vod/detail_pwd.html",
+        "template/pingfangvideo/html/vod/player_pwd.html",
+        "template/pingfangvideo/html/art/confirm.html",
+        "template/pingfangvideo/html/art/detail_pwd.html"
+      ],
+      "components": ["SystemBox", "PasswordGate", "ActionButton"],
+      "data": ["obj", "param", "user"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A25",
+      "name": "Plot",
+      "family": "feedback",
+      "figmaPage": "15 · Access & Feedback",
+      "route": "/index.php/vod/plot/id/{id}.html",
+      "templates": [
+        "template/pingfangvideo/html/vod/plot.html",
+        "template/pingfangvideo/html/plot/uindex.html",
+        "template/pingfangvideo/html/plot/udetail.html"
+      ],
+      "components": ["SiteHeader", "PlotItem", "SystemBox", "ActionButton"],
+      "data": ["obj", "param", "plot"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A26",
+      "name": "Comments",
+      "family": "feedback",
+      "figmaPage": "15 · Access & Feedback",
+      "route": "/index.php/comment/index.html",
+      "templates": ["template/pingfangvideo/html/comment/index.html", "template/pingfangvideo/html/comment/ajax.html"],
+      "components": ["CommentForm", "CommentItem", "CaptchaField", "ActionButton"],
+      "data": ["comment", "user", "verify"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A27",
+      "name": "Guestbook and report",
+      "family": "feedback",
+      "figmaPage": "15 · Access & Feedback",
+      "route": "/index.php/gbook/index.html",
+      "templates": [
+        "template/pingfangvideo/html/gbook/index.html",
+        "template/pingfangvideo/html/book/index.html",
+        "template/pingfangvideo/html/book/report.html"
+      ],
+      "components": ["FeedbackForm", "ReportForm", "CaptchaField", "ActionButton"],
+      "data": ["gbook", "book", "user", "verify"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A28",
+      "name": "Content directories",
+      "family": "content",
+      "figmaPage": "17 · Content Modules",
+      "route": "article/topic/actor/role/website directory routes",
+      "templates": [
+        "template/pingfangvideo/html/art/index.html",
+        "template/pingfangvideo/html/art/type.html",
+        "template/pingfangvideo/html/art/show.html",
+        "template/pingfangvideo/html/art/search.html",
+        "template/pingfangvideo/html/topic/index.html",
+        "template/pingfangvideo/html/actor/index.html",
+        "template/pingfangvideo/html/actor/type.html",
+        "template/pingfangvideo/html/actor/show.html",
+        "template/pingfangvideo/html/actor/search.html",
+        "template/pingfangvideo/html/role/index.html",
+        "template/pingfangvideo/html/role/show.html",
+        "template/pingfangvideo/html/website/index.html",
+        "template/pingfangvideo/html/website/type.html",
+        "template/pingfangvideo/html/website/show.html",
+        "template/pingfangvideo/html/website/search.html"
+      ],
+      "components": ["SiteHeader", "SystemBox", "ActionButton"],
+      "data": ["obj", "param", "art", "topic", "actor", "role", "website"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A29",
+      "name": "Content details",
+      "family": "content",
+      "figmaPage": "17 · Content Modules",
+      "route": "article/topic/actor/role/website detail routes",
+      "templates": [
+        "template/pingfangvideo/html/art/detail.html",
+        "template/pingfangvideo/html/topic/detail.html",
+        "template/pingfangvideo/html/actor/detail.html",
+        "template/pingfangvideo/html/role/detail.html",
+        "template/pingfangvideo/html/website/detail.html"
+      ],
+      "components": ["SiteHeader", "SystemBox", "ActionButton"],
+      "data": ["obj", "param", "art", "topic", "actor", "role", "website"],
+      "states": ["normal"]
+    },
+    {
+      "id": "A30",
+      "name": "System message jump and verification",
+      "family": "system",
+      "figmaPage": "18 · System & Restrictions",
+      "route": "system response fragments",
+      "templates": [
+        "template/pingfangvideo/html/public/jump.html",
+        "template/pingfangvideo/html/public/msg.html",
+        "template/pingfangvideo/html/public/verify.html"
+      ],
+      "components": ["SystemBox", "CaptchaField", "ActionButton"],
+      "data": ["msg", "jump", "verify"],
+      "states": ["normal"]
+    }
+  ],
+  "assetGroups": [
+    {
+      "directory": "template/pingfangvideo/images/brand",
+      "usage": "logos, favicons, app icons, lazy/load placeholders",
+      "sizeRule": "preserve source pixel dimensions; use explicit width and height in templates",
+      "colorBehavior": "raster; choose dark/light source explicitly"
+    },
+    {
+      "directory": "template/pingfangvideo/images/dunhuang",
+      "usage": "Dunhuang Caisson decorative frames, bands, emblem, and corners",
+      "sizeRule": "preserve viewBox and desktop/mobile variants",
+      "colorBehavior": "editable SVG; currentColor only where present in source"
+    },
+    {
+      "directory": "template/pingfangvideo/images/pixel",
+      "usage": "Pixel Frog emblem, border, grid, and CSS-mask control icons",
+      "sizeRule": "preserve crispEdges viewBox; render 16px controls and 96px emblem at integer scales",
+      "colorBehavior": "editable SVG; control icons inherit CSS currentColor through masks, while emblem, border, and grid keep fixed source colors"
+    },
+    {
+      "directory": "template/pingfangvideo/css/fonts",
+      "usage": "Pixel Frog runtime typography and license",
+      "sizeRule": "Fusion Pixel PFV uses the 12px proportional Simplified Chinese build at weight 400",
+      "colorBehavior": "font asset; Figma documentation uses a fallback unless Fusion Pixel PFV is installed locally"
+    },
+    {
+      "directory": "template/pingfangvideo/images",
+      "usage": "site logo and top-level theme images",
+      "sizeRule": "do not substitute preview-only assets",
+      "colorBehavior": "source-defined"
+    }
+  ],
+  "assetInventory": [
+    {
+      "path": "template/pingfangvideo/images/site-logo.png",
+      "dimensions": "192×192",
+      "usage": "header brand image fallback; current DOM keeps it hidden",
+      "status": "referenced",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/favicon.ico",
+      "dimensions": "64×64",
+      "usage": "browser favicon fallback",
+      "status": "referenced",
+      "colorBehavior": "raster/icon; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/favicon.png",
+      "dimensions": "64×64",
+      "usage": "PNG browser favicon",
+      "status": "referenced",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/ios_fav.png",
+      "dimensions": "512×512",
+      "usage": "Apple touch icon",
+      "status": "referenced",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/foot-logo-black.png",
+      "dimensions": "512×512",
+      "usage": "legacy footer logo variant",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; choose source explicitly"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/foot-logo.png",
+      "dimensions": "512×512",
+      "usage": "legacy footer logo variant",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; choose source explicitly"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/footer-logo-on-dark.png",
+      "dimensions": "512×512",
+      "usage": "footer logo for dark surfaces",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; fixed dark-surface variant"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/footer-logo-on-light.png",
+      "dimensions": "512×512",
+      "usage": "footer logo for light surfaces",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; fixed light-surface variant"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/header-logo-on-dark.png",
+      "dimensions": "512×512",
+      "usage": "header logo for dark surfaces",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; fixed dark-surface variant"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/header-logo-on-light.png",
+      "dimensions": "512×512",
+      "usage": "header logo for light surfaces",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; fixed light-surface variant"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/ios_fav.jpg",
+      "dimensions": "512×512",
+      "usage": "legacy Apple icon JPEG alternative",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/lazyload-symbol.png",
+      "dimensions": "500×500",
+      "usage": "legacy lazy-load symbol",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/lazyload.gif",
+      "dimensions": "600×900",
+      "usage": "legacy animated portrait loading placeholder",
+      "status": "not referenced by current theme",
+      "colorBehavior": "animated raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/lazyload.png",
+      "dimensions": "600×900",
+      "usage": "legacy portrait loading placeholder",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/load.gif",
+      "dimensions": "600×900",
+      "usage": "legacy animated portrait loading placeholder",
+      "status": "not referenced by current theme",
+      "colorBehavior": "animated raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/load.png",
+      "dimensions": "600×900",
+      "usage": "legacy portrait loading placeholder",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/logo-black.png",
+      "dimensions": "512×512",
+      "usage": "legacy black logo variant",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; choose source explicitly"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/logo.png",
+      "dimensions": "512×512",
+      "usage": "legacy default logo variant",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; choose source explicitly"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/webapp-icon.jpg",
+      "dimensions": "512×512",
+      "usage": "legacy web-app JPEG icon",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/brand/webapp-icon.png",
+      "dimensions": "512×512",
+      "usage": "legacy web-app PNG icon",
+      "status": "not referenced by current theme",
+      "colorBehavior": "raster; not recolorable"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/caisson-frame-mobile.svg",
+      "dimensions": "viewBox 390×560",
+      "usage": "mobile Dunhuang page frame",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/caisson-frame.svg",
+      "dimensions": "viewBox 1600×900",
+      "usage": "desktop Dunhuang page frame",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/channel-vault.svg",
+      "dimensions": "viewBox 320×120",
+      "usage": "Dunhuang channel heading vault",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/emblem.svg",
+      "dimensions": "viewBox 64×64",
+      "usage": "Dunhuang emblem and brand surface",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/pearl-band.svg",
+      "dimensions": "viewBox 720×20",
+      "usage": "Dunhuang horizontal pearl divider",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/rosette-divider.svg",
+      "dimensions": "viewBox 720×32",
+      "usage": "Dunhuang rosette divider",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/scrolling-vine-band.svg",
+      "dimensions": "viewBox 960×48",
+      "usage": "Dunhuang scrolling-vine top band",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/dunhuang/wave-cloud-corner.svg",
+      "dimensions": "viewBox 200×200",
+      "usage": "Dunhuang wave-cloud corner decoration",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed source colors; no currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/frog-emblem.svg",
+      "dimensions": "viewBox 96×96",
+      "usage": "Pixel Frog logo, Hero emblem, and login identity card",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed multi-color source palette"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-close.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog mobile drawer close control",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-enter.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog login submit action",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-eye.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog password visibility action",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-lock.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog password field icon",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-play.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog primary play action and paused-carousel control",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-refresh.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog captcha refresh action",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-search.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog header, drawer, Hero, and channel search actions",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-shield.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog verification field icon",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/icon-user.svg",
+      "dimensions": "16×16",
+      "usage": "Pixel Frog account field icon",
+      "status": "referenced",
+      "colorBehavior": "editable monochrome SVG; CSS mask inherits currentColor"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/pixel-border.svg",
+      "dimensions": "16×16",
+      "usage": "4px Pixel Frog border-image for headers, drawers, Hero, panels, and player",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed green and cream source colors"
+    },
+    {
+      "path": "template/pingfangvideo/images/pixel/pixel-grid.svg",
+      "dimensions": "viewBox 64×64",
+      "usage": "repeating Pixel Frog body and login texture",
+      "status": "referenced",
+      "colorBehavior": "editable SVG with fixed green, dark-green, and coral source colors"
+    }
+  ],
+  "componentInteractionContracts": [
+    {
+      "id": "IC01",
+      "component": "NavItem",
+      "states": ["default", "hover", "current", "focus"],
+      "trigger": "hover, focus-visible, or current-route match",
+      "action": "navigate with the browser or MacCMS route",
+      "transition": "instant navigation; 180ms current/hover underline styling",
+      "durationMs": 180,
+      "conditions": ["all viewports", "no global page-transition animation"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".site-nav a:hover,", ".site-nav a[aria-current=\"page\"],", "function markCurrentNav()"]
+    },
+    {
+      "id": "IC02",
+      "component": "ThemeSwitcher",
+      "states": ["trigger-default", "trigger-hover", "open", "option-default", "option-hover", "option-selected", "pixel-transition"],
+      "trigger": "trigger click, option click, outside click, or Escape",
+      "action": "open or close the menu, persist the selected theme, restore trigger focus on keyboard close, and launch Pixel Frog edge particles only after an explicit user selection",
+      "transition": "menu state is instant; the generic flare uses 560ms, while Pixel Frog disables that flare and uses a 480ms steps(4) emblem hop plus a one-shot square particle burst",
+      "durationMs": 560,
+      "conditions": [
+        "all viewports where the switcher is visible",
+        "initial theme restoration does not launch Pixel Frog particles",
+        "reduced motion and hidden-document state disable the Pixel Frog burst"
+      ],
+      "sourceFiles": [
+        "template/pingfangvideo/css/style.css",
+        "template/pingfangvideo/js/app.js",
+        "template/pingfangvideo/js/canvas-confetti.min.js"
+      ],
+      "evidence": [
+        ".theme-option:hover,",
+        ".theme-option.is-active",
+        "function setThemeSwitcherOpen",
+        "function launchPixelThemeParticles()",
+        "window.setTimeout(clearThemeTransition, 560)"
+      ]
+    },
+    {
+      "id": "IC03",
+      "component": "MobileDrawer",
+      "states": ["closed", "open"],
+      "trigger": "menu trigger, backdrop, close control, Escape, or navigation selection",
+      "action": "toggle inert background and focus trap, then restore focus when required",
+      "transition": "transform and backdrop opacity use cubic-bezier(0.25, 1, 0.5, 1)",
+      "durationMs": 240,
+      "conditions": ["viewport width below 1181px", "reduced motion finishes immediately"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".mobile-drawer.is-open", "transition: transform 0.24s cubic-bezier(0.25, 1, 0.5, 1);", "function setNavOpen(isOpen, shouldRestoreFocus)"]
+    },
+    {
+      "id": "IC04",
+      "component": "MobileHeader",
+      "states": ["expanded", "compact"],
+      "trigger": "scroll past 132px or return above 48px",
+      "action": "toggle the compact header class",
+      "transition": "padding, minimum height, radius, and inset spacing ease",
+      "durationMs": 180,
+      "conditions": ["max-width: 760px", "focus-within keeps the expanded treatment"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".site-header.is-compact:not(:focus-within)", "var compactHeaderEnterY = 132;", "var compactHeaderExitY = 48;"]
+    },
+    {
+      "id": "IC05",
+      "component": "Feedback/SiteNotice",
+      "states": ["hidden", "success", "error"],
+      "trigger": "source-backed operation result",
+      "action": "show status feedback, then hide it automatically",
+      "transition": "opacity and vertical offset ease",
+      "durationMs": { "transition": 200, "visible": 2400 },
+      "conditions": ["success and error only"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".site-notice.is-visible", ".site-notice.is-error", "function showSiteNotice(message, status)", "}, 2400);"]
+    },
+    {
+      "id": "IC06",
+      "component": "Action/StandardButton",
+      "states": ["default", "hover", "focus", "disabled-primary"],
+      "trigger": "hover, focus-visible, or disabled attribute",
+      "action": "hover increases saturation and brightness and moves up 1px; disabled blocks the pointer",
+      "transition": "instant in current CSS; model as an instant Figma state change",
+      "durationMs": 0,
+      "conditions": ["disabled styling is source-backed for primary buttons, not every ghost button"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "evidence": [".primary-btn:hover,", ".primary-btn:focus-visible,", ".primary-btn:disabled {"]
+    },
+    {
+      "id": "IC07",
+      "component": "Action/FavoriteButton",
+      "states": ["default", "loading", "favorited", "failure-default"],
+      "trigger": "favorite action and AJAX success, failure, or 10s timeout",
+      "action": "move to loading, then favorited plus success notice or return to default plus error notice",
+      "transition": "state replacement",
+      "durationMs": { "timeout": 10000, "state": 0 },
+      "conditions": ["detail favorite action only"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".favorite-btn.is-loading", ".favorite-btn.is-favorited", "function initFavoriteButtons(root)", "}, 10000);"]
+    },
+    {
+      "id": "IC08",
+      "component": "Form/LoginField",
+      "states": ["default", "focus"],
+      "trigger": "focus-within",
+      "action": "apply the source focus border, field background, and focus shadow",
+      "transition": "border, background, shadow, and transform ease",
+      "durationMs": 200,
+      "conditions": ["login form"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "evidence": [".login-control:focus-within {", "transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;"]
+    },
+    {
+      "id": "IC09",
+      "component": "PasswordToggle",
+      "states": ["password-hidden", "password-visible"],
+      "trigger": "toggle click",
+      "action": "switch input type, aria-pressed, accessible label, and return focus to the input",
+      "transition": "instant",
+      "durationMs": 0,
+      "conditions": ["login password field"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".login-password-toggle[aria-pressed=\"true\"]::after", "[data-password-toggle]", "input.type = shouldShow ? \"text\" : \"password\";"]
+    },
+    {
+      "id": "IC10",
+      "component": "Action/LoginSubmit",
+      "states": ["default", "hover", "loading", "error", "success-navigation"],
+      "trigger": "login form submit and fetch result",
+      "action": "disable and relabel while loading; on error restore and show notice; on success queue notice and navigate",
+      "transition": "hover eases for 200ms; request states replace instantly",
+      "durationMs": 200,
+      "conditions": ["AJAX-capable login form"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".login-submit:hover {", "function setLoginSubmitting(form, isSubmitting)", "window.location.href = redirect;"]
+    },
+    {
+      "id": "IC11",
+      "component": "CaptchaRefresh",
+      "states": ["default", "hover"],
+      "trigger": "refresh control click",
+      "action": "refresh the configured captcha image or preview",
+      "transition": "hover is instant; refreshed content replaces in place",
+      "durationMs": 0,
+      "conditions": ["only when captcha is enabled by login configuration"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".login-captcha-refresh:hover {", "[data-verify-refresh]"]
+    },
+    {
+      "id": "IC12",
+      "component": "HeroCarousel",
+      "states": ["inactive", "active", "arrow-default", "arrow-hover", "dot-default", "dot-hover", "dot-selected", "autoplay-playing", "autoplay-paused", "autoplay-disabled"],
+      "trigger": "arrow, dot, autoplay control, swipe, timer, focus, visibility, or reduced-motion change",
+      "action": "activate a slide and synchronize dots, accessibility state, preloading, and autoplay",
+      "transition": "GSAP slide and copy motion uses source 300–400ms timing; autoplay interval is 5200ms",
+      "durationMs": { "slideMin": 300, "slideMax": 400, "autoplayInterval": 5200 },
+      "conditions": ["autoplay requires at least two slides and visible, unfocused, non-reduced-motion state"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".banner-dot.is-active::after", ".banner-arrow:hover {", "function initHeroCarousel(root)", "}, 5200);"]
+    },
+    {
+      "id": "IC13",
+      "component": "DiscoveryCardFamily",
+      "members": ["RankItem", "GenreChip", "ContinueCard", "ShelfCard", "VodCard", "CategoryTile", "ListItem", "TimelineCard", "DownloadItem", "DeviceCard", "RecordCard", "FavoriteCard"],
+      "states": ["default", "hover", "focus-where-declared"],
+      "trigger": "fine-pointer hover or focus where the source declares focus feedback",
+      "action": "apply each member's exact source border, background, shadow, image scale, and translateY treatment",
+      "transition": "member-specific source timing between 180ms and 250ms",
+      "durationMs": { "min": 180, "max": 250 },
+      "conditions": [
+        "do not add focus variants to members without a source focus selector",
+        "Pixel Frog card lift is fine-pointer hover only and uses translate(-3px, -3px) with an 8px hard shadow"
+      ],
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "evidence": [
+        ".rank-item:hover {",
+        ".genre-chip:hover,",
+        ".home-continue-card:hover,",
+        ".home-shelf-card:hover,",
+        ".vod-card:hover,",
+        ".category-tile:hover,",
+        ".list-item:hover {",
+        ".timeline-card:hover {",
+        ".download-list a:hover {",
+        ".device-card:hover {",
+        ".record-item:hover {",
+        ".favorite-card:hover {"
+      ]
+    },
+    {
+      "id": "IC14",
+      "component": "ShelfTab",
+      "states": ["default", "hover", "selected"],
+      "trigger": "hover or tab click",
+      "action": "select the requested shelf and hide the other shelf panels",
+      "transition": "visual styling eases",
+      "durationMs": 180,
+      "conditions": ["home latest shelf"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".home-shelf-tabs button:hover,", "button[data-home-tab].is-active", "control.classList.toggle(\"is-active\", isActive)"]
+    },
+    {
+      "id": "IC15",
+      "component": "FilterOption",
+      "states": ["default", "hover", "selected"],
+      "trigger": "hover or filter navigation",
+      "action": "navigate with selected filter parameters and mark the active option",
+      "transition": "instant navigation",
+      "durationMs": 0,
+      "conditions": ["only options returned or rendered by the current filter template"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "evidence": [".filter-panel a:hover {", ".filter-panel a.is-active,"]
+    },
+    {
+      "id": "IC16",
+      "component": "Episode",
+      "states": ["default", "hover", "active", "recommended"],
+      "trigger": "hover, current episode route, or source-quality recommendation",
+      "action": "navigate to the episode and preserve active or recommended source treatment",
+      "transition": "instant navigation",
+      "durationMs": 0,
+      "conditions": ["episode and source lines rendered by current code"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".episode-grid a:hover,", ".episode-grid a.is-active {", ".episode-grid a.is-source-recommended", "is-source-recommended"]
+    },
+    {
+      "id": "IC17",
+      "component": "Playback/SourceQualityStatus",
+      "states": ["loading", "available", "slow", "failed", "timeout", "unsupported", "missing", "recommended"],
+      "trigger": "source-quality probe lifecycle",
+      "action": "report the probe state and mark the recommended episode or line",
+      "transition": "in-place status replacement",
+      "durationMs": 0,
+      "conditions": ["requires the current source-quality endpoint and response"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css", "template/pingfangvideo/js/app.js"],
+      "evidence": [".source-quality-result.is-loading", ".source-quality-result.is-available", ".source-quality-result.is-slow", ".source-quality-result.is-failed,", ".source-quality-result.is-timeout", ".source-quality-result.is-unsupported,", ".source-quality-result.is-missing", ".source-quality-result.is-recommended"]
+    },
+    {
+      "id": "IC18",
+      "component": "Player/MacCmsPlayer",
+      "states": ["preload", "buffering", "error", "retry", "failover", "reduced-motion"],
+      "trigger": "player lifecycle, playback error, or alternate-line recovery",
+      "action": "show the deployment-backed player state, retry, or switch to the alternate line with loop prevention",
+      "transition": "player implementation timing; prompt motion is disabled for reduced motion",
+      "durationMs": null,
+      "conditions": ["code-derived and deployment-dependent", "do not label uncaptured states as Raw Evidence"],
+      "sourceFiles": [
+        "template/pingfangvideo/player/preload.html",
+        "template/pingfangvideo/player/buffering.html",
+        "template/pingfangvideo/player/prompt.css",
+        "template/pingfangvideo/js/app.js",
+        "maccms-player/static/player/artplayer/pingfang-player-1.0.0.js"
+      ],
+      "evidence": ["正在准备播放", "正在续接画面", "function switchToAlternatePlaybackLine(currentTime)", "function autoSwitchToAlternatePlaybackLine(currentTime)"]
+    },
+    {
+      "id": "IC19",
+      "component": "GameCard",
+      "states": ["default", "hover"],
+      "trigger": "hover",
+      "action": "raise the source-drawn game card, then navigate on activation",
+      "transition": "transform, border, and shadow ease",
+      "durationMs": 180,
+      "conditions": ["game artwork remains CSS geometry, not a video-media placeholder"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "evidence": [".game-card:hover {", "transform 180ms ease"]
+    },
+    {
+      "id": "IC20",
+      "component": "BlockrainControl",
+      "states": ["default", "hover", "focus", "pressed"],
+      "trigger": "hover, focus-visible, or active press",
+      "action": "send the mapped Blockrain control input",
+      "transition": "pressed state moves down 1px",
+      "durationMs": 0,
+      "conditions": ["the only shared control family with a source-backed :active pressed state"],
+      "sourceFiles": ["template/pingfangvideo/css/style.css"],
+      "evidence": [".blockrain-control:hover,", ".blockrain-control:focus-visible {", ".blockrain-control:active {"]
+    },
+    {
+      "id": "IC21",
+      "component": "RecordManagement",
+      "states": ["default", "selected", "confirm", "success-reload", "failure-alert"],
+      "trigger": "single delete, bulk delete, or clear action",
+      "action": "use native confirm and alert, then reload on success",
+      "transition": "browser-native feedback; do not create a project modal",
+      "durationMs": 0,
+      "conditions": ["playback records and favorites"],
+      "sourceFiles": ["template/pingfangvideo/html/user/plays.html", "template/pingfangvideo/html/user/favs.html"],
+      "evidence": ["confirm(\"确定要\" + actionName", "location.reload();", "alert(actionName + \"失败：\" + data.msg);"]
+    },
+    {
+      "id": "IC22",
+      "component": "DeviceRevoke",
+      "states": ["default", "confirm", "request-disabled", "success-reload", "failure-alert"],
+      "trigger": "revoke control click",
+      "action": "use native confirm, disable during fetch, reload on success, and restore plus alert on failure",
+      "transition": "browser-native feedback; do not create a project modal",
+      "durationMs": 0,
+      "conditions": ["other active devices only"],
+      "sourceFiles": ["template/pingfangvideo/html/pingfangdevice/index.html", "template/pingfangvideo/css/style.css"],
+      "evidence": ["window.confirm(\"确定要将“\"", "button.disabled = true;", ".danger-btn[disabled] {"]
+    }
+  ],
+  "interactionFacts": [
+    {
+      "name": "Theme switch",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": [
+        "themeStorageKey = \"pingfang_theme\"",
+        "function launchPixelThemeParticles()",
+        "document.documentElement.getAttribute(\"data-theme\") === \"pixel-frog\"",
+        "setTimeout(clearThemeTransition, 560)"
+      ],
+      "behavior": "persist pingfang_theme and update aria-pressed; Pixel Frog replaces the generic flare with a user-triggered four-edge square particle burst and a 480ms steps(4) emblem hop"
+    },
+    {
+      "name": "Card hover and focus",
+      "source": "template/pingfangvideo/css/style.css",
+      "evidence": [".vod-card:hover", ".home-shelf-card:focus-visible"],
+      "behavior": "eligible Vod, shelf, list, category, device, and game cards use source-specific feedback; Pixel Frog fine-pointer card hover moves -3px/-3px and expands its hard shadow from 5px to 8px, while focus-visible keeps the card position"
+    },
+    {
+      "name": "Button hover focus and disabled",
+      "source": "template/pingfangvideo/css/style.css",
+      "evidence": [".primary-btn:hover", ".primary-btn:focus-visible", "cursor: not-allowed"],
+      "behavior": "hover increases saturation/brightness and translates -1px; focus-visible uses line-accent-strong plus focus-ring; disabled blocks the pointer and uses source opacity"
+    },
+    {
+      "name": "Keyboard focus",
+      "source": "template/pingfangvideo/css/style.css",
+      "evidence": [".mobile-drawer-close:focus-visible", ".episode-grid a:focus-visible", ".page-link:focus-visible"],
+      "behavior": "links, controls, filters, episodes, drawer actions, pagination, theme options, and user actions share an explicit focus-visible ring"
+    },
+    {
+      "name": "Mobile drawer",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function setPageInert(isInert)", "function trapDrawerFocus(event)", "function setNavOpen(isOpen, shouldRestoreFocus)"],
+      "behavior": "inert background, focus trap, Escape/backdrop/close/navigation exit, and focus restoration"
+    },
+    {
+      "name": "Site notice",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function showSiteNotice(message, status)", "}, 2400);"],
+      "behavior": "success/error feedback with a 2400ms visible duration"
+    },
+    {
+      "name": "Authentication",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function setLoginSubmitting(form, isSubmitting)", "[data-verify-refresh]", "登录请求失败，请稍后重试"],
+      "behavior": "loading, success, error, password reveal, captcha refresh, and reduced-motion fallback"
+    },
+    {
+      "name": "Favorite",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function initFavoriteButtons(root)", "pendingFavoriteTimer = window.setTimeout", "收藏失败，请稍后重试"],
+      "behavior": "loading, success, error, and timeout"
+    },
+    {
+      "name": "Home motion",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function initHomeMotion(root)", "function initPageEntrance(scope, gsap)", "function initSectionMotion(scope, gsap)"],
+      "behavior": "GSAP entrance and section reveal only on eligible desktop pointers; CSS/reduced-motion fallback otherwise"
+    },
+    {
+      "name": "Scroll and compact header",
+      "source": "template/pingfangvideo/css/style.css",
+      "evidence": [".site-header.is-compact:not(:focus-within)", "scroll-snap-type: x proximity"],
+      "behavior": "sticky header compacts on mobile; rank, genre, tabs, continue-watching, and selected card rails use horizontal overflow and scroll snap"
+    },
+    {
+      "name": "Route transitions",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["window.location.href = redirect", "window.location.href = target"],
+      "behavior": "current code has no global page-transition animation; navigation remains browser/MacCMS route driven, while theme and in-page motion are documented separately"
+    },
+    {
+      "name": "Source quality",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function storeSourceQualityPreference(vodId, nid, payload)", "[data-source-quality-result]", "is-source-recommended"],
+      "behavior": "loading, available, slow, failed, timeout, unsupported, missing, and recommended"
+    },
+    {
+      "name": "Playback recovery",
+      "source": "template/pingfangvideo/js/app.js",
+      "evidence": ["function autoSwitchToAlternatePlaybackLine(currentTime)", "function switchToAlternatePlaybackLine(currentTime)", "automaticLineSwitchKey"],
+      "behavior": "auto-next and same-episode line failover bridge with loop prevention"
+    },
+    {
+      "name": "Reduced motion",
+      "source": "template/pingfangvideo/css/style.css",
+      "evidence": [
+        "@media (prefers-reduced-motion: reduce)",
+        ".theme-transitioning",
+        "html[data-theme=\"pixel-frog\"].theme-transitioning .hero-carousel::before"
+      ],
+      "behavior": "prefers-reduced-motion disables login, theme, Dunhuang, Pixel Frog emblem/login/READY motion and particle emission, carousel, multiplayer, and game animations or transitions where implemented"
+    }
+  ],
+  "knownThemeIssues": [
+    {
+      "id": "PF-I01",
+      "name": "Pixel Frog poster hover retains the inherited violet glow",
+      "behavior": "Vod and shelf poster descendants still use the unscoped purple hover border and glow even though the Pixel Frog card shell uses green hard-shadow feedback.",
+      "evidence": [".home-shelf-card:hover .home-shelf-poster", ".vod-card:hover .poster"]
+    },
+    {
+      "id": "PF-I02",
+      "name": "Pixel Frog inactive shelf-tab hover remains violet",
+      "behavior": "Pixel Frog overrides the selected tab but does not replace the unscoped hover color for an inactive shelf tab.",
+      "evidence": [".home-shelf-tabs button:hover", "html[data-theme=\"pixel-frog\"] .home-shelf-tabs button.is-active"]
+    },
+    {
+      "id": "PF-I03",
+      "name": "Pixel Frog mobile rails retain violet scrollbars",
+      "behavior": "Mobile rank and genre rails inherit the existing rgba(139, 124, 255, 0.46) scrollbar treatment because no Pixel Frog override exists.",
+      "evidence": ["scrollbar-color: rgba(139, 124, 255, 0.46) transparent"]
+    },
+    {
+      "id": "PF-I04",
+      "name": "Pixel Frog active banner dot keeps the inherited inner indicator",
+      "behavior": "The 44px Pixel Frog active dot receives a green square background, but its ::after bar still uses the default cream fill and cyan-accent glow.",
+      "evidence": [".banner-dot.is-active::after", "html[data-theme=\"pixel-frog\"] .banner-dot.is-active"]
+    }
+  ],
+  "settingsSurfaces": [
+    {
+      "name": "Theme preference",
+      "route": "global header and mobile drawer",
+      "sourceFiles": ["template/pingfangvideo/html/public/head.html", "template/pingfangvideo/js/app.js"],
+      "behavior": "five code-backed choices persisted in pingfang_theme; aurora-glass remains a CSS alias and is not an exposed product choice"
+    },
+    {
+      "name": "Login device management",
+      "route": "/index.php/pingfangdevice/index.html",
+      "sourceFiles": ["template/pingfangvideo/html/pingfangdevice/index.html", "addons/pingfangdevice"],
+      "behavior": "authenticated device-session list and browser-native confirmation before sign-out"
+    },
+    {
+      "name": "Player preferences",
+      "route": "inside the playback page player",
+      "sourceFiles": ["maccms-player/static/player/artplayer/pingfang-player-1.0.0.js"],
+      "behavior": "Artplayer settings surface; no standalone site settings route"
+    },
+    {
+      "name": "Home carousel autoplay",
+      "route": "/",
+      "sourceFiles": ["template/pingfangvideo/html/index/index.html", "template/pingfangvideo/js/app.js"],
+      "behavior": "pause/resume control; disabled when reduced motion is active"
+    }
+  ],
+  "machineOutputs": [
+    {
+      "name": "Article RSS",
+      "templates": ["template/pingfangvideo/html/art/rss.html"],
+      "visualFrame": false
+    },
+    {
+      "name": "Video RSS",
+      "templates": ["template/pingfangvideo/html/vod/rss.html"],
+      "visualFrame": false
+    },
+    {
+      "name": "RSS index feeds",
+      "templates": ["template/pingfangvideo/html/rss/rss.html", "template/pingfangvideo/html/rss/baidu.html", "template/pingfangvideo/html/rss/google.html"],
+      "visualFrame": false
+    },
+    {
+      "name": "Site maps",
+      "templates": ["template/pingfangvideo/html/map/rss.html", "template/pingfangvideo/html/map/baidu.html", "template/pingfangvideo/html/map/google.html"],
+      "visualFrame": false
+    }
+  ],
+  "integrationStatus": {
+    "codeConnect": "Not published: current file/plugin access has no verified Code Connect publish path.",
+    "codeConnectIncludedInCurrentPhase": false,
+    "settingsRoute": "No standalone settings route exists in current code; document the four real settings surfaces instead."
+  },
+  "archiveReferences": ["apps/web/src/** (historical Next.js code map only; not current production source)"]
+}

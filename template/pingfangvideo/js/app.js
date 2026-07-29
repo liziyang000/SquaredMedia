@@ -12,10 +12,13 @@
   var validThemes = {
     "blue-pink-purple": true,
     "poster-magazine": true,
-    "dunhuang-caisson": true
+    "dunhuang-caisson": true,
+    "pixel-frog": true
   };
   var themeSwitcherDocumentReady = false;
   var themeTransitionTimer = null;
+  var pixelThemeConfetti = null;
+  var pixelParticleCanvas = null;
   var backdropHideTimer = null;
   var drawerMotionTimer = null;
   var pageInertState = [];
@@ -281,10 +284,75 @@
     themeTransitionTimer = window.setTimeout(clearThemeTransition, 560);
   }
 
+  function resetPixelThemeParticles() {
+    if (pixelThemeConfetti && typeof pixelThemeConfetti.reset === "function") {
+      pixelThemeConfetti.reset();
+    }
+  }
+
+  function getPixelThemeConfetti() {
+    if (pixelThemeConfetti) return pixelThemeConfetti;
+    if (!document.body || !window.confetti || typeof window.confetti.create !== "function") return null;
+
+    pixelParticleCanvas = document.createElement("canvas");
+    pixelParticleCanvas.className = "pixel-edge-particles";
+    pixelParticleCanvas.setAttribute("aria-hidden", "true");
+    document.body.appendChild(pixelParticleCanvas);
+
+    try {
+      pixelThemeConfetti = window.confetti.create(pixelParticleCanvas, {
+        resize: true,
+        useWorker: true,
+        disableForReducedMotion: true
+      });
+    } catch (error) {
+      pixelParticleCanvas.parentNode.removeChild(pixelParticleCanvas);
+      pixelParticleCanvas = null;
+    }
+
+    return pixelThemeConfetti;
+  }
+
+  function firePixelEdgeBurst(emitter, origin, angle, index, particleCount) {
+    emitter({
+      particleCount: particleCount,
+      angle: angle,
+      spread: 18,
+      startVelocity: particleCount === 2 ? 14 : 20,
+      decay: 0.91,
+      gravity: 0,
+      ticks: 48,
+      colors: ["#b9e84a", "#fff0c6", "#6f8128", "#ff8a78"],
+      shapes: ["square"],
+      scalar: index % 2 === 0 ? 0.64 : 0.48,
+      flat: true,
+      origin: origin
+    });
+  }
+
+  function launchPixelThemeParticles() {
+    if (prefersReducedMotion() || document.visibilityState === "hidden") return;
+    var emitter = getPixelThemeConfetti();
+    if (!emitter) return;
+
+    emitter.reset();
+    var isCompact = window.innerWidth <= 760;
+    var positions = isCompact ? [0.2, 0.5, 0.8] : [0.12, 0.31, 0.5, 0.69, 0.88];
+    var particleCount = isCompact ? 2 : 3;
+
+    positions.forEach(function (position, index) {
+      firePixelEdgeBurst(emitter, { x: 0.005, y: position }, 0, index, particleCount);
+      firePixelEdgeBurst(emitter, { x: 0.995, y: position }, 180, index, particleCount);
+      firePixelEdgeBurst(emitter, { x: position, y: 0.005 }, 270, index, particleCount);
+      firePixelEdgeBurst(emitter, { x: position, y: 0.995 }, 90, index, particleCount);
+    });
+  }
+
   function applyTheme(theme, shouldPersist) {
     theme = normalizeTheme(theme);
     if (shouldPersist) {
       scheduleThemeTransition();
+      resetPixelThemeParticles();
     }
 
     if (theme) {
@@ -304,6 +372,14 @@
     }
 
     syncThemeControls(theme);
+
+    if (shouldPersist && theme === "pixel-frog" && !prefersReducedMotion()) {
+      window.requestAnimationFrame(function () {
+        if (document.documentElement.getAttribute("data-theme") === "pixel-frog") {
+          launchPixelThemeParticles();
+        }
+      });
+    }
   }
 
   function setThemeSwitcherOpen(switcher, isOpen, shouldRestoreFocus) {

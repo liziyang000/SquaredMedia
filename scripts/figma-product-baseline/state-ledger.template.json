@@ -1,0 +1,53 @@
+{
+  "baselineId": "squaredmedia-maccms-303e3b5-2026-07-28",
+  "targetFileKey": "Q2QxBpgexgeL4CcXgSYX9v",
+  "source": "master@303e3b5",
+  "approval": {
+    "phase0Approved": false,
+    "approvalPhrase": "APPLY 303e3b5"
+  },
+  "phases": {
+    "P1": {
+      "status": "pending",
+      "pageIds": [],
+      "collectionIds": [],
+      "rootNodeIds": [],
+      "validation": ""
+    },
+    "P2": {
+      "status": "pending",
+      "pageIds": [],
+      "rootNodeIds": [],
+      "validation": ""
+    },
+    "P3": {
+      "status": "pending",
+      "componentSetIds": [],
+      "rootNodeIds": [],
+      "validation": ""
+    },
+    "P4": {
+      "status": "pending",
+      "pageIds": [],
+      "rootNodeIds": [],
+      "validation": ""
+    },
+    "P5": {
+      "status": "pending",
+      "pageIds": [],
+      "rootNodeIds": [],
+      "prototypeReactionNodeIds": [],
+      "validation": ""
+    }
+  },
+  "protectedEvidence": {
+    "rawImportPageId": "",
+    "productionPrototypePageId": "",
+    "drawerOpenNodeIds": [],
+    "drawerHotspotNodeIds": []
+  },
+  "finalQa": {
+    "status": "pending",
+    "report": ""
+  }
+}

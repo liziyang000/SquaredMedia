@@ -28,7 +28,21 @@ const requiredFiles = [
   "images/dunhuang/rosette-divider.svg",
   "images/dunhuang/scrolling-vine-band.svg",
   "images/dunhuang/wave-cloud-corner.svg",
+  "images/pixel/pixel-border.svg",
+  "images/pixel/frog-emblem.svg",
+  "images/pixel/icon-close.svg",
+  "images/pixel/icon-enter.svg",
+  "images/pixel/icon-eye.svg",
+  "images/pixel/icon-lock.svg",
+  "images/pixel/icon-play.svg",
+  "images/pixel/icon-refresh.svg",
+  "images/pixel/icon-search.svg",
+  "images/pixel/icon-shield.svg",
+  "images/pixel/icon-user.svg",
+  "images/pixel/pixel-grid.svg",
   "images/site-logo.png",
+  "css/fonts/FUSION-PIXEL-OFL-1.1.txt",
+  "css/fonts/fusion-pixel-12px-proportional-zh-hans.woff2",
   "games/2048/LICENSE.txt",
   "games/2048/js/application.js",
   "games/2048/js/game_manager.js",
@@ -44,6 +58,8 @@ const requiredFiles = [
   "games/README.md",
   "games/init.js",
   "js/gsap.min.js",
+  "js/canvas-confetti.min.js",
+  "js/CANVAS-CONFETTI-ISC.txt",
   "js/react.production.min.js",
   "js/react-dom.production.min.js",
   "js/rank-react.js",
@@ -280,6 +296,7 @@ assert.match(include, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}
 assert.match(include, /window\.localStorage\.getItem\("pingfang_theme"\)/);
 assert.match(include, /theme === "poster-magazine"/);
 assert.match(include, /theme === "dunhuang-caisson"/);
+assert.match(include, /theme === "pixel-frog"/);
 assert.match(include, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260621/);
@@ -312,6 +329,7 @@ assert.match(head, /data-theme-option="default" aria-pressed="true"[\s\S]*?<span
 assert.match(head, /data-theme-option="blue-pink-purple" aria-pressed="false"[\s\S]*?<span>极光夜幕<\/span>/);
 assert.match(head, /data-theme-option="poster-magazine" aria-pressed="false"[\s\S]*?<span>海报画廊<\/span>/);
 assert.match(head, /data-theme-option="dunhuang-caisson" aria-pressed="false"[\s\S]*?<span>敦煌流光<\/span>/);
+assert.match(head, /data-theme-option="pixel-frog" aria-pressed="false"[\s\S]*?<span>像素蛙<\/span>/);
 assert.match(head, /class="mobile-drawer-section mobile-theme-section"/);
 assert.match(head, /data-theme-switcher-mobile/);
 const desktopNavLinks = head.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] || "";
@@ -387,6 +405,8 @@ assert.doesNotMatch(foot, /mac_url\('gbook\/index'\)/);
 assert.doesNotMatch(foot, /mac_url\('map\/rss'\)/);
 assert.match(foot, /class="mac_timming"/);
 assert.doesNotMatch(foot, /js\/gsap\.min\.js/);
+assert.match(foot, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.doesNotMatch(foot, /https?:\/\/[^"']*canvas-confetti/);
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260621/);
 assert.match(foot, new RegExp(`js/app\\.js\\?v=${appVersionPlaceholder}`));
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260615/);
@@ -612,6 +632,13 @@ assert.match(userLoginPage, /class="login-panel verify-form"/);
 assert.match(userLoginPage, /data-login-glass/);
 assert.match(userLoginPage, /class="login-glass-highlight" aria-hidden="true"/);
 assert.match(userLoginPage, /class="login-edge-glow" aria-hidden="true"/);
+assert.match(userLoginPage, /class="login-pixel-pass" aria-hidden="true"/);
+assert.match(userLoginPage, /PFV ACCESS/);
+assert.match(userLoginPage, /login-field-icon login-icon-user/);
+assert.match(userLoginPage, /login-field-icon login-icon-lock/);
+assert.match(userLoginPage, /login-field-icon login-icon-shield/);
+assert.match(userLoginPage, /login-icon-eye/);
+assert.match(userLoginPage, /login-icon-refresh/);
 assert.match(userLoginPage, /id="loginTitle">欢迎回来</);
 assert.match(userLoginPage, /data-password-toggle/);
 assert.match(userLoginPage, /data-verify-refresh/);
@@ -1237,6 +1264,23 @@ const dunhuangAssets = [
   readThemeFile("images/dunhuang/scrolling-vine-band.svg"),
   readThemeFile("images/dunhuang/wave-cloud-corner.svg")
 ];
+const pixelAssets = [
+  readThemeFile("images/pixel/pixel-border.svg"),
+  readThemeFile("images/pixel/frog-emblem.svg"),
+  readThemeFile("images/pixel/icon-close.svg"),
+  readThemeFile("images/pixel/icon-enter.svg"),
+  readThemeFile("images/pixel/icon-eye.svg"),
+  readThemeFile("images/pixel/icon-lock.svg"),
+  readThemeFile("images/pixel/icon-play.svg"),
+  readThemeFile("images/pixel/icon-refresh.svg"),
+  readThemeFile("images/pixel/icon-search.svg"),
+  readThemeFile("images/pixel/icon-shield.svg"),
+  readThemeFile("images/pixel/icon-user.svg"),
+  readThemeFile("images/pixel/pixel-grid.svg")
+];
+const pixelFontLicense = readThemeFile("css/fonts/FUSION-PIXEL-OFL-1.1.txt");
+const canvasConfettiLicense = readThemeFile("js/CANVAS-CONFETTI-ISC.txt");
+const canvasConfettiScript = readThemeFile("js/canvas-confetti.min.js");
 const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)]
   .map((match) => match[0])
   .find((rule) => /--cinema-canvas/.test(rule)) || "";
@@ -1344,11 +1388,17 @@ assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
 assert.match(appScript, /"dunhuang-caisson": true/);
+assert.match(appScript, /"pixel-frog": true/);
 assert.match(appScript, /theme-transitioning/);
 assert.match(appScript, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.match(appScript, /document\.documentElement\.removeAttribute\("data-theme"\)/);
 assert.match(appScript, /window\.localStorage\.setItem\(themeStorageKey, theme\)/);
 assert.match(appScript, /window\.localStorage\.removeItem\(themeStorageKey\)/);
+assert.match(appScript, /window\.confetti/);
+assert.match(appScript, /shapes: \["square"\]/);
+assert.match(appScript, /disableForReducedMotion: true/);
+assert.match(appScript, /gravity: 0/);
+assert.match(appScript, /prefersReducedMotion\(\)/);
 assert.match(appScript, /initThemeSwitchers\(document\)/);
 assert.match(style, /\.theme-switcher/);
 assert.match(style, /\.theme-switcher-menu/);
@@ -1357,9 +1407,11 @@ assert.match(style, /\.theme-option/);
 assert.match(style, /\.theme-option-swatch/);
 assert.match(style, /\.theme-option-swatch-poster/);
 assert.match(style, /\.theme-option-swatch-dunhuang/);
+assert.match(style, /\.theme-option-swatch-pixel/);
 assert.match(style, /\.theme-option\.is-active/);
 assert.match(style, /html\[data-theme="poster-magazine"\]/);
 assert.match(style, /html\[data-theme="dunhuang-caisson"\]/);
+assert.match(style, /html\[data-theme="pixel-frog"\]/);
 assert.match(style, /images\/dunhuang\/emblem\.svg/);
 assert.match(style, /images\/dunhuang\/caisson-frame\.svg/);
 assert.match(style, /images\/dunhuang\/caisson-frame-mobile\.svg/);
@@ -1372,6 +1424,42 @@ dunhuangAssets.forEach((asset) => {
   assert.match(asset, /<svg[^>]+viewBox=/);
   assert.doesNotMatch(asset, /<script|javascript:|(?:href|src)=["']https?:\/\//i);
 });
+assert.match(style, /images\/pixel\/frog-emblem\.svg/);
+assert.match(style, /images\/pixel\/pixel-grid\.svg/);
+assert.match(style, /images\/pixel\/pixel-border\.svg/);
+assert.match(style, /images\/pixel\/icon-close\.svg/);
+assert.match(style, /images\/pixel\/icon-enter\.svg/);
+assert.match(style, /images\/pixel\/icon-eye\.svg/);
+assert.match(style, /images\/pixel\/icon-lock\.svg/);
+assert.match(style, /images\/pixel\/icon-play\.svg/);
+assert.match(style, /images\/pixel\/icon-refresh\.svg/);
+assert.match(style, /images\/pixel\/icon-search\.svg/);
+assert.match(style, /images\/pixel\/icon-shield\.svg/);
+assert.match(style, /images\/pixel\/icon-user\.svg/);
+assert.match(style, /@font-face\s*\{[\s\S]*font-family: "Fusion Pixel PFV"/);
+assert.match(style, /url\("fonts\/fusion-pixel-12px-proportional-zh-hans\.woff2"\) format\("woff2"\)/);
+assert.match(style, /font-display: swap/);
+assert.match(style, /border-image: url\("\.\.\/images\/pixel\/pixel-border\.svg"\) 4 \/ 4px \/ 0 round/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-panel\s*\{[^}]*min-height: 0/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-pixel-pass\s*\{/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-edge-glow,[\s\S]*\.login-glass-highlight\s*\{[^}]*display: none/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-icon-user\s*\{[^}]*icon-user\.svg/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-icon-lock\s*\{[^}]*icon-lock\.svg/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-icon-shield\s*\{[^}]*icon-shield\.svg/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-icon-eye\s*\{[^}]*icon-eye\.svg/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-icon-refresh\s*\{[^}]*icon-refresh\.svg/);
+assert.match(style, /html\[data-theme="pixel-frog"\] \.login-submit::before\s*\{[^}]*icon-enter\.svg/);
+assert.match(style, /html\[data-theme="pixel-frog"\]\.theme-transitioning::before\s*\{[\s\S]*animation: none/);
+assert.match(style, /@media \(prefers-reduced-motion: reduce\)[\s\S]*pixel-frog/);
+pixelAssets.forEach((asset) => {
+  assert.match(asset, /<svg[^>]+viewBox=/);
+  assert.doesNotMatch(asset, /<script|javascript:|(?:href|src)=["']https?:\/\//i);
+});
+assert.match(pixelFontLicense, /SIL OPEN FONT LICENSE Version 1\.1/);
+assert.match(canvasConfettiLicense, /ISC License/);
+assert.match(canvasConfettiScript, /confetti/);
+assert.ok(statSync(path.join(themeRoot, "css/fonts/fusion-pixel-12px-proportional-zh-hans.woff2")).size > 100_000);
+assert.ok(statSync(path.join(themeRoot, "js/canvas-confetti.min.js")).size < 50_000);
 assert.doesNotMatch(posterRootRule, /--wrap:/);
 assert.match(visualRootRule, /--wrap: min\(1480px, calc\(100vw - 56px\)\)/);
 assert.match(visualRootRule, /--cinema-header-wash:/);
@@ -2477,6 +2565,8 @@ assert.match(preview, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260621/);
 assert.match(preview, /js\/app\.js\?v=/);
+assert.match(preview, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.doesNotMatch(preview, /https?:\/\/[^"']*canvas-confetti/);
 assert.match(preview, /data-home-gsap-src="\.\.\/template\/pingfangvideo\/js\/gsap\.min\.js\?v=3\.15\.0"/);
 assert.doesNotMatch(preview, /<script src="\.\.\/template\/pingfangvideo\/js\/gsap\.min\.js/);
 assert.doesNotMatch(preview, /js\/react\.production\.min\.js\?v=18\.3\.1/);
@@ -2517,6 +2607,7 @@ assert.equal((preview.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
+assert.equal((preview.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(preview, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
 assert.match(preview, /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/);
 assert.match(preview, /class="mobile-drawer-section mobile-drawer-account"/);
@@ -2619,6 +2710,12 @@ assert.match(previewLoginFunction, /class="login-panel verify-form"/);
 assert.match(previewLoginFunction, /data-login-glass/);
 assert.match(previewLoginFunction, /login-glass-highlight/);
 assert.match(previewLoginFunction, /login-edge-glow/);
+assert.match(previewLoginFunction, /class="login-pixel-pass" aria-hidden="true"/);
+assert.match(previewLoginFunction, /login-field-icon login-icon-user/);
+assert.match(previewLoginFunction, /login-field-icon login-icon-lock/);
+assert.match(previewLoginFunction, /login-field-icon login-icon-shield/);
+assert.match(previewLoginFunction, /login-icon-eye/);
+assert.match(previewLoginFunction, /login-icon-refresh/);
 assert.match(previewLoginFunction, /欢迎回来/);
 assert.match(previewLoginFunction, /data-password-toggle/);
 assert.match(previewLoginFunction, /login-captcha-preview/);
@@ -2697,6 +2794,12 @@ assert.match(phpRender, /class="login-panel verify-form"/);
 assert.match(phpRender, /data-login-glass/);
 assert.match(phpRender, /login-glass-highlight/);
 assert.match(phpRender, /login-edge-glow/);
+assert.match(phpRender, /class="login-pixel-pass" aria-hidden="true"/);
+assert.match(phpRender, /login-field-icon login-icon-user/);
+assert.match(phpRender, /login-field-icon login-icon-lock/);
+assert.match(phpRender, /login-field-icon login-icon-shield/);
+assert.match(phpRender, /login-icon-eye/);
+assert.match(phpRender, /login-icon-refresh/);
 assert.doesNotMatch(phpRender, /hero-stats/);
 assert.doesNotMatch(phpRender, /片库内容/);
 assert.match(phpRender, /hot-search-panel/);
@@ -2745,10 +2848,13 @@ assert.equal((phpRender.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
+assert.equal((phpRender.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
 assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /data-home-gsap-src="\/template\/pingfangvideo\/js\/gsap\.min\.js\?v=3\.15\.0"/);
+assert.match(phpRender, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.doesNotMatch(phpRender, /https?:\/\/[^"']*canvas-confetti/);
 assert.doesNotMatch(phpRender, /<script src="\/template\/pingfangvideo\/js\/gsap\.min\.js/);
 assert.match(phpRender, /banner-dots/);
 assert.match(phpRender, /data-carousel-autoplay-toggle/);

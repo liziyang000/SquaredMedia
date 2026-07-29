@@ -87,6 +87,10 @@ function render_layout(array $data, string $title, string $content): string
           <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
           <span>敦煌流光</span>
         </button>
+        <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
+          <span>像素蛙</span>
+        </button>
       </div>
     </div>
     <a class="history-link" href="' . e(path_for('history')) . '">观看记录</a>
@@ -126,11 +130,16 @@ function render_layout(array $data, string $title, string $content): string
         <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
         <span>敦煌流光</span>
       </button>
+      <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
+        <span>像素蛙</span>
+      </button>
     </div>
   </div>
   <div class="mobile-drawer-section"><span>影片分类</span><div class="mobile-drawer-cats">' . $drawerCategories . '</div></div>
 </aside>
 <main id="mainContent" tabindex="-1">' . $content . '</main>
+<script src="/template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
 <script src="/template/pingfangvideo/js/app.js"></script>
 </body>
 </html>';
@@ -487,6 +496,11 @@ function render_page(array $data, string $route, array $query): string
   <form class="login-panel verify-form" method="post" action="' . e(path_for('login')) . '" data-login-glass>
     <span class="login-edge-glow" aria-hidden="true"></span>
     <span class="login-glass-highlight" aria-hidden="true"></span>
+    <div class="login-pixel-pass" aria-hidden="true">
+      <span class="login-pixel-avatar"></span>
+      <span class="login-pixel-pass-copy"><b>PFV ACCESS</b><small>MEMBER TERMINAL / 01</small></span>
+      <span class="login-pixel-ready">READY</span>
+    </div>
     <div class="login-heading">
       <span class="login-kicker">MEMBER LOGIN</span>
       <h1 id="phpLoginTitle">欢迎回来</h1>
@@ -496,27 +510,27 @@ function render_page(array $data, string $route, array $query): string
       <div class="login-field">
         <label class="login-label" for="phpLoginAccount">账号</label>
         <span class="login-control">
-          <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"></path></svg>
+          <svg class="login-field-icon login-icon-user" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"></path></svg>
           <input id="phpLoginAccount" type="text" name="user_name" autocomplete="username" placeholder="用户名或邮箱" required>
         </span>
       </div>
       <div class="login-field">
         <label class="login-label" for="phpLoginPassword">密码</label>
         <span class="login-control">
-          <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3"></path></svg>
+          <svg class="login-field-icon login-icon-lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3"></path></svg>
           <input id="phpLoginPassword" type="password" name="user_pwd" autocomplete="current-password" placeholder="登录密码" required>
-          <button class="login-password-toggle" type="button" data-password-toggle aria-controls="phpLoginPassword" aria-label="显示密码" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></button>
+          <button class="login-password-toggle" type="button" data-password-toggle aria-controls="phpLoginPassword" aria-label="显示密码" aria-pressed="false"><svg class="login-icon-eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg></button>
         </span>
       </div>
       <div class="login-field">
         <label class="login-label" for="phpLoginVerify">验证码</label>
         <div class="login-captcha-row">
           <span class="login-control">
-            <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Zm0 6v4m0 3h.01"></path></svg>
+            <svg class="login-field-icon login-icon-shield" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Zm0 6v4m0 3h.01"></path></svg>
             <input id="phpLoginVerify" type="text" name="verify" autocomplete="off" placeholder="输入验证码" required>
           </span>
           <span class="login-captcha-preview" aria-label="验证码 6 B 8 Y">6B8Y</span>
-          <button class="login-captcha-refresh" type="button" data-verify-refresh aria-label="换一张验证码"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m9.2-3A7 7 0 0 0 6.7 6.4L4 9m16 6-2.7 2.6A7 7 0 0 1 5.8 15"></path></svg><span>换一张</span></button>
+          <button class="login-captcha-refresh" type="button" data-verify-refresh aria-label="换一张验证码"><svg class="login-icon-refresh" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m9.2-3A7 7 0 0 0 6.7 6.4L4 9m16 6-2.7 2.6A7 7 0 0 1 5.8 15"></path></svg><span>换一张</span></button>
         </div>
       </div>
     </div>

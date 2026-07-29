@@ -3,6 +3,11 @@
   <form class="login-panel verify-form" method="post" action="{:url('pingfangdevice/login')}" data-login-form data-login-glass data-success-redirect="{$maccms.path}">
     <span class="login-edge-glow" aria-hidden="true"></span>
     <span class="login-glass-highlight" aria-hidden="true"></span>
+    <div class="login-pixel-pass" aria-hidden="true">
+      <span class="login-pixel-avatar"></span>
+      <span class="login-pixel-pass-copy"><b>PFV ACCESS</b><small>MEMBER TERMINAL / 01</small></span>
+      <span class="login-pixel-ready">READY</span>
+    </div>
     <div class="login-heading">
       <span class="login-kicker">MEMBER LOGIN</span>
       <h1 id="loginTitle">欢迎回来</h1>
@@ -13,7 +18,7 @@
       <div class="login-field">
         <label class="login-label" for="loginAccount">账号</label>
         <span class="login-control">
-          <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"></path></svg>
+          <svg class="login-field-icon login-icon-user" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0"></path></svg>
           <input id="loginAccount" type="text" name="user_name" autocomplete="username" placeholder="用户名或邮箱" required>
         </span>
       </div>
@@ -21,10 +26,10 @@
       <div class="login-field">
         <label class="login-label" for="loginPassword">密码</label>
         <span class="login-control">
-          <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3"></path></svg>
+          <svg class="login-field-icon login-icon-lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3"></path></svg>
           <input id="loginPassword" type="password" name="user_pwd" autocomplete="current-password" placeholder="登录密码" required>
           <button class="login-password-toggle" type="button" data-password-toggle aria-controls="loginPassword" aria-label="显示密码" aria-pressed="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
+            <svg class="login-icon-eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>
           </button>
         </span>
       </div>
@@ -34,12 +39,12 @@
         <label class="login-label" for="loginVerify">验证码</label>
         <div class="login-captcha-row">
           <span class="login-control">
-            <svg class="login-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Zm0 6v4m0 3h.01"></path></svg>
+            <svg class="login-field-icon login-icon-shield" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 7 3v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Zm0 6v4m0 3h.01"></path></svg>
             <input id="loginVerify" type="text" name="verify" autocomplete="off" placeholder="输入验证码" required>
           </span>
           <span class="login-captcha-image"><img class="mac_verify_img" src="{:url('verify/index')}" alt="点击刷新验证码"></span>
           <button class="login-captcha-refresh" type="button" data-verify-refresh aria-label="换一张验证码">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m9.2-3A7 7 0 0 0 6.7 6.4L4 9m16 6-2.7 2.6A7 7 0 0 1 5.8 15"></path></svg>
+            <svg class="login-icon-refresh" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5m9.2-3A7 7 0 0 0 6.7 6.4L4 9m16 6-2.7 2.6A7 7 0 0 1 5.8 15"></path></svg>
             <span>换一张</span>
           </button>
         </div>

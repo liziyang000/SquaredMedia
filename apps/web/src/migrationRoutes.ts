@@ -3,7 +3,7 @@ export type MigrationRouteResult = { status: 301; location: string } | { status:
 const identifierPattern = "([A-Za-z0-9_~%:-]+)";
 const playbackIdentifierPattern = "([1-9][0-9]{0,9})";
 const maxPlaybackIdentifier = 2147483647;
-const retiredReactPrefix = /^\/(?:articles|actors|roles|topics|websites|plots|games|comics)(?:\/|$)/;
+const retiredReactPrefix = /^\/(?:articles|actors|roles|topics|websites|plots|comics)(?:\/|$)/;
 const retiredLegacyAction =
   /^\/index\.php\/(?:actor\/(?:detail|index|search|show|type)|art\/(?:confirm|detail|detail_pwd|index|search|show|type)|label\/comics|plot\/(?:udetail|uindex)|role\/(?:detail|index|show)|topic\/(?:detail|index)|user\/(?:findpass|reg)|website\/(?:detail|index|search|show|type)|map\/(?:baidu|google)|rss\/(?:baidu|google))(?:\/.*|\.html)?$/;
 const searchParamNames = ["area", "year", "lang", "class", "letter", "page"] as const;
@@ -60,6 +60,23 @@ export function resolveMigrationRoute(requestUrl: string, method = "GET"): Migra
   if (pathname === "/index.php/label/categories.html") return { status: 301, location: "/categories" };
   if (pathname === "/index.php/label/hot.html") return { status: 301, location: appendCatalogParams("/rankings/yearly", searchParams) };
   if (pathname === "/index.php/label/history.html") return { status: 301, location: "/history" };
+
+  const legacyGame = pathname.match(/^\/index\.php\/label\/(games|game-2048|game-blockrain|game-gomoku|game-drawguess)(?:\.html)?$/);
+  if (legacyGame) {
+    const gameLocations: Record<string, string> = {
+      games: "/games",
+      "game-2048": "/games/2048",
+      "game-blockrain": "/games/blockrain",
+      "game-gomoku": "/games/gomoku",
+      "game-drawguess": "/games/drawguess"
+    };
+    const location = gameLocations[legacyGame[1]];
+    const room = searchParams.get("room")?.trim().toUpperCase() || "";
+    return {
+      status: 301,
+      location: /\/(?:gomoku|drawguess)$/.test(location) && /^[A-Z2-9]{6}$/.test(room) ? `${location}?room=${room}` : location
+    };
+  }
 
   const category = pathname.match(new RegExp(`^/index\\.php/vod/type/id/${identifierPattern}(?:\\.html)?$`));
   if (category) return { status: 301, location: appendCatalogParams(`/category/${encodePathSegment(category[1])}`, searchParams) };

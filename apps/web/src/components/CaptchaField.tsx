@@ -22,7 +22,7 @@ export function CaptchaField({ url, value, onChange, variant = "default" }: Capt
         </label>
         <div className="login-captcha-row">
           <span className="login-control">
-            <svg className="login-field-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="login-field-icon login-icon-shield" viewBox="0 0 24 24" aria-hidden="true">
               <path d="m12 3 7 3v5c0 4.6-2.9 8-7 10-4.1-2-7-5.4-7-10V6l7-3Zm0 6v4m0 3h.01" />
             </svg>
             <input
@@ -39,7 +39,7 @@ export function CaptchaField({ url, value, onChange, variant = "default" }: Capt
             <img src={imageUrl} alt="点击刷新验证码" />
           </span>
           <button type="button" className="login-captcha-refresh" aria-label="换一张验证码" onClick={() => setRevision(Date.now())}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg className="login-icon-refresh" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 7v5h-5M4 17v-5h5m9.2-3A7 7 0 0 0 6.7 6.4L4 9m16 6-2.7 2.6A7 7 0 0 1 5.8 15" />
             </svg>
             <span>换一张</span>

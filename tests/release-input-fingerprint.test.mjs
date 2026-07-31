@@ -17,12 +17,14 @@ try {
   mkdirSync(path.join(root, "addons", "pingfangdevice"), { recursive: true });
   mkdirSync(path.join(root, "apps", "web", "output"), { recursive: true });
   mkdirSync(path.join(root, "dist"));
+  mkdirSync(path.join(root, "scripts"));
   mkdirSync(path.join(root, "template", "pingfangvideo", "css"), { recursive: true });
   writeFileSync(path.join(root, ".gitignore"), "dist/\naddons/pingfangapi/runtime.log\naddons/pingfangapi/ignored-link\n");
   writeFileSync(path.join(root, "addons", "pingfangapi", "output", "X.php"), "tracked-v1\n");
   writeFileSync(path.join(root, "addons", "pingfangapi", "runtime.log"), "runtime-v1\n");
   writeFileSync(path.join(root, "apps", "web", "next-env.d.ts"), 'import "./.next/types/routes.d.ts";\n');
   writeFileSync(path.join(root, "apps", "web", "output", "generated.js"), "generated-v1\n");
+  writeFileSync(path.join(root, "scripts", "verify-next-prerender.mjs"), "verify-v1\n");
   writeFileSync(path.join(root, "template", "pingfangvideo", "css", "style.css"), "body { color: red; }\n");
   git(root, [
     "add",
@@ -30,6 +32,7 @@ try {
     "addons/pingfangapi/output/X.php",
     "apps/web/next-env.d.ts",
     "apps/web/output/generated.js",
+    "scripts/verify-next-prerender.mjs",
     "template/pingfangvideo/css/style.css"
   ]);
 
@@ -63,6 +66,10 @@ try {
   assert.equal(nextInitial, createReleaseFingerprint(root, "next"), "generated path segments must remain excluded from Next fingerprints");
   writeFileSync(path.join(root, "apps", "web", "next-env.d.ts"), 'import "./.next/dev/types/routes.d.ts";\n');
   assert.equal(nextInitial, createReleaseFingerprint(root, "next"), "generated next-env.d.ts content must not change the Next fingerprint");
+  writeFileSync(path.join(root, "scripts", "verify-next-prerender.mjs"), "verify-v2\n");
+  assert.notEqual(nextInitial, createReleaseFingerprint(root, "next"), "prerender gate changes must invalidate the Next fingerprint");
+  writeFileSync(path.join(root, "scripts", "verify-next-prerender.mjs"), "verify-v1\n");
+  assert.equal(nextInitial, createReleaseFingerprint(root, "next"), "restoring the prerender gate must restore the Next fingerprint");
   writeFileSync(path.join(root, "template", "pingfangvideo", "css", "style.css"), "body { color: blue; }\n");
   assert.notEqual(nextInitial, createReleaseFingerprint(root, "next"), "imported theme CSS content must change the Next fingerprint");
 

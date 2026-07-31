@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ContentApi, ContentData } from "../api/content";
@@ -30,7 +30,7 @@ describe("ContentBoundary", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows an animated progress state while data is pending, then reveals the result", async () => {
+  it("shows progress while data is pending, then renders the result immediately", async () => {
     const response = deferred<ContentData>();
     const api = {
       getContent: vi.fn(() => response.promise)
@@ -38,7 +38,7 @@ describe("ContentBoundary", () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(
       <QueryClientProvider client={queryClient}>
-        <ContentBoundary api={api} request={{ includeFacets: true }} readyTitle="筛选完成" readyDescription="正在呈现符合条件的影片…">
+        <ContentBoundary api={api} request={{ includeFacets: true }}>
           {(data) => <div>已展示 {data.siteName}</div>}
         </ContentBoundary>
       </QueryClientProvider>
@@ -53,10 +53,11 @@ describe("ContentBoundary", () => {
     response.resolve(content);
 
     expect(await screen.findByText("已展示 平方影视")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("内容加载完成");
     expect(container.querySelector(".loading-status-shell")).not.toBeInTheDocument();
   });
 
-  it("cleans up an active GSAP transition when the boundary unmounts", async () => {
+  it("does not insert a second ready state after content resolves", async () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn(
@@ -76,15 +77,14 @@ describe("ContentBoundary", () => {
 
     const api = { getContent: vi.fn(async () => content) } as unknown as ContentApi;
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const { container, unmount } = render(
+    const { container } = render(
       <QueryClientProvider client={queryClient}>
-        <ContentBoundary api={api} readyTitle="筛选完成">
-          {(data) => <div>已展示 {data.siteName}</div>}
-        </ContentBoundary>
+        <ContentBoundary api={api}>{(data) => <div>已展示 {data.siteName}</div>}</ContentBoundary>
       </QueryClientProvider>
     );
 
-    await waitFor(() => expect(container.querySelector(".loading-status-panel.is-ready")).toBeInTheDocument());
-    expect(() => unmount()).not.toThrow();
+    expect(await screen.findByText("已展示 平方影视")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("内容加载完成");
+    expect(container.querySelector(".loading-status-panel.is-ready")).not.toBeInTheDocument();
   });
 });

@@ -17,6 +17,11 @@ describe("local migration route policy", () => {
     ["/vodplay/2147483647-2-3.html", "/watch/2147483647/2/3"],
     ["/vodplay/1-2-3.html?next=https://evil.example/watch/9/9/9", "/watch/1/2/3"],
     ["/index.php/label/history.html", "/history"],
+    ["/index.php/label/games.html", "/games"],
+    ["/index.php/label/game-2048.html", "/games/2048"],
+    ["/index.php/label/game-blockrain.html", "/games/blockrain"],
+    ["/index.php/label/game-gomoku.html?room=abc234", "/games/gomoku?room=ABC234"],
+    ["/index.php/label/game-drawguess.html?room=XYZ789&next=https://evil.example", "/games/drawguess?room=XYZ789"],
     ["/index.php/user/favs.html", "/account/favorites"],
     ["/index.php/comment/index.html?mid=1&id=9", "/comments/1/9"]
   ])("redirects %s to one clean URL", (source, location) => {
@@ -67,6 +72,13 @@ describe("local migration route policy", () => {
     const legacyPage = "/index.php/vod/detail/id/1.html";
     expect(resolveMigrationRoute(legacyPage, "HEAD")).toEqual({ status: 301, location: "/vod/1" });
     expect(resolveMigrationRoute(legacyPage, "POST")).toBeNull();
+    expect(resolveMigrationRoute("/index.php/label/games.html", "HEAD")).toEqual({ status: 301, location: "/games" });
+    expect(resolveMigrationRoute("/index.php/label/games.html", "POST")).toBeNull();
     expect(resolveMigrationRoute("/articles", "PUT")).toBeNull();
+  });
+
+  it("drops malformed room values from legacy multiplayer links", () => {
+    expect(resolveMigrationRoute("/index.php/label/game-gomoku.html?room=ABC01O")).toEqual({ status: 301, location: "/games/gomoku" });
+    expect(resolveMigrationRoute("/index.php/label/game-drawguess.html?room=%2F%2Fevil.example")).toEqual({ status: 301, location: "/games/drawguess" });
   });
 });

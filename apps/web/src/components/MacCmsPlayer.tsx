@@ -60,14 +60,17 @@ function prefersNativeHls(video: HTMLVideoElement) {
 type MacCmsPlayerProps = {
   playback: PlaybackDescriptor;
   resumePositionSeconds?: number;
+  transientResumePositionSeconds?: number;
   onCheckpoint: (element: HTMLVideoElement) => void;
   onComplete: () => void;
+  onFallback?: (currentTime: number) => boolean;
 };
 
-export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, onComplete }: MacCmsPlayerProps) {
+export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumePositionSeconds, onCheckpoint, onComplete, onFallback }: MacCmsPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const checkpointRef = useRef(onCheckpoint);
   const completeRef = useRef(onComplete);
+  const fallbackRef = useRef(onFallback);
   const latestPositionRef = useRef(0);
   const hasLatestPositionRef = useRef(false);
   const [retryVersion, setRetryVersion] = useState(0);
@@ -81,6 +84,10 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
   useEffect(() => {
     completeRef.current = onComplete;
   }, [onComplete]);
+
+  useEffect(() => {
+    fallbackRef.current = onFallback;
+  }, [onFallback]);
 
   useEffect(() => {
     latestPositionRef.current = 0;
@@ -100,6 +107,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
     let hasPlayed = false;
     let blockingStatus = false;
     let trialEnded = false;
+    let autoSwitching = false;
     let resumeApplied = false;
     let lastCheckpointAt = 0;
     let player: import("artplayer").default | undefined;
@@ -143,7 +151,11 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
         bufferHintTimer = setTimeout(() => showHint("正在续接画面"), BUFFER_HINT_DELAY_MS);
       }
       if (!stallTimer) {
-        stallTimer = setTimeout(() => showStatus("视频缓冲时间较长，可以重新加载或切换线路。"), STALL_TIMEOUT_MS);
+        stallTimer = setTimeout(() => {
+          if (!tryAutomaticLineSwitch("当前线路持续缓冲，正在自动切换…")) {
+            showStatus("视频缓冲时间较长，可以重新加载或切换线路。");
+          }
+        }, STALL_TIMEOUT_MS);
       }
     };
     const destroyHls = () => {
@@ -185,6 +197,15 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
         return;
       }
 
+      const transientPosition = transientResumePositionSeconds ?? 0;
+      if (Number.isFinite(transientPosition) && transientPosition >= 5 && transientPosition < duration * 0.95) {
+        player.video.currentTime = Math.min(transientPosition, Math.max(duration - 1, 0));
+        latestPositionRef.current = player.video.currentTime;
+        hasLatestPositionRef.current = true;
+        player.notice.show = "已从备用线路继续播放";
+        return;
+      }
+
       const cloudPosition = resumePositionSeconds ?? 0;
       if (!Number.isFinite(cloudPosition) || cloudPosition <= 30 || cloudPosition >= duration * 0.95) return;
 
@@ -192,6 +213,15 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
       latestPositionRef.current = player.video.currentTime;
       player.notice.show = "已从上次进度继续播放";
     };
+    function tryAutomaticLineSwitch(message: string) {
+      if (autoSwitching || trialEnded || !player || !fallbackRef.current) return false;
+      const currentTime = Number.isFinite(player.video.currentTime) ? Math.max(player.video.currentTime, 0) : latestPositionRef.current;
+      if (currentTime > 0) checkpoint(player.video);
+      if (!fallbackRef.current(currentTime)) return false;
+      autoSwitching = true;
+      showStatus(message);
+      return true;
+    }
     const checkpointOnPageExit = () => {
       if (player) checkpoint(player.video);
     };
@@ -257,6 +287,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
           }
 
           clearPlaybackTimers();
+          if (tryAutomaticLineSwitch("当前线路异常，正在自动切换…")) return;
           showStatus(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "视频线路连接失败，请重新加载或切换线路。" : "视频解码失败，请重新加载或切换线路。");
         });
         hls.loadSource(url);
@@ -310,7 +341,11 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
       const startupWarningAfterMs = playback.playerHints?.startupHintAfterMs
         ? Math.max(STARTUP_TIMEOUT_MS, playback.playerHints.startupHintAfterMs + STARTUP_HINT_GRACE_MS)
         : STARTUP_TIMEOUT_MS;
-      startupTimer = setTimeout(() => showStatus("视频加载较慢，可以重新加载或切换线路。"), startupWarningAfterMs);
+      startupTimer = setTimeout(() => {
+        if (!tryAutomaticLineSwitch("当前线路启动超时，正在自动切换…")) {
+          showStatus("视频加载较慢，可以重新加载或切换线路。");
+        }
+      }, startupWarningAfterMs);
       art.on("video:loadedmetadata", applyResumePosition);
       art.on("video:canplay", () => {
         applyResumePosition();
@@ -358,7 +393,11 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
         if (playerErrorTimer) return;
         clearPlaybackTimers();
         if (!disposed) setHint("");
-        playerErrorTimer = setTimeout(() => showStatus("视频播放失败，请重新加载或切换线路。"), PLAYER_ERROR_TIMEOUT_MS);
+        playerErrorTimer = setTimeout(() => {
+          if (!tryAutomaticLineSwitch("当前线路播放失败，正在自动切换…")) {
+            showStatus("视频播放失败，请重新加载或切换线路。");
+          }
+        }, PLAYER_ERROR_TIMEOUT_MS);
       });
       art.once("destroy", destroyHls);
     };
@@ -386,6 +425,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
     playback.url,
     playback.vodId,
     resumePositionSeconds,
+    transientResumePositionSeconds,
     retryVersion
   ]);
 
@@ -412,8 +452,17 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, onCheckpoint, on
               >
                 重新加载
               </button>
-              <button type="button" onClick={() => document.getElementById("episodeList")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-                查看线路
+              <button
+                type="button"
+                onClick={() => {
+                  if (fallbackRef.current?.(latestPositionRef.current)) {
+                    setStatus("正在切换备用线路…");
+                    return;
+                  }
+                  document.getElementById("episodeList")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {onFallback ? "切换备用线路" : "查看线路"}
               </button>
             </div>
           </div>

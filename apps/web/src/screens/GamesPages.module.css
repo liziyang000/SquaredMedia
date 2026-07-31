@@ -1,0 +1,22 @@
+.frame {
+  display: block;
+  width: 100%;
+  min-height: 680px;
+  border: 0;
+  border-radius: calc(var(--radius) + 8px);
+  background: var(--bg);
+}
+
+.frameShell {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 8px);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 760px) {
+  .frame {
+    min-height: 760px;
+  }
+}

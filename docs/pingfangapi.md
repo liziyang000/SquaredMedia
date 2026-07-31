@@ -884,7 +884,7 @@ localStorage 或 React Query 缓存。错误密码返回 422，过于频繁返�
 | 项目         | 值                                                    |
 | ------------ | ----------------------------------------------------- |
 | 方法与地址   | `GET /index.php/pingfangapi/index?action=playback`    |
-| 登录         | 不要求；JSON 执行当前会话播放权限，`stream` 校验对应短时凭证 |
+| 登录         | 不要求；JSON 执行当前会话播放权限，`stream` 校验短时凭证或重新校验当前会话 |
 | `vod_id`     | 必填，影片 ID                                         |
 | `source_id`  | 必填，来自 `detail.video.episodes[].sourceId`         |
 | `episode_id` | 必填，来自 `detail.video.episodes[].id`               |
@@ -957,7 +957,7 @@ WebM、Ogg、M4V 和 MOV 使用 Artplayer 原生视频路径。仅允许试看�
 - `ps=1`：线路依赖第三方网页解析。通用解析页不能安全地当作媒体 URL，`playback`
   返回 503，前端提示切换线路；不会偷偷回退 iframe。
 
-通过后生成 256 位随机 `ticket`，在 MacCMS 缓存中保存 120 秒，并使用
+通过后若 MacCMS cache 可用且写入回读成功，会生成 256 位随机 `ticket`，保存 120 秒，并使用
 `url('pingfangapi/stream', ... )` 生成同源路径。`stream` 校验凭证未过期且
 `id/sid/nid` 完全一致后返回 302；伪造、过期或挪用到其他剧集均返回 403。凭证
 只保存已授权的媒体描述，不包含在普通列表或详情响应中；缓存不可用时回退到不带
@@ -2082,6 +2082,128 @@ MacCMS 后台 OpenAPI 是原生能力、参数和业务语义的参考基线，�
 `PublicApi` 开关影响；因此 React 只导出 `home.ts`、`content.ts`、`account.ts`
 三组 BFF 客户端，不保留可配置任意原生端点的并行客户端。
 
+### 14.2 MacCMS 原生接口与生产 ReactAPI 统计
+
+统计时间：2026-07-30。
+
+本节中的“MacCMS 原生接口”来自当前站点后台
+[OpenAPI 文档](https://ping2video.xyz/squaredMediaAdmin.php/admin/api_doc/index.html)
+及苹果 CMS 官网的
+[前端接口](https://www.maccms.la/apis/web-design)、
+[采集接口](https://www.maccms.la/apis/collect)；“ReactAPI”专指生产
+`/index.php/pingfangapi/index?action=...`，不包括仅用于本地 fixture 验收的
+`server/react-api.php`。
+
+OpenAPI 的一个 operation 按“HTTP Method + Path”计数；同一路径同时支持 GET、
+POST 时计为两个 operation。MacCMS 官网另行记录的 `/index.php/ajax/*`、用户、
+评论、留言等旧前台接口不在这 144 个 operation 内，也不混入本表。
+
+ReactAPI 的 28 个 JSON action 会在 `ApiRequest::$routes` 中强制 HTTP Method；
+`player` 与 `stream` 的生产调用约定是 GET，但当前控制器方法没有单独拒绝其他
+Method。因此这两个只能计为逻辑路由，不能计入“已强制 GET operation”。
+
+| 统计对象 | 路径/分发方式 | 方法契约 GET | 方法契约 POST | 逻辑面 | 说明 |
+| --- | --- | ---: | ---: | ---: | --- |
+| MacCMS 原生 OpenAPI | `/api.php/{module}/{action}` | 112 | 32 | 141 paths | 144 个声明 operation、28 个 tag |
+| 生产 ReactAPI action | `/index.php/pingfangapi/index?action=...` | 15 | 13 | 28 actions | 以 `ApiRequest::$routes` 为事实源并强制 Method |
+| ReactAPI 补充路由 | `/index.php/pingfangapi/player`、`stream` | 0 | 0 | 2 routes | 典型调用为 GET，但控制器当前没有 Method gate |
+| ReactAPI 生产逻辑面 | action + 补充路由 | 15 | 13 | 30 entries | 28 个方法受控 action + 2 个方法未受控路由；不计 `_empty` |
+
+141 个 path 与 144 个 operation 的差额来自 3 个同时声明 GET、POST 的路径：
+`/payment/notify`、`/danmaku/dplayer`、`/wechat/index`。
+
+#### 14.2.1 MacCMS 原生 OpenAPI 分组
+
+| 能力域 | OpenAPI tag | GET | POST | 合计 | 主要能力 |
+| --- | --- | ---: | ---: | ---: | --- |
+| 搜索 | Search | 3 | 0 | 3 | 跨模块搜索、统一联想、视频联想 |
+| 聚合 | Provide | 7 | 0 | 7 | 视频、文章、漫画、演员、角色、网址、预留评论聚合 |
+| 视频 | Vod | 15 | 0 | 15 | 列表、详情、点击、顶踩、评分、密码、播放/下载信息、推荐与排行 |
+| 文章 | Art | 8 | 0 | 8 | 列表、详情、阅读页、最新、热门、顶踩、点击和评分 |
+| 演员 | Actor | 3 | 0 | 3 | 列表、详情、推荐 |
+| 角色 | Role | 3 | 0 | 3 | 列表、详情、推荐 |
+| 评论 | Comment | 3 | 1 | 4 | 列表、提交、举报、顶踩 |
+| 留言 | Gbook | 2 | 1 | 3 | 列表、提交、举报 |
+| 友情链接 | Link | 1 | 0 | 1 | 友情链接列表 |
+| 专题 | Topic | 3 | 0 | 3 | 列表、详情、推荐 |
+| 分类 | Type | 4 | 0 | 4 | 分类树、顶级分类、导航分类、分类及子类 |
+| 用户 | User | 12 | 9 | 21 | 登录注册、资料、Ulog、订单、邀请、收藏状态和会员升级 |
+| 用户行为 | Ulog | 1 | 3 | 4 | 播放进度读取、上报、合并和线路失败上报 |
+| 网址 | Website | 2 | 0 | 2 | 列表、详情 |
+| 漫画 | Manga | 5 | 0 | 5 | 列表、详情、章节、最新和热门 |
+| 小说 | Novel | 2 | 0 | 2 | 列表、详情 |
+| 配置 | Config | 5 | 0 | 5 | 站点配置、预留参数、模板、主题和广告文件 |
+| 认证 | Auth | 2 | 0 | 2 | 当前用户、资源权限 |
+| 订单 | Order | 3 | 1 | 4 | 列表、详情、状态查询和创建订单 |
+| 支付 | Payment | 4 | 5 | 9 | 配置、支付、回调、卡密、积分购买和会员升级 |
+| 提现 | Cash | 3 | 2 | 5 | 配置、列表、详情、申请和删除 |
+| 聊天室 | Chatroom | 1 | 2 | 3 | 消息列表、发送和举报 |
+| 弹幕 | Danmaku | 2 | 3 | 5 | 列表、DPlayer 兼容读写、发送和举报 |
+| 任务 | Task | 2 | 4 | 6 | 任务列表、签到、里程碑、奖励和进度 |
+| 直播 | Live | 3 | 0 | 3 | 分类、频道列表、频道详情 |
+| 推送入库 | Receive | 6 | 0 | 6 | 视频、文章、演员、角色、网址和评论入库 |
+| 采集转换 | Sycms | 5 | 0 | 5 | 主入口、分类、视频列表、详情和连接测试 |
+| 系统 | System | 2 | 1 | 3 | 定时任务、微信公众号验证和消息接入 |
+| **总计** | **28 tags** | **112** | **32** | **144** | **141 个 OpenAPI path** |
+
+当前站点 OpenAPI 把 6 个 `Receive` operation 标为 GET，但官网采集文档规定入库
+使用 `POST + form-data + pass`。接入前必须以实际控制器和真实请求验证为准，不能
+仅凭 OpenAPI Method 自动生成入库客户端。`Receive`、`Sycms`、`System` 只应由
+服务端或受限网关调用，不属于 React 浏览器公开能力。
+
+#### 14.2.2 ReactAPI action 与原生能力映射
+
+映射结论的口径如下：
+
+- **直接**：原生存在一对一的核心业务操作，但仍需保留参数、envelope、同源和安全适配。
+- **部分**：原生只提供数据源或底层原语，无法覆盖当前完整 ReactAPI 契约。
+- **无对应**：MacCMS 原生 OpenAPI 没有等价能力。
+
+| # | Method | ReactAPI action | MacCMS 原生参考（相对 `/api.php`） | 映射 | `pingfangapi` 仍需负责 |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | GET | `home` | `vod/get_banner`、`vod/get_rank`、`vod/get_latest_by_type`、`type/get_nav_types` | 部分 | 兼容旧包的聚合形状、字段裁剪、缓存和站点 UI 数据 |
+| 2 | GET | `home_v2` | 同上 | 部分 | 单请求复合首页、compact DTO、分组缓存和用户组隔离 |
+| 3 | GET | `navigation` | `type/get_nav_types`、`config/get_tpl_config` | 部分 | `siteName`、可见频道和白名单 `ui` 配置 |
+| 4 | GET | `content` | `vod/get_list`、`search/*`、`type/*` | 部分 | facets、精确总数/分页、可见性和无播放源 DTO |
+| 5 | GET | `detail` | `vod/get_detail` | 部分 | 隐藏原始播放/下载地址、权限过滤和相关推荐裁剪 |
+| 6 | GET | `access` | `auth/permission` | 部分 | 试看、密码会话、付费确认、版权和分集授权状态 |
+| 7 | GET | `downloads` | `vod/get_down_info` | 部分 | 下载权限判断和受控同源下载路由 |
+| 8 | GET | `plot` | `vod/get_detail` 的剧情字段 | 部分 | 剧情解析、净化、分集整理和权限检查 |
+| 9 | GET | `playback` | `vod/get_play_info`、`ulog/get_progress` | 部分 | 短时 ticket、线路/分集绑定和同源 `stream` 二次授权 |
+| 10 | GET | `session` | `auth/me` | 部分 | CSRF、验证码/表单要求、设备会话和最小用户 DTO |
+| 11 | GET | `comments` | `comment/get_list` | 直接 | 统一纯文本 DTO、审核状态和错误 envelope |
+| 12 | GET | `favorites` | `user/get_ulog` | 部分 | 分页、影片可见性、字段关联和 React 展示 DTO |
+| 13 | GET | `favorite.status` | `user/get_favorites_status` | 直接 | 参数和统一状态 envelope |
+| 14 | GET | `history` | `user/get_ulog`、`ulog/get_progress` | 部分 | 按影片折叠、线路/分集校验和不可见内容过滤 |
+| 15 | GET | `devices` | 无 | 无对应 | `DeviceSession` 列表和当前设备标识 |
+| 16 | POST | `login` | `user/login` | 部分 | 登录后设备登记、会话轮换和设备状态校验 |
+| 17 | POST | `logout` | `user/logout` | 部分 | 退出前撤销当前设备会话 |
+| 18 | POST | `favorite` | `user/add_ulog`、`user/del_ulog` | 部分 | 布尔幂等设置、影片校验和稳定返回状态 |
+| 19 | POST | `favorites.delete` | `user/del_ulog` | 部分 | 批量/全部删除和用户归属约束 |
+| 20 | POST | `history.save` | `ulog/progress`、`user/add_ulog` | 部分 | 影片/线路/分集校验和防止旧进度覆盖新进度 |
+| 21 | POST | `history.delete` | `user/del_ulog` | 部分 | 批量/全部删除和固定历史类型约束 |
+| 22 | POST | `device.revoke` | 无 | 无对应 | 按设备撤销且禁止撤销当前设备 |
+| 23 | POST | `feedback` | `gbook/submit` | 直接 | 同源、CSRF、验证码、审核和统一状态映射 |
+| 24 | POST | `report` | 可借用 `gbook/submit` | 部分 | 影片/线路/分集校验和结构化片源报错 |
+| 25 | POST | `comment` | `comment/submit` | 直接 | 同源、CSRF、父评论、审核规则和 DTO 适配 |
+| 26 | POST | `reaction` | `vod/digg`、`comment/digg` | 部分 | `none` 语义、登录约束和统一计数返回 |
+| 27 | POST | `rating` | `vod/update_score` | 直接 | 将原生 GET 写操作收敛为 POST，并统一 Cookie/响应 |
+| 28 | POST | `password.verify` | `vod/verify_pwd` | 直接 | scope、CSRF、限流和密码会话状态 |
+
+映射统计：
+
+| 映射结论 | 数量 | 占 28 actions | 含义 |
+| --- | ---: | ---: | --- |
+| 直接 | 6 | 21.4% | 核心原语一对一，仍不能让 React 绕过 BFF 直连 |
+| 部分 | 20 | 71.4% | 可复用原生模型/函数，但必须保留当前聚合、安全或 DTO |
+| 无对应 | 2 | 7.1% | `devices`、`device.revoke` 必须由设备插件提供 |
+| **合计** | **28** | **100%** | **不存在可无适配整体替换的 ReactAPI action** |
+
+因此，原生 OpenAPI 更适合作为服务端语义参考和契约漂移审计，不应生成一个让
+React 任意直连 `/api.php` 的通用客户端。生产代码继续在同一 PHP 进程中复用
+MacCMS 模型、配置和公共函数，可避免额外 HTTP 跳转，同时保留字段白名单、
+`private, no-store`、CSRF、设备会话和播放二次授权边界。
+
 ## 15. Next.js/React 调用方式
 
 生产构建应使用站内相对路径：
@@ -2431,8 +2553,8 @@ GET action 不能 POST，POST action 不能 GET。读取响应 `Allow` 头确认
 - 首页频道 ID 是站点专用常量；新数据库不会自动发现业务频道。
 - `home_v2` 的年度榜、最新和频道区块只取服务器当前年份，跨年数据不足时不会
   自动回退上一年。
-- 收藏、历史和评论目前没有游标或页码；历史可用 `limit` 限制首屏，收藏和评论仍
-  分别受 100 和 `comment_limit` 限制。
+- 收藏和历史支持 `page`、`page_size`、`total` 与 `totalPages`；评论仍只有有界
+  `limit`，没有游标或页码。私有列表仍受服务端最大页大小与可见性过滤约束。
 - 搜索只支持片名、演员和导演的前缀匹配。
 - 复杂筛选首次精确计数仍可能扫描大量数据；缓存只能减轻重复请求。
 - API 只能同源使用，不适合作为第三方开放 API。

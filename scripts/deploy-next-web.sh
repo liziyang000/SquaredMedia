@@ -18,6 +18,8 @@ NEXT_UNIT_PATH="/etc/systemd/system/$NEXT_SERVICE"
 NEXT_DEPLOY_CACHE_ROOT="$repo_root/.cache/next-deploy/v1"
 NEXT_DEPLOY_LOCK_DIR="$NEXT_DEPLOY_CACHE_ROOT/.deploy.lock"
 NEXT_DEPLOY_FORCE_REBUILD="${NEXT_DEPLOY_FORCE_REBUILD:-0}"
+NEXT_MULTIPLAYER_RUNTIME_SOURCE="$repo_root/template/pingfangvideo/js/multiplayer-games.js"
+NEXT_MULTIPLAYER_RUNTIME_PATH="/react-runtime/multiplayer-games.js"
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 
 if [[ "$NEXT_DEPLOY_FORCE_REBUILD" != "0" && "$NEXT_DEPLOY_FORCE_REBUILD" != "1" ]]; then
@@ -126,6 +128,11 @@ if [[ ! "$build_input_hash" =~ ^[a-f0-9]{64}$ ]]; then
   echo "Next.js build fingerprint is invalid." >&2
   exit 1
 fi
+multiplayer_runtime_hash="$(shasum -a 256 "$NEXT_MULTIPLAYER_RUNTIME_SOURCE" | awk '{print $1}')"
+if [[ ! "$multiplayer_runtime_hash" =~ ^[a-f0-9]{64}$ ]]; then
+  echo "React multiplayer runtime fingerprint is invalid." >&2
+  exit 1
+fi
 
 echo "Running the local release gate before staging deployment..."
 npm ci --no-audit --no-fund
@@ -171,7 +178,9 @@ local_tmp="$(mktemp -d "${TMPDIR:-/tmp}/squaredmedia-next.XXXXXX")"
 validate_artifact_root() {
   local artifact_root="$1"
   local native_count native_file native_info
-  if [[ ! -f "$artifact_root/apps/web/server.js" || ! -d "$artifact_root/apps/web/.next/static" ]]; then
+  if [[ ! -f "$artifact_root/apps/web/server.js" ||
+    ! -d "$artifact_root/apps/web/.next/static" ||
+    ! -f "$artifact_root/apps/web/public/react-runtime/multiplayer-games.js" ]]; then
     echo "Next.js standalone artifact is incomplete." >&2
     return 1
   fi
@@ -294,6 +303,8 @@ if [[ "$cache_hit" != "1" ]]; then
   mkdir -p "$artifact_root/apps/web/.next"
   cp -a apps/web/.next/standalone/. "$artifact_root/"
   cp -a apps/web/.next/static "$artifact_root/apps/web/.next/static"
+  mkdir -p "$artifact_root/apps/web/public/react-runtime"
+  cp "$NEXT_MULTIPLAYER_RUNTIME_SOURCE" "$artifact_root/apps/web/public/react-runtime/multiplayer-games.js"
   for native_dir in "$artifact_root/node_modules/@img"/sharp-*; do
     if [[ -e "$native_dir" ]]; then
       rm -rf -- "$native_dir"
@@ -359,6 +370,8 @@ remote_env=(
   "NEXT_SERVICE=$(printf '%q' "$NEXT_SERVICE")"
   "NEXT_NGINX_EXTENSION=$(printf '%q' "$NEXT_NGINX_EXTENSION")"
   "NEXT_UNIT_PATH=$(printf '%q' "$NEXT_UNIT_PATH")"
+  "NEXT_MULTIPLAYER_RUNTIME_PATH=$(printf '%q' "$NEXT_MULTIPLAYER_RUNTIME_PATH")"
+  "MULTIPLAYER_RUNTIME_HASH=$(printf '%q' "$multiplayer_runtime_hash")"
 )
 
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_PREFLIGHT'
@@ -383,12 +396,20 @@ expected_host="react.ping2.my"
 expected_service="squaredmedia-next.service"
 expected_nginx="/www/server/panel/vhost/nginx/extension/react.ping2.my/react-spa.conf"
 expected_unit="/etc/systemd/system/squaredmedia-next.service"
+expected_multiplayer_runtime_path="/react-runtime/multiplayer-games.js"
 
-if [[ "$NEXT_ROOT" != "$expected_root" || "$NEXT_SITE_HOST" != "$expected_host" || "$NEXT_SERVICE" != "$expected_service" || "$NEXT_NGINX_EXTENSION" != "$expected_nginx" || "$NEXT_UNIT_PATH" != "$expected_unit" ]]; then
+if [[ "$NEXT_ROOT" != "$expected_root" ||
+  "$NEXT_SITE_HOST" != "$expected_host" ||
+  "$NEXT_SERVICE" != "$expected_service" ||
+  "$NEXT_NGINX_EXTENSION" != "$expected_nginx" ||
+  "$NEXT_UNIT_PATH" != "$expected_unit" ||
+  "$NEXT_MULTIPLAYER_RUNTIME_PATH" != "$expected_multiplayer_runtime_path" ]]; then
   echo "Next.js staging target does not match the locked deployment boundary." >&2
   exit 1
 fi
-if [[ ! "$RELEASE_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ || ! "$ARTIFACT_HASH" =~ ^[a-f0-9]{64}$ ]]; then
+if [[ ! "$RELEASE_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ||
+  ! "$ARTIFACT_HASH" =~ ^[a-f0-9]{64}$ ||
+  ! "$MULTIPLAYER_RUNTIME_HASH" =~ ^[a-f0-9]{64}$ ]]; then
   echo "Invalid release metadata." >&2
   exit 1
 fi
@@ -548,8 +569,14 @@ if tar -tvzf "$REMOTE_ARTIFACT" | awk '$1 ~ /^[lh]/ { found=1 } END { exit found
 fi
 tar -xzf "$REMOTE_ARTIFACT" -C "$build_root"
 
-if [[ ! -f "$build_root/apps/web/server.js" || ! -d "$build_root/apps/web/.next/static" ]]; then
+if [[ ! -f "$build_root/apps/web/server.js" ||
+  ! -d "$build_root/apps/web/.next/static" ||
+  ! -f "$build_root/apps/web/public/react-runtime/multiplayer-games.js" ]]; then
   echo "Uploaded Next.js artifact is incomplete." >&2
+  exit 1
+fi
+if [[ "$(sha256sum "$build_root/apps/web/public/react-runtime/multiplayer-games.js" | awk '{print $1}')" != "$MULTIPLAYER_RUNTIME_HASH" ]]; then
+  echo "Uploaded React multiplayer runtime checksum mismatch." >&2
   exit 1
 fi
 
@@ -604,7 +631,7 @@ if [[ "$candidate_ready" != "1" ]]; then
   tail -n 80 "$candidate_log" >&2 || true
   exit 1
 fi
-for route in / /status /vod/371745; do
+for route in / /status /vod/371745 /games; do
   status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$NEXT_CANDIDATE_PORT$route")"
   if [[ "$status" != "200" ]]; then
     echo "Candidate route $route returned HTTP $status." >&2
@@ -632,6 +659,15 @@ fi
 asset_file="$(find "$release_dir/apps/web/.next/static" -type f \( -name '*.js' -o -name '*.css' \) -print -quit)"
 asset_path="/_next/static${asset_file#"$release_dir/apps/web/.next/static"}"
 curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1:$NEXT_CANDIDATE_PORT$asset_path"
+candidate_multiplayer_runtime_hash="$(
+  curl -fsS --max-time 10 "http://127.0.0.1:$NEXT_CANDIDATE_PORT$NEXT_MULTIPLAYER_RUNTIME_PATH" |
+    sha256sum |
+    awk '{print $1}'
+)"
+if [[ "$candidate_multiplayer_runtime_hash" != "$MULTIPLAYER_RUNTIME_HASH" ]]; then
+  echo "Candidate React multiplayer runtime checksum mismatch." >&2
+  exit 1
+fi
 kill "$candidate_pid"
 wait "$candidate_pid" 2>/dev/null || true
 candidate_pid=""
@@ -731,8 +767,74 @@ if [[ "$nginx_ready" != "1" ]]; then
   echo "Reloaded Nginx did not route staging traffic to release $RELEASE_ID." >&2
   exit 1
 fi
-for route in / /status /vod/371745 /favicon.ico "$asset_path"; do
+websocket_probe_headers=(
+  --http1.1
+  -H "Connection: Upgrade"
+  -H "Upgrade: websocket"
+  -H "Sec-WebSocket-Version: 13"
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+  -H "Sec-WebSocket-Protocol: pfv-game, pfv-ticket.invalid"
+)
+wait_for_websocket_status() {
+  local origin="$1"
+  local expected="$2"
+  local observed=""
+  for _ in $(seq 1 15); do
+    if observed="$(
+      curl -ksS --max-time 10 "${resolve_args[@]}" "${websocket_probe_headers[@]}" \
+        -H "Origin: $origin" \
+        -o /dev/null \
+        -w '%{http_code}' \
+        "$base_url/game-socket"
+    )" && [[ "$observed" == "$expected" ]]; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Staging game socket returned HTTP ${observed:-transport-error} instead of $expected for Origin $origin after Nginx reload." >&2
+  return 1
+}
+wait_for_websocket_status "https://invalid.example" 403
+wait_for_websocket_status "https://react.ping2.my" 401
+for route in / /status /vod/371745 /games /favicon.ico "$asset_path"; do
   wait_for_http_status GET "$route" 200
+done
+for shared_asset in \
+  /template/pingfangvideo/js/canvas-confetti.min.js \
+  /template/pingfangvideo/css/fonts/fusion-pixel-12px-proportional-zh-hans.woff2 \
+  /template/pingfangvideo/games/2048/js/application.js \
+  /template/pingfangvideo/games/blockrain/blockrain.jquery.min.js \
+  "$NEXT_MULTIPLAYER_RUNTIME_PATH"; do
+  wait_for_http_status GET "$shared_asset" 200
+done
+live_multiplayer_runtime_hash="$(
+  curl -kfsS --max-time 10 "${resolve_args[@]}" "$base_url$NEXT_MULTIPLAYER_RUNTIME_PATH" |
+    sha256sum |
+    awk '{print $1}'
+)"
+if [[ "$live_multiplayer_runtime_hash" != "$MULTIPLAYER_RUNTIME_HASH" ]]; then
+  echo "Staging React multiplayer runtime checksum mismatch." >&2
+  exit 1
+fi
+for legacy_game_spec in \
+  "/index.php/label/games.html|/games" \
+  "/index.php/label/game-2048.html|/games/2048" \
+  "/index.php/label/game-blockrain.html|/games/blockrain" \
+  "/index.php/label/game-gomoku.html|/games/gomoku" \
+  "/index.php/label/game-drawguess.html|/games/drawguess"; do
+  IFS='|' read -r legacy_game_route expected_game_location <<<"$legacy_game_spec"
+  for method in GET HEAD; do
+    wait_for_http_status "$method" "$legacy_game_route" 301
+    if [[ "$method" == "HEAD" ]]; then
+      legacy_game_location="$(curl -ksS --max-time 10 "${resolve_args[@]}" --head -o /dev/null -w '%{redirect_url}' "$base_url$legacy_game_route")"
+    else
+      legacy_game_location="$(curl -ksS --max-time 10 "${resolve_args[@]}" -o /dev/null -w '%{redirect_url}' "$base_url$legacy_game_route")"
+    fi
+    if [[ "$legacy_game_location" != "$base_url$expected_game_location" ]]; then
+      echo "Staging legacy game route returned an unexpected redirect target." >&2
+      exit 1
+    fi
+  done
 done
 for legacy_play_route in "/index.php/vod/play/id/1/sid/2/nid/3.html" "/vodplay/1-2-3.html"; do
   for method in GET HEAD; do
@@ -806,6 +908,59 @@ fi
 rm -f -- "$content_api_file"
 if [[ "$content_api_valid" != "1" ]]; then
   echo "Staging production API content query exceeded its 10s browser budget or returned an invalid envelope." >&2
+  exit 1
+fi
+
+source_quality_file="$build_root/source-quality.json"
+source_quality_valid=0
+if source_quality_status="$(
+  curl -ksS --max-time 35 "${resolve_args[@]}" \
+    -H 'Accept: application/json' \
+    -H 'X-Requested-With: XMLHttpRequest' \
+    -X POST \
+    --data-urlencode 'vod_id=371745' \
+    --data-urlencode 'nid=1' \
+    -o "$source_quality_file" \
+    -w '%{http_code}' \
+    "$base_url/index.php/pingfangdevice/sourceQuality"
+)" &&
+  SOURCE_QUALITY_RESPONSE_FILE="$source_quality_file" SOURCE_QUALITY_HTTP_STATUS="$source_quality_status" php -r '
+    $payload = json_decode(file_get_contents(getenv("SOURCE_QUALITY_RESPONSE_FILE")), true);
+    $data = is_array($payload) && is_array($payload["data"] ?? null) ? $payload["data"] : [];
+    $sources = is_array($data["sources"] ?? null) ? $data["sources"] : [];
+    $recommendedCount = 0;
+    $valid = getenv("SOURCE_QUALITY_HTTP_STATUS") === "200"
+        && is_array($payload)
+        && (string)($payload["code"] ?? "") === "1"
+        && (int)($data["vod_id"] ?? 0) === 371745
+        && (int)($data["nid"] ?? 0) === 1
+        && count($sources) > 0
+        && count($sources) <= 12;
+    foreach ($sources as $source) {
+      if (!is_array($source)
+          || (int)($source["sid"] ?? 0) < 1
+          || !in_array($source["status"] ?? "", ["available", "slow", "failed", "timeout", "unsupported", "missing"], true)
+          || !is_bool($source["available"] ?? null)) {
+        $valid = false;
+        break;
+      }
+      if (!empty($source["recommended"])) {
+        $recommendedCount++;
+        if ((int)($data["recommended_sid"] ?? 0) !== (int)$source["sid"]) $valid = false;
+      }
+      foreach (array_keys($source) as $field) {
+        if (preg_match("/(?:^|_)(?:url|uri|src|token)(?:_|$)/i", (string)$field)) $valid = false;
+      }
+    }
+    $serialized = json_encode($data, JSON_UNESCAPED_SLASHES);
+    if ($serialized === false || preg_match("#https?://|\\.m3u8(?:[?\\\"/]|$)|\\.mp4(?:[?\\\"/]|$)#i", $serialized)) $valid = false;
+    if ($recommendedCount > 1) $valid = false;
+    if (!$valid) exit(1);
+  '; then
+  source_quality_valid=1
+fi
+if [[ "$source_quality_valid" != "1" ]]; then
+  echo "Staging source-quality endpoint did not return a valid, URL-free quality envelope." >&2
   exit 1
 fi
 

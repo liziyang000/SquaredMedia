@@ -6,7 +6,7 @@
 
 | 路径 | 职责 | 是否进入生产主题包 |
 | --- | --- | --- |
-| `template/pingfangvideo/**` | MacCMS 生产主题、共享前端资源和播放器提示页 | 是 |
+| `template/pingfangvideo/**` | MacCMS 生产主题、共享前端资源和播放器提示页 | 是，但打包脚本有实验原型排除项 |
 | `apps/web/**` | Next.js 前台、App Router、本地同源 rewrite、API 客户端与前端测试 | 独立发布到 staging，不进入 MacCMS 主题包 |
 | `maccms-player/**` | 独立的 HLS 性能版播放器源码 | 否；单独生成播放器归档 |
 | `preview/index.html` | 浏览器端路由与渲染的静态交互预览 | 否 |
@@ -59,7 +59,7 @@
 - `vod/detail.html` 保留评分、星级、顶踩、收藏、历史和用户日志钩子。
 - 详情页打开后会自动通过 `pingfangdevice/sourceQuality` 检测默认集数；用户切换测速集数时立即重新检测，按钮保留手动重测能力。前台按服务端健康排序标记唯一推荐线路，并把“立即播放”指向该集推荐线路；用户明确点击其他线路时仍尊重其选择。HLS 主清单存在有效 `RESOLUTION` 时，前台同时显示最高声明分辨率和本次实际抽样的 Variant；发生清晰度回退时会明确标注。直链、媒体清单或异常声明显示“分辨率未知”，不会按线路名称猜测。结果只在当前标签页短期保存，不包含原始播放地址。
 - `vod/play.html` 与 `vod/player.html` 必须保留 `{$player_data}` 和 `{$player_js}`；后者是收费或试看场景使用的 iframe 播放页。
-- 当前生产播放链仍由 MacCMS 的 `{$player_data}`、`{$player_js}` 选择播放器。主题中曾保留但未加载、未发布的实验播放器脚本与样式已经移除。
+- 当前生产播放链仍由 MacCMS 的 `{$player_data}`、`{$player_js}` 选择播放器。主题内的 `hls.min.js`、`pingfang-player.js` 是保留的实验原型，生产播放模板和本地预览都没有加载，打包脚本也会排除这些 JavaScript；`.pf-player` 样式仍位于已发布的 `css/style.css` 中，只是当前生产模板没有对应 DOM/脚本入口。
 - `maccms-player/` 是独立的 HLS 性能版播放器源码，由单独归档交付，不属于主题，也不会被现有部署脚本自动安装；其功能边界、发布顺序和回滚要求见 `docs/development-and-operations.md`。
 - 主题 `app.js` 为独立播放器提供同集换线桥接：优先按短期健康排序选择同一集的其他播放组，没有健康记录时回退到原有页面顺序；自动换线会记录本轮已尝试线路，避免在线路之间循环，并临时传递播放进度。独立播放器在启动 12 秒仍未就绪、连续缓冲 8 秒、致命 HLS 错误或原生视频错误时触发换线；没有候选线路时保留手动重试/选线提示。播放器与主题需要按同一版本组合验收。
 - 榜单使用服务端/静态 HTML 和 `app.js`；未加载、未发布的 React 榜单实验脚本已经移除。
@@ -134,7 +134,7 @@ npm run dev:local
 
 访问 `http://127.0.0.1:5173/`。该命令同时在 `8084` 启动 PHP 预览后端；Next.js development rewrites 将 `/react-api.php` 指向本地 `server/react-api.php`，并代理保留的 PHP、模板和静态资源路径，所以 App Router 深层 URL 可直接刷新，`/index.php?route=home` 仍可用于核对旧 PHP 渲染链。退出命令会停止两个进程。此切换仅用于本地开发，生产主题选择和部署脚本保持不变。
 
-Next.js 本地前台已覆盖首页、目录、分类、搜索、榜单、详情、剧情、下载授权入口、播放/试看外壳、既有会员登录、用户中心、收藏、记录、设备、评论、留言、报错、挑战、状态与 `404` 页面。新会员注册和账号找回明确退场，新旧页面地址返回 HTTP `410`。页面导入 `template/pingfangvideo/css/style.css` 与品牌资源，但不加载 `template/pingfangvideo/js/app.js`；交互状态由 React 管理。MacCMS 主题共有五套视觉，当前 React `SiteHeader` 只注册液态影院、极光夜幕和海报画廊三套，敦煌流光与像素蛙尚不能视为 React 已支持。`src/proxy.ts` 对已知旧公开 URL 返回单跳 `301`，对明确退场的模块返回真实 HTTP `410`，未知页面由 Next.js 返回真实 `404`。79 个旧模板逐项归属见 [React 模板迁移矩阵](react-template-migration-matrix.md)。
+Next.js 本地前台已覆盖首页、目录、分类、搜索、榜单、详情、线路检测、剧情、下载授权入口、播放/试看外壳、既有会员登录、用户中心、收藏、记录、设备、评论、留言、报错、会员游戏、挑战、状态与 `404` 页面。新会员注册和账号找回明确退场，新旧页面地址返回 HTTP `410`。页面导入 `template/pingfangvideo/css/style.css` 与品牌资源，但不加载 `template/pingfangvideo/js/app.js`；交互状态由 React 管理。React `SiteHeader` 已注册液态影院、极光夜幕、海报画廊、敦煌流光和像素蛙五套视觉，并在首帧前恢复已保存主题；像素蛙使用共享本地字体、SVG 和 `canvas-confetti`，切换动效遵循减少动态效果偏好。游戏大厅及四个游玩页使用 `/games/**` 干净 URL，未登录时不会创建游戏 iframe；2048、俄罗斯方块和联机脚本只在登录分支的隔离文档中加载。`src/proxy.ts` 对已知旧公开 URL 返回单跳 `301`，对明确退场的模块返回真实 HTTP `410`，未知页面由 Next.js 返回真实 `404`。84 个旧模板逐项归属见 [React 模板迁移矩阵](react-template-migration-matrix.md)。
 
 `server/react-api.php` 是本地验收适配器，不是生产 MacCMS 接口。它从 `preview/data.json` 生成首页和内容白名单 DTO；列表、搜索和详情不返回 `episodes[].src`，只有 `playback` action 返回当前单集媒体描述。写操作只接受 JSON，使用真实 PHP session、HttpOnly/Lax Cookie 和 CSRF Token，并在 session 内保存收藏、记录、设备撤销、反馈、评论与评分。公开首页响应不携带用户历史：匿名记录来自经过 URL 与结构校验的浏览器存储，登录账号记录通过私有接口获取；收藏和账号历史支持选择、删除和清空。公开响应使用短 TTL，用户和播放响应为 `private, no-store`。本地账号为 `demo` / `demo123`。
 

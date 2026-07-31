@@ -170,6 +170,14 @@ export function LoginPage() {
       <form ref={panelRef} className="login-panel verify-form react-login-panel" onSubmit={submit}>
         <span className="login-edge-glow" aria-hidden="true" />
         <span className="login-glass-highlight" aria-hidden="true" />
+        <div className="login-pixel-pass" aria-hidden="true">
+          <span className="login-pixel-avatar" />
+          <span className="login-pixel-pass-copy">
+            <b>PFV ACCESS</b>
+            <small>MEMBER TERMINAL / 01</small>
+          </span>
+          <span className="login-pixel-ready">READY</span>
+        </div>
         <div className="login-heading">
           <span className="login-kicker">MEMBER LOGIN</span>
           <h1 id="reactLoginTitle">欢迎回来</h1>
@@ -181,7 +189,7 @@ export function LoginPage() {
               账号
             </label>
             <span className="login-control">
-              <svg className="login-field-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="login-field-icon login-icon-user" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" />
               </svg>
               <input
@@ -200,7 +208,7 @@ export function LoginPage() {
               密码
             </label>
             <span className="login-control">
-              <svg className="login-field-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="login-field-icon login-icon-lock" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12a1 1 0 0 1 1 1v9H5v-9a1 1 0 0 1 1-1Zm6 4v3" />
               </svg>
               <input
@@ -220,7 +228,7 @@ export function LoginPage() {
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword((visible) => !visible)}
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
+                <svg className="login-icon-eye" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
                   <circle cx="12" cy="12" r="2.5" />
                 </svg>

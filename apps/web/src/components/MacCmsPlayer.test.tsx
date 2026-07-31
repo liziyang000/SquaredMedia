@@ -11,6 +11,7 @@ const playerMocks = vi.hoisted(() => ({
     destroyed: boolean;
     emit: (event: string, ...args: unknown[]) => void;
     hls: unknown;
+    notice: { show: string };
     options: Record<string, unknown>;
     video: HTMLVideoElement;
   }>,
@@ -280,6 +281,22 @@ describe("MacCmsPlayer", () => {
     view.unmount();
   });
 
+  it("prioritizes an alternate-line resume point at the five-second threshold", async () => {
+    const view = render(
+      <MacCmsPlayer playback={playback} resumePositionSeconds={48} transientResumePositionSeconds={5} onCheckpoint={vi.fn()} onComplete={vi.fn()} />
+    );
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    Object.defineProperty(art.video, "duration", { configurable: true, value: 120 });
+    act(() => art.emit("video:loadedmetadata"));
+
+    expect(art.video.currentTime).toBe(5);
+    expect(art.notice.show).toBe("已从备用线路继续播放");
+    view.unmount();
+  });
+
   it.each([30, 114])("does not resume at an ineligible %s-second checkpoint", async (resumePositionSeconds) => {
     const view = render(<MacCmsPlayer playback={playback} resumePositionSeconds={resumePositionSeconds} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
 
@@ -398,6 +415,43 @@ describe("MacCmsPlayer", () => {
     expect(view.getByRole("status")).toHaveTextContent("视频加载较慢");
   });
 
+  it("automatically falls back when the current line exceeds the startup timeout", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const onCheckpoint = vi.fn();
+    const onFallback = vi.fn(() => true);
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={onCheckpoint} onComplete={vi.fn()} onFallback={onFallback} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+    const art = playerMocks.artInstances[0]!;
+    art.video.currentTime = 17;
+    const startupTimer = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 12_000)?.[0];
+    act(() => startupTimer?.());
+
+    expect(onFallback).toHaveBeenCalledWith(17);
+    expect(onCheckpoint).toHaveBeenCalledWith(art.video);
+    expect(view.getByRole("status")).toHaveTextContent("当前线路启动超时，正在自动切换");
+  });
+
+  it("keeps the actionable error when no automatic candidate exists and lets the user try the line switch again", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const onFallback = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} onFallback={onFallback} />);
+
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+    const art = playerMocks.artInstances[0]!;
+    art.video.currentTime = 19;
+    const startupTimer = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 12_000)?.[0];
+    act(() => startupTimer?.());
+
+    expect(onFallback).toHaveBeenNthCalledWith(1, 19);
+    expect(view.getByRole("status")).toHaveTextContent("视频加载较慢");
+
+    fireEvent.click(view.getByRole("button", { name: "切换备用线路" }));
+
+    expect(onFallback).toHaveBeenNthCalledWith(2, 19);
+    expect(view.getByRole("status")).toHaveTextContent("正在切换备用线路");
+  });
+
   it("uses the structured MacCMS preload hint without loading the configured HTML page", async () => {
     const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
     const view = render(
@@ -456,6 +510,23 @@ describe("MacCmsPlayer", () => {
     expect(view.queryByRole("status")).toBeNull();
   });
 
+  it("automatically falls back after sustained buffering", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const onFallback = vi.fn(() => true);
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} onFallback={onFallback} />);
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    art.video.currentTime = 24;
+    act(() => art.emit("video:playing"));
+    act(() => art.emit("video:waiting"));
+    const stallTimer = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 8_000)?.[0];
+    act(() => stallTimer?.());
+
+    expect(onFallback).toHaveBeenCalledWith(24);
+    expect(view.getByRole("status")).toHaveTextContent("当前线路持续缓冲，正在自动切换");
+  });
+
   it("does not turn repeated fatal media errors during recovery into a blocking error", async () => {
     const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
     await waitFor(() => expect(playerMocks.hlsInstances).toHaveLength(1));
@@ -496,6 +567,20 @@ describe("MacCmsPlayer", () => {
     expect(view.getByRole("status")).toHaveTextContent("视频解码失败");
   });
 
+  it("automatically falls back after an unrecoverable fatal HLS error", async () => {
+    const onFallback = vi.fn(() => true);
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} onFallback={onFallback} />);
+    await waitFor(() => expect(playerMocks.hlsInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    const hls = playerMocks.hlsInstances[0]!;
+    art.video.currentTime = 31;
+    act(() => hls.emit("error", { fatal: true, type: "networkError" }));
+
+    expect(onFallback).toHaveBeenCalledWith(31);
+    expect(view.getByRole("status")).toHaveTextContent("当前线路异常，正在自动切换");
+  });
+
   it("waits for Artplayer automatic reconnect before showing a video failure", async () => {
     const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
     const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
@@ -512,5 +597,21 @@ describe("MacCmsPlayer", () => {
 
     act(() => art.emit("video:playing"));
     expect(view.queryByRole("status")).toBeNull();
+  });
+
+  it("automatically falls back when the delayed video error remains unresolved", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const onFallback = vi.fn(() => true);
+    const view = render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} onFallback={onFallback} />);
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    art.video.currentTime = 44;
+    act(() => art.emit("video:error"));
+    const playerErrorTimer = setTimeoutSpy.mock.calls.find(([, delay]) => delay === 7_000)?.[0];
+    act(() => playerErrorTimer?.());
+
+    expect(onFallback).toHaveBeenCalledWith(44);
+    expect(view.getByRole("status")).toHaveTextContent("当前线路播放失败，正在自动切换");
   });
 });

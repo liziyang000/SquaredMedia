@@ -20,6 +20,7 @@ type RoutingContextValue = {
 };
 
 const RoutingContext = createContext<RoutingContextValue | null>(null);
+const SearchParamsContext = createContext<URLSearchParams | null>(null);
 const localOrigin = "https://next.local";
 
 function safeInternalPath(value: string | undefined) {
@@ -51,9 +52,6 @@ export function RoutingProvider({ children }: PropsWithChildren) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const params = useNextParams();
-  const nextSearchParams = useNextSearchParams();
-  const search = nextSearchParams?.toString() ?? "";
-  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const navigate = useCallback<NavigateFunction>(
     (to, options) => {
       const target = navigationTarget(to, options?.state);
@@ -62,13 +60,23 @@ export function RoutingProvider({ children }: PropsWithChildren) {
     },
     [router]
   );
-  const from = safeInternalPath(searchParams.get("from") ?? undefined);
   const value = useMemo<RoutingContextValue>(
-    () => ({ pathname, params: normalizedParams(params), searchParams, state: from ? { from } : null, navigate, test: false }),
-    [from, navigate, params, pathname, searchParams]
+    () => ({ pathname, params: normalizedParams(params), searchParams: new URLSearchParams(), state: null, navigate, test: false }),
+    [navigate, params, pathname]
   );
 
   return <RoutingContext.Provider value={value}>{children}</RoutingContext.Provider>;
+}
+
+function NextSearchParamsProvider({ children }: PropsWithChildren) {
+  const nextSearchParams = useNextSearchParams();
+  const search = nextSearchParams?.toString() ?? "";
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+  return <SearchParamsContext.Provider value={searchParams}>{children}</SearchParamsContext.Provider>;
+}
+
+export function SearchParamsProvider({ children }: PropsWithChildren) {
+  return useRoutingContext().test ? children : <NextSearchParamsProvider>{children}</NextSearchParamsProvider>;
 }
 
 export function TestRoutingProvider({ children, href, params = {} }: PropsWithChildren<{ href: string; params?: RouteParams }>) {
@@ -79,7 +87,14 @@ export function TestRoutingProvider({ children, href, params = {} }: PropsWithCh
     setState(options?.state ?? null);
   }, []);
   const value = useMemo<RoutingContextValue>(
-    () => ({ pathname: url.pathname, params, searchParams: new URLSearchParams(url.searchParams), state, navigate, test: true }),
+    () => ({
+      pathname: url.pathname,
+      params,
+      searchParams: new URLSearchParams(url.searchParams),
+      state,
+      navigate,
+      test: true
+    }),
     [navigate, params, state, url]
   );
 
@@ -104,7 +119,9 @@ export function useNavigate() {
 
 export function useLocation() {
   const { pathname, state } = useRoutingContext();
-  return { pathname, state };
+  const searchParams = useContext(SearchParamsContext);
+  const from = safeInternalPath(searchParams?.get("from") ?? undefined);
+  return { pathname, state: from ? { from } : state };
 }
 
 export function useParams() {
@@ -112,7 +129,9 @@ export function useParams() {
 }
 
 export function useSearchParams() {
-  return [useRoutingContext().searchParams] as const;
+  const context = useRoutingContext();
+  const searchParams = useContext(SearchParamsContext);
+  return [searchParams ?? context.searchParams] as const;
 }
 
 export function Navigate({ to, replace, state }: { to: string; replace?: boolean; state?: NavigationState }) {

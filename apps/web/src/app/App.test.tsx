@@ -270,7 +270,9 @@ describe("React migration routes", () => {
     expect(screen.getByRole("link", { name: "热播榜全站热度" })).toHaveAttribute("href", "/rankings/yearly");
     expect(screen.getByRole("link", { name: "登录" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/categories"]')).toHaveTextContent("视频");
+    expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/games"]')).toHaveTextContent("游戏");
     expect(container.querySelector('.mobile-drawer-links a[href="/categories"]')).toHaveTextContent("视频");
+    expect(container.querySelector('.mobile-drawer-links a[href="/games"]')).toHaveTextContent("游戏");
     expect((container.querySelector(".react-app") as HTMLElement).style.getPropertyValue("--react-lazyload-image")).toBe(
       'url("/template/pingfangvideo/images/brand/lazyload.png")'
     );
@@ -1232,7 +1234,13 @@ describe("React migration routes", () => {
 
     expect(await screen.findByRole("heading", { name: "欢迎回来" })).toBeInTheDocument();
     const panel = container.querySelector(".react-login-panel");
+    expect(panel?.querySelector(".login-pixel-pass")).toBeInTheDocument();
+    expect(panel?.querySelector(".login-pixel-ready")).toHaveTextContent("READY");
     expect(panel?.querySelectorAll("svg.login-field-icon")).toHaveLength(3);
+    expect(panel?.querySelector(".login-icon-user")).toBeInTheDocument();
+    expect(panel?.querySelector(".login-icon-lock")).toBeInTheDocument();
+    expect(panel?.querySelector(".login-icon-shield")).toBeInTheDocument();
+    expect(panel?.querySelector(".login-icon-refresh")).toBeInTheDocument();
     expect(panel?.querySelector(".login-captcha-row")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("输入验证码")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "点击刷新验证码" })).toBeInTheDocument();

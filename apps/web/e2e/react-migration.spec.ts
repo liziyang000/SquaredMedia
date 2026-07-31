@@ -4,8 +4,54 @@ import type { Page } from "@playwright/test";
 async function blockExternalResources(page: Page) {
   await page.route("**/*", async (route) => {
     const url = route.request().url();
-    if (url.startsWith("http://127.0.0.1:5173") || url.startsWith("data:")) await route.continue();
-    else await route.abort("blockedbyclient");
+    if (url.startsWith("http://127.0.0.1:5173/index.php/pingfangdevice/sourceQuality")) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          code: 1,
+          msg: "ok",
+          data: {
+            vod_id: 1,
+            nid: 1,
+            checked_at: 1_785_280_000,
+            cached: false,
+            recommended_sid: 1,
+            sources: [
+              {
+                sid: 1,
+                from: "测试线路",
+                nid: 1,
+                episode_name: "正片",
+                status: "available",
+                available: true,
+                http_code: 200,
+                latency_ms: 120,
+                speed_kbps: 5600,
+                sample_count: 3,
+                tested_width: 1920,
+                tested_height: 1080,
+                max_width: 1920,
+                max_height: 1080,
+                resolution_basis: "manifest",
+                variant_bandwidth_kbps: 6200,
+                variant_codecs: "avc1.640028",
+                fallback_used: false,
+                quality_rank: 1,
+                recommended: true,
+                message: "可用"
+              }
+            ]
+          }
+        })
+      });
+      return;
+    }
+    if (url.startsWith("http://127.0.0.1:5173") || url.startsWith("data:")) {
+      await route.continue();
+      return;
+    }
+    await route.abort("blockedbyclient");
   });
 }
 
@@ -33,6 +79,19 @@ test("old public URLs redirect once and retired outputs return HTTP 410", async 
       expect(legacy.status()).toBe(301);
       expect(new URL(legacy.headers().location, "http://127.0.0.1:5173").pathname).toBe("/watch/1/2/3");
     }
+  }
+
+  for (const [path, target] of [
+    ["/index.php/label/games.html", "/games"],
+    ["/index.php/label/game-2048.html", "/games/2048"],
+    ["/index.php/label/game-blockrain.html", "/games/blockrain"],
+    ["/index.php/label/game-gomoku.html?room=abc234", "/games/gomoku?room=ABC234"],
+    ["/index.php/label/game-drawguess.html?room=XYZ789", "/games/drawguess?room=XYZ789"]
+  ]) {
+    const legacy = await request.get(path, { maxRedirects: 0 });
+    expect(legacy.status()).toBe(301);
+    const location = new URL(legacy.headers().location, "http://127.0.0.1:5173");
+    expect(`${location.pathname}${location.search}`).toBe(target);
   }
 
   const malformedPlayback = await request.get("/vodplay/1-2-%2F%2Fevil%2Eexample.html", { maxRedirects: 0 });
@@ -129,6 +188,8 @@ test("detail poster matches the desktop panel height without manual rating contr
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/vod/1");
     await expect(page.getByRole("heading", { name: "云端回声", exact: true })).toBeVisible();
+    await expect(page.getByText(/检测完成：1\/1 条已检测线路可用；推荐 测试线路/)).toBeVisible();
+    await expect(page.locator(".source-quality-result")).toContainText("推荐 · 可用");
     await expect(page.locator(".score-summary")).toContainText("评分8.8");
     await expect(page.locator(".detail-poster")).toHaveClass(/is-image-missing/);
     expect(await page.locator(".detail-poster").evaluate((element) => getComputedStyle(element).backgroundImage)).toContain("lazyload.png");
@@ -160,6 +221,32 @@ test("detail poster matches the desktop panel height without manual rating contr
     await expectNoOverflow(page);
   }
 
+  expect(browserErrors).toEqual([]);
+});
+
+test("Pixel Frog persists and member games keep guest runtimes gated", async ({ page }) => {
+  await blockExternalResources(page);
+  const browserErrors = observeBrowserErrors(page);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "主题" }).click();
+  await page.getByRole("button", { name: "像素蛙" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "pixel-frog");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "pixel-frog");
+
+  await page.goto("/games/gomoku?room=ABC234");
+  await expect(page.getByRole("heading", { name: "登录后才能联机对弈" })).toBeVisible();
+  await expect(page.getByTitle("联机五子棋游戏区域")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "前往登录" })).toHaveAttribute("href", "/login?from=%2Fgames%2Fgomoku%3Froom%3DABC234");
+
+  await page.goto("/login?from=%2Fgames%2F2048");
+  await page.getByLabel("账号").fill("demo");
+  await page.locator('input[name="password"]').fill("demo123");
+  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await expect(page).toHaveURL(/\/games\/2048$/);
+  await expect(page.getByTitle("2048游戏区域")).toBeVisible();
+  await expect(page.locator('iframe[data-game-runtime="2048"]')).toHaveAttribute("sandbox", /allow-scripts/);
   expect(browserErrors).toEqual([]);
 });
 
@@ -263,6 +350,13 @@ test("responsive boundaries keep navigation usable without horizontal overflow",
       await page.keyboard.press("Escape");
       await expect(page.getByRole("button", { name: "展开导航" })).toHaveAttribute("aria-expanded", "false");
     }
+  }
+
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/games");
+    await expect(page.getByRole("heading", { name: "登录后开启游戏大厅" })).toBeVisible();
+    await expectNoOverflow(page);
   }
 
   expect(browserErrors).toEqual([]);

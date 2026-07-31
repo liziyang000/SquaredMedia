@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "../app/routing";
 
 import { contentApi } from "../api/content";
@@ -15,12 +15,18 @@ import type {
   PlaybackDescriptor,
   PlotData
 } from "../api/content";
+import { sourceQualityApi } from "../api/sourceQuality";
+import type { SourceQualityApi } from "../api/sourceQuality";
 import { ApiError } from "../api/http";
 import { useAccount } from "../app/AccountContext";
 import { DetailBoundary } from "../components/ContentBoundary";
 import { MacCmsPlayer } from "../components/MacCmsPlayer";
 import { Artwork, EmptyState, PageHeader, PageStatus, VodCard } from "../components/PagePrimitives";
+import { SourceQualityPanel, sourceQualityText } from "../components/SourceQualityPanel";
+import type { SourceQualityView } from "../components/SourceQualityPanel";
 import { upsertLocalHistory } from "../localHistory";
+import { consumeAlternatePlaybackResume, selectAutomaticFallback, storeAlternatePlaybackResume } from "../sourceQualityPreference";
+import type { SourceQualityPreference } from "../sourceQualityPreference";
 import { VodFavoriteButton, VodInteractions } from "./InteractionPages";
 
 type ContentPageProps = {
@@ -108,12 +114,14 @@ function EpisodeSections({
   vodId,
   groups,
   activeSourceId,
-  activeEpisodeId
+  activeEpisodeId,
+  qualityView
 }: {
   vodId: string;
   groups: EpisodeGroup[];
   activeSourceId?: string;
   activeEpisodeId?: string;
+  qualityView?: SourceQualityView | null;
 }) {
   if (groups.length === 0) {
     return <EmptyState title="暂无可用剧集" description="站点尚未发布可播放的线路和剧集。" actionHref={`/vod/${vodId}`} actionLabel="返回详情" />;
@@ -122,17 +130,55 @@ function EpisodeSections({
   return (
     <>
       {groups.map((group, groupIndex) => (
-        <section className="episode-box" key={group.sourceId} aria-labelledby={`source-${groupIndex}`}>
+        <section
+          className={`episode-box${
+            qualityView?.data?.recommended_sid && String(qualityView.data.recommended_sid) === group.sourceId ? " is-source-recommended" : ""
+          }`}
+          key={group.sourceId}
+          aria-labelledby={`source-${groupIndex}`}
+        >
           <div className="section-head compact">
             <h2 id={`source-${groupIndex}`}>{group.name}</h2>
-            <span>{group.tip || `${group.episodes.length} 集`}</span>
+            {qualityView ? (
+              <span className="source-quality-heading-meta">
+                <span>{group.tip || `${group.episodes.length} 集`}</span>
+                {(() => {
+                  const result = qualityView.data?.sources.find((source) => String(source.sid) === group.sourceId);
+                  const status = qualityView.status === "loading" ? "loading" : qualityView.status === "error" ? "failed" : (result?.status ?? "unsupported");
+                  const label =
+                    qualityView.status === "loading"
+                      ? "检测中…"
+                      : qualityView.status === "error"
+                        ? "检测失败"
+                        : result
+                          ? sourceQualityText(result)
+                          : "超出单次检测上限";
+                  return (
+                    <span className={`source-quality-result is-${status}${result?.recommended ? " is-recommended" : ""}`} aria-live="polite">
+                      {label}
+                    </span>
+                  );
+                })()}
+              </span>
+            ) : (
+              <span>{group.tip || `${group.episodes.length} 集`}</span>
+            )}
           </div>
           <div className="episode-grid">
             {group.episodes.map((episode) => {
               const active = episode.id === activeEpisodeId && episode.sourceId === activeSourceId;
+              const recommended =
+                qualityView?.episodeNo === episode.no &&
+                qualityView.data?.recommended_sid !== null &&
+                String(qualityView?.data?.recommended_sid) === group.sourceId;
 
               return (
-                <Link className={active ? "is-active" : undefined} aria-current={active ? "page" : undefined} key={episode.id} to={watchHref(vodId, episode)}>
+                <Link
+                  className={[active ? "is-active" : "", recommended ? "is-source-recommended" : ""].filter(Boolean).join(" ") || undefined}
+                  aria-current={active ? "page" : undefined}
+                  key={episode.id}
+                  to={watchHref(vodId, episode)}
+                >
                   {episode.name}
                 </Link>
               );
@@ -144,10 +190,18 @@ function EpisodeSections({
   );
 }
 
-function VodDetailContent({ content }: { content: ContentDetailData }) {
+function VodDetailContent({ content, qualityApi }: { content: ContentDetailData; qualityApi: SourceQualityApi }) {
   const video = content.video;
-  const groups = groupEpisodes(video);
-  const firstEpisode = groups[0]?.episodes[0];
+  const groups = useMemo(() => groupEpisodes(video), [video]);
+  const [qualityView, setQualityView] = useState<SourceQualityView | null>(null);
+  const [recommendation, setRecommendation] = useState<{ sourceId: string; episodeNo: number } | null>(null);
+  const onRecommendation = useCallback((preference: SourceQualityPreference | null, episodeNo: number) => {
+    setRecommendation(preference ? { sourceId: preference.recommendedSourceId, episodeNo } : null);
+  }, []);
+  const recommendedEpisode = recommendation
+    ? groups.find((group) => group.sourceId === recommendation.sourceId)?.episodes.find((episode) => episode.no === recommendation.episodeNo)
+    : undefined;
+  const firstEpisode = recommendedEpisode ?? groups[0]?.episodes[0];
   const related = content.related;
 
   useDocumentTitle(video.title, content.siteName);
@@ -225,7 +279,8 @@ function VodDetailContent({ content }: { content: ContentDetailData }) {
       </section>
 
       <section className="wrap content-section" aria-label="播放选集">
-        <EpisodeSections vodId={video.id} groups={groups} />
+        <SourceQualityPanel vodId={video.id} groups={groups} api={qualityApi} onViewChange={setQualityView} onRecommendation={onRecommendation} />
+        <EpisodeSections vodId={video.id} groups={groups} qualityView={qualityView} />
       </section>
 
       <section className="wrap content-section" aria-labelledby="related-videos-title">
@@ -246,7 +301,7 @@ function VodDetailContent({ content }: { content: ContentDetailData }) {
   );
 }
 
-export function VodDetailPage({ api = contentApi }: ContentPageProps) {
+export function VodDetailPage({ api = contentApi, qualityApi = sourceQualityApi }: ContentPageProps & { qualityApi?: SourceQualityApi }) {
   const { vodId } = useParams();
 
   return (
@@ -256,7 +311,7 @@ export function VodDetailPage({ api = contentApi }: ContentPageProps) {
       notFound={<MissingContentPage siteName="平方影视" kind="影片" value={vodId} />}
       denied={<AccessGatePage api={api} vodId={vodId} kind="detail" />}
     >
-      {(content) => <VodDetailContent content={content} />}
+      {(content) => <VodDetailContent content={content} qualityApi={qualityApi} />}
     </DetailBoundary>
   );
 }
@@ -397,15 +452,28 @@ export function PlotPage({ api = contentApi }: ContentPageProps) {
 function PlayerMedia({
   playback,
   resumePositionSeconds,
+  transientResumePositionSeconds,
   onCheckpoint,
-  onComplete
+  onComplete,
+  onFallback
 }: {
   playback: PlaybackDescriptor;
   resumePositionSeconds?: number;
+  transientResumePositionSeconds?: number;
   onCheckpoint: (element: HTMLVideoElement) => void;
   onComplete: () => void;
+  onFallback: (currentTime: number) => boolean;
 }) {
-  return <MacCmsPlayer playback={playback} resumePositionSeconds={resumePositionSeconds} onCheckpoint={onCheckpoint} onComplete={onComplete} />;
+  return (
+    <MacCmsPlayer
+      playback={playback}
+      resumePositionSeconds={resumePositionSeconds}
+      transientResumePositionSeconds={transientResumePositionSeconds}
+      onCheckpoint={onCheckpoint}
+      onComplete={onComplete}
+      onFallback={onFallback}
+    />
+  );
 }
 
 function AuthorizedPlayer({
@@ -432,6 +500,8 @@ function AuthorizedPlayer({
   const isTrial = trial || Boolean(playback.maxPlaybackSeconds);
   const previousEpisode = activeGroup.episodes[activeIndex - 1];
   const nextEpisode = activeGroup.episodes[activeIndex + 1];
+  const currentPath = playbackHref(video.id, activeEpisode, isTrial);
+  const [fallbackResumeSeconds] = useState(() => (typeof window === "undefined" ? 0 : consumeAlternatePlaybackResume(window.sessionStorage, currentPath)));
 
   useDocumentTitle(`${isTrial ? "试看" : "播放"}：${video.title} - ${activeEpisode.name}`, playback.siteName);
 
@@ -479,6 +549,24 @@ function AuthorizedPlayer({
         if (savedCheckpointRef.current === signature) savedCheckpointRef.current = "";
       });
   };
+  const fallback = useCallback(
+    (currentTime: number) => {
+      if (typeof window === "undefined") return false;
+      const episode = selectAutomaticFallback({
+        storage: window.sessionStorage,
+        vodId: video.id,
+        groups,
+        activeSourceId: activeGroup.sourceId,
+        activeEpisode
+      });
+      if (!episode) return false;
+      const target = playbackHref(video.id, episode, isTrial);
+      storeAlternatePlaybackResume(window.sessionStorage, target, currentTime);
+      void navigate(target);
+      return true;
+    },
+    [activeEpisode, activeGroup.sourceId, groups, isTrial, navigate, video.id]
+  );
 
   return (
     <main id="mainContent" tabIndex={-1}>
@@ -499,10 +587,12 @@ function AuthorizedPlayer({
             <PlayerMedia
               playback={playback}
               resumePositionSeconds={isTrial ? undefined : playback.resumePositionSeconds}
+              transientResumePositionSeconds={fallbackResumeSeconds || undefined}
               onCheckpoint={checkpoint}
               onComplete={() => {
                 if (autoAdvance && nextEpisode) void navigate(playbackHref(video.id, nextEpisode, isTrial));
               }}
+              onFallback={fallback}
             />
           </div>
           <div className="player-toolbar" role="group" aria-label="剧集导航">
@@ -587,7 +677,15 @@ export function PlayerPage({ trial = false, api = contentApi }: ContentPageProps
   if (!activeEpisode || !activeGroup) return <MissingContentPage siteName={playback.siteName} kind="剧集" value={episodeId} />;
 
   return (
-    <AuthorizedPlayer playback={playback} groups={groups} activeGroup={activeGroup} activeIndex={activeIndex} activeEpisode={activeEpisode} trial={trial} />
+    <AuthorizedPlayer
+      key={`${playback.vodId}:${playback.sourceId}:${playback.episodeId}`}
+      playback={playback}
+      groups={groups}
+      activeGroup={activeGroup}
+      activeIndex={activeIndex}
+      activeEpisode={activeEpisode}
+      trial={trial}
+    />
   );
 }
 

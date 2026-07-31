@@ -112,7 +112,7 @@ validation before traffic is switched.
 The local Next.js Proxy `301`/`410` policy is not a production Nginx configuration; the
 production aliases, PHP pass-through order, RSS decision, and reverse-proxy topology must
 still be derived from the real server and access logs.
-See [the 79-template migration matrix](docs/react-template-migration-matrix.md)
+See [the 84-template migration matrix](docs/react-template-migration-matrix.md)
 for each legacy template's React, backend-pass-through, or retirement outcome.
 
 `npm run build:web` creates a server-capable standalone output under

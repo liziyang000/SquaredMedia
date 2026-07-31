@@ -23,7 +23,10 @@
 | `npm run format` | 用 Prettier 格式化主题脚本、React 工程与配置文件 | 是，直接修改被覆盖的源码与配置 |
 | `npm test` | 运行模板、React/API、播放器、联机房间/WebSocket、设备会话与控制器 PHP 测试及海报修复单元测试 | 否；测试只写入临时或忽略目录 |
 | `npm run typecheck:web` | 生成 App Router 类型并用严格 TypeScript 配置检查 Next.js 工程 | 写入已忽略的 `.next/types/` |
-| `npm run build:web` | 类型检查并生成 standalone Next.js `.next` 产物 | 是，重建已忽略的 `apps/web/.next/` |
+| `npm run build:web` | 生成 standalone Next.js `.next` 产物，并验证无全页 CSR bailout 的 Session-first 静态壳 | 是，重建已忽略的 `apps/web/.next/` |
+| `npm run verify:web-prerender` | 只读检查现有 Next 产物中的静态壳和 prerender manifest | 只读 `apps/web/.next/` |
+| `npm run analyze:web` | 生成 Next bundle 分析结果并复用预渲染检查 | 是，重建 `.next/` 并生成分析产物 |
+| `npm run performance:lighthouse` | 构建本地固定 fixture，并对首页、目录和详情运行 Lighthouse | 是，写入已忽略的 `output/lighthouse/` |
 | `npm run test:e2e` | 用 Playwright 验证本地 Next.js/PHP 路由、状态码、账号流程和响应式边界 | 失败证据写入已忽略的 `output/playwright/` |
 | `npm run deploy:web` | 验证、构建或复用 Linux standalone 归档并原子切换 `react.ping2.my` | 写入本地缓存、远端版本、systemd 与 Nginx |
 | `npm run rollback:web` | 将 staging 切回 `previous` 或指定 Next.js release | 修改远端 `current` 与对应运行配置 |
@@ -31,10 +34,10 @@
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
-| `npm run package` | 默认重建主题、`pingfangdevice`、`pingfangapi`、独立播放器和联机游戏服务；`DEPLOY_SCOPE=backend/api` 时只生成对应后端包 | 是，默认先重建整个 `dist/` 再加入独立产物 |
+| `npm run package` | 默认重建五个归档；`DEPLOY_SCOPE=backend/api` 只缩小 MacCMS 主题/addon 子集，根脚本仍会追加播放器和游戏包 | 是，先重建当前 MacCMS scope，再加入独立产物 |
 | `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物 | 是，仅替换播放器目录和归档 |
 | `npm run package:games` | 只重建自包含的联机游戏服务包 | 是，仅替换游戏服务目录和归档 |
-| `npm run verify:release` | 默认解包检查五个归档；`DEPLOY_SCOPE=backend/api` 时只检查当前 scope | 只读 `dist/` |
+| `npm run verify:release` | 检查当前 MacCMS scope，并始终继续检查独立播放器和游戏归档 | 只读 `dist/` |
 | `npm run verify:player-release` | 单独检查播放器归档的严格白名单、文件一致性与链接边界 | 只读 `dist/` |
 | `npm run verify:game-server-release` | 检查游戏服务源码、部署样例、固定 `ws` 版本和敏感文件边界 | 只读 `dist/` |
 | `npm run start:games` | 启动本机联机游戏服务；必须先设置签名密钥和允许的 Origin | 否 |
@@ -77,7 +80,7 @@ npm run verify:release
 
 - `tests/template.test.mjs` 是仓库级静态与预览契约测试，也会约束发布脚本、CI 配置和数据库维护文档中的关键入口。
 - `npm run lint` 用 ESLint 检查主题浏览器脚本、用 Oxc 检查 React TypeScript、用 Stylelint 检查主题 CSS，并用 Prettier 验证源码与配置格式；压缩第三方库不在检查范围内。
-- `npm run typecheck:web` 和 `npm run build:web` 分别验证 App Router 类型边界及 standalone Next.js 生产构建；开发服务器或单元测试通过不能替代生产构建。E2E 应在 production build 之前运行，避免 `next dev` 扫描刚生成的 standalone 树。
+- `npm run typecheck:web` 和 `npm run build:web` 分别验证 App Router 类型边界及 standalone Next.js 生产构建；`build:web` 还检查静态路由保留 Session-first 壳，但不证明页面内容已经 SSR。开发服务器或单元测试通过不能替代生产构建。E2E 应在 production build 之前运行，避免 `next dev` 扫描刚生成的 standalone 树。
 - `npm run dev:local` 让浏览器只访问 `http://127.0.0.1:5173/`；`next.config.ts` 在 development 中将 `/react-api.php` 重写到 `server/react-api.php`，并把 `/index.php`、`/api.php`、`/template`、`/static`、`/upload` 和 `/preview` 代理到端口 `8084` 的 PHP 预览后端，因此本地请求保持同源。`src/proxy.ts` 依据 `src/migrationRoutes.ts` 对已知旧公开 URL 返回单跳 `301`，对明确退场地址返回 HTTP `410`；生产是否生效仍必须以实际 Nginx 和服务器请求验收。
 - `scripts/lint-template.mjs` 面向源模板结构，阻止本地预览、`localhost`、死链接或错误资源路径进入生产主题。
 - `scripts/verify-compat.mjs` 面向 MacCMS 页面和目录兼容面。
@@ -95,7 +98,7 @@ npm run verify:release
 
 ## 打包与 `dist/`
 
-`scripts/package-theme.mjs` 每次运行都会先递归删除整个 `dist/`。默认生成全部归档；`DEPLOY_SCOPE=backend` 只生成两个插件归档，`DEPLOY_SCOPE=api` 只生成 API 归档：
+`scripts/package-theme.mjs` 每次运行都会先递归删除整个 `dist/`。默认生成主题和两个插件；`DEPLOY_SCOPE=backend` 只生成两个插件，`DEPLOY_SCOPE=api` 只生成 API。根级 `npm run package` 随后无条件追加独立播放器与游戏服务，因此三个 scope 的最终归档数分别是 5、4、3：
 
 ```text
 dist/
@@ -116,7 +119,7 @@ dist/
 - `pingfangvideo` 来自 `template/pingfangvideo/`，两个插件包分别来自 `addons/pingfangdevice/` 和 `addons/pingfangapi/`。
 - 两个插件的 `application/` 都保留 MacCMS 标准插件应用载荷结构；SSH 部署会把兼容控制器复制到对应 CMS 应用目录。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
-- 打包只接受普通文件和目录，发现符号链接、设备节点等其他类型会直接失败；发布校验还会拒绝 API 归档中的额外顶层路径或非普通条目，并逐个执行 PHP 语法检查。
+- 主题、设备/API 插件和独立播放器打包只接受受控普通文件/目录，并拒绝或排除链接等异常条目；API 发布校验还会拒绝额外顶层路径并逐个执行 PHP 语法检查。游戏服务打包当前只过滤点文件并复制整个固定 `ws` 包，验证器尚未做同等级的精确白名单、tar 链接类型和路径穿越检查。
 - 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
@@ -172,11 +175,11 @@ source scripts/deploy-ping2.env
 npm run deploy:web
 ```
 
-流程依次完成本地依赖安装、测试、Lint、类型检查和 E2E。脚本按当前工作区文件内容、权限、Node/npm 与固定 production 环境计算构建指纹：缓存未命中时执行 production build、Linux 原生依赖组包和完整归档验证；命中时复制缓存归档并重新验证摘要、tar 条目、standalone 结构、Sharp 版本和 ELF 平台。指纹获取失败、门禁或构建期间输入变化都会直接中止，不会降级复用缓存。新 release 会先在 `127.0.0.1:3101` 验证 `/healthz`、首页、动态路由、404 和真实静态 chunk，成功后才原子更新 `current`、启动 systemd、执行 `nginx -t`、reload，并从服务器回环验证 Next 页面、`/favicon.ico`、`home_v2&compact=1` 以及前端实际 `content&scope=library` 查询。content 必须在浏览器相同的 10 秒预算内返回有效 DTO；API 若被地区策略拒绝，只接受精确的 JSON 403 envelope。
+流程依次完成本地依赖安装、测试、Lint、类型检查和 E2E。脚本按当前工作区文件内容、权限、Node/npm 与固定 production 环境计算构建指纹：缓存未命中时执行 production build、Linux 原生依赖组包和完整归档验证；命中时复制缓存归档并重新验证摘要、tar 条目、standalone 结构、Sharp 版本和 ELF 平台。指纹获取失败、门禁或构建期间输入变化都会直接中止，不会降级复用缓存。React 专用的联机桥接运行时从主题源码复制进当前 standalone release，不依赖另行发布共享主题文件；候选进程和公开域名都必须返回与本地相同的 SHA-256。新 release 会先在 `127.0.0.1:3101` 验证 `/healthz`、首页、动态影片、游戏大厅、404 和真实静态 chunk，成功后才原子更新 `current`、启动 systemd、执行 `nginx -t`、reload，并从服务器回环验证 Next 页面、五个旧游戏地址的单跳目标、`/favicon.ico`、像素主题字体/粒子脚本、单机游戏资源、联机 bridge、`home_v2&compact=1`、前端实际 `content&scope=library` 查询以及 `pingfangdevice/sourceQuality` 的脱敏结果。content 必须在浏览器相同的 10 秒预算内返回有效 DTO；线路检测使用 35 秒总请求预算并拒绝携带 URL/Token 的结果；API 若被地区策略拒绝，只接受精确的 JSON 403 envelope。`/game-socket` 还会分别验证恶意 Origin 返回 403、合法测试域 Origin 携带无效票据可到达现有上游并返回 401，任何 404/502 都会回滚本次 Web release。
 
 本地锁位于 `.cache/next-deploy/v1/.deploy.lock`。正常退出会自动释放；若本机进程被 `SIGKILL` 或掉电打断，确认没有其他 `deploy:web` 进程后再手工移除这个空锁目录。
 
-Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；两个 PHP 入口只检查真实的 `index.php` 或 `api.php` 文件，并显式把 `SCRIPT_NAME` 与 `PATH_INFO` 传给 FastCGI，保证插件 action 和 provider 路由不会被完整 URI 的物理文件检查误拦。旧播放页 `/index.php/vod/play/id/<vod_id>/sid/<sid>/nid/<nid>.html` 和 rewrite `/vodplay/<vod_id>-<sid>-<nid>.html` 的 GET/HEAD 会在通用 PHP 规则之前交给同一条 Next 迁移规则并返回单跳 `301`，因此两种别名共享 1～2147483647 的正整数校验。数字形态旧地址的 POST 等其他方法继续进入 MacCMS PHP；非数字动态地址仍由 PHP 处理，非数字 rewrite 地址由 Next 返回 404，避免把写请求或无效标识误重定向。`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
+Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；两个 PHP 入口只检查真实的 `index.php` 或 `api.php` 文件，并显式把 `SCRIPT_NAME` 与 `PATH_INFO` 传给 FastCGI，保证插件 action 和 provider 路由不会被完整 URI 的物理文件检查误拦。旧播放页 `/index.php/vod/play/id/<vod_id>/sid/<sid>/nid/<nid>.html`、rewrite `/vodplay/<vod_id>-<sid>-<nid>.html` 和五个旧游戏 label 地址的 GET/HEAD 会在通用 PHP 规则之前交给 Next 迁移规则并返回单跳 `301`；其他方法继续进入 MacCMS PHP。播放别名共享 1～2147483647 的正整数校验，联机邀请仅保留 `[A-Z2-9]{6}` 房间码；非数字播放地址、非法房间码和外部跳转参数不会进入重定向目标。`/game-socket` 只接受浏览器 Origin 精确为 `https://react.ping2.my` 的 GET WebSocket 握手，并在代理到现有 `127.0.0.1:8787` 服务前把 Host/Origin 固定改写为主站已允许值；这不会扩大独立服务的允许来源，也不会把浏览器 Cookie 交给它。`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
 
 测试域名的夸克兼容凭证由 Next 路由隔离承载，不修改共享 MacCMS PHP：
 `POST /api/native-playback-ticket` 只接受 `react.ping2.my` 的同源 JSON，并且只允许
@@ -248,7 +251,7 @@ API-only 在替换文件前为旧插件目录和旧应用控制器生成同一�
 
 默认全量发布顺序如下：
 
-1. 在本地重新执行测试、Lint、React 类型/构建/E2E、模板检查、兼容验证和预览验证。
+1. `deploy-theme.sh` 的本地 full gate 执行 `npm test`、Lint、模板检查、兼容验证、预览验证、打包和归档验证；它不会自行执行 `npm ci`、React typecheck、E2E 或 `build:web`。需要完整 React 门禁时，应先按本文“开发验证”命令或 CI 完成这些步骤。
 2. 重建 `dist/`，验证主题、两个插件、播放器和联机游戏服务五个发布归档。
 3. 上传主题、`pingfangdevice` 与 `pingfangapi` 归档到远端受控临时路径；播放器归档不上传，游戏服务由后续独立阶段处理。
 4. 在修改任何线上文件前解压并检查必需文件、全部插件 PHP 语法、数据库连接及 API 所需的 `ulog_point`、`ulog_duration` 两列。
@@ -436,7 +439,7 @@ API_ROLLBACK_BACKUP=<id> npm run rollback:api
 
 ## CI
 
-`.github/workflows/ci.yml` 在每次 push 和 pull request 上运行，环境为 Node.js 22.22.0 和 PHP 8.4。CI 先执行 `npm ci` 并安装 Playwright Chromium，再运行仓库测试、前端检查、React 类型检查、生产构建与浏览器 E2E、模板检查、兼容验证、预览验证、打包和发布包验证。
+`.github/workflows/ci.yml` 在每次 push 和 pull request 上运行。`verify` job 使用 Node.js 22.22.0、PHP 8.4 和 Chromium，先执行 `npm ci`，再运行仓库测试、前端检查、React 类型检查、浏览器 E2E、生产构建与静态壳检查、模板检查、兼容验证、预览验证、打包和发布包验证。
 
 验证通过后，CI 按独立发布单元上传：
 
@@ -448,7 +451,9 @@ pingfangplayer-player -> dist/pingfangplayer-player.tar.gz
 pingfanggames-server -> dist/pingfanggames-server.tar.gz
 ```
 
-CI 只构建和保存归档，不连接生产服务器，也不执行部署、回滚或数据库维护。下载 CI 产物后仍应核对对应提交和归档内容，再进入有授权的发布流程。
+独立的 `performance` job 使用本地固定 fixture，对 `/`、`/videos` 和 `/vod/1` 各运行 5 次 Lighthouse，并保留 14 天报告。performance score、LCP、TBT 和 CLS 当前是 warning；只有脚本 330 KB 与样式 65 KB 预算会使该 job 失败。该实验室结果不能替代生产 RUM、CDN 或客户端播放 QoE。
+
+CI 只构建、检查和保存归档/报告，不连接生产服务器，也不执行部署、回滚或数据库维护。下载 CI 产物后仍应核对对应提交和归档内容，再进入有授权的发布流程。
 
 ## 修改工程脚本时的同步检查
 

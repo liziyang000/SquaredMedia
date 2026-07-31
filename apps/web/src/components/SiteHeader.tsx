@@ -7,19 +7,104 @@ const themes = [
   { id: "default", label: "液态影院", swatch: "theme-option-swatch-default" },
   { id: "blue-pink-purple", label: "极光夜幕", swatch: "theme-option-swatch-aurora" },
   { id: "poster-magazine", label: "海报画廊", swatch: "theme-option-swatch-poster" },
-  { id: "dunhuang-caisson", label: "敦煌流光", swatch: "theme-option-swatch-dunhuang" }
+  { id: "dunhuang-caisson", label: "敦煌流光", swatch: "theme-option-swatch-dunhuang" },
+  { id: "pixel-frog", label: "像素蛙", swatch: "theme-option-swatch-pixel" }
 ] as const;
 
 type ThemeId = (typeof themes)[number]["id"];
+type PixelConfettiEmitter = {
+  (options: Record<string, unknown>): void;
+  reset: () => void;
+};
+type PixelConfettiWindow = Window &
+  typeof globalThis & {
+    confetti?: {
+      create: (canvas: HTMLCanvasElement, options: { resize: boolean; useWorker: boolean; disableForReducedMotion: boolean }) => PixelConfettiEmitter;
+    };
+  };
+
+const THEME_STORAGE_KEY = "pingfang_theme";
+const THEME_TRANSITION_MS = 560;
+const PIXEL_CONFETTI_SCRIPT_ID = "pixel-theme-confetti-script";
+const PIXEL_CONFETTI_SRC = "/template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4";
+let pixelConfettiLoadPromise: Promise<boolean> | null = null;
+
+function hasPixelConfetti() {
+  return typeof (window as PixelConfettiWindow).confetti?.create === "function";
+}
+
+function loadPixelConfetti() {
+  if (hasPixelConfetti()) return Promise.resolve(true);
+  if (pixelConfettiLoadPromise) return pixelConfettiLoadPromise;
+
+  pixelConfettiLoadPromise = new Promise<boolean>((resolve) => {
+    let script = document.getElementById(PIXEL_CONFETTI_SCRIPT_ID) as HTMLScriptElement | null;
+    if (script?.dataset.loaded === "true") {
+      script.remove();
+      script = null;
+    }
+
+    script ??= document.createElement("script");
+    script.id = PIXEL_CONFETTI_SCRIPT_ID;
+    script.src = PIXEL_CONFETTI_SRC;
+    script.async = true;
+
+    const finish = (loaded: boolean) => {
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+      if (loaded && hasPixelConfetti()) {
+        script.dataset.loaded = "true";
+        resolve(true);
+      } else {
+        script.remove();
+        resolve(false);
+      }
+    };
+    const handleLoad = () => finish(true);
+    const handleError = () => finish(false);
+
+    script.addEventListener("load", handleLoad, { once: true });
+    script.addEventListener("error", handleError, { once: true });
+    if (!script.isConnected) document.head.appendChild(script);
+  }).finally(() => {
+    pixelConfettiLoadPromise = null;
+  });
+
+  return pixelConfettiLoadPromise;
+}
 
 function readStoredTheme(): ThemeId {
   if (typeof window === "undefined") return "default";
   try {
-    const value = window.localStorage.getItem("pingfang_theme");
+    const value = window.localStorage.getItem(THEME_STORAGE_KEY);
     return themes.some((theme) => theme.id === value) ? (value as ThemeId) : "default";
   } catch {
     return "default";
   }
+}
+
+function applyThemeToDocument(theme: ThemeId) {
+  if (theme === "default") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.dataset.theme = theme;
+  }
+}
+
+function persistTheme(theme: ThemeId) {
+  try {
+    if (theme === "default") {
+      window.localStorage.removeItem(THEME_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+  } catch {
+    // The selected theme still applies when storage is unavailable.
+  }
+}
+
+function prefersReducedMotion() {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function ThemeOptions({ theme, onChange }: { theme: ThemeId; onChange: (theme: ThemeId) => void }) {
@@ -28,6 +113,7 @@ function ThemeOptions({ theme, onChange }: { theme: ThemeId; onChange: (theme: T
       className={`theme-option${theme === option.id ? " is-active" : ""}`}
       key={option.id}
       type="button"
+      data-theme-option={option.id}
       aria-pressed={theme === option.id}
       onClick={() => onChange(option.id)}
     >
@@ -49,10 +135,16 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
   const themeSwitcherRef = useRef<HTMLDivElement>(null);
   const themeTriggerRef = useRef<HTMLButtonElement>(null);
+  const themeTransitionTimerRef = useRef<number | null>(null);
+  const pixelParticleFrameRef = useRef<number | null>(null);
+  const pixelParticleRevisionRef = useRef(0);
+  const pixelParticleCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pixelConfettiRef = useRef<PixelConfettiEmitter | null>(null);
   const homeIsCurrent = location.pathname === "/";
   const videosAreCurrent = ["/videos", "/categories", "/category/", "/search", "/vod/", "/watch/", "/trial/", "/rankings/"].some(
     (path) => location.pathname === path || location.pathname.startsWith(path)
   );
+  const gamesAreCurrent = location.pathname === "/games" || location.pathname.startsWith("/games/");
 
   useEffect(() => {
     setTheme(readStoredTheme());
@@ -61,13 +153,23 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
 
   useEffect(() => {
     if (!themeHydrated) return;
-    document.documentElement.dataset.theme = theme;
-    try {
-      document.defaultView?.localStorage.setItem("pingfang_theme", theme);
-    } catch {
-      // The selected theme still applies when storage is unavailable.
-    }
+    applyThemeToDocument(theme);
+    persistTheme(theme);
   }, [theme, themeHydrated]);
+
+  useEffect(
+    () => () => {
+      if (themeTransitionTimerRef.current !== null) window.clearTimeout(themeTransitionTimerRef.current);
+      if (pixelParticleFrameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
+        window.cancelAnimationFrame(pixelParticleFrameRef.current);
+      }
+      pixelParticleRevisionRef.current += 1;
+      pixelConfettiRef.current?.reset();
+      pixelParticleCanvasRef.current?.remove();
+      document.documentElement.classList.remove("theme-transitioning");
+    },
+    []
+  );
 
   useEffect(() => {
     document.body.classList.toggle("mobile-nav-open", drawerOpen);
@@ -125,9 +227,117 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
     setDrawerOpen(false);
     drawerToggleRef.current?.focus();
   };
+  const clearThemeTransition = () => {
+    if (themeTransitionTimerRef.current !== null) {
+      window.clearTimeout(themeTransitionTimerRef.current);
+      themeTransitionTimerRef.current = null;
+    }
+    document.documentElement.classList.remove("theme-transitioning");
+  };
+  const scheduleThemeTransition = () => {
+    clearThemeTransition();
+    void document.documentElement.offsetWidth;
+    document.documentElement.classList.add("theme-transitioning");
+    themeTransitionTimerRef.current = window.setTimeout(clearThemeTransition, THEME_TRANSITION_MS);
+  };
+  const resetPixelThemeParticles = () => {
+    if (pixelParticleFrameRef.current !== null && typeof window.cancelAnimationFrame === "function") {
+      window.cancelAnimationFrame(pixelParticleFrameRef.current);
+      pixelParticleFrameRef.current = null;
+    }
+    pixelConfettiRef.current?.reset();
+  };
+  const getPixelThemeConfetti = () => {
+    if (pixelConfettiRef.current) return pixelConfettiRef.current;
+    const confetti = (window as PixelConfettiWindow).confetti;
+    if (!document.body || !confetti || typeof confetti.create !== "function") return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "pixel-edge-particles";
+    canvas.setAttribute("aria-hidden", "true");
+    document.body.appendChild(canvas);
+
+    try {
+      const emitter = confetti.create(canvas, {
+        resize: true,
+        useWorker: true,
+        disableForReducedMotion: true
+      });
+      pixelParticleCanvasRef.current = canvas;
+      pixelConfettiRef.current = emitter;
+      return emitter;
+    } catch {
+      canvas.remove();
+      return null;
+    }
+  };
+  const launchPixelThemeParticles = () => {
+    if (prefersReducedMotion() || document.visibilityState === "hidden") return;
+    const emitter = getPixelThemeConfetti();
+    if (!emitter) return;
+
+    emitter.reset();
+    const compact = window.innerWidth <= 760;
+    const positions = compact ? [0.2, 0.5, 0.8] : [0.12, 0.31, 0.5, 0.69, 0.88];
+    const particleCount = compact ? 2 : 3;
+    positions.forEach((position, index) => {
+      [
+        { origin: { x: 0.005, y: position }, angle: 0 },
+        { origin: { x: 0.995, y: position }, angle: 180 },
+        { origin: { x: position, y: 0.005 }, angle: 270 },
+        { origin: { x: position, y: 0.995 }, angle: 90 }
+      ].forEach(({ origin, angle }) => {
+        emitter({
+          particleCount,
+          angle,
+          spread: 18,
+          startVelocity: particleCount === 2 ? 14 : 20,
+          decay: 0.91,
+          gravity: 0,
+          ticks: 48,
+          colors: ["#b9e84a", "#fff0c6", "#6f8128", "#ff8a78"],
+          shapes: ["square"],
+          scalar: index % 2 === 0 ? 0.64 : 0.48,
+          flat: true,
+          origin
+        });
+      });
+    });
+  };
   const chooseTheme = (nextTheme: ThemeId) => {
+    const particleRevision = ++pixelParticleRevisionRef.current;
+    scheduleThemeTransition();
+    resetPixelThemeParticles();
+    applyThemeToDocument(nextTheme);
+    persistTheme(nextTheme);
     setTheme(nextTheme);
     setThemeMenuOpen(false);
+    if (nextTheme === "pixel-frog" && !prefersReducedMotion() && document.visibilityState !== "hidden") {
+      const launch = () => {
+        pixelParticleFrameRef.current = null;
+        if (pixelParticleRevisionRef.current !== particleRevision || document.documentElement.dataset.theme !== "pixel-frog") return;
+        if (hasPixelConfetti()) {
+          launchPixelThemeParticles();
+          return;
+        }
+        void loadPixelConfetti().then((loaded) => {
+          if (
+            loaded &&
+            pixelParticleRevisionRef.current === particleRevision &&
+            document.documentElement.dataset.theme === "pixel-frog" &&
+            !prefersReducedMotion() &&
+            document.visibilityState !== "hidden"
+          ) {
+            launchPixelThemeParticles();
+          }
+        });
+      };
+      if (typeof window.requestAnimationFrame === "function") {
+        pixelParticleFrameRef.current = window.requestAnimationFrame(launch);
+      } else {
+        launch();
+      }
+    }
   };
 
   return (
@@ -160,6 +370,9 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
             </Link>
             <Link to="/categories" aria-current={videosAreCurrent ? "page" : undefined}>
               视频
+            </Link>
+            <Link to="/games" aria-current={gamesAreCurrent ? "page" : undefined}>
+              游戏
             </Link>
           </nav>
           <div className="header-search-wrap">
@@ -235,6 +448,9 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
           </Link>
           <Link to="/categories" aria-current={videosAreCurrent ? "page" : undefined} onClick={closeDrawer}>
             视频
+          </Link>
+          <Link to="/games" aria-current={gamesAreCurrent ? "page" : undefined} onClick={closeDrawer}>
+            游戏
           </Link>
         </nav>
         <div className="mobile-drawer-section mobile-drawer-account">

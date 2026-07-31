@@ -76,7 +76,7 @@
 - `addons/pingfangdevice` 可被 MacCMS 加载，且 `install.sql` 已用实际表前缀执行；
 - `app_begin` 钩子已启用，否则设备撤销和过期不会在普通请求中持续生效；
 - 若主题使用 `url('pingfangdevice/...')`，`application/index/controller/Pingfangdevice.php` 已复制到前台控制器目录；只启用原生插件路由时则走 `controller/Index.php`；
-- 当前主题中的登录表单、用户菜单、设备页、视频筛选、详情页线路检测和联机票据端点与这些兼容路由保持一致；游戏服务由完整部署流程安装，也可按 `services/game-server/README.md` 单独更新。
+- 当前 MacCMS 主题与 React 前台中的登录、设备、线路检测和联机票据调用均与这些兼容路由保持一致。React 详情页直接向同源 `/index.php/pingfangdevice/sourceQuality` 提交 `vod_id`、`nid` 并只保存脱敏健康排序；会员联机 iframe 直接向同源 `/index.php/pingfangdevice/gameTicket` 取得短票据，浏览器 Cookie 不转发给独立游戏服务。游戏服务由完整部署流程安装，也可按 `services/game-server/README.md` 单独更新。
 
 ### 测试定位
 
@@ -152,7 +152,7 @@ React 账号页固定每页 24 条，只选择当前页；底层 ID 超过单次
 
 `npm run package` 生成 `dist/pingfangapi.tar.gz`。`npm run deploy` 会先安装 `pingfangdevice`，再备份并安装 `pingfangapi`，按配置名合并保留后台已经保存的插件配置，把应用控制器复制到 `application/index/controller/Pingfangapi.php`，检查 PHP 语法、设备插件依赖及 `ulog_point`、`ulog_duration` 数据列。插件不创建表、不修改 hook，也不会部署 React 静态文件。
 
-首次建立生产 API、但不切换主题时，使用 `DEPLOY_SCOPE=backend npm run deploy` 安装并验证 `pingfangdevice` 与 `pingfangapi`。服务器已经具备这套依赖基线后，可使用 `DEPLOY_SCOPE=api npm run deploy` 只上传和替换 `pingfangapi` 及其应用控制器。API-only 会在修改前核对设备服务和 hook 文件摘要、`app_begin` 登记及设备会话表结构；不匹配时拒绝部署，不会自动更新设备插件。
+首次建立生产 API、但不切换主题时，使用 `DEPLOY_SCOPE=backend npm run deploy` 安装并验证 `pingfangdevice` 与 `pingfangapi`。服务器已经具备这套依赖基线后，可使用 `DEPLOY_SCOPE=api npm run deploy` 让 MacCMS 阶段只上传和替换 `pingfangapi` 及其应用控制器。API-only 会在修改前核对设备服务和 hook 文件摘要、`app_begin` 登记及设备会话表结构；不匹配时拒绝部署，不会自动更新设备插件。这里的 scope 只约束 MacCMS 阶段；根级 `npm run deploy` 在其成功后仍会进入联机游戏部署，不能把 `api` 理解为“整个命令只接触 API”。
 
 React 生产构建可从 `apps/web/.env.example` 复制同源配置：
 

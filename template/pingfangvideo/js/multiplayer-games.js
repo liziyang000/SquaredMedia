@@ -120,6 +120,8 @@
   }
 
   function roomCodeFromLocation() {
+    var bridgedRoom = normalizeRoomCode(root.dataset.gameRoom);
+    if (bridgedRoom) return bridgedRoom;
     try {
       return normalizeRoomCode(new URL(window.location.href).searchParams.get("room"));
     } catch (error) {
@@ -127,13 +129,37 @@
     }
   }
 
+  function parentBridgeOrigin() {
+    try {
+      return new URL(document.referrer).origin;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function syncParentRoom(code) {
+    if (root.dataset.gameParentBridge !== "true" || window.parent === window) return false;
+    window.parent.postMessage(
+      {
+        type: "pingfang:multiplayer-room",
+        game: gameType,
+        room: code
+      },
+      parentBridgeOrigin() || "*"
+    );
+    return true;
+  }
+
   function roomInviteUrl(code) {
-    var url = new URL(window.location.href);
+    var inviteBase = root.dataset.gameInviteBase;
+    var parentOrigin = parentBridgeOrigin();
+    var url = inviteBase && parentOrigin ? new URL(inviteBase, parentOrigin) : new URL(window.location.href);
     url.searchParams.set("room", code);
     return url.href;
   }
 
   function setRoomInLocation(code) {
+    if (syncParentRoom(code)) return;
     try {
       var url = new URL(window.location.href);
       if (code) url.searchParams.set("room", code);

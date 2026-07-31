@@ -281,7 +281,7 @@ export function CatalogPage() {
   const { typeId } = useParams();
   const [params] = useSearchParams();
   return (
-    <ContentBoundary request={catalogQuery(typeId, params)} readyTitle="筛选完成" readyDescription="正在呈现符合条件的影片…">
+    <ContentBoundary request={catalogQuery(typeId, params)}>
       {(content) => <CatalogContent content={content} typeId={typeId} params={params} />}
     </ContentBoundary>
   );
@@ -346,7 +346,7 @@ export function SearchPage() {
   };
 
   return (
-    <ContentBoundary request={request} readyTitle="搜索完成" readyDescription="正在呈现匹配的影片…">
+    <ContentBoundary request={request}>
       {(content) => {
         const result = {
           items: content.videos,

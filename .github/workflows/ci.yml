@@ -95,3 +95,41 @@ jobs:
         with:
           name: pingfangapi-addon
           path: dist/pingfangapi.tar.gz
+
+  performance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Install frontend tooling
+        run: npm ci
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+
+      - name: Install Lighthouse browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Lighthouse performance gate
+        run: |
+          export CHROME_PATH="$(node -e 'process.stdout.write(require("@playwright/test").chromium.executablePath())')"
+          npm run performance:lighthouse
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: output/lighthouse
+          if-no-files-found: warn
+          retention-days: 14

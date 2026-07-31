@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import type { PropsWithChildren } from "react";
 
 import { AppProviders } from "./AppProviders";
@@ -12,28 +11,18 @@ export const metadata: Metadata = {
   icons: { icon: "/template/pingfangvideo/images/brand/favicon.ico" }
 };
 
-function AppFallback() {
-  return (
-    <main className="home-status-shell" aria-live="polite">
-      <section className="home-status-panel" role="status">
-        <span className="brand-emblem" aria-hidden="true" />
-        <p className="migration-kicker">SquaredMedia</p>
-        <h1>正在加载页面</h1>
-        <p>正在准备内容与会员会话…</p>
-      </section>
-    </main>
-  );
-}
+const themeBootstrapScript = `(function(){try{var theme=window.localStorage.getItem("pingfang_theme");if(theme==="blue-pink-purple"||theme==="poster-magazine"||theme==="dunhuang-caisson"||theme==="pixel-frog"){document.documentElement.setAttribute("data-theme",theme);}else{document.documentElement.removeAttribute("data-theme");}}catch(error){}})();`;
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
       <body>
-        <Suspense fallback={<AppFallback />}>
-          <AppProviders>
-            <AppShell>{children}</AppShell>
-          </AppProviders>
-        </Suspense>
+        <AppProviders>
+          <AppShell>{children}</AppShell>
+        </AppProviders>
       </body>
     </html>
   );

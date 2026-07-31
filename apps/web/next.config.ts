@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
     if (!localMacCmsOrigin) return [];
 
     return [
+      {
+        source: "/react-runtime/multiplayer-games.js",
+        destination: `${localMacCmsOrigin}/template/pingfangvideo/js/multiplayer-games.js`
+      },
       { source: "/react-api.php", destination: `${localMacCmsOrigin}/server/react-api.php` },
       { source: "/index.php", destination: `${localMacCmsOrigin}/server/index.php` },
       { source: "/index.php/:path*", destination: `${localMacCmsOrigin}/server/index.php/:path*` },

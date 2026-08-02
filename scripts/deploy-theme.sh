@@ -103,7 +103,7 @@ clear_maccms_cache() {
 }
 
 verify_deployed_site() {
-  local port verify_url verify_file status bytes
+  local port verify_url verify_file status bytes attempt
 
   if [[ -z "$DEPLOY_SITE_HOST" ]]; then
     return
@@ -120,12 +120,18 @@ verify_deployed_site() {
   fi
   verify_url="${DEPLOY_SITE_SCHEME}://${DEPLOY_SITE_HOST}/"
   verify_file="$deploy_tmp_dir/site-verification.html"
-  if ! status="$(curl -k -sS -L --max-time 30 \
-    --resolve "${DEPLOY_SITE_HOST}:${port}:127.0.0.1" \
-    -o "$verify_file" -w '%{http_code}' "$verify_url")"; then
-    echo "Deployed site verification request failed for ${verify_url}" >&2
-    exit 1
-  fi
+  for attempt in 1 2; do
+    if status="$(curl -k -sS -L --max-time 30 \
+      --resolve "${DEPLOY_SITE_HOST}:${port}:127.0.0.1" \
+      -o "$verify_file" -w '%{http_code}' "$verify_url")"; then
+      break
+    fi
+    if [[ "$attempt" == "2" ]]; then
+      echo "Deployed site verification request failed for ${verify_url}" >&2
+      exit 1
+    fi
+    echo "Deployed site warm-up request failed; retrying ${verify_url}" >&2
+  done
 
   if [[ ! "$status" =~ ^[23][0-9][0-9]$ ]]; then
     echo "Deployed site verification failed for ${verify_url}: HTTP ${status}" >&2
@@ -177,7 +183,7 @@ $newPath = getenv('NEW_ADDON_CONFIG');
 $existing = include $existingPath;
 $new = include $newPath;
 if (!is_array($existing) || !is_array($new)) {
-    fwrite(STDERR, "Addon config preservation failed: invalid config file.\n");
+    file_put_contents('php://stderr', "Addon config preservation failed: invalid config file.\n");
     exit(1);
 }
 $values = [];
@@ -196,7 +202,7 @@ $content = "<?php\n\nreturn " . var_export($new, true) . ";\n";
 $tempPath = $newPath . '.tmp.' . getmypid();
 if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newPath)) {
     @unlink($tempPath);
-    fwrite(STDERR, "Addon config preservation failed: unable to update config.\n");
+    file_put_contents('php://stderr', "Addon config preservation failed: unable to update config.\n");
     exit(1);
 }
 PHP_ADDON_CONFIG
@@ -236,17 +242,20 @@ if (!in_array($addon, $config['hooks']['app_begin'], true)) {
 $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
 $tempPath = $path . '.tmp.' . getmypid();
 if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
-    fwrite(STDERR, "Failed to back up addon hook config.\n");
+    file_put_contents('php://stderr', "Failed to back up addon hook config.\n");
     exit(1);
 }
 if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $path)) {
     @unlink($tempPath);
-    fwrite(STDERR, "Failed to update addon hook config.\n");
+    file_put_contents('php://stderr', "Failed to update addon hook config.\n");
     exit(1);
+}
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate($path, true);
 }
 $verified = include $path;
 if (!in_array($addon, $verified['hooks']['app_begin'] ?? [], true)) {
-    fwrite(STDERR, "Addon app_begin hook verification failed.\n");
+    file_put_contents('php://stderr', "Addon app_begin hook verification failed.\n");
     exit(1);
 }
 PHP_CONFIG
@@ -258,7 +267,7 @@ $addon = getenv('ADDON_NAME');
 $dbFile = $root . '/application/database.php';
 $sqlFile = $root . '/addons/' . $addon . '/install.sql';
 if (!is_file($dbFile) || !is_file($sqlFile)) {
-    fwrite(STDERR, "MacCMS database config or addon install.sql is missing.\n");
+    file_put_contents('php://stderr', "MacCMS database config or addon install.sql is missing.\n");
     exit(1);
 }
 $db = include $dbFile;
@@ -290,7 +299,7 @@ $table = $prefix . 'pingfang_device_session';
 $check = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
 $check->execute([$table, 'login_check_hash']);
 if ((int)$check->fetchColumn() !== 1) {
-    fwrite(STDERR, "Device session schema verification failed.\n");
+    file_put_contents('php://stderr', "Device session schema verification failed.\n");
     exit(1);
 }
 PHP_SQL

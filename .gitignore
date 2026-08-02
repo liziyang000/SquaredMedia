@@ -3,6 +3,7 @@
 ._*
 .idea/
 .vscode/
+.obsidian/
 .worktrees/
 
 # Dependencies
@@ -23,9 +24,11 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .cache/
+.lighthouseci/
 .phpunit.cache/
 coverage/
 output/playwright/
+output/lighthouse/
 .playwright-cli/
 *.tsbuildinfo
 

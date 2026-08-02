@@ -2031,14 +2031,20 @@
     renderHomeContinueRecords(section, localRecords);
 
     if (!window.MAC || !window.MAC.Ulog || typeof window.MAC.Ulog.Get !== "function") return;
+    if (!window.MAC.Cookie || typeof window.MAC.Cookie.Get !== "function" || !window.MAC.Cookie.Get("user_id")) return;
     try {
-      window.MAC.Ulog.Get(4, 1, 12, function (response) {
+      var handleResponse = function (response) {
         if (!response || String(response.code) !== "1") return;
         var remoteRecords = Array.isArray(response.list) ? response.list : response.data && Array.isArray(response.data.list) ? response.data.list : [];
         if (remoteRecords.length) {
           renderHomeContinueRecords(section, remoteRecords.concat(localRecords));
         }
-      });
+      };
+      if (window.MAC.Ulog.Get.length >= 6) {
+        window.MAC.Ulog.Get(1, 0, 4, 1, 12, handleResponse);
+      } else {
+        window.MAC.Ulog.Get(4, 1, 12, handleResponse);
+      }
     } catch (error) {}
   }
 

@@ -2159,10 +2159,14 @@ assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
-assert.match(ping2DeployEnv, /export DEPLOY_HOST=ping2\.my/);
+assert.match(ping2DeployEnv, /export DEPLOY_HOST=144\.34\.184\.95/);
 assert.match(ping2DeployEnv, /export DEPLOY_USER=root/);
 assert.match(ping2DeployEnv, /export DEPLOY_PATH=\/www\/wwwroot\/squaredMedia\/template/);
-assert.match(ping2DeployEnv, /export DEPLOY_PORT=22/);
+assert.match(ping2DeployEnv, /export DEPLOY_PORT=814/);
+assert.match(
+  ping2DeployEnv,
+  /export DEPLOY_GAME_ALLOWED_ORIGINS=https:\/\/www\.ping2video\.xyz,https:\/\/ping2video\.xyz/,
+);
 assert.match(ping2DeployEnv, /pingfangvideo_deploy_ed25519/);
 assert.match(ping2DeployEnv, /export DEPLOY_SITE_HOST=www\.ping2video\.xyz/);
 assert.match(ping2DeployEnv, /export DEPLOY_SITE_SCHEME=https/);
@@ -2192,6 +2196,8 @@ assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
 assert.match(deployScript, /DEPLOY_SITE_MARKER/);
 assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
 assert.match(deployScript, /Verified deployed site/);
+assert.match(deployScript, /for attempt in 1 2/);
+assert.match(deployScript, /Deployed site warm-up request failed; retrying/);
 assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
@@ -2205,6 +2211,8 @@ assert.match(deployScript, /application\/extra\/addons\.php/);
 assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /php -l "\$php_file"/);
 assert.match(deployScript, /Addon app_begin hook verification failed/);
+assert.match(deployScript, /opcache_invalidate\(\$path, true\)/);
+assert.doesNotMatch(deployScript, /fwrite\(STDERR/);
 assert.match(deployScript, /COLUMN_NAME = \?/);
 assert.match(deployScript, /Device session schema verification failed/);
 assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
@@ -2231,6 +2239,7 @@ assert.match(gameDeployScript, /healthz/);
 assert.match(gameDeployScript, /nginx -t/);
 assert.match(gameDeployScript, /\/etc\/init\.d\/nginx reload/);
 assert.match(gameDeployScript, /pingfangdevice\/config\.php/);
+assert.doesNotMatch(gameDeployScript, /fwrite\(STDERR/);
 assert.doesNotMatch(gameDeployScript, /source "\$service_env"/);
 assert.doesNotMatch(gameDeployScript, /DEPLOY_PASSWORD=/);
 
@@ -3083,7 +3092,11 @@ assert.match(appJs, /\[data-home-empty-state\], \[data-empty-state\]/);
 assert.match(appJs, /function syncActiveSelectionSemantics\(root\)/);
 assert.match(appJs, /window\.PingFangVideo\.syncActiveSelectionSemantics = syncActiveSelectionSemantics/);
 assert.match(appJs, /function initHomeContinueWatching/);
-assert.match(appJs, /MAC\.Ulog\.Get\(4, 1, 12/);
+assert.match(appJs, /MAC\.Cookie\.Get\("user_id"\)/);
+assert.match(appJs, /MAC\.Ulog\.Get\.length >= 6/);
+assert.match(appJs, /MAC\.Ulog\.Get\(1, 0, 4, 1, 12, handleResponse\)/);
+assert.match(appJs, /MAC\.Ulog\.Get\(4, 1, 12, handleResponse\)/);
+assert.doesNotMatch(appJs, /MAC\.Ulog\.Get\(4, 1, 12, function/);
 assert.match(appJs, /function initAutoNextPlayback/);
 assert.match(appJs, /\[data-next-play-url\]/);
 assert.match(appJs, /MacPlayer\.PlayLinkNext/);

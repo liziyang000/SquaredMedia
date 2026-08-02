@@ -2,6 +2,8 @@
 
 本文说明仓库内工程脚本的职责和操作边界。主题模板与插件本身的设计另见对应模块文档；这里以 `package.json`、`scripts/`、`.github/workflows/ci.yml` 和现有测试为事实来源。
 
+服务器重置后的现场操作、恢复顺序和验证证据统一记录在 [服务器重置后恢复记录](server-reset-recovery-runbook.md) 中。
+
 ## 环境要求
 
 - Node.js：CI 和联机游戏服务使用 Node.js 22；先用 `npm ci` 安装锁定版本的检查工具、播放器依赖和 `ws` 8.21.1。
@@ -133,7 +135,7 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-`DEPLOY_PATH` 必须是远端 MacCMS 的 `template` 目录，脚本以其父目录作为站点根目录。仓库中的 `scripts/deploy-ping2.env` 只保存当前目标的非密码连接参数、专用密钥路径和站点验证 Host；其中 `ping2.my` 是 SSH 主机，`www.ping2video.xyz` 才是公开站点域名。在确认目标无误且已获得发布授权后可执行：
+`DEPLOY_PATH` 必须是远端 MacCMS 的 `template` 目录，脚本以其父目录作为站点根目录。仓库中的 `scripts/deploy-ping2.env` 只保存当前目标的非密码连接参数、专用密钥路径和站点验证 Host；当前 SSH 目标是 `144.34.184.95:814`，`www.ping2video.xyz` 是公开站点域名。在确认目标无误且已获得发布授权后可执行：
 
 ```bash
 source scripts/deploy-ping2.env

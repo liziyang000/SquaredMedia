@@ -136,10 +136,10 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-For the `ping2.my` server, the non-secret deployment target is stored in
-`scripts/deploy-ping2.env`. This file distinguishes the SSH host `ping2.my`
-from the public site host `www.ping2video.xyz` and selects the dedicated local
-deployment identity:
+For the production server, the non-secret deployment target is stored in
+`scripts/deploy-ping2.env`. This file uses SSH target `144.34.184.95:814`,
+distinguishes it from the public site host `www.ping2video.xyz`, and selects the
+dedicated local deployment identity:
 
 ```bash
 source scripts/deploy-ping2.env

@@ -21,8 +21,7 @@
 SquaredMedia/
 ├── .github/workflows/ci.yml      # GitHub Actions 验证与发布包构建
 ├── addons/                       # MacCMS 插件源码
-│   ├── pingfangdevice/           # 登录设备与会话管理
-│   └── videolint/                # 视频库质量扫描与问题导出
+│   └── pingfangdevice/           # 登录设备与会话管理
 ├── docker/                       # PHP 8.4 + Apache 开发镜像
 ├── docs/                         # 规范、模块说明、运维文档和历史方案
 ├── ops/security/                 # 独立的安全规则数据快照
@@ -49,7 +48,6 @@ SquaredMedia/
 | `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
 | `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态筛选、线路检测和联机游戏短票据 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
-| `addons/videolint/` | 扫描视频库缺失字段、播放源、封面和重复数据，支持导出问题清单 | 否，当前需单独安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
 | `docs/` | 保存当前规范、模块上下文、操作手册和历史设计记录 | 不进入生产包 | 本文与各模块文档 |
@@ -82,7 +80,7 @@ npm run package
 npm run verify:release
 ```
 
-当前打包脚本生成主题、`pingfangdevice` 插件、独立播放器和联机游戏服务四个归档。`npm run deploy` 安装主题、`pingfangdevice` 并更新联机游戏进程，不安装独立播放器；`videolint` 也不在自动打包或部署范围内。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
+当前打包脚本生成主题、`pingfangdevice` 插件、独立播放器和联机游戏服务四个归档。`npm run deploy` 安装主题、`pingfangdevice` 并更新联机游戏进程，不安装独立播放器。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
 
 ### 数据维护
 

@@ -8,10 +8,9 @@
 | 插件 | 当前职责 | 持久化表 | 钩子 | 仓库发布链路 |
 | --- | --- | --- | --- | --- |
 | `pingfangdevice` | 管理会员设备会话；为主题提供动态筛选、线路检测和联机游戏短票据 | `__PREFIX__pingfang_device_session` | `app_begin` | 已纳入打包、发布校验和 SSH 部署 |
-| `videolint` | 扫描视频库质量，记录、筛选、导出并人工标记问题 | `__PREFIX__pingfang_video_lint_scan`、`__PREFIX__pingfang_video_lint_issue` | 无 | 当前未纳入自动打包或部署 |
 
-两个插件的主类 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
-部署环境必须另行执行对应 `install.sql`；卸载代码不会自动删除历史数据。
+插件主类的 `install()`、`uninstall()` 只返回成功，不负责建表或删表。
+部署环境必须另行执行 `install.sql`；卸载代码不会自动删除历史数据。
 
 ## `pingfangdevice`
 
@@ -84,46 +83,6 @@
 - `tests/game-access-ticket.test.php`：覆盖短票据签名、时效、游戏范围、游客拒绝和同源连接路径。
 - `tests/vod-source-quality.test.php`：覆盖指定集数跨源映射、HLS/直链多样本中位速度、健康线路排序和唯一推荐、过期分片容错、主清单分辨率排序与回退、异常/未知分辨率、样本不足、超时、伪媒体内容、失败/缺集/解析型地址状态、私网拒绝和响应地址脱敏。
 - 仓库的 `npm test` 会执行以上 PHP 测试。当前没有 `VodFilterOptions` 的专门行为测试。
-
-## `videolint`
-
-### 职责与扫描流程
-
-`videolint` 是只记录问题、不自动修复视频数据的后台扫描工具：
-
-1. 管理员从页面同步发起扫描，服务按 `vod_id` 分批读取 `vod` 表。
-2. 扫描标题、海报、分类、地区、年份、简介、播放源和启用状态，并可选检测远程海报可达性。
-3. 扫描结束后按“片名 + 年份”补充重复记录问题。
-4. 问题按 `critical`、`warning`、`info` 保存，可筛选、导出 CSV，或仅标记为已处理。
-
-### 结构与入口
-
-- `Videolint.php`：插件主类，无运行时钩子。
-- `controller/Index.php`：提供 `index`、`run`、`resolve`、`export` 四个动作。
-- `service/QualityScanner.php`：扫描编排、规则判断、批量落库、历史查询与处理状态更新。
-- `view/index/index.html`：扫描参数、结果列表、级别/片名筛选、历史切换和 CSV 导出界面。
-- `config.php`、`install.sql`：扫描参数声明与扫描/问题表结构。
-
-扫描表保存执行人、状态、范围、进度、参数、错误和时间；问题表保存视频标识、级别、问题码、字段、描述、快照及处理人/时间。当前没有外键、级联删除或历史清理逻辑。
-
-### 配置与运行边界
-
-服务会把批量大小限制为 50～2000、HEAD 超时限制为 1～10 秒、重复分组限制为 1～2000；`max_items_per_scan = 0` 表示扫描全库。扫描在 HTTP 请求内同步执行，并调用 `set_time_limit(0)`，大库运行时应评估 PHP-FPM、数据库和反向代理超时。
-
-`config.php` 声明了默认参数，但当前控制器和页面没有读取已保存的插件配置；实际运行值来自页面 POST，再由 `QualityScanner` 归一化。不要假设后台插件配置会自动改变扫描表单或执行参数。
-
-### 安全边界
-
-- `index`、`run`、`resolve` 检查 `session('admin_id')`；`run`、`resolve` 还要求 POST，但没有独立 CSRF Token。
-- `export` 当前只校验 `scan_id`，没有再次校验管理员会话。部署时不应假设所有动作都已在控制器内完成鉴权；应由路由/网关限制访问，或在后续代码修改中补齐校验。
-- 远程海报 HEAD 检测默认关闭。开启后，服务器会访问视频库中任意 HTTP(S) 海报地址、跟随最多 3 次跳转，且当前关闭 TLS 证书校验。仅应在可信数据和受控出网环境下启用，以避免内部地址探测、恶意重定向和不可信响应风险。
-- “标记已处理”只更新问题记录，不修改 `vod` 表，也不会验证源问题是否真的消失。
-
-### 安装与测试定位
-
-插件需要将 `addons/videolint` 放入可加载目录并执行 `install.sql`。当前打包脚本、发布校验、SSH 部署和 CI 产物只覆盖 `pingfangdevice`，没有为 `videolint` 提供自动安装或桥接控制器；其入口依赖 MacCMS 插件路由 `/addons/videolint/index/index`。
-
-当前没有 `videolint` 的专门单元或行为测试。修改扫描规则、鉴权、导出或 SQL 时，应先补充相应回归测试，再把插件加入发布链路后宣称可部署。
 
 ## 历史 Douban 文档
 

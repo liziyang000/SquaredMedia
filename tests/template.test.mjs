@@ -60,9 +60,6 @@ const requiredFiles = [
   "js/gsap.min.js",
   "js/canvas-confetti.min.js",
   "js/CANVAS-CONFETTI-ISC.txt",
-  "js/react.production.min.js",
-  "js/react-dom.production.min.js",
-  "js/rank-react.js",
   "js/app.js",
   "js/multiplayer-games.js",
   "player/preload.html",
@@ -152,8 +149,6 @@ const requiredFiles = [
   "html/user/plays.html",
   "html/user/reg.html",
   "html/user/findpass.html",
-  "js/hls.min.js",
-  "js/pingfang-player.js",
 ];
 
 const requiredRootFiles = [
@@ -1336,14 +1331,12 @@ const bannerContentRule = style.match(/\.banner-content\s*\{[\s\S]*?\}/)?.[0] ||
 const bannerCopyRule = style.match(/\.banner-copy\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerTitleRule = style.match(/\.banner-copy strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerExcerptRule = style.match(/\.banner-copy small\s*\{[\s\S]*?\}/)?.[0] || "";
-const heroCarouselStatsRule = style.match(/\.hero-carousel \.hero-stats\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerControlsRule = style.match(/\.banner-controls\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerControlsBeforeRule = style.match(/\.banner-controls::before\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotRule = style.match(/\.banner-dot\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotAfterRule = style.match(/\.banner-dot::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotActiveRule = style.match(/\.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotActiveAfterRule = style.match(/\.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
-const hotSearchTermRule = style.match(/\.hot-search-panel a\s*\{[\s\S]*?\}/)?.[0] || "";
 const pageHeadingRule = style.match(/\.hero-copy h1,[\s\S]*?\.player-head h1\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankListTitleRule = style.match(/\.rank-item strong,[\s\S]*?\.list-item strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardTitleRule = style.match(/\.vod-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1547,7 +1540,7 @@ assert.doesNotMatch(style, /\.filter-panel a\s*\{[^}]*scroll-snap-align/);
 assert.doesNotMatch(style, /\.filter-panel[\s\S]{0,80}overflow-x: auto/);
 assert.match(style, /\.filter-panel div:not\(\.filter-options\)/);
 assert.match(style, /\.letter-options a\s*\{[\s\S]*?min-width: 44px/);
-assert.match(style, /\.hero-stats/);
+assert.doesNotMatch(style, /\.hero-stats|\.stat-card/);
 assert.match(style, /\.hero-carousel/);
 assert.match(style, /\.hero \.wrap\s*\{[\s\S]*width: var\(--wrap\)/);
 assert.doesNotMatch(style, /width: min\(1500px, calc\(100vw - 48px\)\)/);
@@ -1715,7 +1708,6 @@ assert.doesNotMatch(bannerExcerptRule, /-webkit-line-clamp/);
 assert.doesNotMatch(bannerExcerptRule, /display: -webkit-box/);
 assert.doesNotMatch(bannerExcerptRule, /overflow: hidden/);
 assert.match(pageHeadingRule, /overflow-wrap: anywhere/);
-assert.equal(heroCarouselStatsRule, "");
 assert.match(bannerControlsRule, /position: absolute/);
 assert.match(bannerControlsRule, /left: 50%/);
 assert.match(bannerControlsRule, /bottom: 22px/);
@@ -1742,7 +1734,6 @@ assert.match(bannerDotActiveRule, /background: transparent/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
 for (const chipRule of [
-  hotSearchTermRule,
   posterRemarkRule,
   vodCardMetaChipRule,
   categoryChildLinkRule,
@@ -1797,10 +1788,7 @@ assert.doesNotMatch(playerShellRule, /min-height: 500px/);
 assert.doesNotMatch(playerMacChildrenRule, /min-height: 500px/);
 assert.match(mobilePlayerToolbarButtonRule, /flex: 1 1 0/);
 assert.match(mobilePlayerToolbarButtonRule, /min-width: 0/);
-assert.match(style, /\.pf-player\s*\{/);
-assert.match(style, /\.pf-player-controls\s*\{/);
-assert.match(style, /\.pf-player-progress\s*\{/);
-assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.pf-player-controls/);
+assert.doesNotMatch(style, /\.pf-player/);
 assert.match(style, /\.download-list/);
 assert.match(style, /\.download-list a[\s\S]*transition: border-color/);
 assert.match(style, /\.copyright-box/);
@@ -2124,7 +2112,7 @@ assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
 assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
 assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
 assert.match(packageScript, /excludedThemePackageFiles/);
-assert.match(packageScript, /"js\/rank-react\.js"/);
+assert.doesNotMatch(packageScript, /rank-react|pingfang-player|react\.production|hls\.min/);
 assert.match(packageScript, /"player\/prompt\.css"/);
 assert.match(packageScript, /replaceAssetVersionPlaceholders/);
 assert.match(packageScript, /normalizePackagePermissions/);
@@ -2556,8 +2544,7 @@ assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);
 assert.match(releaseVerifier, /excludedEntries/);
-assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
-assert.match(releaseVerifier, /pingfangvideo\/js\/hls\.min\.js/);
+assert.doesNotMatch(releaseVerifier, /react\.production|pingfang-player|rank-react|pingfangvideo\/js\/hls\.min/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
 assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 2);
@@ -2655,8 +2642,7 @@ assert.match(preview, /data-carousel-autoplay-toggle/);
 assert.doesNotMatch(preview, /liquid-lens/);
 assert.doesNotMatch(preview, /hero-stats/);
 assert.doesNotMatch(preview, /片库内容/);
-assert.match(preview, /hot-search-panel/);
-assert.match(preview, /热搜榜/);
+assert.doesNotMatch(preview, /hot-search-panel|热搜榜/);
 assert.match(preview, /data-rank-react-root/);
 assert.doesNotMatch(preview, /data-rank-visible-count/);
 assert.match(preview, /data-rank-react-list/);
@@ -2669,7 +2655,7 @@ assert.doesNotMatch(preview, /shuffleVideos/);
 assert.doesNotMatch(preview, /is-rank-extra/);
 assert.match(preview, /class="rank-refresh" href="\$\{url\("category", \{ sort: "hot" \}\)\}">查看更多<\/a>/);
 assert.doesNotMatch(preview, /换一换/);
-assert.match(preview, /PingFangRankReact\?\.mountAll\?\.\(app\)/);
+assert.doesNotMatch(preview, /PingFangRankReact/);
 assert.doesNotMatch(preview, /id="hotSearchPanel"/);
 assert.doesNotMatch(preview, /renderHeaderHotSearch/);
 assert.match(preview, /url\("category", \{ sort: "hot" \}\)/);
@@ -2811,9 +2797,7 @@ assert.match(phpRender, /login-icon-eye/);
 assert.match(phpRender, /login-icon-refresh/);
 assert.doesNotMatch(phpRender, /hero-stats/);
 assert.doesNotMatch(phpRender, /片库内容/);
-assert.match(phpRender, /hot-search-panel/);
-assert.match(phpRender, /热搜榜/);
-assert.doesNotMatch(phpRender, /render_hot_search_panel\(\$data\)[\s\S]{0,120}<a class="history-link"/);
+assert.doesNotMatch(phpRender, /hot-search-panel|热搜榜|render_hot_search_panel/);
 assert.match(phpRender, /path_for\('categories'\)/);
 assert.match(phpRender, /path_for\('videos'\)/);
 assert.match(phpRender, /\$route === 'videos'/);
@@ -2968,28 +2952,6 @@ assert.match(phpRender, /gbook_content/);
 assert.doesNotMatch(phpRender, /array_slice\(\$data\['categories'\], 0, 6\)/);
 
 const appJs = readThemeFile("js/app.js");
-const rankReact = readThemeFile("js/rank-react.js");
-const pingfangPlayer = readThemeFile("js/pingfang-player.js");
-assert.match(rankReact, /window\.React/);
-assert.match(rankReact, /window\.ReactDOM/);
-assert.match(rankReact, /ReactDOM\.createRoot/);
-assert.match(rankReact, /data-rank-react-root/);
-assert.match(rankReact, /data-rank-item/);
-assert.match(rankReact, /href: props\.moreUrl \|\| "#"/);
-assert.match(rankReact, /"查看更多"/);
-assert.doesNotMatch(rankReact, /data-rank-refresh/);
-assert.doesNotMatch(rankReact, /data-rank-visible-count/);
-assert.doesNotMatch(rankReact, /shuffleItems/);
-assert.doesNotMatch(rankReact, /rotateItems/);
-assert.doesNotMatch(rankReact, /setOffset/);
-assert.doesNotMatch(rankReact, /换一换/);
-assert.match(rankReact, /PingFangRankReact/);
-assert.doesNotMatch(rankReact, /unpkg|jsdelivr|localhost|127\.0\.0\.1/);
-assert.match(pingfangPlayer, /window\.player_data/);
-assert.match(pingfangPlayer, /\.m3u8/);
-assert.match(pingfangPlayer, /\.mp4/);
-assert.match(pingfangPlayer, /restoreOriginalPlayer/);
-assert.match(pingfangPlayer, /localStorage/);
 assert.match(appJs, /document\.querySelector\("\.mobile-drawer"\)/);
 assert.match(appJs, /document\.querySelector\("\.mobile-drawer-backdrop"\)/);
 assert.match(appJs, /mobile-nav-open/);

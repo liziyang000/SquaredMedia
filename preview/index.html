@@ -202,19 +202,6 @@ async function activateMultiplayerPreview() {
   await loadGameScripts(["../template/pingfangvideo/js/multiplayer-games.js"]);
 }
 
-function hotSearchTerms() {
-  if (Array.isArray(store.hotSearch) && store.hotSearch.length > 0) return store.hotSearch;
-  return [...store.videos].sort((a, b) => b.hits - a.hits).slice(0, 6).map((video) => video.title);
-}
-
-function hotSearchPanel(extraClass = "") {
-  return `
-    <div class="hot-search-panel${extraClass}" aria-label="热搜榜">
-      <span>热搜榜</span>
-      ${hotSearchTerms().map((term) => `<a href="${url("search", { wd: term })}" data-route="search">${escapeHtml(term)}</a>`).join("")}
-    </div>`;
-}
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -225,11 +212,6 @@ function escapeHtml(value) {
 
 function videoById(id) {
   return store.videos.find((video) => String(video.id) === String(id)) || store.videos[0];
-}
-
-function videosByCategory(category) {
-  if (!category) return store.videos;
-  return store.videos.filter((video) => video.category === category);
 }
 
 function filterVideos(category, area, year, genre, lang = "", letter = "") {
@@ -1150,7 +1132,6 @@ function render() {
   bindSearchForms();
   window.PingFangVideo?.markCurrentNav?.();
   window.PingFangVideo?.syncActiveSelectionSemantics?.(app);
-  window.PingFangRankReact?.mountAll?.(app);
   window.PingFangVideo?.initHomeEmptyStates?.(app);
   window.PingFangVideo?.initHomeLatestTabs?.();
   window.PingFangVideo?.initHomeContinueWatching?.(app);

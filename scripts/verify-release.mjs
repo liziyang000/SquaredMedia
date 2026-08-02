@@ -110,11 +110,6 @@ const requiredEntries = [
   "pingfangvideo/html/map/google.html",
 ];
 const excludedEntries = [
-  "pingfangvideo/js/hls.min.js",
-  "pingfangvideo/js/pingfang-player.js",
-  "pingfangvideo/js/react.production.min.js",
-  "pingfangvideo/js/react-dom.production.min.js",
-  "pingfangvideo/js/rank-react.js",
   "pingfangvideo/games/2048/index.html",
   "pingfangvideo/games/blockrain/index.html",
   "pingfangvideo/games/blockrain/jquery-1.11.1.min.js",

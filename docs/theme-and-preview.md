@@ -54,10 +54,10 @@
 - `vod/detail.html` 保留评分、星级、顶踩、收藏、历史和用户日志钩子。
 - 详情页打开后会自动通过 `pingfangdevice/sourceQuality` 检测默认集数；用户切换测速集数时立即重新检测，按钮保留手动重测能力。前台按服务端健康排序标记唯一推荐线路，并把“立即播放”指向该集推荐线路；用户明确点击其他线路时仍尊重其选择。HLS 主清单存在有效 `RESOLUTION` 时，前台同时显示最高声明分辨率和本次实际抽样的 Variant；发生清晰度回退时会明确标注。直链、媒体清单或异常声明显示“分辨率未知”，不会按线路名称猜测。结果只在当前标签页短期保存，不包含原始播放地址。
 - `vod/play.html` 与 `vod/player.html` 必须保留 `{$player_data}` 和 `{$player_js}`；后者是收费或试看场景使用的 iframe 播放页。
-- 当前生产播放链仍由 MacCMS 的 `{$player_data}`、`{$player_js}` 选择播放器。主题内的 `hls.min.js`、`pingfang-player.js` 和 `.pf-player` 样式是保留的实验原型，生产播放模板和本地预览都没有加载它们，且它们不进入主题发布包。
+- 当前生产播放链仍由 MacCMS 的 `{$player_data}`、`{$player_js}` 选择播放器。主题中曾保留但未加载、未发布的实验播放器脚本与样式已经移除。
 - `maccms-player/` 是独立的 HLS 性能版播放器源码，由单独归档交付，不属于主题，也不会被现有部署脚本自动安装；其功能边界、发布顺序和回滚要求见 `docs/development-and-operations.md`。
 - 主题 `app.js` 为独立播放器提供同集换线桥接：优先按短期健康排序选择同一集的其他播放组，没有健康记录时回退到原有页面顺序；自动换线会记录本轮已尝试线路，避免在线路之间循环，并临时传递播放进度。独立播放器在启动 12 秒仍未就绪、连续缓冲 8 秒、致命 HLS 错误或原生视频错误时触发换线；没有候选线路时保留手动重试/选线提示。播放器与主题需要按同一版本组合验收。
-- `react.production.min.js`、`react-dom.production.min.js` 和 `rank-react.js` 同样只保留在源码中，不进入生产发布包；榜单使用服务端/静态 HTML 和 `app.js`。
+- 榜单使用服务端/静态 HTML 和 `app.js`；未加载、未发布的 React 榜单实验脚本已经移除。
 
 ## 当前视觉与动效
 
@@ -171,12 +171,12 @@ npm run verify:release
 - `preview/index.html` 通过绝对路径 `/preview/data.json` 取数，直接双击文件会解析到错误的文件系统根路径，并可能受浏览器模块/CORS 限制。
 - Docker 通过 `PINGFANG_PREVIEW_DATA` 指向 `/var/www/html/preview/data.json`；宿主机 PHP CLI 未设置该变量时，`load_data()` 默认读取仓库根目录的 `preview/data.json`。
 - `npm run verify:preview` 验证宿主机 PHP CLI 渲染链；修改 Compose 或容器路径时仍应额外执行 `docker compose config` 并访问容器入口。
-- 主题内的实验播放器和 React 榜单脚本仅保留在源码、不进入主题发布包；独立的 `maccms-player/` 只进入自己的播放器归档，仍需明确发布授权和线上播放验收才能启用。
+- 主题内未加载、未发布的实验播放器和 React 榜单脚本已移除；独立的 `maccms-player/` 只进入自己的播放器归档，仍需明确发布授权和线上播放验收才能启用。
 
 ## 历史文档状态
 
 - `docs/superpowers/specs/2026-06-27-cinematic-premium-theme-design.md`：早期视觉基线，部分首页结构已被后续迭代替代。
 - `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md` 与对应 plan：其中的全站卡片 hover 方案未启用，指针液态光斑也已移除；当前只保留首页入场、一次性区块渐入和轮播，仍应以 `app.js` 为准。
 - `docs/superpowers/specs/2026-06-29-home-mobile-polish-design.md` 与对应 plan：依赖的 `.hero-stats`、`.quick-types` 等首页结构已不存在。
-- `docs/superpowers/specs/2026-07-01-pingfang-player-design.md`、对应 plan 和 handoff：已更新为“原型保留但禁用”，与当前代码一致。
+- `docs/superpowers/specs/2026-07-01-pingfang-player-design.md`、对应 plan 和 handoff：记录的是已移除实验原型的历史决策，不代表当前源码仍保留该原型。
 - `docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md` 与对应 plan：核心主题切换和 scoped 布局已实现；仍应以当前 CSS、模板和测试为准。

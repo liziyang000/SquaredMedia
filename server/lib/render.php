@@ -12,28 +12,6 @@ function path_for(string $route, array $params = []): string
     return '/index.php?' . $query;
 }
 
-function hot_search_terms(array $data): array
-{
-    if (!empty($data['hotSearch']) && is_array($data['hotSearch'])) {
-        return array_values(array_filter(array_map('strval', $data['hotSearch'])));
-    }
-
-    $videos = $data['videos'];
-    usort($videos, static fn (array $a, array $b): int => ((int) $b['hits']) <=> ((int) $a['hits']));
-
-    return array_map(static fn (array $video): string => (string) $video['title'], array_slice($videos, 0, 6));
-}
-
-function render_hot_search_panel(array $data, string $extraClass = ''): string
-{
-    $links = implode('', array_map(
-        static fn (string $term): string => '<a href="' . e(path_for('search', ['wd' => $term])) . '">' . e($term) . '</a>',
-        hot_search_terms($data),
-    ));
-
-    return '<div class="hot-search-panel' . e($extraClass) . '" aria-label="热搜榜"><span>热搜榜</span>' . $links . '</div>';
-}
-
 function render_layout(array $data, string $title, string $content): string
 {
     $nav = '<a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>';
@@ -168,16 +146,6 @@ function render_home_shelf_card(array $video, bool $featured = false): string
   <span class="home-shelf-body"><strong>' . e($video['title']) . '</strong><small>' . e($meta) . '</small></span>
   <span class="home-shelf-score">' . e($video['score']) . '</span>
 </a>';
-}
-
-function render_home_shelf(string $className, string $title, string $headExtra, array $videos, bool $featured = false): string
-{
-    $cards = implode('', array_map(
-        static fn (array $video): string => render_home_shelf_card($video, $featured),
-        $videos,
-    ));
-
-    return '<section class="wrap home-shelf ' . e($className) . '"><div class="home-shelf-head"><h2>' . e($title) . '</h2>' . $headExtra . '</div><div class="home-shelf-rail">' . $cards . '</div></section>';
 }
 
 function render_home_latest_panel(string $tabKey, array $videos, bool $isActive = false): string

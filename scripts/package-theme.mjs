@@ -21,11 +21,6 @@ const assetVersionInputs = {
   __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js",
 };
 const excludedThemePackageFiles = new Set([
-  "js/hls.min.js",
-  "js/pingfang-player.js",
-  "js/react.production.min.js",
-  "js/react-dom.production.min.js",
-  "js/rank-react.js",
   "games/blockrain/jquery-1.11.1.min.js",
 ]);
 

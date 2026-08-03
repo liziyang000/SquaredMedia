@@ -13,6 +13,7 @@
     "blue-pink-purple": true,
     "poster-magazine": true,
     "dunhuang-caisson": true,
+    "digital-particles": true,
     "pixel-frog": true
   };
   var themeSwitcherDocumentReady = false;

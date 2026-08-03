@@ -8875,6 +8875,227 @@ html[data-theme="dunhuang-caisson"] .login-panel.verify-form .login-label {
   }
 }
 
+/* Digital particles theme */
+.theme-option-swatch-digital {
+  border-color: rgba(125, 211, 252, 0.72);
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(186, 230, 253, 0.92) 0 0) 3px 3px / 4px 4px no-repeat,
+    linear-gradient(rgba(56, 189, 248, 0.9) 0 0) 11px 4px / 3px 3px no-repeat,
+    linear-gradient(rgba(37, 99, 235, 0.96) 0 0) 5px 11px / 6px 4px no-repeat,
+    #06142f;
+  box-shadow: inset 0 0 8px rgba(56, 189, 248, 0.46), 0 0 8px rgba(37, 99, 235, 0.34);
+}
+
+html[data-theme="digital-particles"] {
+  --digital-night: #020713;
+  --digital-panel: #07152c;
+  --digital-blue: #2563eb;
+  --digital-cyan: #38bdf8;
+  --digital-ice: #bae6fd;
+  --bg: var(--digital-night);
+  --panel: rgba(7, 21, 44, 0.88);
+  --panel-soft: rgba(10, 30, 61, 0.9);
+  --text: #eff8ff;
+  --muted: #91add0;
+  --line: rgba(96, 165, 250, 0.28);
+  --line-hairline: rgba(96, 165, 250, 0.09);
+  --line-soft: rgba(96, 165, 250, 0.14);
+  --line-muted: rgba(96, 165, 250, 0.2);
+  --line-strong: rgba(125, 211, 252, 0.52);
+  --line-accent-soft: rgba(37, 99, 235, 0.28);
+  --line-accent: rgba(56, 189, 248, 0.48);
+  --line-accent-strong: rgba(125, 211, 252, 0.74);
+  --line-warm: rgba(37, 99, 235, 0.46);
+  --line-warm-strong: rgba(59, 130, 246, 0.62);
+  --line-gold: rgba(186, 230, 253, 0.42);
+  --accent: var(--digital-blue);
+  --accent-2: var(--digital-cyan);
+  --gold: var(--digital-ice);
+  --surface: rgba(37, 99, 235, 0.055);
+  --surface-strong: rgba(56, 189, 248, 0.1);
+  --surface-elevated: linear-gradient(145deg, rgba(29, 78, 216, 0.18), rgba(7, 21, 44, 0.9) 48%, rgba(56, 189, 248, 0.08));
+  --selected-bg: rgba(37, 99, 235, 0.18);
+  --selected-bg-strong: rgba(56, 189, 248, 0.2);
+  --selected-compact-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.24), 0 0 18px rgba(37, 99, 235, 0.18);
+  --selected-shadow: 0 0 0 1px rgba(56, 189, 248, 0.3), 0 18px 42px rgba(2, 7, 19, 0.46), 0 0 30px rgba(37, 99, 235, 0.16);
+  --focus-field-shadow: 0 0 0 1px rgba(125, 211, 252, 0.52), 0 0 0 4px rgba(37, 99, 235, 0.2);
+  --shadow: 0 30px 84px rgba(0, 4, 18, 0.56), 0 0 42px rgba(37, 99, 235, 0.13);
+  --shadow-soft: 0 18px 46px rgba(0, 4, 18, 0.42), 0 0 24px rgba(56, 189, 248, 0.08);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --brand-2: var(--digital-cyan);
+  --focus-ring: 0 0 0 3px rgba(125, 211, 252, 0.46), 0 0 0 6px rgba(37, 99, 235, 0.18);
+  --cinema-canvas:
+    radial-gradient(circle at 18% 10%, rgba(37, 99, 235, 0.25), transparent 32%),
+    radial-gradient(circle at 82% 22%, rgba(14, 165, 233, 0.18), transparent 34%),
+    radial-gradient(ellipse at 50% 112%, rgba(30, 64, 175, 0.32), transparent 48%),
+    linear-gradient(180deg, #010510 0%, #031027 52%, #020713 100%);
+  --cinema-glass:
+    linear-gradient(135deg, rgba(23, 57, 112, 0.72), rgba(7, 21, 44, 0.88) 52%, rgba(8, 34, 67, 0.82)),
+    rgba(7, 21, 44, 0.88);
+  --cinema-glass-soft: linear-gradient(145deg, rgba(19, 50, 99, 0.62), rgba(5, 18, 39, 0.82));
+  --cinema-glass-border: rgba(96, 165, 250, 0.34);
+  --cinema-glass-border-left: rgba(125, 211, 252, 0.58);
+  --cinema-glass-border-right: rgba(37, 99, 235, 0.48);
+  --cinema-header-wash: linear-gradient(180deg, rgba(1, 5, 16, 0.86), rgba(3, 16, 39, 0.22) 76%, transparent);
+  --cinema-header-shadow: 0 22px 64px rgba(0, 4, 18, 0.48), -8px 0 30px rgba(56, 189, 248, 0.1), 10px 0 34px rgba(37, 99, 235, 0.16), inset 0 1px 0 rgba(186, 230, 253, 0.14);
+  --cinema-glass-shadow: 0 30px 84px rgba(0, 4, 18, 0.5), 0 0 44px rgba(37, 99, 235, 0.12), inset 0 1px 0 rgba(186, 230, 253, 0.13);
+  --login-canvas:
+    radial-gradient(circle at 50% 32%, rgba(37, 99, 235, 0.3), transparent 38%),
+    radial-gradient(circle at 82% 20%, rgba(56, 189, 248, 0.16), transparent 30%),
+    linear-gradient(180deg, #010510, #031027 60%, #020713);
+}
+
+html[data-theme="digital-particles"].theme-transitioning::before {
+  background: linear-gradient(110deg, transparent 0 28%, rgba(37, 99, 235, 0.22) 40%, rgba(125, 211, 252, 0.7) 50%, rgba(37, 99, 235, 0.24) 60%, transparent 72%);
+  filter: blur(10px) saturate(1.3);
+}
+
+html[data-theme="digital-particles"] body {
+  background: var(--cinema-canvas);
+  background-attachment: fixed;
+}
+
+html[data-theme="digital-particles"] body::before {
+  background-image:
+    linear-gradient(rgba(96, 165, 250, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.055) 1px, transparent 1px),
+    radial-gradient(circle at 50% 28%, rgba(37, 99, 235, 0.12), transparent 42%);
+  background-position: center;
+  background-size: 48px 48px, 48px 48px, 100% 100%;
+  opacity: 0.72;
+  animation: digital-grid-drift 30s linear infinite;
+  -webkit-mask-image: linear-gradient(180deg, #000, rgba(0, 0, 0, 0.34));
+  mask-image: linear-gradient(180deg, #000, rgba(0, 0, 0, 0.34));
+}
+
+html[data-theme="digital-particles"] body::after {
+  position: fixed;
+  inset: -48px;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(186, 230, 253, 0.95) 0 0) 7% 14% / 4px 4px no-repeat,
+    linear-gradient(rgba(56, 189, 248, 0.82) 0 0) 16% 72% / 7px 7px no-repeat,
+    linear-gradient(rgba(37, 99, 235, 0.92) 0 0) 24% 38% / 3px 3px no-repeat,
+    linear-gradient(rgba(125, 211, 252, 0.72) 0 0) 31% 88% / 5px 5px no-repeat,
+    linear-gradient(rgba(59, 130, 246, 0.86) 0 0) 39% 20% / 8px 8px no-repeat,
+    linear-gradient(rgba(186, 230, 253, 0.76) 0 0) 47% 58% / 3px 3px no-repeat,
+    linear-gradient(rgba(14, 165, 233, 0.84) 0 0) 56% 8% / 5px 5px no-repeat,
+    linear-gradient(rgba(37, 99, 235, 0.74) 0 0) 63% 78% / 9px 9px no-repeat,
+    linear-gradient(rgba(125, 211, 252, 0.9) 0 0) 71% 44% / 4px 4px no-repeat,
+    linear-gradient(rgba(59, 130, 246, 0.82) 0 0) 79% 91% / 6px 6px no-repeat,
+    linear-gradient(rgba(186, 230, 253, 0.7) 0 0) 86% 26% / 3px 3px no-repeat,
+    linear-gradient(rgba(14, 165, 233, 0.86) 0 0) 93% 64% / 7px 7px no-repeat;
+  content: "";
+  opacity: 0.78;
+  pointer-events: none;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.9)) drop-shadow(0 0 14px rgba(37, 99, 235, 0.48));
+  animation: digital-particles-float 16s ease-in-out infinite alternate;
+}
+
+html[data-theme="digital-particles"] .brand-emblem {
+  border-color: rgba(125, 211, 252, 0.62);
+  border-radius: 6px;
+  background:
+    linear-gradient(rgba(125, 211, 252, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 211, 252, 0.14) 1px, transparent 1px),
+    linear-gradient(145deg, rgba(29, 78, 216, 0.82), rgba(3, 16, 39, 0.94));
+  background-size: 8px 8px, 8px 8px, auto;
+  box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.28), 0 0 22px rgba(37, 99, 235, 0.34);
+}
+
+html[data-theme="digital-particles"] .brand-emblem::after {
+  inset: auto 7px 7px auto;
+  width: 3px;
+  height: 3px;
+  border-radius: 0;
+  background: var(--digital-ice);
+  box-shadow: -7px 0 0 var(--digital-cyan), 0 -7px 0 var(--digital-blue), -7px -7px 0 rgba(125, 211, 252, 0.72);
+  transform: none;
+}
+
+html[data-theme="digital-particles"] .header-search button,
+html[data-theme="digital-particles"] .mobile-drawer-search button,
+html[data-theme="digital-particles"] .hero-search button,
+html[data-theme="digital-particles"] .channel-search button {
+  background: linear-gradient(135deg, var(--digital-cyan), var(--digital-blue));
+  box-shadow: 0 0 22px rgba(37, 99, 235, 0.34);
+}
+
+html[data-theme="digital-particles"] .hero-carousel {
+  border-color: rgba(96, 165, 250, 0.34);
+  box-shadow: 0 38px 120px rgba(0, 4, 18, 0.54), 0 0 60px rgba(37, 99, 235, 0.2), inset 0 1px 0 rgba(186, 230, 253, 0.14);
+}
+
+html[data-theme="digital-particles"] .hero-carousel::before {
+  background:
+    linear-gradient(rgba(186, 230, 253, 0.92) 0 0) 8% 18% / 4px 4px no-repeat,
+    linear-gradient(rgba(56, 189, 248, 0.8) 0 0) 18% 78% / 7px 7px no-repeat,
+    linear-gradient(rgba(37, 99, 235, 0.9) 0 0) 32% 34% / 3px 3px no-repeat,
+    linear-gradient(rgba(125, 211, 252, 0.76) 0 0) 48% 88% / 5px 5px no-repeat,
+    linear-gradient(rgba(59, 130, 246, 0.84) 0 0) 64% 16% / 8px 8px no-repeat,
+    linear-gradient(rgba(186, 230, 253, 0.7) 0 0) 76% 64% / 3px 3px no-repeat,
+    linear-gradient(rgba(14, 165, 233, 0.84) 0 0) 91% 32% / 6px 6px no-repeat,
+    linear-gradient(130deg, rgba(186, 230, 253, 0.1), transparent 20% 74%, rgba(37, 99, 235, 0.12));
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.8));
+  animation: digital-hero-particles 13s ease-in-out infinite alternate;
+}
+
+html[data-theme="digital-particles"] .hero-carousel .eyebrow {
+  border-color: rgba(125, 211, 252, 0.38);
+  background: rgba(37, 99, 235, 0.2);
+  box-shadow: inset 0 1px 0 rgba(186, 230, 253, 0.14), 0 0 22px rgba(37, 99, 235, 0.2);
+  color: var(--digital-ice);
+}
+
+html[data-theme="digital-particles"] .header-inner,
+html[data-theme="digital-particles"] .mobile-drawer,
+html[data-theme="digital-particles"] .hero-rank,
+html[data-theme="digital-particles"] .filter-panel,
+html[data-theme="digital-particles"] .detail-panel,
+html[data-theme="digital-particles"] .episode-box,
+html[data-theme="digital-particles"] .system-box,
+html[data-theme="digital-particles"] .game-stage-panel {
+  border-color: rgba(96, 165, 250, 0.3);
+  box-shadow: var(--cinema-glass-shadow);
+}
+
+@keyframes digital-grid-drift {
+  to {
+    background-position: 48px 48px, 48px 48px, center;
+  }
+}
+
+@keyframes digital-particles-float {
+  from {
+    transform: translate3d(-8px, 22px, 0) scale(0.99);
+  }
+
+  to {
+    transform: translate3d(12px, -28px, 0) scale(1.02);
+  }
+}
+
+@keyframes digital-hero-particles {
+  from {
+    background-position: 8% 18%, 18% 78%, 32% 34%, 48% 88%, 64% 16%, 76% 64%, 91% 32%, center;
+  }
+
+  to {
+    background-position: 10% 12%, 16% 70%, 34% 27%, 46% 81%, 66% 10%, 74% 56%, 89% 25%, center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="digital-particles"] body::before,
+  html[data-theme="digital-particles"] body::after,
+  html[data-theme="digital-particles"] .hero-carousel::before {
+    animation: none;
+    transform: none;
+  }
+}
+
 /* Pixel frog theme */
 .theme-option-swatch-pixel {
   border-color: rgba(255, 240, 198, 0.72);

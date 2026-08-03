@@ -65,6 +65,10 @@ function render_layout(array $data, string $title, string $content): string
           <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
           <span>敦煌流光</span>
         </button>
+        <button class="theme-option" type="button" data-theme-option="digital-particles" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-digital" aria-hidden="true"></span>
+          <span>数码粒子</span>
+        </button>
         <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
           <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
           <span>像素蛙</span>
@@ -107,6 +111,10 @@ function render_layout(array $data, string $title, string $content): string
       <button class="theme-option" type="button" data-theme-option="dunhuang-caisson" aria-pressed="false">
         <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
         <span>敦煌流光</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="digital-particles" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-digital" aria-hidden="true"></span>
+        <span>数码粒子</span>
       </button>
       <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
         <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>

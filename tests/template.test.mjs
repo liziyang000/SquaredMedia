@@ -1885,6 +1885,7 @@ assert.doesNotMatch(siteHeaderRule, /overflow: clip/);
 assert.doesNotMatch(style, /\.brand-logo[\s\S]{0,160}box-shadow/);
 assert.match(style, /\.user-menu/);
 assert.match(style, /\.user-avatar/);
+assert.match(style, /\[data-auth-member\]\[hidden\],\n\[data-auth-guest\]\[hidden\][\s\S]*display: none !important/);
 assert.match(style, /\.user-avatar[\s\S]*color: #fff/);
 assert.match(style, /--avatar-bg/);
 assert.match(style, /\.user-avatar-letter/);

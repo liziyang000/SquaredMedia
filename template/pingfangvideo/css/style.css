@@ -104,6 +104,11 @@ body.mobile-nav-open {
   overflow: hidden;
 }
 
+[data-auth-member][hidden],
+[data-auth-guest][hidden] {
+  display: none !important;
+}
+
 html.theme-transitioning::before {
   position: fixed;
   inset: 0;

@@ -63,9 +63,10 @@
 
 - 默认主题使用深夜蓝黑星空底色、紫蓝液态玻璃表面和高亮青色状态色；首页以全宽海报舞台和横向内容货架为主要视觉结构。
 - `blue-pink-purple`、`poster-magazine`、`dunhuang-caisson`、`digital-particles` 和 `pixel-frog` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
-- `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，默认主题不共用这套重排。
+- `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，登录页使用左对齐的杂志排版、硬边色块和偏移阴影；默认主题不共用这套重排。
+- 六套主题共用登录表单结构和交互，但视觉按主题适配：默认主题保留紫蓝液态玻璃，`blue-pink-purple` 使用青粉双辉光玻璃，`poster-magazine` 使用编辑设计，敦煌和像素青蛙延续各自既有样式，`digital-particles` 使用蓝色网格终端面板。
 - `pixel-frog` 使用深森林绿、亮青蛙绿、奶油白和少量珊瑚红，复用原创像素 SVG；标题、导航、按钮和标签使用本地中文像素字体，播放/搜索/关闭等功能符号使用独立像素 SVG。徽章跳动和四边向内的方形粒子只在用户主动切换时触发，并遵循 `prefers-reduced-motion`。
-- `digital-particles` 使用近黑蓝画布、冷蓝辉光表面和持续漂浮的方块粒子背景；粒子层不接收指针事件，并在 `prefers-reduced-motion` 下停止漂浮。
+- `digital-particles` 使用近黑蓝画布、4–10px 微圆角和冷蓝辉光表面；方块粒子按远、中、近三组使用不同尺寸与漂移距离，移动端减少粒子密度，粒子层不接收指针事件，并在 `prefers-reduced-motion` 下停止漂浮。
 - `gsap.min.js` 仅在首页、桌面精细指针且未启用 `prefers-reduced-motion` 时由 `app.js` 按需加载。GSAP 负责首页入场时间线和轮播切换；其他设备使用 CSS 轮播回退，卡片 hover 保持为 CSS。
 - 轮播背景只在图片预加载成功后写入 CSS；海报或背景请求失败时切换到主题内置玻璃渐变，避免破图图标和动态层重复请求。
 

@@ -11,6 +11,7 @@ const assetVersionPlaceholders = [
   "__PINGFANG_APP_VERSION__",
   "__PINGFANG_PROMPT_VERSION__",
   "__PINGFANG_GAME_VERSION__",
+  "__PINGFANG_BAMBOO_CICADA_VERSION__",
   "__PINGFANG_MULTIPLAYER_VERSION__",
 ];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
@@ -23,6 +24,7 @@ const requiredEntries = [
   "pingfangvideo/games/blockrain/Copyright",
   "pingfangvideo/games/blockrain/LICENSE.txt",
   "pingfangvideo/games/blockrain/blockrain.jquery.min.js",
+  "pingfangvideo/games/bamboo-cicada.js",
   "pingfangvideo/games/README.md",
   "pingfangvideo/games/init.js",
   "pingfangvideo/js/gsap.min.js",
@@ -49,6 +51,7 @@ const requiredEntries = [
   "pingfangvideo/html/label/comics.html",
   "pingfangvideo/html/label/game-2048.html",
   "pingfangvideo/html/label/game-blockrain.html",
+  "pingfangvideo/html/label/game-bamboo-cicada.html",
   "pingfangvideo/html/label/game-drawguess.html",
   "pingfangvideo/html/label/game-gomoku.html",
   "pingfangvideo/html/label/games.html",
@@ -222,6 +225,8 @@ const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/publi
 assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
 const blockrainHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-blockrain.html"], { encoding: "utf8" });
 assert.match(blockrainHtml, new RegExp(`games/init\\.js${assetVersionPattern.source}`));
+const bambooCicadaHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-bamboo-cicada.html"], { encoding: "utf8" });
+assert.match(bambooCicadaHtml, new RegExp(`games/bamboo-cicada\\.js${assetVersionPattern.source}`));
 const gomokuHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-gomoku.html"], { encoding: "utf8" });
 assert.match(gomokuHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
 const drawguessHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-drawguess.html"], { encoding: "utf8" });

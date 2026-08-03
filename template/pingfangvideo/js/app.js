@@ -23,6 +23,69 @@
   var drawerMotionTimer = null;
   var pageInertState = [];
 
+  function authCookie(name) {
+    if (window.MAC && window.MAC.Cookie && typeof window.MAC.Cookie.Get === "function") {
+      return window.MAC.Cookie.Get(name);
+    }
+
+    var prefix = encodeURIComponent(name) + "=";
+    var parts = document.cookie ? document.cookie.split(";") : [];
+    for (var index = 0; index < parts.length; index += 1) {
+      var part = parts[index].trim();
+      if (part.indexOf(prefix) === 0) return decodeURIComponent(part.slice(prefix.length));
+    }
+    return "";
+  }
+
+  function hasMemberSession() {
+    var userId = authCookie("user_id");
+    return userId !== undefined && userId !== null && String(userId) !== "" && String(userId) !== "0";
+  }
+
+  function loadAuthScripts() {
+    var markers = Array.prototype.slice.call(document.querySelectorAll("[data-auth-script]"));
+    return markers
+      .reduce(function (chain, marker) {
+        return chain.then(function () {
+          var source = marker.getAttribute("data-auth-script");
+          if (!source || marker.dataset.authScriptLoaded === "true") return undefined;
+
+          marker.dataset.authScriptLoaded = "true";
+          return new Promise(function (resolve, reject) {
+            var script = document.createElement("script");
+            script.src = source;
+            script.async = false;
+            script.addEventListener("load", resolve, { once: true });
+            script.addEventListener(
+              "error",
+              function () {
+                reject(new Error("Failed to load member game script: " + source));
+              },
+              { once: true }
+            );
+            document.body.appendChild(script);
+          });
+        });
+      }, Promise.resolve())
+      .catch(function (error) {
+        console.error(error);
+      });
+  }
+
+  function syncAuthState() {
+    var isMember = hasMemberSession();
+    document.querySelectorAll("[data-auth-member]").forEach(function (element) {
+      element.hidden = !isMember;
+    });
+    document.querySelectorAll("[data-auth-guest]").forEach(function (element) {
+      element.hidden = isMember;
+    });
+    document.documentElement.setAttribute("data-auth-state", isMember ? "member" : "guest");
+    if (isMember) loadAuthScripts();
+  }
+
+  syncAuthState();
+
   function setPageInert(isInert) {
     if (isInert) {
       if (pageInertState.length > 0) return;
@@ -196,7 +259,14 @@
       ) {
         return "videos";
       }
-      if (route === "games" || route === "game-2048" || route === "game-blockrain" || route === "game-gomoku" || route === "game-drawguess") {
+      if (
+        route === "games" ||
+        route === "game-2048" ||
+        route === "game-blockrain" ||
+        route === "game-bamboo-cicada" ||
+        route === "game-gomoku" ||
+        route === "game-drawguess"
+      ) {
         return "games";
       }
       if (route) return "";
@@ -211,7 +281,7 @@
     if (currentPath.indexOf("/vod") !== -1 || /\/label\/(categories|videos|hot|history)(?:\/|$)/.test(currentPath)) {
       return "videos";
     }
-    if (/\/label\/(games|game-2048|game-blockrain|game-gomoku|game-drawguess)(?:\.html)?(?:\/|$)/.test(currentPath)) {
+    if (/\/label\/(games|game-2048|game-blockrain|game-bamboo-cicada|game-gomoku|game-drawguess)(?:\.html)?(?:\/|$)/.test(currentPath)) {
       return "games";
     }
 

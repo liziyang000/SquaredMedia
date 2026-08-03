@@ -28,7 +28,7 @@
 - `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、站点地图和订阅输出。
 - `css/style.css`：全站样式、语义 token、五套主题和响应式规则；像素主题标题和控件使用本地 Fusion Pixel Font 12px 比例简体中文字形，字体及其 OFL-1.1 许可证位于 `css/fonts/`。
 - `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；像素主题切换时复用本地 `canvas-confetti` 1.9.4 浏览器构建生成一次性方形边缘粒子，ISC 许可证随文件保留；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间。
-- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证；不提供可匿名打开的独立 `index.html`。五子棋和你画我猜是一方实现，浏览器协议位于 `js/multiplayer-games.js`。所有游玩页都由 `html/label/game-*.html` 按 `$user.user_id` 服务端分支加载脚本。
+- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证，以及一方实现的竹知了三阶段节奏玩法；竹知了包含指针/键盘操作、动态共鸣区、竹风与反向事件、分项评级和 Web Audio 合成声音，不提供可匿名打开的独立 `index.html`。五子棋和你画我猜也是一方实现，浏览器协议位于 `js/multiplayer-games.js`。所有游玩页都由 `html/label/game-*.html` 按 `$user.user_id` 服务端分支加载脚本。
 - `images/`：站点、品牌及敦煌/像素主题 SVG；生产模板通过 `{$maccms.path_tpl}` 或主题 CSS 相对路径引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
@@ -92,7 +92,7 @@ HTTP GET /preview/index.html
   -> 重新调用首页标签页、轮播和动效初始化器
 ```
 
-静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只模拟会员视觉。2048 与俄罗斯方块可本地操作，联机页面因没有真实 MacCMS 登录票据会显示未连接，不能把该参数当作联机鉴权。
+静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只模拟会员视觉。2048、俄罗斯方块和竹知了可本地操作，联机页面因没有真实 MacCMS 登录票据会显示未连接，不能把该参数当作联机鉴权。
 
 ### PHP 预览链
 
@@ -134,6 +134,7 @@ http://127.0.0.1:8099/preview/index.html?route=home
 ```text
 http://127.0.0.1:8099/preview/index.html?route=games
 http://127.0.0.1:8099/preview/index.html?route=games&member=1
+http://127.0.0.1:8099/preview/index.html?route=game-bamboo-cicada&member=1
 http://127.0.0.1:8099/preview/index.html?route=game-gomoku&member=1
 http://127.0.0.1:8099/preview/index.html?route=game-drawguess&member=1
 ```

@@ -12,6 +12,7 @@ const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
 const appVersionPlaceholder = "__PINGFANG_APP_VERSION__";
 const promptVersionPlaceholder = "__PINGFANG_PROMPT_VERSION__";
 const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
+const bambooCicadaVersionPlaceholder = "__PINGFANG_BAMBOO_CICADA_VERSION__";
 const multiplayerVersionPlaceholder = "__PINGFANG_MULTIPLAYER_VERSION__";
 
 const requiredFiles = [
@@ -55,6 +56,7 @@ const requiredFiles = [
   "games/blockrain/LICENSE.txt",
   "games/blockrain/blockrain.jquery.min.js",
   "games/blockrain/jquery-1.11.1.min.js",
+  "games/bamboo-cicada.js",
   "games/README.md",
   "games/init.js",
   "js/gsap.min.js",
@@ -88,6 +90,7 @@ const requiredFiles = [
   "html/label/comics.html",
   "html/label/game-2048.html",
   "html/label/game-blockrain.html",
+  "html/label/game-bamboo-cicada.html",
   "html/label/game-drawguess.html",
   "html/label/game-gomoku.html",
   "html/label/games.html",
@@ -366,7 +369,9 @@ assert.match(head, /href="\{:mac_url_type\(\$type\)\}">\{\$type\.type_name\}<\/a
 assert.match(head, /mac_url\('user\/plays'\)/);
 assert.match(head, /mac_url\('user\/favs'\)/);
 assert.match(head, /class="user-menu"/);
-assert.match(head, /\$user\.user_id/);
+assert.doesNotMatch(head, /\$user\.user_id/);
+assert.equal((head.match(/data-auth-member/g) || []).length, 3);
+assert.equal((head.match(/data-auth-guest/g) || []).length, 2);
 assert.match(head, /mac_url\('user\/login'\)/);
 assert.match(head, /mac_url\('user\/index'\)/);
 assert.match(head, /url\('pingfangdevice\/index'\)/);
@@ -374,9 +379,9 @@ assert.match(head, /url\('pingfangdevice\/logout'\)/);
 assert.equal((head.match(/data-logout-link/g) || []).length, 2);
 assert.equal((head.match(/data-logout-redirect="\{:mac_url\('user\/login'\)\}"/g) || []).length, 2);
 assert.match(head, /data-avatar-random/);
-assert.match(head, /data-avatar-name="\{\$user\.user_name\|mac_default='用户'\}"/);
+assert.match(head, /data-avatar-name="用户"/);
 assert.match(head, /class="user-avatar-letter"/);
-assert.match(head, /\{if condition="\$user\.user_name neq ''"\}\{\$user\.user_name\|mac_substring=1\}\{else\/\}用\{\/if\}/);
+assert.match(head, /class="user-avatar-letter">用<\/span>/);
 assert.doesNotMatch(head, /user\.user_portrait/);
 assert.match(head, /class="user-dropdown"/);
 assert.match(head, />收藏</);
@@ -476,69 +481,100 @@ assert.match(comicsPage, /\{include file="public\/foot" \/\}/);
 
 const gamesPage = readThemeFile("html/label/games.html");
 assert.match(gamesPage, /seo_title="游戏大厅"/);
-assert.match(gamesPage, /\{if condition="\$user\.user_id gt 0"\}/);
+assert.doesNotMatch(gamesPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(gamesPage, /class="[^"]*\bgame-hub\b[^>]*data-auth-member hidden/);
+assert.match(gamesPage, /class="[^"]*\bgame-access-page\b[^>]*data-auth-guest hidden/);
 assert.match(gamesPage, /class="[^"]*\bgame-hub\b/);
 assert.match(gamesPage, /class="game-grid"/);
 assert.match(gamesPage, /mac_url\('label\/game-2048'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-blockrain'\)/);
+assert.match(gamesPage, /mac_url\('label\/game-bamboo-cicada'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-gomoku'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-drawguess'\)/);
 assert.match(gamesPage, />2048</);
 assert.match(gamesPage, />俄罗斯方块</);
+assert.match(gamesPage, />竹知了</);
 assert.match(gamesPage, />五子棋</);
 assert.match(gamesPage, />你画我猜</);
-assert.match(gamesPage, /\{else\/\}[\s\S]*class="game-login-gate"/);
+assert.match(gamesPage, /class="game-login-gate"/);
 assert.match(gamesPage, /登录后开启游戏大厅/);
 assert.match(gamesPage, /mac_url\('user\/login'\)/);
 assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
 
 const game2048Page = readThemeFile("html/label/game-2048.html");
-const game2048AuthBranch = game2048Page.slice(
-  game2048Page.indexOf('{if condition="$user.user_id gt 0"}'),
-  game2048Page.indexOf("{else/}"),
-);
 assert.match(game2048Page, /seo_title="2048"/);
-assert.match(game2048AuthBranch, /data-game-authenticated/);
-assert.match(game2048AuthBranch, /class="game-2048"/);
-assert.match(game2048AuthBranch, /\{\$maccms\.path_tpl\}games\/2048\/js\/game_manager\.js/);
-assert.match(game2048AuthBranch, /\{\$maccms\.path_tpl\}games\/2048\/js\/application\.js/);
-assert.match(game2048Page, /\{else\/\}[\s\S]*登录后才能开始游戏/);
+assert.doesNotMatch(game2048Page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(game2048Page, /data-game-authenticated[^>]*data-auth-member hidden/);
+assert.match(game2048Page, /class="game-2048"/);
+assert.match(game2048Page, /data-auth-script="\{\$maccms\.path_tpl\}games\/2048\/js\/game_manager\.js"/);
+assert.match(game2048Page, /data-auth-script="\{\$maccms\.path_tpl\}games\/2048\/js\/application\.js"/);
+assert.doesNotMatch(game2048Page, /<script[^>]+games\/2048/);
+assert.match(game2048Page, /data-auth-guest hidden[\s\S]*登录后才能开始游戏/);
 assert.match(game2048Page, /mac_url\('user\/login'\)/);
 assert.match(game2048Page, /\{include file="public\/foot" \/\}/);
 
 const gameBlockrainPage = readThemeFile("html/label/game-blockrain.html");
-const gameBlockrainAuthBranch = gameBlockrainPage.slice(
-  gameBlockrainPage.indexOf('{if condition="$user.user_id gt 0"}'),
-  gameBlockrainPage.indexOf("{else/}"),
-);
 assert.match(gameBlockrainPage, /seo_title="俄罗斯方块"/);
-assert.match(gameBlockrainAuthBranch, /data-game-authenticated/);
-assert.match(gameBlockrainAuthBranch, /data-blockrain-game/);
-assert.match(gameBlockrainAuthBranch, /class="blockrain-shell"/);
-assert.match(gameBlockrainAuthBranch, /data-blockrain-next/);
-assert.equal((gameBlockrainAuthBranch.match(/data-blockrain-action=/g) || []).length, 5);
-assert.match(gameBlockrainAuthBranch, /data-blockrain-action="drop"/);
-assert.match(gameBlockrainAuthBranch, /\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js/);
-assert.match(gameBlockrainAuthBranch, new RegExp(`\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}`));
-assert.doesNotMatch(gameBlockrainAuthBranch, /jquery-1\.11\.1\.min\.js/);
-assert.match(gameBlockrainPage, /\{else\/\}[\s\S]*登录后才能开始游戏/);
+assert.doesNotMatch(gameBlockrainPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(gameBlockrainPage, /data-game-authenticated[^>]*data-auth-member hidden/);
+assert.match(gameBlockrainPage, /data-blockrain-game/);
+assert.match(gameBlockrainPage, /class="blockrain-shell"/);
+assert.match(gameBlockrainPage, /data-blockrain-next/);
+assert.equal((gameBlockrainPage.match(/data-blockrain-action=/g) || []).length, 5);
+assert.match(gameBlockrainPage, /data-blockrain-action="drop"/);
+assert.match(gameBlockrainPage, /data-auth-script="\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js"/);
+assert.match(gameBlockrainPage, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}"`));
+assert.doesNotMatch(gameBlockrainPage, /jquery-1\.11\.1\.min\.js/);
+assert.doesNotMatch(gameBlockrainPage, /<script[^>]+games\/(?:blockrain|init)/);
+assert.match(gameBlockrainPage, /data-auth-guest hidden[\s\S]*登录后才能开始游戏/);
 assert.match(gameBlockrainPage, /mac_url\('user\/login'\)/);
 assert.match(gameBlockrainPage, /\{include file="public\/foot" \/\}/);
+
+const bambooCicadaPage = readThemeFile("html/label/game-bamboo-cicada.html");
+assert.match(bambooCicadaPage, /seo_title="竹知了"/);
+assert.doesNotMatch(bambooCicadaPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(bambooCicadaPage, /data-bamboo-cicada-game[^>]*data-auth-member hidden/);
+assert.match(bambooCicadaPage, /data-cicada-arena/);
+assert.match(bambooCicadaPage, /data-cicada-score/);
+assert.match(bambooCicadaPage, /data-cicada-sound/);
+assert.equal((bambooCicadaPage.match(/data-cicada-phase=/g) || []).length, 3);
+assert.match(bambooCicadaPage, /data-cicada-target/);
+assert.match(bambooCicadaPage, /data-cicada-energy/);
+assert.match(bambooCicadaPage, /data-cicada-event/);
+assert.match(bambooCicadaPage, /data-cicada-result-rhythm/);
+assert.match(
+  bambooCicadaPage,
+  new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/bamboo-cicada\\.js\\?v=${bambooCicadaVersionPlaceholder}"`),
+);
+assert.doesNotMatch(bambooCicadaPage, /<script[^>]+games\/bamboo-cicada\.js/);
+assert.match(bambooCicadaPage, /data-auth-guest hidden[\s\S]*登录后才能摇响竹知了/);
+assert.match(bambooCicadaPage, /mac_url\('user\/login'\)/);
+assert.match(bambooCicadaPage, /\{include file="public\/foot" \/\}/);
+
+const bambooCicadaJs = readThemeFile("games/bamboo-cicada.js");
+assert.match(bambooCicadaJs, /PointerEvent|pointerdown/);
+assert.match(bambooCicadaJs, /requestAnimationFrame/);
+assert.match(bambooCicadaJs, /AudioContext|webkitAudioContext/);
+assert.match(bambooCicadaJs, /localStorage/);
+assert.match(bambooCicadaJs, /prefers-reduced-motion/);
+assert.match(bambooCicadaJs, /reverse-warning/);
+assert.match(bambooCicadaJs, /judgeRevolution/);
+assert.match(bambooCicadaJs, /IntersectionObserver/);
+assert.doesNotMatch(bambooCicadaJs, /https?:\/\//);
 
 for (const [file, game, marker, loginText] of [
   ["html/label/game-gomoku.html", "gomoku", "data-gomoku-board", "登录后才能联机对弈"],
   ["html/label/game-drawguess.html", "drawguess", "data-draw-canvas", "登录后才能加入画室"],
 ]) {
   const page = readThemeFile(file);
-  const authBranch = page.slice(page.indexOf('{if condition="$user.user_id gt 0"}'), page.indexOf("{else/}"));
-  const guestBranch = page.slice(page.indexOf("{else/}"));
-  assert.match(authBranch, /data-multiplayer-game/);
-  assert.match(authBranch, new RegExp(`data-game-type="${game}"`));
-  assert.match(authBranch, new RegExp(marker));
-  assert.match(authBranch, /data-game-ticket-endpoint="\{:url\('pingfangdevice\/gameTicket'\)\}"/);
-  assert.match(authBranch, new RegExp(`\\{\\$maccms\\.path_tpl\\}js/multiplayer-games\\.js\\?v=${multiplayerVersionPlaceholder}`));
-  assert.match(guestBranch, new RegExp(loginText));
-  assert.doesNotMatch(guestBranch, /data-game-ticket-endpoint|js\/multiplayer-games\.js/);
+  assert.doesNotMatch(page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+  assert.match(page, /data-multiplayer-game[^>]*data-auth-member hidden/);
+  assert.match(page, new RegExp(`data-game-type="${game}"`));
+  assert.match(page, new RegExp(marker));
+  assert.match(page, /data-game-ticket-endpoint="\{:url\('pingfangdevice\/gameTicket'\)\}"/);
+  assert.match(page, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}js/multiplayer-games\\.js\\?v=${multiplayerVersionPlaceholder}"`));
+  assert.doesNotMatch(page, /<script[^>]+js\/multiplayer-games\.js/);
+  assert.match(page, new RegExp(`data-auth-guest hidden[\\s\\S]*${loginText}`));
   assert.match(page, /mac_url\('user\/login'\)/);
   assert.match(page, /\{include file="public\/foot" \/\}/);
 }
@@ -2110,6 +2146,7 @@ assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
 assert.match(packageScript, /__PINGFANG_APP_VERSION__/);
 assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
 assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
+assert.match(packageScript, /__PINGFANG_BAMBOO_CICADA_VERSION__/);
 assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
 assert.match(packageScript, /excludedThemePackageFiles/);
 assert.doesNotMatch(packageScript, /rank-react|pingfang-player|react\.production|hls\.min/);
@@ -2809,6 +2846,7 @@ assert.match(phpRender, /preview_member_enabled/);
 assert.match(phpRender, /render_game_login_gate/);
 assert.match(phpRender, /\$route === 'game-2048'/);
 assert.match(phpRender, /\$route === 'game-blockrain'/);
+assert.match(phpRender, /\$route === 'game-bamboo-cicada'/);
 assert.match(phpRender, /data-game-authenticated/);
 assert.match(phpRender, /漫画入口/);
 assert.match(phpRender, /文章入口/);
@@ -2972,8 +3010,15 @@ assert.match(appJs, /function currentNavSection\(\)/);
 assert.match(appJs, /data-nav-section/);
 assert.match(appJs, /game-2048/);
 assert.match(appJs, /game-blockrain/);
+assert.match(appJs, /game-bamboo-cicada/);
 assert.doesNotMatch(appJs, /var fallback = links\[0\]/);
 assert.match(appJs, /window\.PingFangVideo\.markCurrentNav = markCurrentNav/);
+assert.match(appJs, /function hasMemberSession\(\)/);
+assert.match(appJs, /MAC\.Cookie\.Get\("user_id"\)/);
+assert.match(appJs, /document\.querySelectorAll\("\[data-auth-member\]"\)/);
+assert.match(appJs, /document\.querySelectorAll\("\[data-auth-guest\]"\)/);
+assert.match(appJs, /document\.querySelectorAll\("\[data-auth-script\]"\)/);
+assert.match(appJs, /script\.async = false/);
 assert.match(appJs, /initLoginForms/);
 assert.match(appJs, /data-login-form/);
 assert.match(appJs, /function initLoginControls/);

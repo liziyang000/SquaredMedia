@@ -1,6 +1,5 @@
 {include file="public/head" seo_title="游戏大厅" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
-{if condition="$user.user_id gt 0"}
-<section class="wrap game-hub" aria-labelledby="gameHubTitle">
+<section class="wrap game-hub" aria-labelledby="gameHubTitle" data-auth-member hidden>
   <header class="game-hub-hero">
     <div>
       <span class="eyebrow">MEMBER ARCADE</span>
@@ -40,6 +39,24 @@
         <div class="game-card-actions">
           <a class="primary-btn" href="{:mac_url('label/game-blockrain')}">开始游戏</a>
           <a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">MIT · GitHub</a>
+        </div>
+      </div>
+    </article>
+
+    <article class="game-card game-card-bamboo-cicada">
+      <div class="game-card-art game-card-art-bamboo-cicada" aria-hidden="true">
+        <span class="bamboo-card-orbit"></span>
+        <span class="bamboo-card-line"></span>
+        <span class="bamboo-card-handle"></span>
+        <span class="bamboo-card-toy"><i></i><b></b></span>
+      </div>
+      <div class="game-card-copy">
+        <div class="game-card-meta"><span>传统声响玩具</span><span>拖动 · 体感节奏</span></div>
+        <h2>竹知了</h2>
+        <p>按住红色手柄绕圈甩动，找到最清亮的转速，让蝉鸣余音不断。</p>
+        <div class="game-card-actions">
+          <a class="primary-btn" href="{:mac_url('label/game-bamboo-cicada')}">摇响知了</a>
+          <span class="game-online-label"><i aria-hidden="true"></i>本地合成声音</span>
         </div>
       </div>
     </article>
@@ -85,8 +102,7 @@
 
   <p class="game-hub-note">单机游戏进度保存在当前浏览器；联机房间仅保留在游戏服务内存中，服务重启后自动结束。</p>
 </section>
-{else/}
-<section class="wrap game-access-page" aria-labelledby="gameLoginTitle">
+<section class="wrap game-access-page" aria-labelledby="gameLoginTitle" data-auth-guest hidden>
   <div class="game-login-gate">
     <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
     <span class="eyebrow">MEMBER ARCADE</span>
@@ -98,5 +114,4 @@
     </div>
   </div>
 </section>
-{/if}
 {include file="public/foot" /}

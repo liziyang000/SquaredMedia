@@ -93,7 +93,7 @@ dist/
 - `pingfangvideo` 来自 `template/pingfangvideo/`，`pingfangdevice` 来自 `addons/pingfangdevice/`。
 - `pingfangdevice/application/` 保留 MacCMS 标准插件应用载荷结构；SSH 部署会把其中的兼容控制器复制到对应 CMS 应用目录。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
-- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
+- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器、竹知了交互和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
 - `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。

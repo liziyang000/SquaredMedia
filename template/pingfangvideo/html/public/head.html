@@ -55,21 +55,18 @@
       </div>
     </div>
     <div class="user-menu">
-      {if condition="$user.user_id gt 0"}
-      <a class="user-avatar" href="{:mac_url('user/index')}" aria-label="用户中心" data-avatar-random data-avatar-name="{$user.user_name|mac_default='用户'}">
-        <span class="user-avatar-letter">{if condition="$user.user_name neq ''"}{$user.user_name|mac_substring=1}{else/}用{/if}</span>
+      <a class="user-avatar" href="{:mac_url('user/index')}" aria-label="用户中心" data-avatar-random data-avatar-name="用户" data-auth-member hidden>
+        <span class="user-avatar-letter">用</span>
       </a>
-      <div class="user-dropdown">
+      <div class="user-dropdown" data-auth-member hidden>
         <a href="{:mac_url('user/favs')}">收藏</a>
         <a href="{:mac_url('user/plays')}">播放记录</a>
         <a href="{:url('pingfangdevice/index')}">登录设备</a>
         <a href="{:url('pingfangdevice/logout')}" data-logout-link data-logout-redirect="{:mac_url('user/login')}">退出登录</a>
       </div>
-      {else/}
-      <a class="user-avatar user-avatar-guest" href="{:mac_url('user/login')}" aria-label="登录" data-avatar-random>
+      <a class="user-avatar user-avatar-guest" href="{:mac_url('user/login')}" aria-label="登录" data-avatar-random data-auth-guest hidden>
         <span>登录</span>
       </a>
-      {/if}
     </div>
   </div>
 </header>
@@ -91,19 +88,16 @@
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
     <span>账号</span>
-    {if condition="$user.user_id gt 0"}
-    <div class="mobile-drawer-user">
+    <div class="mobile-drawer-user" data-auth-member hidden>
       <a href="{:mac_url('user/index')}">用户中心</a>
       <a href="{:mac_url('user/favs')}">我的收藏</a>
       <a href="{:mac_url('user/plays')}">播放记录</a>
       <a href="{:url('pingfangdevice/index')}">登录设备</a>
       <a href="{:url('pingfangdevice/logout')}" data-logout-link data-logout-redirect="{:mac_url('user/login')}">退出登录</a>
     </div>
-    {else/}
-    <div class="mobile-drawer-user">
+    <div class="mobile-drawer-user" data-auth-guest hidden>
       <a class="mobile-drawer-login" href="{:mac_url('user/login')}">登录</a>
     </div>
-    {/if}
   </div>
   <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>
     <span>主题</span>

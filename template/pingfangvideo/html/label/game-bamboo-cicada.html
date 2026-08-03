@@ -1,0 +1,109 @@
+{include file="public/head" seo_title="竹知了" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+<section class="wrap game-play-page game-play-page-bamboo-cicada" data-bamboo-cicada-game data-auth-member hidden aria-labelledby="bambooCicadaTitle">
+  <header class="game-play-head">
+    <div>
+      <span class="eyebrow">BAMBOO CICADA · THREE MOVEMENTS</span>
+      <h1 id="bambooCicadaTitle">竹知了</h1>
+      <p>先起鸣，再跟住收缩的共鸣环，最后应对竹风与反向指令。每完成一圈都会判定节拍。</p>
+    </div>
+    <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+  </header>
+
+  <div class="game-stage-panel bamboo-cicada-stage">
+    <div class="bamboo-cicada-layout">
+      <div class="bamboo-cicada-arena" data-cicada-arena role="application" aria-label="竹知了游玩区域，按住红色手柄绕圈，跟随共鸣环控制速度与方向" tabindex="0">
+        <ol class="cicada-phase-rail" aria-label="本轮三阶段">
+          <li data-cicada-phase="awaken" aria-current="step"><span>一</span><strong>起鸣</strong></li>
+          <li data-cicada-phase="resonance"><span>二</span><strong>共鸣</strong></li>
+          <li data-cicada-phase="challenge"><span>三</span><strong>应变</strong></li>
+        </ol>
+        <div class="cicada-event" data-cicada-event aria-live="polite" aria-atomic="true">
+          <span data-cicada-event-icon aria-hidden="true">风</span>
+          <div><strong data-cicada-event-title>竹风将至</strong><small data-cicada-event-copy>稳住转速</small></div>
+        </div>
+        <span class="cicada-judgment" data-cicada-judgment aria-hidden="true">准备</span>
+        <span class="cicada-orbit cicada-orbit-outer" aria-hidden="true"></span>
+        <span class="cicada-orbit cicada-orbit-inner" aria-hidden="true"></span>
+        <span class="cicada-beat-ring" data-cicada-beat aria-hidden="true"></span>
+        <span class="cicada-resonance" data-cicada-resonance aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="cicada-particles" data-cicada-particles aria-hidden="true"></span>
+        <div class="bamboo-cicada-rig" data-cicada-rig aria-hidden="true">
+          <span class="cicada-string"></span>
+          <span class="cicada-handle"><i></i></span>
+          <span class="cicada-toy" data-cicada-toy>
+            <i class="cicada-cap"></i>
+            <i class="cicada-eye cicada-eye-left"></i>
+            <i class="cicada-eye cicada-eye-right"></i>
+            <i class="cicada-body"></i>
+            <i class="cicada-wing cicada-wing-left"></i>
+            <i class="cicada-wing cicada-wing-right"></i>
+          </span>
+        </div>
+        <p class="cicada-drag-hint"><span>●</span> 按住红色手柄绕圈；共鸣环收紧时完成一圈</p>
+      </div>
+
+      <aside class="bamboo-cicada-console" aria-label="竹知了游戏状态">
+        <div class="cicada-scoreboard">
+          <div><span>余音</span><strong data-cicada-score>0000</strong></div>
+          <div><span>最佳</span><strong data-cicada-best>0000</strong></div>
+        </div>
+        <div class="cicada-round-row">
+          <div><span>当前乐章</span><strong data-cicada-stage>一 · 起鸣</strong></div>
+          <div><span>剩余</span><strong><span data-cicada-time>36.0</span>s</strong></div>
+        </div>
+        <div class="cicada-speed-panel">
+          <div><span>共鸣转速</span><strong data-cicada-combo>连鸣 ×1</strong></div>
+          <div class="cicada-speed-track" aria-label="当前转速与目标区间">
+            <span class="cicada-sweet-zone" data-cicada-target></span>
+            <i data-cicada-speed></i>
+          </div>
+          <div class="cicada-speed-labels"><span>轻</span><span data-cicada-direction>顺逆皆可</span><span>过急</span></div>
+        </div>
+        <div class="cicada-energy-panel">
+          <div><span>鸣力</span><strong data-cicada-energy-label>25%</strong></div>
+          <div class="cicada-energy-track" aria-hidden="true"><i data-cicada-energy></i></div>
+        </div>
+        <div class="cicada-judgment-counts" aria-label="节拍判定统计">
+          <span><i>准</i><strong data-cicada-perfect>0</strong></span>
+          <span><i>稳</i><strong data-cicada-good>0</strong></span>
+          <span><i>失</i><strong data-cicada-miss>0</strong></span>
+        </div>
+        <p class="cicada-feedback" data-cicada-status role="status" aria-live="polite">按下开始，先把竹知了稳稳甩响。</p>
+        <div class="cicada-actions">
+          <button class="primary-btn" type="button" data-cicada-start>开始三乐章</button>
+          <button class="ghost-btn" type="button" data-cicada-sound aria-pressed="true">声音：开</button>
+        </div>
+        <p class="cicada-keyboard-tip">键盘：← / → 控制方向，空格沿当前方向加力。</p>
+      </aside>
+    </div>
+
+    <div class="cicada-result" data-cicada-result hidden role="dialog" aria-modal="true" aria-labelledby="cicadaResultTitle">
+      <span class="eyebrow">本轮共鸣评级</span>
+      <strong class="cicada-result-grade" data-cicada-result-grade>A</strong>
+      <h2 id="cicadaResultTitle" data-cicada-result-title>余音绕梁</h2>
+      <p class="cicada-result-score"><span data-cicada-result-score>0</span> 分</p>
+      <dl class="cicada-result-metrics">
+        <div><dt>力度</dt><dd><span data-cicada-result-power>0</span></dd></div>
+        <div><dt>稳定</dt><dd><span data-cicada-result-stability>0</span></dd></div>
+        <div><dt>节奏</dt><dd><span data-cicada-result-rhythm>0</span></dd></div>
+        <div><dt>反应</dt><dd><span data-cicada-result-response>0</span></dd></div>
+      </dl>
+      <button class="primary-btn" type="button" data-cicada-retry>再奏一轮</button>
+    </div>
+  </div>
+  <p class="game-control-tip"><span>电脑：拖动 / ← →</span><span>手机：按住红色手柄绕圈</span><span>声音与轻震动在首次操作后启动</span></p>
+</section>
+<span data-auth-script="{$maccms.path_tpl}games/bamboo-cicada.js?v=__PINGFANG_BAMBOO_CICADA_VERSION__" hidden></span>
+<section class="wrap game-access-page" aria-labelledby="bambooCicadaLoginTitle" data-auth-guest hidden>
+  <div class="game-login-gate">
+    <span class="game-lock-orbit" aria-hidden="true"><i></i></span>
+    <span class="eyebrow">MEMBER ONLY</span>
+    <h1 id="bambooCicadaLoginTitle">登录后才能摇响竹知了</h1>
+    <p>登录会员账号后即可游玩竹知了，未登录状态不会加载游戏脚本或声音模块。</p>
+    <div class="detail-actions">
+      <a class="primary-btn" href="{:mac_url('user/login')}">前往登录</a>
+      <a class="ghost-btn" href="{:mac_url('label/games')}">返回游戏大厅</a>
+    </div>
+  </div>
+</section>
+{include file="public/foot" /}

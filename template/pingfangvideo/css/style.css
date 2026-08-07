@@ -12783,6 +12783,79 @@ html.qixi-immersive .qixi-rose-page {
   touch-action: none;
 }
 
+.qixi-rose-page.is-entering::before,
+.qixi-rose-page.is-entering .qixi-rose-glow,
+.qixi-rose-page.is-entering .qixi-rose-edition,
+.qixi-rose-page.is-entering .qixi-rose-vow,
+.qixi-rose-page.is-entering .qixi-rose-gesture {
+  opacity: 0;
+}
+
+.qixi-rose-page.is-entering .qixi-rose-kicker,
+.qixi-rose-page.is-entering .qixi-rose-copy h1 span,
+.qixi-rose-page.is-entering .qixi-rose-copy h1 strong,
+.qixi-rose-page.is-entering .qixi-rose-lead,
+.qixi-rose-page.is-entering .qixi-rose-actions,
+.qixi-rose-page.is-entering .qixi-rose-status {
+  opacity: 0;
+  transform: translateY(16px);
+  will-change: transform, opacity;
+}
+
+.qixi-rose-page.is-entering.is-entered::before {
+  opacity: 0.64;
+  transition: opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-glow {
+  opacity: 1;
+  transition: opacity 1000ms cubic-bezier(0.22, 1, 0.36, 1) 80ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-kicker,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy h1 span,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy h1 strong,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-lead,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-actions,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-status {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-kicker {
+  transition-delay: 120ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy h1 span {
+  transition-delay: 200ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy h1 strong {
+  transition-delay: 300ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-lead {
+  transition-delay: 420ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-actions {
+  transition-delay: 540ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-copy .qixi-rose-status {
+  transition-delay: 660ms;
+}
+
+.qixi-rose-page.is-entering.is-entered .qixi-rose-edition,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-vow,
+.qixi-rose-page.is-entering.is-entered .qixi-rose-gesture {
+  opacity: 1;
+  transition: opacity 680ms cubic-bezier(0.22, 1, 0.36, 1) 680ms;
+}
+
 .qixi-rose-page.is-dragging .qixi-rose-canvas {
   cursor: grabbing;
 }
@@ -13108,6 +13181,27 @@ html.qixi-immersive .qixi-rose-page {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .qixi-rose-page.is-entering::before {
+    opacity: 0.64;
+    transition: none;
+  }
+
+  .qixi-rose-page.is-entering .qixi-rose-glow,
+  .qixi-rose-page.is-entering .qixi-rose-edition,
+  .qixi-rose-page.is-entering .qixi-rose-vow,
+  .qixi-rose-page.is-entering .qixi-rose-gesture,
+  .qixi-rose-page.is-entering .qixi-rose-kicker,
+  .qixi-rose-page.is-entering .qixi-rose-copy h1 span,
+  .qixi-rose-page.is-entering .qixi-rose-copy h1 strong,
+  .qixi-rose-page.is-entering .qixi-rose-lead,
+  .qixi-rose-page.is-entering .qixi-rose-actions,
+  .qixi-rose-page.is-entering .qixi-rose-status {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+
   .qixi-bloom-button,
   .qixi-share-button,
   .qixi-bloom-button i {

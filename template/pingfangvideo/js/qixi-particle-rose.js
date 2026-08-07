@@ -4,6 +4,7 @@
   // Original Canvas point-cloud implementation. Creative references:
   // https://github.com/jirotubuyaki/FlowerJS (flower layering, MIT)
   // https://github.com/valnub/particle-animation-javascript (Canvas particles, MIT)
+  // Parametric rose surface adapted from https://github.com/Vasileios-Bellos/BloomingRose (MIT)
   var root = document.querySelector("[data-qixi-rose]");
   if (!root) return;
 
@@ -28,7 +29,7 @@
   var pixelRatio = 1;
   var quality = 0;
   var rotationY = 0.18;
-  var rotationX = -0.12;
+  var rotationX = 0.32;
   var hoverRotationY = 0;
   var hoverRotationX = 0;
   var hoverTargetY = 0;
@@ -42,6 +43,10 @@
   var bloomStart = 0;
   var isBlooming = false;
   var bloomDuration = 3100;
+  var entryStart = 0;
+  var entryDuration = 2800;
+  var isEntering = false;
+  var hasEntered = false;
   var isVisible = true;
   var frameRequest = 0;
   var lastFrame = 0;
@@ -64,6 +69,10 @@
 
   function easeOutQuart(value) {
     return 1 - Math.pow(1 - value, 4);
+  }
+
+  function easeOutQuint(value) {
+    return 1 - Math.pow(1 - value, 5);
   }
 
   function normalizeVector(x, y, z) {
@@ -104,31 +113,43 @@
 
   function createRoseDome() {
     var dome = [];
-    var ringCounts = [1, 6, 12, 18, 24];
-    var ringAngles = [0, 0.46, 0.76, 1.06, 1.34];
-    var ringSizes = [0.49, 0.44, 0.39, 0.34, 0.3];
-    var ringParticles = [185, 150, 120, 100, 84];
-    var centerY = 0.36;
+    var ringCounts = [1, 7, 13, 20];
+    var ringAngles = [0, 0.52, 0.93, 1.34];
+    var ringSizes = [0.58, 0.54, 0.5, 0.46];
+    var ringParticles = [650, 560, 500, 440];
+    var centerY = 0.31;
 
     ringCounts.forEach(function (count, ring) {
-      var polar = ringAngles[ring];
-      var sinPolar = Math.sin(polar);
-      var cosPolar = Math.cos(polar);
       for (var index = 0; index < count; index += 1) {
-        var angle = count === 1 ? 0 : (index / count) * Math.PI * 2 + ring * 0.37;
+        var polarJitter = count === 1 ? 0 : Math.cos((index + 1) * 5.713 + ring * 2.171) * 0.032;
+        var polar = ringAngles[ring] + polarJitter;
+        var sinPolar = Math.sin(polar);
+        var cosPolar = Math.cos(polar);
+        var angleJitter = count === 1 ? 0 : Math.sin((index + 1) * 7.137 + ring * 2.413) * 0.05;
+        var angle = count === 1 ? 0 : (index / count) * Math.PI * 2 + ring * 0.37 + angleJitter;
         var normal = normalizeVector(sinPolar * Math.cos(angle), cosPolar, sinPolar * Math.sin(angle));
-        var basis = createRoseBasis(normal, angle * 0.21 + ring * 0.17);
-        var jitter = count === 1 ? 0 : Math.sin((index + 1) * 12.9898 + ring * 4.1414) * 0.018;
+        var phase = ((index + 1) * 0.61803398875 + ring * 0.137) % 1;
+        var basis = createRoseBasis(normal, angle * 0.21 + ring * 0.17 + phase * 0.46);
+        var radialJitter = count === 1 ? 0 : Math.sin((index + 1) * 12.9898 + ring * 4.1414) * 0.028;
+        var sizeJitter = count === 1 ? 0 : Math.cos((index + 1) * 4.573 + ring * 1.831) * 0.075;
         dome.push({
-          x: normal.x * (1.18 + jitter),
-          y: centerY + normal.y * (0.84 + jitter * 0.4),
-          z: normal.z * (1.02 + jitter),
-          size: ringSizes[ring] * (1 + jitter * 1.4),
+          x: normal.x * (1.14 + radialJitter),
+          y: centerY + normal.y * (0.88 + radialJitter * 0.4),
+          z: normal.z * (1.02 + radialJitter),
+          size: ringSizes[ring] * (1 + sizeJitter),
           count: ringParticles[ring],
           normal: basis.normal,
           axisX: basis.axisX,
           axisY: basis.axisY,
-          tone: (index + ring * 2) % 8 === 0 ? 1 : 0
+          tone: (index + ring * 3) % 9 === 0 ? 1 : 0,
+          phase: phase,
+          openness: 0.82 + (Math.sin((index + 1) * 3.917 + ring * 1.53) * 0.5 + 0.5) * 0.36,
+          petalWidth: 0.86 + (Math.cos((index + 1) * 6.173 + ring * 0.91) * 0.5 + 0.5) * 0.28,
+          curl: 0.82 + (Math.sin((index + 1) * 8.113 + ring * 2.07) * 0.5 + 0.5) * 0.36,
+          irregularity: 0.045 + (Math.cos((index + 1) * 2.731 + ring * 3.11) * 0.5 + 0.5) * 0.055,
+          leanX: Math.sin((index + 1) * 9.17 + ring) * 0.038,
+          leanY: Math.cos((index + 1) * 7.31 + ring * 1.7) * 0.038,
+          petalShift: ((index + ring * 2) % 3) - 1
         });
       }
     });
@@ -175,10 +196,31 @@
 
   function addParticle(x, y, z, color, size, delay, kind, normal, opacity) {
     var safeNormal = normal || normalizeVector(x, y, z);
+    var phase = random() * Math.PI * 2;
+    var entryDistance = 1.75 + (Math.sin(phase * 2.31) * 0.5 + 0.5) * 1.65;
+    var entryLift = kind === "petal" ? 0.46 : kind === "filler" ? 0.28 : -0.08;
+    var entryDelayBase =
+      kind === "wrapper"
+        ? 0.04
+        : kind === "stem"
+          ? 0.08
+          : kind === "leaf"
+            ? 0.14
+            : kind === "ribbon"
+              ? 0.18
+              : kind === "filler"
+                ? 0.24
+                : kind === "calyx"
+                  ? 0.3
+                  : 0.34;
     particles.push({
       x: x,
       y: y,
       z: z,
+      ex: x + Math.cos(phase) * entryDistance,
+      ey: y + Math.sin(phase * 1.37) * 1.12 + entryLift,
+      ez: z + Math.sin(phase) * entryDistance,
+      entryDelay: entryDelayBase + (phase / (Math.PI * 2)) * 0.14,
       bx: x,
       by: y,
       bz: z,
@@ -190,7 +232,7 @@
       ny: safeNormal.y,
       nz: safeNormal.z,
       opacity: opacity == null ? 0.9 : opacity,
-      phase: random() * Math.PI * 2,
+      phase: phase,
       screenX: 0,
       screenY: 0,
       screenRadius: 1
@@ -212,57 +254,282 @@
     }
   }
 
-  function addRose(rose, count) {
-    var coreCount = Math.floor(count * 0.26);
-    var petalCount = count - coreCount;
-    var layerPetals = [4, 6, 8, 11, 14, 17];
+  function positiveModulo(value, divisor) {
+    return ((value % divisor) + divisor) % divisor;
+  }
 
-    for (var index = 0; index < petalCount; index += 1) {
-      var layer = Math.min(layerPetals.length - 1, Math.floor(Math.pow(random(), 0.6) * layerPetals.length));
-      var petalsInLayer = layerPetals[layer];
-      var petal = Math.floor(random() * petalsInLayer);
-      var progress = Math.sqrt(random());
-      var across = random() * 2 - 1;
-      var angle = (petal / petalsInLayer) * Math.PI * 2 + layer * 0.47;
-      var baseRadius = 0.018 + layer * 0.024;
-      var petalLength = 0.15 + layer * 0.056;
-      var petalWidth = (0.047 + layer * 0.017) * Math.sin(Math.PI * progress) * across;
-      var radius = baseRadius + petalLength * (0.12 + progress * 0.88);
-      var localX = (Math.cos(angle) * radius - Math.sin(angle) * petalWidth) * rose.size;
-      var localY = (Math.sin(angle) * radius * 0.88 + Math.cos(angle) * petalWidth * 0.8) * rose.size;
-      var fold = Math.sin(Math.PI * progress) * (1 - across * across) * 0.056;
-      var localZ = (0.285 - layer * 0.014 - progress * 0.13 + fold + (random() - 0.5) * 0.018) * rose.size;
-      var point = transformRosePoint(rose, localX, localY, localZ);
-      var normal = transformRoseNormal(rose, localX * 0.55, localY * 0.55, rose.size * 0.7);
-      var color = layer < 2 ? 1 : layer < 4 ? 2 : 3;
-      if (Math.abs(across) > 0.74 || progress > 0.87) color += 1;
-      color = Math.min(5, color + rose.tone);
-      if (random() > 0.965) color = Math.min(5, color + 1);
-      addParticle(point.x, point.y, point.z, color, 0.76 + random() * 1.18, 0.18 + layer * 0.035 + random() * 0.14, "petal", normal, 0.94);
+  function petalEnvelope(theta) {
+    var petalPosition = positiveModulo(3.6 * theta, Math.PI * 2) / Math.PI;
+    var inner = 1.25 * Math.pow(1 - petalPosition, 2) - 0.25;
+    return 1 - 0.5 * inner * inner;
+  }
+
+  function roseSurfacePoint(radius, turnProgress) {
+    var theta = -2 + turnProgress * (Math.PI * 20 + 2);
+    var envelope = petalEnvelope(theta);
+    var openness = 0.21 + turnProgress * 0.84;
+    var phi = (Math.PI / 2) * openness * openness;
+    var sinPhi = Math.sin(phi);
+    var cosPhi = Math.cos(phi);
+    var curl = 1.995653 * radius * radius * Math.pow(1.27689 * radius - 1, 2) * sinPhi;
+    var radial = envelope * (radius * sinPhi + curl * cosPhi);
+    return {
+      x: radial * Math.sin(theta),
+      y: radial * Math.cos(theta),
+      z: envelope * (radius * cosPhi - curl * sinPhi),
+      envelope: envelope
+    };
+  }
+
+  function roseSurfaceNormal(radius, turnProgress) {
+    var radiusStep = radius > 0.992 ? -0.008 : 0.008;
+    var turnStep = turnProgress > 0.998 ? -0.002 : 0.002;
+    var point = roseSurfacePoint(radius, turnProgress);
+    var radiusPoint = roseSurfacePoint(radius + radiusStep, turnProgress);
+    var turnPoint = roseSurfacePoint(radius, turnProgress + turnStep);
+    var radiusVector = {
+      x: (radiusPoint.x - point.x) / radiusStep,
+      y: (radiusPoint.y - point.y) / radiusStep,
+      z: (radiusPoint.z - point.z) / radiusStep
+    };
+    var turnVector = {
+      x: (turnPoint.x - point.x) / turnStep,
+      y: (turnPoint.y - point.y) / turnStep,
+      z: (turnPoint.z - point.z) / turnStep
+    };
+    var normal = crossVector(radiusVector, turnVector);
+    if (normal.z < 0) {
+      normal.x *= -1;
+      normal.y *= -1;
+      normal.z *= -1;
     }
+    return normalizeVector(normal.x / 0.52, normal.y / 0.52, normal.z / 0.42);
+  }
 
-    for (var core = 0; core < coreCount; core += 1) {
-      var coreProgress = core / Math.max(1, coreCount - 1);
-      var spiral = coreProgress * Math.PI * 8.5;
-      var spiralRadius = 0.014 + coreProgress * 0.18;
-      var corePoint = transformRosePoint(
-        rose,
-        Math.cos(spiral) * spiralRadius * rose.size,
-        Math.sin(spiral) * spiralRadius * rose.size * 0.78,
-        (0.31 - coreProgress * 0.12) * rose.size
-      );
+  function petalSurfacePoint(band, angle, progress, across, rose, petalVariation) {
+    var widthProfile = Math.pow(Math.sin(Math.PI * progress), 0.72) * (0.7 + progress * 0.3);
+    var direction = angle + (band.twist + petalVariation.twist) * (progress - 0.38);
+    var radial = band.base + band.length * petalVariation.length * (0.06 + progress * 0.94);
+    var side = band.width * rose.petalWidth * petalVariation.width * widthProfile * across;
+    var edgeCup = band.cup * rose.curl * Math.pow(Math.abs(across), 1.7) * widthProfile;
+    var z =
+      band.height +
+      band.arch * Math.sin(Math.PI * progress) +
+      edgeCup -
+      band.drop * rose.openness * progress -
+      band.tipCurl * rose.openness * Math.pow(progress, 3) +
+      petalVariation.lift * progress;
+    return {
+      x: Math.cos(direction) * radial - Math.sin(direction) * side + rose.leanX * (1 - progress),
+      y: Math.sin(direction) * radial + Math.cos(direction) * side + rose.leanY * (1 - progress),
+      z: z
+    };
+  }
+
+  function petalSurfaceNormal(band, angle, progress, across, rose, petalVariation) {
+    var progressStep = progress > 0.992 ? -0.008 : 0.008;
+    var acrossStep = across > 0.98 ? -0.02 : 0.02;
+    var point = petalSurfacePoint(band, angle, progress, across, rose, petalVariation);
+    var progressPoint = petalSurfacePoint(band, angle, progress + progressStep, across, rose, petalVariation);
+    var acrossPoint = petalSurfacePoint(band, angle, progress, across + acrossStep, rose, petalVariation);
+    var progressVector = {
+      x: (progressPoint.x - point.x) / progressStep,
+      y: (progressPoint.y - point.y) / progressStep,
+      z: (progressPoint.z - point.z) / progressStep
+    };
+    var acrossVector = {
+      x: (acrossPoint.x - point.x) / acrossStep,
+      y: (acrossPoint.y - point.y) / acrossStep,
+      z: (acrossPoint.z - point.z) / acrossStep
+    };
+    var normal = crossVector(progressVector, acrossVector);
+    if (normal.z < 0) {
+      normal.x *= -1;
+      normal.y *= -1;
+      normal.z *= -1;
+    }
+    return normalizeVector(normal.x, normal.y, normal.z);
+  }
+
+  function addRoseSurfaceDepth(rose, count) {
+    var goldenAngle = 0.61803398875;
+    var roseRimShare = 0.18;
+
+    for (var index = 0; index < count; index += 1) {
+      var sequence = (index * goldenAngle + rose.phase) % 1;
+      var turnProgress = (index + 0.5) / count;
+      var isRim = ((index * 37) % 100) / 100 < roseRimShare;
+      var radius = isRim ? 0.92 + sequence * 0.08 : Math.sqrt(sequence) * 0.9;
+      var surface = roseSurfacePoint(radius, turnProgress);
+      var surfaceNormal = roseSurfaceNormal(radius, turnProgress);
+      var localX = surface.x * rose.size * 0.43;
+      var localY = surface.y * rose.size * 0.43;
+      var localZ = (surface.z - 0.1) * rose.size * 0.34;
+      var point = transformRosePoint(rose, localX, localY, localZ);
+      var normal = transformRoseNormal(rose, surfaceNormal.x, surfaceNormal.y, surfaceNormal.z);
       addParticle(
-        corePoint.x,
-        corePoint.y,
-        corePoint.z,
-        core % 5 === 0 ? 5 : core % 2 === 0 ? 3 : 2,
-        1.18 + random() * 1.12,
-        0.24 + random() * 0.12,
+        point.x,
+        point.y,
+        point.z,
+        Math.min(3, (isRim ? 2 : 1) + rose.tone),
+        isRim ? 0.92 + random() * 0.58 : 0.62 + random() * 0.7,
+        0.18 + turnProgress * 0.12 + random() * 0.08,
+        "petal",
+        normal,
+        isRim ? 0.82 : 0.68
+      );
+    }
+  }
+
+  function addRoseCore(rose, count) {
+    for (var index = 0; index < count; index += 1) {
+      var progress = index / Math.max(1, count - 1);
+      var angle = rose.phase * Math.PI * 2 + progress * Math.PI * (8.4 + rose.curl * 0.8);
+      var radius = 0.014 + progress * 0.12;
+      var localX = (Math.cos(angle) * radius + rose.leanX * (1 - progress)) * rose.size;
+      var localY = (Math.sin(angle) * radius * 0.82 + rose.leanY * (1 - progress)) * rose.size;
+      var localZ = (0.35 - progress * 0.09 + Math.sin(progress * Math.PI * 3) * 0.008) * rose.size;
+      var point = transformRosePoint(rose, localX, localY, localZ);
+      addParticle(
+        point.x,
+        point.y,
+        point.z,
+        Math.min(5, (index % 7 === 0 ? 4 : index % 2 === 0 ? 2 : 1) + rose.tone),
+        1.1 + random() * 0.9,
+        0.24 + random() * 0.1,
         "petal",
         rose.normal,
-        0.95
+        0.97
       );
     }
+  }
+
+  function addRosePetal(rose, band, bandIndex, petal, petalCount, count) {
+    var petalAngle =
+      rose.phase * Math.PI * 2 +
+      band.offset +
+      (petal / petalCount) * Math.PI * 2 +
+      Math.sin((petal + 1) * 5.173 + rose.phase * 11.7 + bandIndex * 2.31) * rose.irregularity;
+    var petalVariation = {
+      length: 0.93 + (Math.sin((petal + 1) * 7.11 + rose.phase * 9.2 + bandIndex) * 0.5 + 0.5) * 0.14,
+      width: 0.9 + (Math.cos((petal + 1) * 4.37 + rose.phase * 13.1 + bandIndex) * 0.5 + 0.5) * 0.2,
+      twist: Math.sin((petal + 1) * 6.19 + rose.phase * 8.4) * rose.irregularity,
+      lift: Math.cos((petal + 1) * 3.83 + rose.phase * 10.3) * rose.irregularity * 0.55
+    };
+    var edgeCount = Math.min(count, Math.max(6, Math.floor(count * 0.82)));
+    var sideCount = Math.max(2, edgeCount - 2);
+    var sidePairs = Math.max(1, Math.ceil(sideCount / 2) - 1);
+
+    for (var sample = 0; sample < count; sample += 1) {
+      var progress;
+      var across;
+      var isEdge = sample < edgeCount;
+      if (sample < sideCount) {
+        progress = 0.12 + (Math.floor(sample / 2) / sidePairs) * 0.76;
+        across = (sample % 2 === 0 ? -1 : 1) * (0.91 + random() * 0.07);
+      } else if (isEdge) {
+        progress = 0.94 + random() * 0.035;
+        across = sample === sideCount ? -0.5 : 0.5;
+      } else {
+        progress = 0.16 + Math.sqrt(random()) * 0.72;
+        across = (random() * 2 - 1) * 0.76;
+      }
+      var surface = petalSurfacePoint(band, petalAngle, progress, across, rose, petalVariation);
+      var surfaceNormal = petalSurfaceNormal(band, petalAngle, progress, across, rose, petalVariation);
+      var point = transformRosePoint(rose, surface.x * rose.size, surface.y * rose.size, surface.z * rose.size);
+      var normal = transformRoseNormal(rose, surfaceNormal.x, surfaceNormal.y, surfaceNormal.z);
+      var color = Math.min(4, 1 + bandIndex + (isEdge ? 1 : 0) + rose.tone);
+      if (isEdge && (sample + petal * 3 + bandIndex) % 11 === 0) color = 5;
+      addParticle(
+        point.x,
+        point.y,
+        point.z,
+        color,
+        isEdge ? 1.2 + random() * 0.82 : 0.76 + random() * 0.92,
+        0.2 + bandIndex * 0.035 + random() * 0.08,
+        "petal",
+        normal,
+        isEdge ? 0.98 : 0.8
+      );
+    }
+  }
+
+  function addRose(rose, count) {
+    var rosePetalBands = [
+      {
+        petals: 3,
+        share: 0.14,
+        base: 0.012,
+        length: 0.17,
+        width: 0.12,
+        height: 0.33,
+        drop: 0.035,
+        arch: 0.045,
+        cup: 0.075,
+        tipCurl: 0.015,
+        twist: 0.16,
+        offset: 0.2
+      },
+      {
+        petals: 5,
+        share: 0.2,
+        base: 0.03,
+        length: 0.23,
+        width: 0.16,
+        height: 0.31,
+        drop: 0.07,
+        arch: 0.052,
+        cup: 0.07,
+        tipCurl: 0.03,
+        twist: 0.12,
+        offset: 0.84
+      },
+      {
+        petals: 7,
+        share: 0.27,
+        base: 0.07,
+        length: 0.29,
+        width: 0.195,
+        height: 0.285,
+        drop: 0.115,
+        arch: 0.06,
+        cup: 0.06,
+        tipCurl: 0.055,
+        twist: 0.09,
+        offset: 1.42
+      },
+      {
+        petals: 9,
+        share: 0.39,
+        base: 0.105,
+        length: 0.36,
+        width: 0.24,
+        height: 0.25,
+        drop: 0.175,
+        arch: 0.065,
+        cup: 0.055,
+        tipCurl: 0.09,
+        twist: 0.07,
+        offset: 2.02
+      }
+    ];
+    var surfaceCount = Math.floor(count * 0.05);
+    var coreCount = Math.floor(count * 0.1);
+    var petalPointCount = count - surfaceCount - coreCount;
+    var remaining = petalPointCount;
+
+    addRoseSurfaceDepth(rose, surfaceCount);
+    addRoseCore(rose, coreCount);
+    rosePetalBands.forEach(function (band, bandIndex) {
+      var bandCount = bandIndex === rosePetalBands.length - 1 ? remaining : Math.floor(petalPointCount * band.share);
+      var petalCount = band.petals + (bandIndex > 1 ? rose.petalShift : 0);
+      var pointsPerPetal = Math.floor(bandCount / petalCount);
+      var extra = bandCount % petalCount;
+      remaining -= bandCount;
+      for (var petal = 0; petal < petalCount; petal += 1) {
+        addRosePetal(rose, band, bandIndex, petal, petalCount, pointsPerPetal + (petal < extra ? 1 : 0));
+      }
+    });
   }
 
   function addStem(rose, count) {
@@ -332,6 +599,35 @@
     };
   }
 
+  function addWrappingCollar(count) {
+    var panelCount = 14;
+    var pointsPerPanel = Math.max(18, Math.round(count / panelCount));
+    for (var panel = 0; panel < panelCount; panel += 1) {
+      var panelAngle = (panel / panelCount) * Math.PI * 2 + (panel % 2) * 0.045;
+      var panelLift = ((panel % 4) - 1.5) * 0.025;
+      for (var pointIndex = 0; pointIndex < pointsPerPanel; pointIndex += 1) {
+        var progress = Math.sqrt(random());
+        var across = random() * 2 - 1;
+        var fanWidth = 0.045 + progress * 0.16;
+        var angle = panelAngle + across * fanWidth;
+        var radius = 0.3 + progress * (1.03 + (panel % 3) * 0.045);
+        var edge = Math.abs(across) > 0.76 || progress > 0.89;
+        var normal = normalizeVector(Math.cos(angle), 0.18, Math.sin(angle) / 0.82);
+        addParticle(
+          Math.cos(angle) * radius,
+          -0.72 + progress * (1.01 + panelLift) - Math.abs(across) * progress * 0.07,
+          Math.sin(angle) * radius * 0.82,
+          edge && panel % 3 === 0 ? 6 : edge ? 3 : panel % 3 === 0 ? 3 : 2,
+          edge ? 1.22 + random() * 0.88 : 0.76 + random() * 0.86,
+          0.08 + random() * 0.14,
+          "wrapper",
+          normal,
+          edge ? 0.95 : 0.77
+        );
+      }
+    }
+  }
+
   function addWrappingParticles(count) {
     for (var index = 0; index < count; index += 1) {
       var progress = Math.pow(random(), 0.72);
@@ -354,32 +650,14 @@
           seamPoint.x,
           seamPoint.y,
           seamPoint.z,
-          seam % 4 === 0 ? 3 : 2,
-          0.9 + random() * 0.68,
+          seam % 5 === 0 ? 6 : seam % 2 === 0 ? 3 : 2,
+          1.02 + random() * 0.76,
           0.08 + random() * 0.12,
           "wrapper",
           normalizeVector(Math.cos(seamAngle), -0.14, Math.sin(seamAngle) / 0.82),
-          0.84
+          0.9
         );
       }
-    }
-
-    var collarCount = Math.round(240 * quality);
-    for (var collar = 0; collar < collarCount; collar += 1) {
-      var collarAngle = random() * Math.PI * 2;
-      var collarRadius = 1.17 + random() * 0.2;
-      var collarNormal = normalizeVector(Math.cos(collarAngle), 0.22, Math.sin(collarAngle));
-      addParticle(
-        Math.cos(collarAngle) * collarRadius,
-        0.15 + (random() - 0.5) * 0.19,
-        Math.sin(collarAngle) * collarRadius * 0.84,
-        random() > 0.8 ? 3 : 2,
-        0.78 + random() * 0.9,
-        0.1 + random() * 0.16,
-        "wrapper",
-        collarNormal,
-        0.74
-      );
     }
   }
 
@@ -496,7 +774,8 @@
       addStem(rose, Math.round(20 * quality));
     });
     addLeaves(Math.round(900 * quality));
-    addWrappingParticles(Math.round(1700 * quality));
+    addWrappingParticles(Math.round(1450 * quality));
+    addWrappingCollar(Math.round(620 * quality));
     addRibbon(Math.round(420 * quality));
     addFillerClusters(Math.round(320 * quality));
     roses.forEach(function (rose) {
@@ -541,22 +820,35 @@
     var scale = mobile ? Math.min(width * 0.36, height * 0.18) : Math.min(width * 0.2, height * 0.25);
     var originX = mobile ? width * 0.5 : width * 0.72;
     var originY = mobile ? height * 0.7 : height * 0.53;
-    var elapsed = time - bloomStart;
+    var bloomElapsed = time - bloomStart;
 
     for (var index = 0; index < particles.length; index += 1) {
       var particle = particles[index];
       var x = particle.x;
       var y = particle.y;
       var z = particle.z;
+      var entranceVisibility = 1;
+      var entranceScale = 1;
+      if (isEntering) {
+        var entryDelay = particle.entryDelay * entryDuration;
+        var entryProgress = clamp((time - entryStart - entryDelay) / Math.max(1, entryDuration - entryDelay), 0, 1);
+        var entryEased = easeOutQuint(entryProgress);
+        x = particle.ex + (particle.x - particle.ex) * entryEased;
+        y = particle.ey + (particle.y - particle.ey) * entryEased;
+        z = particle.ez + (particle.z - particle.ez) * entryEased;
+        entranceVisibility = clamp(entryProgress * 2.4, 0, 1);
+        entranceScale = 0.42 + entryEased * 0.58;
+        if (entranceVisibility <= 0.01) continue;
+      }
       if (isBlooming) {
         var burstDuration = 430;
-        if (elapsed <= burstDuration) {
-          var burstProgress = easeOutCubic(clamp(elapsed / burstDuration, 0, 1));
+        if (bloomElapsed <= burstDuration) {
+          var burstProgress = easeOutCubic(clamp(bloomElapsed / burstDuration, 0, 1));
           x += (particle.bx - particle.x) * burstProgress;
           y += (particle.by - particle.y) * burstProgress;
           z += (particle.bz - particle.z) * burstProgress;
         } else {
-          var gatherProgress = clamp((elapsed - burstDuration - particle.delay * 1000) / (bloomDuration - burstDuration - particle.delay * 1000), 0, 1);
+          var gatherProgress = clamp((bloomElapsed - burstDuration - particle.delay * 1000) / (bloomDuration - burstDuration - particle.delay * 1000), 0, 1);
           var eased = easeOutQuart(gatherProgress);
           x = particle.bx + (particle.x - particle.bx) * eased;
           y = particle.by + (particle.y - particle.by) * eased;
@@ -577,14 +869,14 @@
       var light = clamp((normalX * -0.24 + normalY * 0.34 + normalDepth * 0.91 + 1) * 0.5, 0, 1);
       var depthAmount = clamp((depth + 2.25) / 4.5, 0, 1);
       var twinkle = 0.92 + Math.sin(time * 0.0014 + particle.phase) * 0.08;
-      var alphaValue = particle.opacity * (0.34 + light * 0.66) * (0.38 + depthAmount * 0.62);
+      var alphaValue = particle.opacity * entranceVisibility * (0.34 + light * 0.66) * (0.38 + depthAmount * 0.62);
       var alphaIndex = alphaValue > 0.68 ? 2 : alphaValue > 0.38 ? 1 : 0;
       var depthIndex = clamp(Math.floor(depthAmount * depthBinCount), 0, depthBinCount - 1);
       var color = shadeColor(particle, light);
 
       particle.screenX = originX + viewX * scale * perspective;
       particle.screenY = originY - viewY * scale * perspective;
-      particle.screenRadius = clamp(particle.size * perspective * twinkle * (0.74 + light * 0.38), 0.42, 2.42);
+      particle.screenRadius = clamp(particle.size * perspective * twinkle * entranceScale * (0.74 + light * 0.38), 0.42, 2.52);
       depthBuckets[depthIndex][color][alphaIndex].push(particle);
     }
   }
@@ -626,14 +918,42 @@
     context.restore();
   }
 
+  function setEnteringState(active) {
+    isEntering = active;
+    root.classList.toggle("is-entering", active);
+    if (bloomButton) bloomButton.disabled = active || isBlooming;
+  }
+
+  function startEntrance() {
+    if (hasEntered || isEntering || reducedMotionQuery.matches) return;
+    entryStart = performance.now();
+    root.classList.remove("is-entered");
+    setEnteringState(true);
+    status.textContent = "星光正在折成一束玫瑰……";
+    window.requestAnimationFrame(function () {
+      window.requestAnimationFrame(function () {
+        if (!isEntering) return;
+        root.classList.add("is-entered");
+      });
+    });
+    requestFrame();
+  }
+
+  function completeEntrance() {
+    hasEntered = true;
+    setEnteringState(false);
+    root.classList.remove("is-entered");
+    status.textContent = "花已经抵达。拖动看看它的每一面。";
+  }
+
   function setBloomingState(active) {
     isBlooming = active;
-    if (bloomButton) bloomButton.disabled = active;
+    if (bloomButton) bloomButton.disabled = active || isEntering;
     root.classList.toggle("is-blooming", active);
   }
 
   function triggerBloom() {
-    if (isBlooming) return;
+    if (isEntering || isBlooming) return;
     if (reducedMotionQuery.matches) {
       status.textContent = "花束已经为你盛开。";
       return;
@@ -676,6 +996,7 @@
     hoverRotationY += (hoverTargetY - hoverRotationY) * 0.055;
     hoverRotationX += (hoverTargetX - hoverRotationX) * 0.055;
     draw(time);
+    if (isEntering && time - entryStart >= entryDuration) completeEntrance();
     if (isBlooming && time - bloomStart >= bloomDuration) completeBloom();
     requestFrame();
   }
@@ -698,7 +1019,7 @@
   }
 
   canvas.addEventListener("pointerdown", function (event) {
-    if (pointerId !== null) return;
+    if (isEntering || pointerId !== null) return;
     pointerId = event.pointerId;
     pointerStartX = event.clientX;
     pointerStartY = event.clientY;
@@ -781,16 +1102,21 @@
       frameRequest = 0;
     }
     if (reducedMotionQuery.matches) {
+      hasEntered = true;
+      setEnteringState(false);
+      root.classList.remove("is-entered");
       setBloomingState(false);
       status.textContent = "已按照你的动态效果偏好展示静态花束。";
       draw(performance.now());
     } else {
-      status.textContent = "轻触花束，星光会重新聚拢。";
+      if (!hasEntered && !isEntering) startEntrance();
+      if (!isEntering && !isBlooming) status.textContent = "轻触花束，星光会重新聚拢。";
       requestFrame();
     }
   }
 
   if (reducedMotionQuery.addEventListener) reducedMotionQuery.addEventListener("change", handleMotionPreference);
+  if (!reducedMotionQuery.matches) startEntrance();
   resizeCanvas();
   handleMotionPreference();
 })();

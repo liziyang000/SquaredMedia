@@ -243,6 +243,7 @@
       var currentUrl = new URL(window.location.href);
       var route = String(currentUrl.searchParams.get("route") || "").toLowerCase();
       if (route === "home") return "home";
+      if (route === "qixi") return "qixi";
       if (
         {
           categories: true,
@@ -284,6 +285,9 @@
     }
     if (/\/label\/(games|game-2048|game-blockrain|game-bamboo-cicada|game-gomoku|game-drawguess)(?:\.html)?(?:\/|$)/.test(currentPath)) {
       return "games";
+    }
+    if (/\/label\/qixi(?:\.html)?(?:\/|$)/.test(currentPath)) {
+      return "qixi";
     }
 
     var homeLink = document.querySelector('.site-nav a[data-nav-section="home"], .mobile-drawer-links a[data-nav-section="home"]');

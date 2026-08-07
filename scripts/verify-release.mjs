@@ -13,6 +13,7 @@ const assetVersionPlaceholders = [
   "__PINGFANG_GAME_VERSION__",
   "__PINGFANG_BAMBOO_CICADA_VERSION__",
   "__PINGFANG_MULTIPLAYER_VERSION__",
+  "__PINGFANG_QIXI_VERSION__",
 ];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
@@ -30,6 +31,7 @@ const requiredEntries = [
   "pingfangvideo/js/gsap.min.js",
   "pingfangvideo/js/app.js",
   "pingfangvideo/js/multiplayer-games.js",
+  "pingfangvideo/js/qixi-particle-rose.js",
   "pingfangvideo/images/site-logo.png",
   "pingfangvideo/player/preload.html",
   "pingfangvideo/player/buffering.html",
@@ -57,6 +59,7 @@ const requiredEntries = [
   "pingfangvideo/html/label/games.html",
   "pingfangvideo/html/label/history.html",
   "pingfangvideo/html/label/hot.html",
+  "pingfangvideo/html/label/qixi.html",
   "pingfangvideo/html/label/videos.html",
   "pingfangvideo/html/pingfangdevice/index.html",
   "pingfangvideo/html/topic/index.html",
@@ -231,6 +234,8 @@ const gomokuHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/lab
 assert.match(gomokuHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
 const drawguessHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-drawguess.html"], { encoding: "utf8" });
 assert.match(drawguessHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
+const qixiHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/qixi.html"], { encoding: "utf8" });
+assert.match(qixiHtml, new RegExp(`js/qixi-particle-rose\\.js${assetVersionPattern.source}`));
 const styleVersion = includeHtml.match(/css\/style\.css\?v=([a-f0-9]{12})/)?.[1];
 const appVersion = footHtml.match(/js\/app\.js\?v=([a-f0-9]{12})/)?.[1];
 assert.ok(styleVersion && appVersion, "Active assets should include generated versions");

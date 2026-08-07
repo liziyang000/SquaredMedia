@@ -17,6 +17,7 @@ function render_layout(array $data, string $title, string $content): string
     $nav = '<a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>';
     $nav .= '<a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>';
+    $nav .= '<a href="/preview/qixi.html" data-nav-section="qixi">七夕花束</a>';
     $drawerCategories = implode('', array_map(
         static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category])) . '">' . e($category) . '</a>',
         array_slice($data['categories'], 0, 12),
@@ -91,6 +92,7 @@ function render_layout(array $data, string $title, string $content): string
     <a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>
     <a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>
     <a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>
+    <a href="/preview/qixi.html" data-nav-section="qixi">七夕花束</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account"><span>账号</span><div class="mobile-drawer-user"><a class="mobile-drawer-login" href="' . e(path_for('login')) . '">登录</a></div></div>
   <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>

@@ -73,6 +73,7 @@
     <a href="?route=home" data-route="home" data-nav-section="home">首页</a>
     <a href="?route=categories" data-route="categories" data-nav-section="videos">视频</a>
     <a href="?route=games" data-route="games" data-nav-section="games">游戏</a>
+    <a href="qixi.html" data-nav-section="qixi">七夕花束</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
     <span>账号</span>
@@ -328,7 +329,8 @@ function renderNav() {
   nav.innerHTML = [
     `<a href="${url("home")}" data-route="home" data-nav-section="home">首页</a>`,
     `<a href="${url("categories")}" data-route="categories" data-nav-section="videos">视频</a>`,
-    `<a href="${url("games")}" data-route="games" data-nav-section="games">游戏</a>`
+    `<a href="${url("games")}" data-route="games" data-nav-section="games">游戏</a>`,
+    `<a href="qixi.html" data-nav-section="qixi">七夕花束</a>`
   ].join("");
 }
 

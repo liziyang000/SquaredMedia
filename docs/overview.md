@@ -1,6 +1,6 @@
 # SquaredMedia 项目总览
 
-最后核验：2026-07-17
+最后核验：2026-08-10
 
 ## 项目定位
 
@@ -11,7 +11,8 @@
 - 主题目录：`template/pingfangvideo/`
 - 主题发布包：`dist/pingfangvideo.tar.gz`
 - 登录设备插件：`addons/pingfangdevice/`
-- 插件发布包：`dist/pingfangdevice.tar.gz`
+- 视频数据质量插件：`addons/vodops/`
+- 插件发布包：`dist/pingfangdevice.tar.gz`、`dist/vodops.tar.gz`
 
 这些名称会参与 MacCMS 配置、远端目录、路由、数据库表和部署脚本，不应仅因仓库名称不同而单独重命名。若要迁移运行时标识，需要同时核对模板配置、插件钩子、数据库、发布脚本和线上安装状态。
 
@@ -21,7 +22,8 @@
 SquaredMedia/
 ├── .github/workflows/ci.yml      # GitHub Actions 验证与发布包构建
 ├── addons/                       # MacCMS 插件源码
-│   └── pingfangdevice/           # 登录设备与会话管理
+│   ├── pingfangdevice/           # 登录设备与会话管理
+│   └── vodops/                   # 只读扫描与显式单条数据修复
 ├── docker/                       # PHP 8.4 + Apache 开发镜像
 ├── docs/                         # 规范、模块说明、运维文档和历史方案
 ├── ops/security/                 # 独立的安全规则数据快照
@@ -45,9 +47,10 @@ SquaredMedia/
 | --- | --- | --- | --- |
 | `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
 | `maccms-player/` | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
-| `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
+| `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包并由完整部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
 | `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态筛选、线路检测和联机游戏短票据 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
+| `addons/vodops/` | 按全部或指定分类、视频 ID 游标分块生成确定性数据质量异常快照；支持页面驱动或带过期租约的 CLI/Cron Worker、CSV，以及带审计和条件回滚的低风险单条修复 | 是，独立打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
 | `docs/` | 保存当前规范、模块上下文、操作手册和历史设计记录 | 不进入生产包 | 本文与各模块文档 |
@@ -80,12 +83,13 @@ npm run package
 npm run verify:release
 ```
 
-当前打包脚本生成主题、`pingfangdevice` 插件、独立播放器和联机游戏服务四个归档。`npm run deploy` 安装主题、`pingfangdevice` 并更新联机游戏进程，不安装独立播放器。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
+当前打包脚本生成主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务五个归档。`npm run deploy` 安装主题、两个插件并更新联机游戏进程，不安装独立播放器。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
 
 ### 数据维护
 
 数据库维护工具独立于主题发布：
 
+- `vodops` 的扫描过程只生成插件自有审计快照；任务结束后，管理员可逐条确认父分类、年份、地区、语言和海报修复。每次写入保留字段原值并条件复检，但不替代数据库完整备份和写入授权。
 - `scripts/sql/maccms-vod-category-maintenance.sql` 只修正分类父子关系，不根据片名猜测分类。
 - `scripts/repair-vod-posters.php` 默认预演，按本地文件存在性和确定性匹配修复海报，并保留应用报告与备份表。
 

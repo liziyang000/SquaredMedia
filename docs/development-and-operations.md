@@ -25,10 +25,10 @@
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
-| `npm run package` | 重建主题、`pingfangdevice`、独立播放器和联机游戏服务发布包 | 是，先重建整个 `dist/` 再加入独立产物 |
+| `npm run package` | 重建主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务发布包 | 是，先重建整个 `dist/` 再加入独立产物 |
 | `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物 | 是，仅替换播放器目录和归档 |
 | `npm run package:games` | 只重建自包含的联机游戏服务包 | 是，仅替换游戏服务目录和归档 |
-| `npm run verify:release` | 解包检查四个归档的结构、生产边界、资源版本和依赖版本 | 只读 `dist/` |
+| `npm run verify:release` | 解包检查五个归档的结构、生产边界、资源版本和依赖版本 | 只读 `dist/` |
 | `npm run verify:player-release` | 单独检查播放器归档的严格白名单、文件一致性与链接边界 | 只读 `dist/` |
 | `npm run verify:game-server-release` | 检查游戏服务源码、部署样例、固定 `ws` 版本和敏感文件边界 | 只读 `dist/` |
 | `npm run start:games` | 启动本机联机游戏服务；必须先设置签名密钥和允许的 Origin | 否 |
@@ -82,6 +82,8 @@ dist/
 ├── pingfangvideo.tar.gz
 ├── pingfangdevice/
 ├── pingfangdevice.tar.gz
+├── vodops/
+├── vodops.tar.gz
 ├── pingfangplayer-player/
 ├── pingfangplayer-player.tar.gz
 ├── pingfanggames-server/
@@ -90,14 +92,14 @@ dist/
 
 打包过程有以下固定行为：
 
-- `pingfangvideo` 来自 `template/pingfangvideo/`，`pingfangdevice` 来自 `addons/pingfangdevice/`。
-- `pingfangdevice/application/` 保留 MacCMS 标准插件应用载荷结构；SSH 部署会把其中的兼容控制器复制到对应 CMS 应用目录。
+- `pingfangvideo` 来自 `template/pingfangvideo/`，两个插件分别来自 `addons/pingfangdevice/` 和 `addons/vodops/`。
+- 两个插件的 `application/` 都保留 MacCMS 标准应用载荷结构；SSH 部署会把设备兼容控制器，以及 `vodops` 后台控制器和 `view_new` 页面复制到对应 CMS 应用目录。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
 - 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器、竹知了交互和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
 - `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
-- 当前自动化打包主题、`pingfangdevice`、独立播放器和联机游戏服务，不会打包其他 `addons/` 子目录；`npm run deploy` 会部署主题、插件与游戏服务，但不会安装独立播放器。`npm run rollback` 仍只回滚主题，不删除播放器或游戏服务。
+- 当前自动化打包主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务，不会自动包含其他 `addons/` 子目录；`npm run deploy` 会部署主题、两个插件与游戏服务，但不会安装独立播放器。`npm run rollback` 仍只回滚主题，不删除插件、播放器或游戏服务。
 
 `dist/` 已被 `.gitignore` 忽略，是可重复生成的发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
@@ -142,18 +144,30 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
+只发布视频数据质量中心时使用专用范围，不要执行上面的全量命令：
+
+```bash
+source scripts/deploy-ping2.env
+npm run deploy:vodops
+```
+
+`deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装 `vodops`：备份插件目录、后台控制器、后台视图、hook 与快捷菜单配置，保留旧 VodOps 配置值，增量创建并校验五张自有表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，移除旧版 `response_end` hook，再安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器。
+
 发布顺序如下：
 
 1. 在本地重新执行测试、模板检查、兼容验证和预览验证。
-2. 重建 `dist/`，验证主题、插件、播放器和联机游戏服务四个发布归档。
-3. 上传主题与 `pingfangdevice` 归档到远端临时路径。
+2. 重建 `dist/`，验证主题、两个插件、播放器和联机游戏服务五个发布归档。
+3. 上传主题、`pingfangdevice` 与 `vodops` 归档到远端临时路径。
 4. 先安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
 5. 把旧插件配置中仍存在的同名设置值合并到新配置，避免主题发布清空设备限制或联机签名密钥。
-6. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
-7. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
-8. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
-9. 上传联机服务包，原子切换 `/opt/pingfanggames/current`，复用已有密钥或首次生成密钥，同步插件配置、systemd 与 Nginx。
-10. 校验 Nginx 配置、重启并启用游戏服务、检查 `/healthz`，再按服务器实际管理方式无中断重载 Nginx。
+6. 安装并验证 `vodops`：备份旧插件、后台控制器和 `view_new` 页面并保留已有配置，创建一张互斥表、三张扫描结果表和一张修复日志表，幂等补齐分类范围与 Worker 字段并实际查询验证扫描锁行，移除旧 `response_end` hook，安装由 `flock` 防重入的每分钟 Cron，并向 `quickmenu.php` 追加“视频数据质量”入口。
+7. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
+8. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
+9. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
+10. 上传联机服务包，原子切换 `/opt/pingfanggames/current`，复用已有密钥或首次生成密钥，同步插件配置、systemd 与 Nginx。
+11. 校验 Nginx 配置、重启并启用游戏服务、检查 `/healthz`，再按服务器实际管理方式无中断重载 Nginx。
+
+VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`。若服务器由 systemd timer、面板计划任务或其他调度器接管，可在发布时设置 `VODOPS_INSTALL_CRON=0`，再按每分钟一次调用 `php <站点根>/addons/vodops/bin/vodops-worker.php --max-chunks=20 --max-seconds=50`；否则勾选“后台 Worker”的任务在页面关闭后不会前进。Worker 空闲时不输出，活动记录写入 `runtime/log/vodops-worker.log`，需要纳入现有日志轮转。
 
 需要保留缓存时可设置 `DEPLOY_CLEAR_CACHE=0`，但只能用于明确的维护场景。站点回环验证能识别 PHP/Nginx 错误页、错误虚拟主机和缓存重建失败，但不会检查浏览器登录流程、外部 DNS/CDN 可达性，因此脚本成功仍不等于完整线上验收。
 
@@ -161,6 +175,7 @@ npm run deploy
 
 - 首页、分类、详情、播放及用户入口返回预期页面，没有 PHP 运行时错误。
 - `pingfangdevice` 管理页可访问，登录、设备登记和撤销流程按预期工作。
+- 超级管理员可从快捷菜单打开 `vodops`，分别验证仅页面驱动和“后台 Worker”任务，执行一批扫描、继续或结束任务，并导出当前筛选 CSV；Worker 验收应关闭后台页且不制造任何前台访问，等待下一次 Cron 后刷新任务，确认进度或心跳前进，并检查 `crontab -l` 中当前站点标记恰好一条。确认已结束任务为支持类型显示修复侧边栏，播放和重复候选仍只显示原生编辑入口；未取得单独的数据写入授权时，只检查预览，不点击确认修改或回滚，并确认部署过程没有写入视频主表。
 - MacCMS 缓存目录仍可由 Web 进程写入。
 - 远端实际主题和插件文件来自本次归档，并记录本次生成的备份目录名。
 
@@ -170,10 +185,10 @@ npm run deploy
 - 专用部署密钥不是默认 SSH Identity 时，通过 `DEPLOY_IDENTITY_FILE` 传入本机私钥路径；脚本会同时为 SSH 和 SCP 启用 `IdentitiesOnly`，但不会读取或复制私钥内容。
 - `DEPLOY_SITE_HOST` 只填写主机名，不带协议或路径；协议由 `DEPLOY_SITE_SCHEME` 指定。`DEPLOY_SITE_MARKER` 应选择只有正确站点页面会出现的稳定片段，当前 ping2 配置使用主题资源路径。
 - 回环请求使用 `curl -k`，只用于绕过服务器本机访问虚拟主机时的证书信任问题；它不修改证书配置，也不能代替从公网检查 TLS、DNS 和 CDN。
-- 发布脚本会替换远端目录、修改 `application/extra/addons.php` 并执行数据库 DDL。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
+- 发布脚本会替换远端目录、修改 `application/extra/addons.php` 与 `application/extra/quickmenu.php` 并执行数据库 DDL。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
 - 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
 - 站点回环验证发生在文件、hook 和数据库更新之后；验证失败会让部署命令返回非零，但不会自动回滚已经应用的变化，应先检查响应和备份，再决定修复或执行明确回滚。
-- 脚本会为插件目录、应用兼容控制器和 hook 配置创建备份，但不会自动执行插件回滚。
+- 脚本会为插件目录、应用控制器、`vodops` 后台视图、hook 和快捷菜单配置创建备份；修改已有 crontab 前也会把原内容保存到站点 `runtime`。它不会自动执行插件或 Cron 回滚，恢复旧插件时必须同步确认是否保留带当前站点标记的 `vodops-worker` 条目。
 - 游戏服务部署会单独备份服务环境、systemd、Nginx 和插件配置；该阶段失败时自动恢复上一个服务版本，但不会回滚此前已成功更新的主题与插件代码。
 
 ## 回滚
@@ -196,7 +211,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 
 回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并默认清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
 
-此命令只回滚主题，不回滚 `pingfangdevice` 插件、应用兼容控制器、hook 配置或数据库表结构。若故障来自插件发布，必须基于部署时留下的备份和数据库审计结果制定单独恢复方案。主题回滚后仍需完成与发布后相同的线上验证。
+此命令只回滚主题，不回滚 `pingfangdevice`、`vodops`、应用控制器和后台视图、hook、快捷菜单、VodOps Cron 或数据库表结构。若故障来自插件发布，必须基于部署时留下的备份和数据库审计结果制定单独恢复方案。主题回滚后仍需完成与发布后相同的线上验证。
 
 ## 数据维护工具
 
@@ -248,6 +263,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 ```text
 pingfangvideo-theme  -> dist/pingfangvideo.tar.gz
 pingfangdevice-addon -> dist/pingfangdevice.tar.gz
+vodops-addon -> dist/vodops.tar.gz
 pingfangplayer-player -> dist/pingfangplayer-player.tar.gz
 pingfanggames-server -> dist/pingfanggames-server.tar.gz
 ```

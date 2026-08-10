@@ -1,0 +1,40 @@
+<?php
+
+return [
+    [
+        'name' => 'scheduled_scan_hours',
+        'title' => '定时扫描间隔（小时）',
+        'type' => 'string',
+        'content' => [],
+        'value' => '0',
+        'rule' => 'required;integer',
+        'msg' => '',
+        'tip' => '0 表示关闭定时新建任务；启用时允许 1～720 小时。后台 Worker 仍会继续管理员已启动的任务。',
+        'ok' => '',
+        'extend' => '',
+    ],
+    [
+        'name' => 'scheduled_scope_type_id',
+        'title' => '定时扫描分类 ID',
+        'type' => 'string',
+        'content' => [],
+        'value' => '0',
+        'rule' => 'required;integer',
+        'msg' => '',
+        'tip' => '0 扫描全部分类；填写父分类 ID 时会包含任务创建时的全部后代分类。',
+        'ok' => '',
+        'extend' => '',
+    ],
+    [
+        'name' => 'scheduled_batch_size',
+        'title' => '定时扫描每批数量',
+        'type' => 'string',
+        'content' => [],
+        'value' => '500',
+        'rule' => 'required;integer',
+        'msg' => '',
+        'tip' => '允许 100～1000 条；Worker 每次调用仍受批次和时间预算限制。',
+        'ok' => '',
+        'extend' => '',
+    ],
+];

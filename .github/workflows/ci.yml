@@ -1,4 +1,4 @@
-name: Theme, Addon, Player, and Games CI
+name: Theme, Addons, Player, and Games CI
 
 on:
   push:
@@ -62,6 +62,12 @@ jobs:
         with:
           name: pingfangdevice-addon
           path: dist/pingfangdevice.tar.gz
+
+      - name: Upload vodops addon package
+        uses: actions/upload-artifact@v4
+        with:
+          name: vodops-addon
+          path: dist/vodops.tar.gz
 
       - name: Upload player package
         uses: actions/upload-artifact@v4

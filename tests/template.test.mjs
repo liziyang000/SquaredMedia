@@ -6,6 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const addonRoot = path.join(root, "addons", "pingfangdevice");
+const vodopsAddonRoot = path.join(root, "addons", "vodops");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
@@ -180,6 +181,15 @@ const requiredRootFiles = [
   "addons/pingfangdevice/service/GameAccessTicket.php",
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
+  "addons/vodops/Vodops.php",
+  "addons/vodops/application/admin/controller/Vodops.php",
+  "addons/vodops/application/admin/view_new/vodops/index.html",
+  "addons/vodops/config.php",
+  "addons/vodops/info.ini",
+  "addons/vodops/install.sql",
+  "addons/vodops/service/VodQualityAnalyzer.php",
+  "addons/vodops/service/VodQualityRepair.php",
+  "addons/vodops/service/VodQualityScanner.php",
   "preview/data.json",
   "preview/qixi.html",
   "scripts/lint-template.mjs",
@@ -2224,6 +2234,7 @@ assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web ser
 const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
+assert.match(packageScript, /vodops/);
 assert.match(packageScript, /dist/);
 assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
@@ -2269,6 +2280,7 @@ assert.match(packageJson.scripts["verify:release"], /verify:game-server-release/
 assert.equal(packageJson.dependencies.ws, "8.21.1");
 assert.match(packageJson.scripts.deploy, /deploy-theme\.sh/);
 assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
+assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh");
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
@@ -2317,12 +2329,35 @@ assert.match(deployScript, /tar -xzf/);
 assert.match(deployScript, /pingfangvideo\.backup/);
 assert.match(deployScript, /ADDON_NAME="pingfangdevice"/);
 assert.match(deployScript, /pingfangdevice\.tar\.gz/);
+assert.match(deployScript, /VODOPS_ADDON_NAME="vodops"/);
+assert.match(deployScript, /dist\/vodops\.tar\.gz/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
+assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]/);
+assert.match(deployScript, /application\/admin\/controller\/Vodops\.php/);
+assert.match(deployScript, /application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(deployScript, /application\/extra\/quickmenu\.php/);
+assert.match(deployScript, /vodops_lock/);
+assert.match(deployScript, /vodops_scan/);
+assert.match(deployScript, /vodops_issue/);
+assert.match(deployScript, /vodops_fingerprint/);
+assert.match(deployScript, /vodops_repair_log/);
+assert.match(deployScript, /response_end/);
+assert.match(deployScript, /array_filter/);
+assert.match(deployScript, /Vodops response_end hook removal failed/);
+assert.match(deployScript, /bin\/vodops-worker\.php/);
+assert.match(deployScript, /crontab -l/);
+assert.match(deployScript, /flock/);
+assert.match(deployScript, /install_vodops_worker_cron preflight/);
+assert.match(deployScript, /execution_mode/);
+assert.match(deployScript, /lease_until/);
+assert.match(deployScript, /next_run_at/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
 assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);
 assert.match(deployScript, /application\/extra\/addons\.php/);
 assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /php -l "\$php_file"/);
+assert.doesNotMatch(deployScript, /str_starts_with/);
 assert.match(deployScript, /Addon app_begin hook verification failed/);
 assert.match(deployScript, /opcache_invalidate\(\$path, true\)/);
 assert.doesNotMatch(deployScript, /fwrite\(STDERR/);
@@ -2429,6 +2464,20 @@ const invalidDeploySiteScheme = spawnSync("bash", ["scripts/deploy-theme.sh"], {
 assert.notEqual(invalidDeploySiteScheme.status, 0);
 assert.match(invalidDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
 
+const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SCOPE: "theme-only",
+  },
+});
+assert.notEqual(invalidDeployScope.status, 0);
+assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all or vodops/);
+
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
 assert.match(rollbackScript, /set -euo pipefail/);
@@ -2448,7 +2497,7 @@ assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
 
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
-assert.match(ciWorkflow, /name: Theme, Addon, Player, and Games CI/);
+assert.match(ciWorkflow, /name: Theme, Addons, Player, and Games CI/);
 assert.match(ciWorkflow, /pull_request:/);
 assert.match(ciWorkflow, /actions\/checkout@v4/);
 assert.match(ciWorkflow, /actions\/setup-node@v4/);
@@ -2466,6 +2515,7 @@ assert.match(ciWorkflow, /npm run verify:release/);
 assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
 assert.match(ciWorkflow, /name: pingfangvideo-theme[\s\S]*path: dist\/pingfangvideo\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangdevice\.tar\.gz/);
+assert.match(ciWorkflow, /name: vodops-addon[\s\S]*path: dist\/vodops\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangplayer-player[\s\S]*path: dist\/pingfangplayer-player\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfanggames-server[\s\S]*path: dist\/pingfanggames-server\.tar\.gz/);
 
@@ -2483,6 +2533,30 @@ assert.match(deviceAddonConfig, /game_websocket_path/);
 
 const deviceAddonHook = readAddonFile("Pingfangdevice.php");
 assert.match(deviceAddonHook, /namespace addons\\pingfangdevice/);
+
+const vodopsController = readFileSync(path.join(vodopsAddonRoot, "application/admin/controller/Vodops.php"), "utf8");
+assert.match(vodopsController, /class Vodops extends Base/);
+assert.match(vodopsController, /admin\/view_new/);
+const vodopsHook = readFileSync(path.join(vodopsAddonRoot, "Vodops.php"), "utf8");
+assert.doesNotMatch(vodopsHook, /responseEnd|runTrafficChunk/);
+const vodopsView = readFileSync(path.join(vodopsAddonRoot, "application/admin/view_new/vodops/index.html"), "utf8");
+assert.match(vodopsView, /X-CSRF-Token/);
+assert.match(vodopsView, /不会自动修复、删除、合并或优化/);
+assert.match(vodopsView, /id="vodopsScopeTypeId"/);
+assert.match(vodopsView, /id="vodopsWorkerMode"/);
+assert.match(vodopsView, /worker_mode/);
+assert.match(vodopsView, /scope_label/);
+assert.match(vodopsView, /runner_state_label/);
+assert.match(vodopsView, /确认修改并复检/);
+assert.match(vodopsView, /vodops\/rollbackRepair/);
+const vodopsWorker = readFileSync(path.join(vodopsAddonRoot, "bin/vodops-worker.php"), "utf8");
+assert.match(vodopsWorker, /App::initCommon/);
+assert.match(vodopsWorker, /ensureScheduledScan/);
+assert.match(vodopsWorker, /runWorker/);
+const vodopsConfig = readFileSync(path.join(vodopsAddonRoot, "config.php"), "utf8");
+assert.match(vodopsConfig, /scheduled_scan_hours/);
+assert.match(vodopsConfig, /scheduled_scope_type_id/);
+assert.match(vodopsConfig, /scheduled_batch_size/);
 assert.match(deviceAddonHook, /extends Addons/);
 assert.match(deviceAddonHook, /public function appBegin/);
 assert.match(deviceAddonHook, /DeviceSession::syncActiveCookie/);
@@ -2652,6 +2726,7 @@ assert.match(previewVerifier, /Preview verification passed/);
 const releaseVerifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
 assert.match(releaseVerifier, /pingfangvideo\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
+assert.match(releaseVerifier, /vodops\.tar\.gz/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -2670,13 +2745,16 @@ assert.match(releaseVerifier, /html\/label\/qixi\.html/);
 assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
 assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
+assert.match(releaseVerifier, /requiredVodopsEntries/);
+assert.match(releaseVerifier, /vodops\/application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(releaseVerifier, /scope_json/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);
 assert.match(releaseVerifier, /excludedEntries/);
 assert.doesNotMatch(releaseVerifier, /react\.production|pingfang-player|rank-react|pingfangvideo\/js\/hls\.min/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
-assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 2);
+assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 3);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");

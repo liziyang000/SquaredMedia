@@ -6,6 +6,7 @@ import path from "node:path";
 const root = process.cwd();
 const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
 const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
+const vodopsArchive = path.join(root, "dist", "vodops.tar.gz");
 const assetVersionPlaceholders = [
   "__PINGFANG_STYLE_VERSION__",
   "__PINGFANG_APP_VERSION__",
@@ -144,6 +145,18 @@ const requiredAddonEntries = [
   "pingfangdevice/service/VodSourceQuality.php",
   "pingfangdevice/view/index/index.html",
 ];
+const requiredVodopsEntries = [
+  "vodops/Vodops.php",
+  "vodops/application/admin/controller/Vodops.php",
+  "vodops/application/admin/view_new/vodops/index.html",
+  "vodops/bin/vodops-worker.php",
+  "vodops/config.php",
+  "vodops/info.ini",
+  "vodops/install.sql",
+  "vodops/service/VodQualityAnalyzer.php",
+  "vodops/service/VodQualityRepair.php",
+  "vodops/service/VodQualityScanner.php",
+];
 
 function assertBalanced(content, openPattern, closePattern, label, file) {
   const opens = content.match(openPattern)?.length || 0;
@@ -166,6 +179,7 @@ function assertSafeAssetReference(value, file, tag) {
 
 assert.ok(existsSync(archive), "dist/pingfangvideo.tar.gz should exist. Run npm run package first.");
 assert.ok(existsSync(addonArchive), "dist/pingfangdevice.tar.gz should exist. Run npm run package first.");
+assert.ok(existsSync(vodopsArchive), "dist/vodops.tar.gz should exist. Run npm run package first.");
 
 const tarList = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
 assert.equal(tarList.status, 0, tarList.stderr || "Release archive should be readable");
@@ -280,5 +294,93 @@ assert.match(addonSql, /`login_check_hash` char\(64\) NOT NULL/);
 assert.match(addonSql, /PREPARE pingfang_login_check_hash_stmt/);
 assert.doesNotMatch(addonSql, /DROP\s+TABLE/i);
 
+const vodopsTarList = spawnSync("tar", ["-tzf", vodopsArchive], { encoding: "utf8" });
+assert.equal(vodopsTarList.status, 0, vodopsTarList.stderr || "Vodops release archive should be readable");
+assert.doesNotMatch(vodopsTarList.stderr, /LIBARCHIVE\.xattr/, "Vodops release archive should not include macOS extended attribute metadata");
+
+const vodopsEntries = vodopsTarList.stdout
+  .trim()
+  .split(/\r?\n/)
+  .filter(Boolean);
+
+for (const entry of requiredVodopsEntries) {
+  assert.ok(vodopsEntries.includes(entry), `${entry} should be included in the vodops archive`);
+}
+assert.ok(
+  !vodopsEntries.some((entry) => entry.startsWith("vodops/controller/")),
+  "Vodops should not expose a public addon controller",
+);
+
+const vodopsController = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/application/admin/controller/Vodops.php"], { encoding: "utf8" });
+assert.match(vodopsController, /class Vodops extends Base/);
+assert.match(vodopsController, /admin\/view_new/);
+assert.match(vodopsController, /public function deleteScan\(\)/);
+assert.match(vodopsController, /catch \(VodQualityActionException \$e\)/);
+assert.match(vodopsController, /catch \(VodQualityExportException \$e\)/);
+assert.match(vodopsController, /导出扫描结果失败，请查看服务端日志/);
+const vodopsHook = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/Vodops.php"], { encoding: "utf8" });
+assert.doesNotMatch(vodopsHook, /responseEnd|runTrafficChunk/);
+const vodopsView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/application/admin/view_new/vodops/index.html"], { encoding: "utf8" });
+assert.match(vodopsView, /X-CSRF-Token/);
+assert.match(vodopsView, /不会自动修复、删除、合并或优化/);
+assert.match(vodopsView, /只删除 VodOps 扫描结果，不会修改 mac_vod/);
+assert.match(vodopsView, /源记录未被读取/);
+assert.match(vodopsView, /扫描完成或结束后可导出结果/);
+assert.match(vodopsView, /id="vodopsScopeTypeId"/);
+assert.match(vodopsView, /id="vodopsWorkerMode"/);
+assert.match(vodopsView, /worker_mode/);
+assert.match(vodopsView, /scope_label/);
+assert.match(vodopsView, /runner_state_label/);
+assert.match(vodopsView, /url\('vod\/info',[\s\S]*?vod_id/);
+assert.match(vodopsView, /detail_label/);
+assert.match(vodopsView, /确认修改并复检/);
+assert.match(vodopsView, /vodops\/rollbackRepair/);
+const vodopsScanner = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodQualityScanner.php"], { encoding: "utf8" });
+assert.match(vodopsScanner, /class VodQualityExportException extends \\RuntimeException/);
+assert.match(vodopsScanner, /class VodQualityActionException extends \\RuntimeException/);
+assert.match(vodopsScanner, /PUBLIC_SCAN_ERROR/);
+assert.match(vodopsScanner, /where\('type_id', 'in', \$scopeTypeIds\)/);
+assert.match(vodopsScanner, /public static function runWorker/);
+assert.match(vodopsScanner, /public static function runWorkerChunk/);
+assert.match(vodopsScanner, /WORKER_LEASE_SECONDS/);
+assert.match(vodopsScanner, /public static function ensureScheduledScan/);
+assert.match(vodopsScanner, /扫描仍在进行，请等待完成或先结束任务后再导出/);
+assert.doesNotMatch(vodopsScanner, /'error_message'\s*=>\s*VodQualityAnalyzer::sanitizeValue\(\$e->getMessage/);
+const vodopsRepair = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodQualityRepair.php"], { encoding: "utf8" });
+assert.match(vodopsRepair, /private const REPAIR_TABLE = 'vodops_repair_log'/);
+assert.match(vodopsRepair, /createAudit\([\s\S]*?conditionalVodUpdate/);
+assert.match(vodopsRepair, /foreach \(\$expected as \$field => \$value\)[\s\S]*?->where\(\$field, \$value\)/);
+const vodopsConfig = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/config.php"], { encoding: "utf8" });
+for (const setting of ["scheduled_scan_hours", "scheduled_scope_type_id", "scheduled_batch_size"]) {
+  assert.match(vodopsConfig, new RegExp(`'name'\\s*=>\\s*'${setting}'`));
+}
+const vodopsWorker = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/bin/vodops-worker.php"], { encoding: "utf8" });
+assert.match(vodopsWorker, /PHP_SAPI[\s\S]*?cli/);
+assert.match(vodopsWorker, /thinkphp[\s\S]*?base\.php[\s\S]*?App::initCommon/);
+assert.match(vodopsWorker, /ensureScheduledScan[\s\S]*?runWorker/);
+const vodopsSql = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/install.sql"], { encoding: "utf8" });
+for (const table of ["vodops_lock", "vodops_scan", "vodops_issue", "vodops_fingerprint", "vodops_repair_log"]) {
+  assert.match(vodopsSql, new RegExp("CREATE TABLE IF NOT EXISTS `__PREFIX__" + table + "`"));
+}
+assert.match(vodopsSql, /INSERT IGNORE INTO `__PREFIX__vodops_lock`[\s\S]*?scan_start/);
+assert.equal((vodopsSql.match(/ENGINE=InnoDB/g) || []).length, 5, "Every vodops table should use InnoDB");
+assert.match(vodopsSql, /`guard_json` text NULL/);
+assert.match(vodopsSql, /`scope_json` text NULL/);
+assert.match(vodopsSql, /`execution_mode` varchar\(16\) NOT NULL DEFAULT 'manual'/);
+assert.match(vodopsSql, /`lease_until` int\(10\) unsigned NOT NULL DEFAULT 0/);
+assert.match(vodopsSql, /`next_run_at` int\(10\) unsigned NOT NULL DEFAULT 0/);
+assert.match(vodopsSql, /information_schema\.COLUMNS[\s\S]*?COLUMN_NAME = 'scope_json'/);
+assert.equal((vodopsSql.match(/'ALTER TABLE `/g) || []).length, 4, "Vodops upgrades should only add four documented columns");
+for (const migration of [
+  "ADD COLUMN `scope_json` text NULL AFTER `error_message`",
+  "ADD COLUMN `execution_mode` varchar(16) NOT NULL DEFAULT ''manual'' AFTER `scope_json`",
+  "ADD COLUMN `lease_until` int(10) unsigned NOT NULL DEFAULT 0 AFTER `execution_mode`",
+  "ADD COLUMN `next_run_at` int(10) unsigned NOT NULL DEFAULT 0 AFTER `lease_until`",
+]) {
+  assert.match(vodopsSql, new RegExp(migration.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+}
+assert.doesNotMatch(vodopsSql, /\b(?:DROP|DELETE|UPDATE|OPTIMIZE|REPAIR)\b/i);
+
 console.log(`Verified ${archive}`);
 console.log(`Verified ${addonArchive}`);
+console.log(`Verified ${vodopsArchive}`);

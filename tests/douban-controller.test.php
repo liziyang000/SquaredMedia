@@ -69,10 +69,20 @@ namespace {
     }
 
     $backend = new ReflectionClass(\addons\douban\backend\DoubanController::class);
-    foreach (['index', 'enqueue', 'previewTargeted', 'enqueueTargeted', 'run', 'previewCalibration', 'calibrateByType'] as $method) {
+    foreach (['index', 'fetchVod', 'rollbackPic', 'enqueue', 'previewTargeted', 'enqueueTargeted', 'run', 'previewCalibration', 'calibrateByType', 'startAudit', 'runAuditBatch', 'pauseAudit', 'resumeAudit', 'exportAudit'] as $method) {
         if (!$backend->hasMethod($method)) {
             failControllerTest('Backend controller is missing action: ' . $method);
         }
+    }
+    $backendSource = file_get_contents($root . '/addons/douban/backend/DoubanController.php');
+    if (!preg_match('/public function exportAudit\(\)[\s\S]*?if \(!\$this->isAdmin\(\)\)[\s\S]*?DoubanData::auditIssueExportBatch/', $backendSource)) {
+        failControllerTest('Audit CSV export should verify the administrator session before reading report rows');
+    }
+    $csvCell = $backend->getMethod('csvCell');
+    $csvCell->setAccessible(true);
+    if ($csvCell->invoke($controller, '=WEBSERVICE("https://example.invalid")') !== '\'=WEBSERVICE("https://example.invalid")'
+        || $csvCell->invoke($controller, '普通影片') !== '普通影片') {
+        failControllerTest('Audit CSV export should neutralize spreadsheet formulas without changing normal text');
     }
 
     if (is_file($root . '/addons/douban/application/index/controller/Douban.php')) {

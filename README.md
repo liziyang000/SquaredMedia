@@ -122,11 +122,12 @@ keeps the original value in `vod_douban_score` and mirrors it to `vod_score`.
 It does not overwrite `vod_score_num` or `vod_score_all`, which remain MacCMS
 local rating aggregates. Use **校准豆瓣评分** once after deployment to copy
 existing Douban ratings and reset videos without a Douban rating to `0`.
-Generating due tasks repeats this calibration automatically so newly imported
-videos cannot retain a non-Douban sort score.
+Calibration is a separate maintenance action: generating due tasks never changes
+video scores automatically.
 
 Normal operation is: log in as an administrator, open the Douban page, generate
-due tasks, and run the Pending Worker in limited batches. Existing
+due tasks, and run the Pending Worker in limited browser batches. The addon does
+not install or start a server-side scheduler. Existing
 `vod_douban_id` values sync directly. Videos without an ID are searched by title;
 a unique exact title and year match is confirmed automatically, while ambiguous
 results remain in 待核查豆瓣ID for manual confirmation.
@@ -152,9 +153,9 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-For the `ping2.my` server, the non-secret deployment target is stored in
-`scripts/deploy-ping2.env`. This file distinguishes the SSH host `ping2.my`
-from the public site host `www.ping2video.xyz` and selects the dedicated local
+For the production server, the non-secret deployment target is stored in
+`scripts/deploy-ping2.env`. This file uses SSH target `144.34.184.95:814`,
+keeps the public verification host `www.ping2video.xyz` separate, and selects the dedicated local
 deployment identity:
 
 ```bash
@@ -222,12 +223,13 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260627093000 npm run rollback
 
 Rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
 the selected backup to `pingfangvideo`, and clears the same MacCMS cache
-directories unless `DEPLOY_CLEAR_CACHE=0` is set. This command intentionally
-rolls back only the theme. Addon code and its additive device-session schema are
-left in place so a theme rollback cannot discard login history or silently
-remove a security migration; deploy-created addon and application-controller
-backups remain on the server for an explicit manual addon rollback if one is
-required.
+directories unless `DEPLOY_CLEAR_CACHE=0` is set. To restore the Douban addon
+and its admin controller from the latest `douban.backup.*`, use
+`ROLLBACK_SCOPE=douban npm run rollback`; this preserves all plugin database
+tables. Without `ROLLBACK_SCOPE=douban`, the command intentionally rolls back
+only the theme. The `pingfangdevice` addon and additive database schemas are
+always left in place so a code rollback cannot discard login history or silently
+remove a security migration.
 
 GitHub Actions runs the same release gate on pushes and pull requests: `npm test`,
 `npm run lint:template`, `npm run verify:compat`, `npm run verify:preview`,

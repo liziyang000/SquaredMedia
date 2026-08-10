@@ -5,453 +5,1139 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>豆瓣数据</title>
   <style>
+    :root { --ink: #17221c; --muted: #68756e; --line: #dce5df; --paper: #f3f6f4; --surface: #fff; --douban: #2f7d56; --douban-dark: #236244; --douban-soft: #e8f3ed; --amber: #a86412; --amber-soft: #fff4df; --danger: #b42318; --danger-soft: #fff0ee; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: #f4f6f8; color: #17202a; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; }
     button, input, select { font: inherit; }
-    .device-panel { width: min(1440px, calc(100% - 32px)); margin: 24px auto; }
-    .record-toolbar, .device-meta, .tool-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .record-toolbar { justify-content: space-between; margin-bottom: 12px; }
-    .record-toolbar strong { display: block; font-size: 24px; }
-    .record-toolbar span, .device-meta { color: #667085; }
-    .favorite-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-    .device-card, .system-box { padding: 16px; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; }
-    .system-box { margin-top: 12px; }
-    .record-title { margin: 0 0 10px; font-size: 16px; }
-    .tool-form label { display: grid; gap: 4px; color: #475467; }
-    input, select { min-height: 36px; padding: 7px 9px; border: 1px solid #cfd5dc; border-radius: 4px; background: #fff; color: #17202a; }
-    button { min-height: 36px; padding: 7px 12px; border: 1px solid #b8c1cc; border-radius: 4px; background: #fff; color: #344054; cursor: pointer; }
-    button.primary-btn { border-color: #1769aa; background: #1769aa; color: #fff; }
-    button.danger-btn { border-color: #d92d20; color: #b42318; }
-    button:disabled { cursor: wait; opacity: .55; }
-    table.user-records { display: table; width: 100%; margin-top: 12px; border-collapse: collapse; background: #fff; }
-    th, td { padding: 10px; border: 1px solid #e3e7ec; text-align: left; vertical-align: top; }
-    th { background: #f8fafc; white-space: nowrap; }
-    .douban-id-form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    button, summary { -webkit-tap-highlight-color: transparent; }
+    .device-panel { width: min(1280px, calc(100% - 32px)); margin: 24px auto 48px; }
+    .workbench-header { max-width: 760px; margin-bottom: 16px; }
+    .workbench-kicker { display: block; margin-bottom: 4px; color: var(--douban); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .workbench-header h1 { margin: 0; font-size: clamp(26px, 3vw, 36px); line-height: 1.15; letter-spacing: -.03em; }
+    .workbench-header p { max-width: 620px; margin: 8px 0 0; color: var(--muted); }
+    .operation-status { position: sticky; top: 10px; z-index: 20; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 62px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.96); box-shadow: 0 8px 24px rgba(24, 53, 37, .08); backdrop-filter: blur(10px); }
+    .operation-dot { width: 11px; height: 11px; border-radius: 50%; background: #9ca9a1; box-shadow: 0 0 0 5px #edf1ee; }
+    .operation-copy { min-width: 0; }
+    .operation-copy strong, .operation-copy span { display: block; }
+    .operation-copy span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .operation-time { color: var(--muted); font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .operation-status[data-state="running"] { border-color: #9bc8ad; background: #f6fbf8; }
+    .operation-status[data-state="running"] .operation-dot { background: var(--douban); animation: status-pulse 1.2s ease-in-out infinite; }
+    .operation-status[data-state="success"] { border-color: #9bc8ad; background: var(--douban-soft); }
+    .operation-status[data-state="success"] .operation-dot { background: var(--douban); }
+    .operation-status[data-state="warning"] { border-color: #e7c483; background: var(--amber-soft); }
+    .operation-status[data-state="warning"] .operation-dot { background: var(--amber); }
+    .operation-status[data-state="error"] { border-color: #efb2ab; background: var(--danger-soft); }
+    .operation-status[data-state="error"] .operation-dot { background: var(--danger); }
+    @keyframes status-pulse { 50% { transform: scale(.72); box-shadow: 0 0 0 8px rgba(47,125,86,.14); } }
+    .sync-result { scroll-margin-top: 88px; margin-bottom: 14px; padding: 18px; border: 1px solid #9bc8ad; border-radius: 14px; background: #f8fcf9; box-shadow: 0 12px 32px rgba(24, 53, 37, .08); }
+    .sync-result[hidden] { display: none; }
+    .sync-result-heading { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+    .sync-result-kicker { color: var(--douban); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+    .sync-result h2 { margin: 2px 0 0; font-size: 19px; }
+    .sync-result-heading p { margin: 4px 0 0; color: var(--muted); }
+    .sync-changes { display: grid; gap: 9px; margin-top: 14px; }
+    .sync-change { display: grid; grid-template-columns: minmax(100px, 150px) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .sync-change-name { margin: 0; font-size: 13px; }
+    .sync-change-heading button { width: 100%; min-height: 32px; margin-top: 8px; padding: 5px 8px; font-size: 12px; }
+    .sync-value-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
+    .sync-value pre { max-height: 180px; margin: 0; overflow: auto; color: var(--ink); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .sync-value-after { padding-left: 10px; border-left: 2px solid #b9ddc8; }
+    .sync-empty { margin: 0; padding: 14px; border-radius: 10px; background: var(--douban-soft); color: var(--douban-dark); }
+    .sync-warning { padding: 10px; border: 1px solid #e7c483; border-radius: 10px; background: var(--amber-soft); color: #70440d; }
+    .sync-warning strong { display: block; }
+    .sync-warning pre { max-height: 120px; margin: 5px 0 0; overflow: auto; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .search-panel, .system-box, .advanced-panel { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+    .search-panel { padding: 20px; box-shadow: 0 12px 36px rgba(24, 53, 37, .07); }
+    .section-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 14px; }
+    .section-heading h2 { margin: 0; font-size: 19px; }
+    .section-heading p { margin: 3px 0 0; color: var(--muted); }
+    .step-mark { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin-right: 8px; border-radius: 9px; background: var(--douban-soft); color: var(--douban-dark); font: 700 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace; vertical-align: 2px; }
+    .tool-form, .search-form, .record-toolbar, .device-meta { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
+    .search-form { display: grid; grid-template-columns: minmax(260px, 1.7fr) minmax(180px, 1fr) 140px auto; }
+    .tool-form label, .search-form label { display: grid; gap: 5px; color: #44534a; font-size: 13px; }
+    input, select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #c9d4cd; border-radius: 8px; background: #fff; color: var(--ink); outline: none; }
+    input[type="checkbox"] { width: auto; min-height: 0; accent-color: var(--douban); }
+    input:focus, select:focus, button:focus-visible, summary:focus-visible { border-color: var(--douban); box-shadow: 0 0 0 3px rgba(47,125,86,.14); outline: none; }
+    button { min-height: 38px; padding: 8px 13px; border: 1px solid #b9c6be; border-radius: 8px; background: #fff; color: #33443a; cursor: pointer; }
+    button:hover { border-color: #899c90; }
+    button.primary-btn { border-color: var(--douban); background: var(--douban); color: #fff; font-weight: 650; }
+    button.primary-btn:hover { border-color: var(--douban-dark); background: var(--douban-dark); }
+    button.danger-btn { border-color: #e4aaa4; color: var(--danger); }
+    button:disabled { cursor: not-allowed; opacity: .65; }
+    button[data-original-label]:disabled { cursor: wait; }
+    .search-submit { min-width: 112px; min-height: 40px; }
+    .search-more { grid-column: 1 / -1; }
+    .search-more summary { width: max-content; color: var(--douban-dark); cursor: pointer; font-size: 13px; }
+    .search-more[open] summary { margin-bottom: 8px; }
+    .search-more label { max-width: 240px; }
+    .calibration-note { margin: 9px 0 0; color: var(--muted); font-size: 12px; }
+    .results-section { margin-top: 18px; }
+    .results-heading { display: flex; justify-content: space-between; gap: 12px; align-items: end; margin-bottom: 8px; }
+    .results-heading h2 { margin: 0; font-size: 18px; }
+    .results-heading span { color: var(--muted); font-size: 12px; }
+    table.user-records { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; }
+    th, td { padding: 12px; border-bottom: 1px solid #e8eeea; text-align: left; vertical-align: top; }
+    th { background: #f7f9f7; color: #526158; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .video-title { display: block; margin-bottom: 3px; font-size: 15px; }
+    .video-id, .video-meta, .sync-meta { color: var(--muted); font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .status-badge { display: inline-flex; margin: 5px 0; padding: 2px 7px; border-radius: 999px; background: #eef2ef; color: #526158; font-size: 11px; }
+    .status-badge[data-status="CONFIRMED"] { background: var(--douban-soft); color: var(--douban-dark); }
+    .status-badge[data-status="REVIEW"] { background: var(--amber-soft); color: var(--amber); }
+    .status-badge[data-status="NOT_FOUND"] { background: var(--danger-soft); color: var(--danger); }
     .candidate-list { display: grid; gap: 6px; margin-top: 8px; }
     .candidate-list button { height: auto; min-height: 32px; padding: 5px 8px; text-align: left; white-space: normal; }
+    .row-action { display: grid; gap: 8px; min-width: 136px; }
+    .row-tools summary { color: var(--muted); cursor: pointer; font-size: 12px; }
+    .row-tools[open] summary { margin-bottom: 8px; }
+    .row-tools-body { display: grid; gap: 8px; min-width: 260px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: #fafcfb; }
+    .douban-id-form { display: grid; grid-template-columns: minmax(110px, 1fr) auto; gap: 6px; }
+    .douban-id-form label { grid-column: 1 / -1; display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 12px; }
+    .row-tool-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+    .result-pagination { display: flex; justify-content: center; gap: 10px; align-items: center; margin-top: 12px; }
+    .result-pagination a, .result-pagination span { min-width: 78px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--douban-dark); text-align: center; text-decoration: none; }
+    .result-pagination .page-summary { min-width: 130px; border-color: transparent; background: transparent; color: var(--muted); }
+    .result-pagination .is-disabled { color: #98a39c; }
+    .module-fallback { margin-top: 12px; padding: 24px; text-align: center; }
+    .module-fallback h2 { margin: 0 0 6px; }
+    .module-fallback p { margin: 0; color: var(--muted); }
+    .advanced-panel { margin-top: 20px; overflow: hidden; }
+    .advanced-panel > summary { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 16px 18px; cursor: pointer; list-style: none; }
+    .advanced-panel > summary::-webkit-details-marker { display: none; }
+    .advanced-panel > summary::after { content: "+"; color: var(--douban); font-size: 22px; line-height: 1; }
+    .advanced-panel[open] > summary::after { content: "−"; }
+    .advanced-title { display: block; font-size: 16px; font-weight: 700; }
+    .advanced-copy { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .advanced-body { display: grid; gap: 12px; padding: 0 14px 14px; border-top: 1px solid var(--line); }
+    .advanced-actions { padding: 14px 2px 2px; }
+    .system-box { padding: 16px; }
+    .system-box h3 { margin: 0 0 10px; font-size: 15px; }
+    .audit-panel { display: grid; gap: 14px; }
+    .audit-heading { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+    .audit-heading h3 { margin-bottom: 4px; }
+    .audit-heading p { max-width: 760px; margin: 0; color: var(--muted); font-size: 12px; }
+    .audit-status { padding: 4px 9px; border-radius: 999px; background: #eef2ef; color: #526158; font-size: 12px; white-space: nowrap; }
+    .audit-status[data-status="RUNNING"] { background: var(--douban-soft); color: var(--douban-dark); }
+    .audit-status[data-status="PAUSED"] { background: var(--amber-soft); color: var(--amber); }
+    .audit-status[data-status="FAILED"] { background: var(--danger-soft); color: var(--danger); }
+    .audit-progress-track { height: 10px; border-radius: 999px; background: #e7ece8; overflow: hidden; }
+    .audit-progress-bar { width: 0; height: 100%; border-radius: inherit; background: var(--douban); transition: width .2s ease; }
+    .audit-metrics, .audit-controls, .audit-stats { display: flex; gap: 9px 16px; align-items: center; flex-wrap: wrap; }
+    .audit-metrics span, .audit-stats span { color: var(--muted); font-size: 12px; }
+    .audit-controls label { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); font-size: 12px; }
+    .audit-controls input { width: 90px; }
+    .audit-filter { display: grid; grid-template-columns: minmax(160px, 220px) minmax(180px, 1fr) auto auto; gap: 8px; align-items: end; }
+    .audit-filter a { min-height: 38px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 8px; color: var(--douban-dark); text-align: center; text-decoration: none; }
+    .audit-issue-code { display: block; color: var(--douban-dark); font-weight: 650; }
+    .audit-level { display: inline-flex; margin-top: 4px; padding: 2px 7px; border-radius: 999px; background: #eef2ef; color: #526158; font-size: 11px; }
+    .audit-level[data-level="error"] { background: var(--danger-soft); color: var(--danger); }
+    .audit-level[data-level="warning"] { background: var(--amber-soft); color: var(--amber); }
+    .favorite-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .device-meta { align-items: center; color: var(--muted); }
+    .device-meta span { padding-right: 10px; }
     .calibration-form select[multiple], .targeted-form select[multiple] { min-width: min(520px, 100%); min-height: 180px; }
-    .calibration-note { margin: 8px 0 0; color: #667085; }
-    .task-error { max-width: 360px; color: #b42318; white-space: normal; word-break: break-word; }
-    .module-fallback h1 { margin: 8px 0; font-size: 18px; }
-    @media (max-width: 820px) {
-      .favorite-list { grid-template-columns: 1fr; }
-      table.user-records { display: block; overflow-x: auto; white-space: nowrap; }
-    }
+    .task-error { max-width: 360px; color: var(--danger); white-space: normal; word-break: break-word; }
+    @media (max-width: 900px) { .search-form { grid-template-columns: 1fr 1fr; } .search-submit { width: 100%; } .favorite-list { grid-template-columns: 1fr; } .audit-filter { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .device-panel { width: min(100% - 20px, 1280px); margin-top: 14px; } .search-form { grid-template-columns: 1fr; } .search-more { grid-column: auto; } .operation-status { top: 6px; } .operation-copy span { white-space: normal; } .sync-result-heading { display: grid; } .sync-result-heading button { width: 100%; } .sync-change { grid-template-columns: 1fr; } .sync-value-after { padding: 8px 0 0; border-top: 2px solid #b9ddc8; border-left: 0; } .results-heading { display: block; } .results-heading span { display: block; margin-top: 4px; } table.user-records { display: block; overflow-x: auto; white-space: nowrap; } .row-tools-body { min-width: 220px; white-space: normal; } }
+    @media (prefers-reduced-motion: reduce) { .operation-status[data-state="running"] .operation-dot { animation: none; } }
   </style>
 </head>
 <body>
-<section class="wrap user-records device-panel">
-  <div class="record-toolbar">
-    <div>
-      <strong>豆瓣数据</strong>
-      <span>自动更新设置、待核查豆瓣ID、无豆瓣ID、任务监控与日志</span>
+<main class="device-panel">
+  <header class="workbench-header">
+    <span class="workbench-kicker">Douban matching desk</span>
+    <h1>豆瓣匹配工作台</h1>
+    <p>先找到本地影片，再一键搜索豆瓣 ID 并同步资料；同步不会修改现有图片。批量任务设置和校准工具已收进高级区域。</p>
+  </header>
+
+  <div id="doubanOperationStatus" class="operation-status" data-state="idle" role="status" aria-live="polite" aria-atomic="true">
+    <span class="operation-dot" aria-hidden="true"></span>
+    <div class="operation-copy">
+      <strong data-feedback-title>准备就绪</strong>
+      <span data-feedback-detail>搜索本地视频后，点击一行即可开始匹配。</span>
     </div>
-    <div class="device-meta">
-      <button class="primary-btn" type="button" data-douban-action="enqueue">生成到期任务</button>
-      <button class="ghost-btn" type="button" data-douban-action="run">执行 Pending Worker</button>
-      <button class="ghost-btn" type="button" data-douban-action="retry-failed">重试失败任务</button>
-      <button class="ghost-btn" type="button" data-douban-action="calibrate">全量校准豆瓣评分</button>
+    <span class="operation-time" data-feedback-time></span>
+  </div>
+
+  <section id="doubanSyncResult" class="sync-result" hidden aria-labelledby="doubanSyncResultTitle" aria-live="polite">
+    <div class="sync-result-heading">
+      <div>
+        <span class="sync-result-kicker">本次同步数据</span>
+        <h2 id="doubanSyncResultTitle" data-sync-title>同步结果</h2>
+        <p data-sync-summary></p>
+      </div>
+      <button class="ghost-btn" type="button" data-sync-refresh>确认并刷新列表</button>
     </div>
-  </div>
+    <div class="sync-changes" data-sync-changes></div>
+  </section>
 
-  <div class="favorite-list">
-    <article class="device-card">
-      <h2 class="record-title">资料概况</h2>
-      <div class="device-meta">
-        <span>视频总数：{:intval($stats['total_videos'] ?? 0)}</span>
-        <span>无豆瓣ID：{:intval($stats['no_douban_id'] ?? 0)}</span>
-        <span>豆瓣ID重复：{:intval($stats['duplicate_douban_id'] ?? 0)}</span>
-        <span>待核查：{:intval($stats['review'] ?? 0)}</span>
-        <span>已确认：{:intval($stats['confirmed'] ?? 0)}</span>
-        <span>已忽略：{:intval($stats['ignored'] ?? 0)}</span>
-        <span>ID锁定：{:intval($stats['locked_id'] ?? 0)}</span>
-        <span>简介锁定：{:intval($stats['locked_intro'] ?? 0)}</span>
+  <section class="search-panel" aria-labelledby="quick-search-title">
+    <div class="section-heading">
+      <div>
+        <h2 id="quick-search-title"><span class="step-mark">01</span>查找要匹配的视频</h2>
+        <p>名称支持模糊查询；影片分类和数据年份为精确匹配。本地视频 ID 也可直接输入。</p>
       </div>
-    </article>
-    <article class="device-card">
-      <h2 class="record-title">任务监控与日志</h2>
-      <div class="device-meta">
-        <span>同步待执行：{:intval($task_stats['SYNC_DOUBAN']['PENDING'] ?? 0)}</span>
-        <span>同步重试中：{:intval($task_stats['SYNC_DOUBAN']['RETRYING'] ?? 0)}</span>
-        <span>同步运行中：{:intval($task_stats['SYNC_DOUBAN']['RUNNING'] ?? 0)}</span>
-        <span>同步失败：{:intval($task_stats['SYNC_DOUBAN']['FAILED'] ?? 0)}</span>
-        <span>同步成功：{:intval($task_stats['SYNC_DOUBAN']['SUCCESS'] ?? 0)}</span>
-        <span>匹配待执行：{:intval($task_stats['MATCH_DOUBAN_ID']['PENDING'] ?? 0)}</span>
-        <span>匹配重试中：{:intval($task_stats['MATCH_DOUBAN_ID']['RETRYING'] ?? 0)}</span>
-        <span>匹配运行中：{:intval($task_stats['MATCH_DOUBAN_ID']['RUNNING'] ?? 0)}</span>
-        <span>匹配失败：{:intval($task_stats['MATCH_DOUBAN_ID']['FAILED'] ?? 0)}</span>
-        <span>匹配跳过：{:intval($task_stats['MATCH_DOUBAN_ID']['SKIP'] ?? 0)}</span>
-      </div>
-    </article>
-  </div>
-
-  <div class="system-box" style="margin-top: 12px;">
-    <span class="eyebrow">自动更新设置</span>
-    <form id="doubanConfigForm" method="post" action="{:url('douban/saveConfig')}" class="tool-form">
-      <label>豆瓣数据接口
-        <input type="text" name="douban_endpoint" value="{$config.douban_endpoint|mac_default='internal'}">
+    </div>
+    <form id="doubanQuickSearchForm" method="get" action="{:url('douban/index')}" class="search-form">
+      <input type="hidden" name="task_status" value="{$task_status}">
+      <label>影片名称或本地视频 ID
+        <input type="text" name="q" value="{$q}" maxlength="100" autofocus placeholder="例如：霸王别姬 或 217553">
       </label>
-      <label>排除分类ID
-        <input type="text" name="exclude_type_ids" value="{$config.exclude_type_ids|mac_default=''}" placeholder="42,47">
-      </label>
-      <label>批次条数
-        <input type="number" name="batch_size" value="{:intval($config['batch_size'] ?? 100)}" min="1" max="500">
-      </label>
-      <label>Worker上限
-        <input type="number" name="worker_limit" value="{:intval($config['worker_limit'] ?? 20)}" min="1" max="100">
-      </label>
-      <label>每分钟请求数
-        <input type="number" name="request_per_minute" value="{:intval($config['request_per_minute'] ?? 30)}" min="1" max="300">
-      </label>
-      <label>最大尝试次数
-        <input type="number" name="max_attempts" value="{:intval($config['max_attempts'] ?? 5)}" min="1" max="10">
-      </label>
-      <label>自动确认阈值
-        <input type="number" name="auto_confirm_score" value="{:intval($config['auto_confirm_score'] ?? 85)}" min="0" max="100">
-      </label>
-      <label>候选TopN
-        <input type="number" name="candidate_topn" value="{:intval($config['candidate_topn'] ?? 5)}" min="1" max="10">
-      </label>
-      <button class="primary-btn" type="submit">保存配置</button>
-    </form>
-  </div>
-
-  <div class="system-box">
-    <span class="eyebrow">定向生成豆瓣任务</span>
-    <form id="doubanTargetedForm" class="tool-form targeted-form">
-      <label>选择分类（可多选）
-        <select name="type_ids[]" multiple size="8">
+      <label>影片分类
+        <select name="type_id">
+          <option value="0">全部分类</option>
           {volist name="categories" id="category"}
-          <option value="{$category.type_id}">{$category.display_name}</option>
+          <option value="{$category.type_id}" {if condition="$type_id eq $category.type_id"}selected{/if}>{$category.display_name}</option>
           {/volist}
         </select>
       </label>
-      <label style="display:inline-flex; grid-auto-flow:column; align-items:center; gap:6px;">
-        <input type="checkbox" name="include_children" value="1" checked>包含全部后代分类
+      <label>数据年份
+        <input type="number" name="year" value="{$year}" min="1800" max="2100" step="1" placeholder="例如 2025">
       </label>
-      <label>数据范围
-        <select name="target">
-          <option value="missing_score">无豆瓣评分</option>
-          <option value="missing_id">无豆瓣ID</option>
-          <option value="has_id_missing_score">已有豆瓣ID但无评分</option>
-          <option value="due">已到同步时间</option>
-          <option value="all">所选范围全部视频</option>
-        </select>
-      </label>
-      <label>起始年份
-        <input type="number" name="year_from" min="1800" max="2100" placeholder="不限">
-      </label>
-      <label>结束年份
-        <input type="number" name="year_to" min="1800" max="2100" placeholder="不限">
-      </label>
-      <label>影片名或视频ID
-        <input type="text" name="q" maxlength="100" placeholder="可选">
-      </label>
-      <label>本批上限
-        <input type="number" name="limit" value="{:intval($config['batch_size'] ?? 100)}" min="1" max="500">
-      </label>
-      <button class="primary-btn" type="button" data-douban-action="preview-targeted">预览并生成任务</button>
+      <button class="primary-btn search-submit" type="submit">查找视频</button>
+      <details class="search-more">
+        <summary>更多筛选</summary>
+        <label>匹配状态
+          <select name="status">
+            <option value="all" {if condition="$status eq 'all'"}selected{/if}>全部视频</option>
+            <option value="review" {if condition="$status eq 'review'"}selected{/if}>待人工核查</option>
+            <option value="not_found" {if condition="$status eq 'not_found'"}selected{/if}>未找到候选</option>
+            <option value="duplicate" {if condition="$status eq 'duplicate'"}selected{/if}>豆瓣ID重复</option>
+            <option value="locked" {if condition="$status eq 'locked'"}selected{/if}>已锁定</option>
+            <option value="confirmed" {if condition="$status eq 'confirmed'"}selected{/if}>已确认</option>
+          </select>
+        </label>
+      </details>
     </form>
-    <p class="calibration-note">预览不会写入数据库；确认后只生成匹配或同步任务，不会立即请求豆瓣。全局排除分类、忽略期限、ID锁定和已有活动任务仍会生效。</p>
-  </div>
+  </section>
 
-  <div class="system-box">
-    <span class="eyebrow">按分类校准豆瓣评分</span>
-    <form id="doubanCalibrationForm" class="tool-form calibration-form">
-      <label>选择分类（可多选）
-        <select name="type_ids[]" multiple size="8">
-          {volist name="categories" id="category"}
-          <option value="{$category.type_id}">{$category.display_name}</option>
-          {/volist}
-        </select>
-      </label>
-      <label style="display:inline-flex; grid-auto-flow:column; align-items:center; gap:6px;">
-        <input type="checkbox" name="include_children" value="1" checked>包含全部后代分类
-      </label>
-      <button class="primary-btn" type="button" data-douban-action="preview-calibrate-category">预览分类校准</button>
-    </form>
-    <p class="calibration-note">预览不会写入数据库；确认后只更新所选分类范围。未选择分类时不会执行校准。</p>
-  </div>
-
-  <div class="system-box">
-    <span class="eyebrow">待执行任务明细</span>
-    <form method="get" action="{:url('douban/index')}" class="tool-form">
-      <input type="hidden" name="status" value="{$status}">
-      <input type="hidden" name="q" value="{$q}">
-      <label>任务状态
-        <select name="task_status">
-          <option value="PENDING" {if condition="$task_status eq 'PENDING'"}selected{/if}>待执行</option>
-          <option value="RUNNING" {if condition="$task_status eq 'RUNNING'"}selected{/if}>执行中</option>
-          <option value="FAILED" {if condition="$task_status eq 'FAILED'"}selected{/if}>失败</option>
-          <option value="SUCCESS" {if condition="$task_status eq 'SUCCESS'"}selected{/if}>成功</option>
-          <option value="SKIP" {if condition="$task_status eq 'SKIP'"}selected{/if}>已跳过</option>
-          <option value="ALL" {if condition="$task_status eq 'ALL'"}selected{/if}>全部</option>
-        </select>
-      </label>
-      <button class="ghost-btn" type="submit">查看任务</button>
-    </form>
-    {if condition="empty($tasks)"}
-    <p class="calibration-note">当前筛选状态下没有任务。</p>
+  <section class="results-section" aria-labelledby="results-title">
+    <div class="results-heading">
+      <h2 id="results-title"><span class="step-mark">02</span>选择并匹配</h2>
+      <span>找到 {:intval($pagination['total'] ?? 0)} 条，本页最多显示 {:intval($pagination['limit'] ?? 20)} 条</span>
+    </div>
+    {if condition="empty($videos)"}
+    <div class="system-box module-fallback">
+      <h2>没有找到视频</h2>
+      <p>尝试只填写影片名称，或清空分类、年份和更多筛选后重试。</p>
+    </div>
     {else/}
-    <table class="user-records">
+    <table class="user-records results-table">
       <thead>
         <tr>
-          <th>任务ID</th>
-          <th>视频</th>
+          <th>本地影片</th>
           <th>分类 / 年份</th>
-          <th>任务类型</th>
-          <th>状态</th>
-          <th>尝试次数</th>
-          <th>计划执行</th>
-          <th>最近错误</th>
+          <th>豆瓣信息</th>
+          <th>操作</th>
         </tr>
       </thead>
       <tbody>
-        {volist name="tasks" id="task"}
+        {volist name="videos" id="vo"}
         <tr>
-          <td>{$task.task_id}</td>
-          <td>#{$task.vod_id} {$task.vod_name|mac_default='影片已删除'}</td>
-          <td>{$task.type_name|mac_default='-'} / {$task.vod_year|mac_default='-'}</td>
-          <td>{$task.task_type_label|mac_default='-'}</td>
-          <td>{$task.status_label|mac_default='-'}</td>
-          <td>{:intval($task['attempts'] ?? 0)}</td>
-          <td>{$task.run_after_label|mac_default='-'}</td>
-          <td class="task-error">{$task.last_error|mac_default='-'}</td>
+          <td>
+            <strong class="video-title">{$vo.vod_name|mac_default='未命名影片'}</strong>
+            <span class="video-id">MacCMS #{$vo.vod_id}</span>
+          </td>
+          <td>
+            <span>{$vo.type_name|mac_default='未分类'}</span>
+            <div class="video-meta">{$vo.vod_year|mac_default='年份未知'}</div>
+          </td>
+          <td>
+            <strong>{if condition="empty($vo['display_douban_id'])"}尚未绑定{else/}ID {$vo.display_douban_id}{/if}</strong><br>
+            <span class="status-badge" data-status="{$vo.douban_review_status}">{$vo.douban_review_status|mac_default='未处理'}</span>
+            {if condition="!empty($vo['douban_review_reason'])"}<div class="video-meta">{$vo.douban_review_reason}</div>{/if}
+            <div class="sync-meta">上次同步：{$vo.douban_last_sync_label}</div>
+            {if condition="!empty($vo['candidates'])"}
+            <div class="candidate-list">
+              {volist name="vo.candidates" id="candidate"}
+              <button class="ghost-btn" type="button" data-douban-action="select-candidate" data-vod-id="{$vo.vod_id}" data-douban-id="{$candidate.douban_id}">
+                采用 {$candidate.douban_id} · {$candidate.candidate_title|mac_default='未记录标题'}{if condition="!empty($candidate['candidate_year'])"} ({$candidate.candidate_year}){/if} · 匹配分 {:intval($candidate['score_total'] ?? 0)}{if condition="!empty($candidate['ai_recommended'])"} · AI推荐 {:intval($candidate['ai_confidence'] ?? 0)}%{/if}
+              </button>
+              {/volist}
+            </div>
+            {/if}
+          </td>
+          <td>
+            <div class="row-action">
+              {if condition="empty($vo['display_douban_id'])"}
+              <button class="primary-btn" type="button" data-douban-action="fetch-vod" data-vod-id="{$vo.vod_id}">搜索豆瓣ID</button>
+              {else/}
+              <button class="primary-btn" type="button" data-douban-action="sync" data-vod-id="{$vo.vod_id}">重新同步</button>
+              {/if}
+              <details class="row-tools">
+                <summary>更多操作</summary>
+                <div class="row-tools-body">
+                  <form class="douban-id-form" method="post" action="{:url('douban/setDoubanId')}">
+                    <input type="hidden" name="vod_id" value="{$vo.vod_id}">
+                    <input type="text" name="douban_id" value="{$vo.display_douban_id|mac_default=''}" aria-label="手动填写豆瓣ID" placeholder="手动填写豆瓣ID">
+                    <button class="ghost-btn" type="submit">保存ID</button>
+                    <label><input type="checkbox" name="lock" value="1" {if condition="$vo.douban_id_locked eq 1"}checked{/if}>保存后锁定豆瓣ID</label>
+                  </form>
+                  <div class="row-tool-buttons">
+                    {if condition="!empty($vo['can_rollback_pic'])"}<button class="ghost-btn" type="button" data-douban-action="rollback-pic" data-vod-id="{$vo.vod_id}">回退上次图片</button>{/if}
+                    <button class="ghost-btn" type="button" data-douban-action="lock-id" data-vod-id="{$vo.vod_id}" data-locked="{:$vo['douban_id_locked']==1 ? 0 : 1}">{if condition="$vo.douban_id_locked eq 1"}解锁ID{else/}锁定ID{/if}</button>
+                    <button class="ghost-btn" type="button" data-douban-action="lock-intro" data-vod-id="{$vo.vod_id}" data-locked="{:$vo['intro_locked']==1 ? 0 : 1}">{if condition="$vo.intro_locked eq 1"}解锁简介{else/}锁定简介{/if}</button>
+                    <button class="danger-btn" type="button" data-douban-action="ignore" data-vod-id="{$vo.vod_id}">忽略30天</button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </td>
         </tr>
         {/volist}
       </tbody>
     </table>
+    {if condition="intval($pagination['total_pages'] ?? 1) gt 1"}
+    <nav class="result-pagination" aria-label="视频结果分页">
+      {if condition="!empty($pagination['prev_url'])"}<a href="{$pagination.prev_url}">上一页</a>{else/}<span class="is-disabled" aria-disabled="true">上一页</span>{/if}
+      <span class="page-summary">第 {:intval($pagination['page'] ?? 1)} / {:intval($pagination['total_pages'] ?? 1)} 页</span>
+      {if condition="!empty($pagination['next_url'])"}<a href="{$pagination.next_url}">下一页</a>{else/}<span class="is-disabled" aria-disabled="true">下一页</span>{/if}
+    </nav>
     {/if}
-  </div>
+    {/if}
+  </section>
 
-  <div class="system-box">
-    <form method="get" action="{:url('douban/index')}">
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <input type="hidden" name="task_status" value="{$task_status}">
-        <select name="status">
-          <option value="review" {if condition="$status eq 'review'"}selected{/if}>待核查豆瓣ID</option>
-          <option value="not_found" {if condition="$status eq 'not_found'"}selected{/if}>无豆瓣ID</option>
-          <option value="duplicate" {if condition="$status eq 'duplicate'"}selected{/if}>豆瓣ID重复</option>
-          <option value="locked" {if condition="$status eq 'locked'"}selected{/if}>已锁定豆瓣ID</option>
-          <option value="confirmed" {if condition="$status eq 'confirmed'"}selected{/if}>已确认</option>
-          <option value="all" {if condition="$status eq 'all'"}selected{/if}>全部</option>
-        </select>
-        <input type="text" name="q" value="{$q}" placeholder="按影片名或ID搜索">
-        <button class="ghost-btn" type="submit">筛选</button>
+  <details class="advanced-panel">
+    <summary>
+      <span><span class="advanced-title">高级工具</span><span class="advanced-copy">批量任务、任务监控与日志、评分校准</span></span>
+    </summary>
+    <div class="advanced-body">
+      <div class="advanced-actions record-toolbar">
+        <button class="primary-btn" type="button" data-douban-action="enqueue">生成到期任务</button>
+        <button class="ghost-btn" type="button" data-douban-action="run">执行 Pending Worker</button>
+        <button class="ghost-btn" type="button" data-douban-action="retry-failed">重试失败任务</button>
+        <button class="danger-btn" type="button" data-douban-action="calibrate">全量校准豆瓣评分</button>
       </div>
-    </form>
-  </div>
 
-  {if condition="empty($videos)"}
-  <div class="system-box module-fallback">
-    <span class="eyebrow">列表</span>
-    <h1>暂无数据</h1>
-    <p>请先生成到期任务，或切换筛选条件后查看。</p>
-  </div>
-  {else/}
-  <table class="user-records" style="margin-top: 12px; width:100%; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>影片</th>
-        <th>年份</th>
-        <th>豆瓣ID</th>
-        <th>状态</th>
-        <th>原因</th>
-        <th>同步</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody>
-      {volist name="videos" id="vo"}
-      <tr>
-        <td>{$vo.vod_id}</td>
-        <td>{$vo.vod_name|mac_default='-'}</td>
-        <td>{$vo.vod_year|mac_default='-'}</td>
-        <td>
-          <form class="douban-id-form" method="post" action="{:url('douban/setDoubanId')}">
-            <input type="hidden" name="vod_id" value="{$vo.vod_id}">
-            <input type="text" name="douban_id" value="{$vo.display_douban_id|mac_default=''}" style="max-width: 120px;">
-            <label style="display:inline-flex; gap:4px; align-items:center;">
-              <input type="checkbox" name="lock" value="1" {if condition="$vo.douban_id_locked eq 1"}checked{/if}>锁定
-            </label>
-            <button class="ghost-btn" type="submit">保存</button>
-          </form>
-          {if condition="!empty($vo['candidates'])"}
-          <div class="candidate-list">
-            {volist name="vo.candidates" id="candidate"}
-            <button class="ghost-btn" type="button" data-douban-action="select-candidate" data-vod-id="{$vo.vod_id}" data-douban-id="{$candidate.douban_id}">
-              采用 {$candidate.douban_id} · {$candidate.candidate_title|mac_default='未记录标题'}{if condition="!empty($candidate['candidate_year'])"} ({$candidate.candidate_year}){/if} · 匹配分 {:intval($candidate['score_total'] ?? 0)}
-            </button>
-            {/volist}
+      <div class="favorite-list">
+        <section class="system-box">
+          <h3>资料概况</h3>
+          <div class="device-meta">
+            <span>视频总数：{:intval($stats['total_videos'] ?? 0)}</span>
+            <span>无豆瓣ID：{:intval($stats['no_douban_id'] ?? 0)}</span>
+            <span>豆瓣ID重复：{:intval($stats['duplicate_douban_id'] ?? 0)}</span>
+            <span>待核查：{:intval($stats['review'] ?? 0)}</span>
+            <span>已确认：{:intval($stats['confirmed'] ?? 0)}</span>
+            <span>已忽略：{:intval($stats['ignored'] ?? 0)}</span>
           </div>
-          {/if}
-        </td>
-        <td>{$vo.douban_review_status|mac_default='-'}</td>
-        <td>{$vo.douban_review_reason|mac_default='-'}</td>
-        <td>
-          <span>上次：{$vo.douban_last_sync_label}</span><br>
-          <span>下次：{$vo.douban_next_sync_label}</span>
-        </td>
-        <td>
-          <button class="ghost-btn" type="button" data-douban-action="sync" data-vod-id="{$vo.vod_id}">同步</button>
-          <button class="ghost-btn" type="button" data-douban-action="lock-id" data-vod-id="{$vo.vod_id}" data-locked="{:$vo['douban_id_locked']==1 ? 0 : 1}">{if condition="$vo.douban_id_locked eq 1"}解锁ID{else/}锁定ID{/if}</button>
-          <button class="ghost-btn" type="button" data-douban-action="lock-intro" data-vod-id="{$vo.vod_id}" data-locked="{:$vo['intro_locked']==1 ? 0 : 1}">{if condition="$vo.intro_locked eq 1"}解锁简介{else/}锁定简介{/if}</button>
-          <button class="danger-btn" type="button" data-douban-action="ignore" data-vod-id="{$vo.vod_id}">忽略30天</button>
-        </td>
-      </tr>
-      {/volist}
-    </tbody>
-  </table>
-  {/if}
+        </section>
+        <section class="system-box">
+          <h3>任务监控与日志</h3>
+          <div class="device-meta">
+            <span>同步待执行：{:intval($task_stats['SYNC_DOUBAN']['PENDING'] ?? 0)}</span>
+            <span>同步重试中：{:intval($task_stats['SYNC_DOUBAN']['RETRYING'] ?? 0)}</span>
+            <span>同步运行中：{:intval($task_stats['SYNC_DOUBAN']['RUNNING'] ?? 0)}</span>
+            <span>同步失败：{:intval($task_stats['SYNC_DOUBAN']['FAILED'] ?? 0)}</span>
+            <span>同步成功：{:intval($task_stats['SYNC_DOUBAN']['SUCCESS'] ?? 0)}</span>
+            <span>匹配待执行：{:intval($task_stats['MATCH_DOUBAN_ID']['PENDING'] ?? 0)}</span>
+            <span>匹配重试中：{:intval($task_stats['MATCH_DOUBAN_ID']['RETRYING'] ?? 0)}</span>
+            <span>匹配运行中：{:intval($task_stats['MATCH_DOUBAN_ID']['RUNNING'] ?? 0)}</span>
+            <span>匹配失败：{:intval($task_stats['MATCH_DOUBAN_ID']['FAILED'] ?? 0)}</span>
+            <span>匹配跳过：{:intval($task_stats['MATCH_DOUBAN_ID']['SKIP'] ?? 0)}</span>
+          </div>
+        </section>
+      </div>
 
-  <div class="system-box">
-    <span class="eyebrow">最近日志</span>
-    {if condition="empty($logs)"}
-    <p>暂无操作日志。</p>
-    {else/}
-    <div class="device-meta">
-      {volist name="logs" id="log"}
-      <span>#{$log.log_id} {$log.action} / vod {$log.vod_id} / {$log.reason|mac_default='-'}</span>
-      {/volist}
+      <section id="doubanAuditPanel" class="system-box audit-panel" data-scan-id="{:intval($audit_scan['scan_id'] ?? 0)}" data-status="{$audit_scan.status|mac_default=''}">
+        <div class="audit-heading">
+          <div>
+            <h3>全库体检</h3>
+            <p>分小批读取本地视频并生成问题报告，不访问豆瓣、不修改视频表，也不会启动服务器定时任务。关闭页面后进度会保留，可随时继续。</p>
+          </div>
+          <span class="audit-status" data-audit-status data-status="{$audit_scan.status|mac_default=''}">{$audit_scan.status_label|mac_default='未开始'}</span>
+        </div>
+        {if condition="empty($audit_scan)"}
+        <div class="audit-controls">
+          <label>每批读取 <input id="doubanAuditBatchSize" type="number" value="100" min="10" max="200" step="10"> 条</label>
+          <button class="primary-btn" type="button" data-douban-action="start-audit">开始全库体检</button>
+        </div>
+        <p class="calibration-note">首次使用时需先部署本版本并执行插件 install.sql，以创建体检报告表。</p>
+        {else/}
+        <div class="audit-progress-track" role="progressbar" aria-label="全库体检进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{:floatval($audit_scan['progress'] ?? 0)}">
+          <div class="audit-progress-bar" data-audit-progress style="width:{:floatval($audit_scan['progress'] ?? 0)}%"></div>
+        </div>
+        <div class="audit-metrics">
+          <strong data-audit-progress-label>{:floatval($audit_scan['progress'] ?? 0)}%</strong>
+          <span>已扫描 <b data-audit-scanned>{:intval($audit_scan['scanned_videos'] ?? 0)}</b> / <b data-audit-total>{:intval($audit_scan['total_videos'] ?? 0)}</b></span>
+          <span>发现 <b data-audit-issues>{:intval($audit_scan['issue_count'] ?? 0)}</b> 项</span>
+          <span>游标视频 ID：<b data-audit-cursor>{:intval($audit_scan['cursor_vod_id'] ?? 0)}</b></span>
+          <span>开始：{$audit_scan.started_at_label|mac_default='-'}</span>
+          <span>最近更新：{$audit_scan.updated_at_label|mac_default='-'}</span>
+        </div>
+        {if condition="!empty($audit_scan['error_message'])"}<p class="task-error">最近错误：{$audit_scan.error_message}</p>{/if}
+        <div class="audit-controls" data-audit-controls>
+          {if condition="$audit_scan['status'] eq 'RUNNING'"}
+          <button class="primary-btn" type="button" data-douban-action="run-audit" data-scan-id="{$audit_scan.scan_id}">继续扫描</button>
+          <button class="ghost-btn" type="button" data-douban-action="pause-audit" data-scan-id="{$audit_scan.scan_id}">暂停</button>
+          {elseif condition="$audit_scan['status'] eq 'PAUSED' or $audit_scan['status'] eq 'FAILED'"/}
+          <button class="primary-btn" type="button" data-douban-action="resume-audit" data-scan-id="{$audit_scan.scan_id}">恢复并继续</button>
+          {elseif condition="$audit_scan['status'] eq 'DONE'"/}
+          <label>每批读取 <input id="doubanAuditBatchSize" type="number" value="100" min="10" max="200" step="10"> 条</label>
+          <button class="primary-btn" type="button" data-douban-action="start-audit">重新体检</button>
+          {/if}
+        </div>
+
+        {if condition="!empty($audit_stats)"}
+        <div class="audit-stats" aria-label="问题类型统计">
+          {volist name="audit_stats" id="auditStat"}<span>{$auditStat.issue_label}：{:intval($auditStat['total'] ?? 0)}</span>{/volist}
+        </div>
+        {/if}
+        <form method="get" action="{:url('douban/index')}" class="audit-filter">
+          <input type="hidden" name="status" value="{$status}">
+          <input type="hidden" name="task_status" value="{$task_status}">
+          <input type="hidden" name="q" value="{$q}">
+          <input type="hidden" name="type_id" value="{$type_id}">
+          <input type="hidden" name="year" value="{$year}">
+          <input type="hidden" name="audit_scan_id" value="{$audit_scan.scan_id}">
+          <label>问题类型
+            <select name="audit_code">
+              <option value="">全部问题</option>
+              {foreach name="audit_codes" item="auditCodeLabel" key="auditCodeValue"}
+              <option value="{$auditCodeValue}" {if condition="$audit_filters['code'] eq $auditCodeValue"}selected{/if}>{$auditCodeLabel}</option>
+              {/foreach}
+            </select>
+          </label>
+          <label>视频名称或 ID<input type="text" name="audit_q" value="{$audit_filters.q|mac_default=''}" maxlength="100" placeholder="筛选报告"></label>
+          <button class="ghost-btn" type="submit">筛选结果</button>
+          {if condition="!empty($audit_export_url)"}<a href="{$audit_export_url}">导出 CSV</a>{/if}
+        </form>
+
+        {if condition="empty($audit_issues)"}
+        <p class="calibration-note">当前筛选下暂无问题；扫描时问题数量会实时更新，完成后页面会自动刷新报告。</p>
+        {else/}
+        <table class="user-records audit-results">
+          <thead><tr><th>问题</th><th>视频</th><th>字段</th><th>说明</th></tr></thead>
+          <tbody>
+            {volist name="audit_issues" id="auditIssue"}
+            <tr>
+              <td><span class="audit-issue-code">{$auditIssue.issue_label}</span><span class="audit-level" data-level="{$auditIssue.issue_level}">{$auditIssue.level_label}</span></td>
+              <td><strong>{$auditIssue.vod_name|mac_default='未命名影片'}</strong><div class="video-id">MacCMS #{$auditIssue.vod_id}</div></td>
+              <td><span class="video-meta">{$auditIssue.field_name|mac_default='-'}</span></td>
+              <td>{$auditIssue.message|mac_default='-'}</td>
+            </tr>
+            {/volist}
+          </tbody>
+        </table>
+        {if condition="intval($audit_pagination['total_pages'] ?? 1) gt 1"}
+        <nav class="result-pagination" aria-label="体检结果分页">
+          {if condition="!empty($audit_pagination['prev_url'])"}<a href="{$audit_pagination.prev_url}">上一页</a>{else/}<span class="is-disabled" aria-disabled="true">上一页</span>{/if}
+          <span class="page-summary">第 {:intval($audit_pagination['page'] ?? 1)} / {:intval($audit_pagination['total_pages'] ?? 1)} 页</span>
+          {if condition="!empty($audit_pagination['next_url'])"}<a href="{$audit_pagination.next_url}">下一页</a>{else/}<span class="is-disabled" aria-disabled="true">下一页</span>{/if}
+        </nav>
+        {/if}
+        {/if}
+        {/if}
+      </section>
+
+      <section class="system-box">
+        <h3>批量任务设置</h3>
+        <form id="doubanConfigForm" method="post" action="{:url('douban/saveConfig')}" class="tool-form">
+          <label>豆瓣数据接口<input type="text" name="douban_endpoint" value="{$config.douban_endpoint|mac_default='internal'}"></label>
+          <label>排除分类ID<input type="text" name="exclude_type_ids" value="{$config.exclude_type_ids|mac_default=''}" placeholder="42,47"></label>
+          <label>批次条数<input type="number" name="batch_size" value="{:intval($config['batch_size'] ?? 100)}" min="1" max="500"></label>
+          <label>Worker上限<input type="number" name="worker_limit" value="{:intval($config['worker_limit'] ?? 20)}" min="1" max="100"></label>
+          <label>每分钟请求数<input type="number" name="request_per_minute" value="{:intval($config['request_per_minute'] ?? 30)}" min="1" max="300"></label>
+          <label>最大尝试次数<input type="number" name="max_attempts" value="{:intval($config['max_attempts'] ?? 5)}" min="1" max="10"></label>
+          <label>自动确认阈值<input type="number" name="auto_confirm_score" value="{:intval($config['auto_confirm_score'] ?? 85)}" min="0" max="100"></label>
+          <label>候选TopN<input type="number" name="candidate_topn" value="{:intval($config['candidate_topn'] ?? 5)}" min="1" max="10"></label>
+          <button class="primary-btn" type="submit">保存配置</button>
+        </form>
+        <p class="calibration-note">这些设置只控制手动生成和执行的批次，不会自行启动服务器定时任务。</p>
+      </section>
+
+      <section class="system-box">
+        <h3>定向生成豆瓣任务</h3>
+        <form id="doubanTargetedForm" class="tool-form targeted-form">
+          <label>选择分类（可多选）
+            <select name="type_ids[]" multiple size="8">
+              {volist name="categories" id="category"}<option value="{$category.type_id}">{$category.display_name}</option>{/volist}
+            </select>
+          </label>
+          <label><span>包含后代分类</span><span><input type="checkbox" name="include_children" value="1" checked> 是</span></label>
+          <label>数据范围
+            <select name="target">
+              <option value="missing_score">无豆瓣评分</option>
+              <option value="missing_id">无豆瓣 ID</option>
+              <option value="has_id_missing_score">已有 ID 但无评分</option>
+              <option value="due">已到同步时间</option>
+              <option value="all">所选范围全部视频</option>
+            </select>
+          </label>
+          <label>起始年份<input type="number" name="year_from" min="1800" max="2100" placeholder="不限"></label>
+          <label>结束年份<input type="number" name="year_to" min="1800" max="2100" placeholder="不限"></label>
+          <label>影片名或视频ID<input type="text" name="q" maxlength="100" placeholder="可选"></label>
+          <label>本批上限<input type="number" name="limit" value="{:intval($config['batch_size'] ?? 100)}" min="1" max="500"></label>
+          <button class="primary-btn" type="button" data-douban-action="preview-targeted">预览并生成任务</button>
+        </form>
+        <p class="calibration-note">预览不写数据库、不访问豆瓣；确认后只生成任务，仍需执行 Pending Worker。</p>
+      </section>
+
+      <section class="system-box">
+        <h3>按分类校准豆瓣评分</h3>
+        <form id="doubanCalibrationForm" class="tool-form calibration-form">
+          <label>选择分类（可多选）
+            <select name="type_ids[]" multiple size="8">
+              {volist name="categories" id="category"}<option value="{$category.type_id}">{$category.display_name}</option>{/volist}
+            </select>
+          </label>
+          <label><span>包含后代分类</span><span><input type="checkbox" name="include_children" value="1" checked> 是</span></label>
+          <button class="primary-btn" type="button" data-douban-action="preview-calibrate-category">预览分类校准</button>
+        </form>
+        <p class="calibration-note">预览不会写入数据库；未选择分类时不会执行校准。</p>
+      </section>
+
+      <section class="system-box">
+        <h3>待执行任务明细</h3>
+        <form method="get" action="{:url('douban/index')}" class="tool-form">
+          <input type="hidden" name="status" value="{$status}">
+          <input type="hidden" name="q" value="{$q}">
+          <input type="hidden" name="type_id" value="{$type_id}">
+          <input type="hidden" name="year" value="{$year}">
+          <label>任务状态
+            <select name="task_status">
+              <option value="PENDING" {if condition="$task_status eq 'PENDING'"}selected{/if}>待执行</option>
+              <option value="RUNNING" {if condition="$task_status eq 'RUNNING'"}selected{/if}>执行中</option>
+              <option value="FAILED" {if condition="$task_status eq 'FAILED'"}selected{/if}>失败</option>
+              <option value="SUCCESS" {if condition="$task_status eq 'SUCCESS'"}selected{/if}>成功</option>
+              <option value="SKIP" {if condition="$task_status eq 'SKIP'"}selected{/if}>已跳过</option>
+              <option value="ALL" {if condition="$task_status eq 'ALL'"}selected{/if}>全部</option>
+            </select>
+          </label>
+          <button class="ghost-btn" type="submit">查看任务</button>
+        </form>
+        {if condition="empty($tasks)"}
+        <p class="calibration-note">当前筛选状态下没有任务。</p>
+        {else/}
+        <table class="user-records">
+          <thead><tr><th>任务ID</th><th>视频</th><th>分类 / 年份</th><th>任务类型</th><th>状态</th><th>尝试次数</th><th>计划执行</th><th>最近错误</th></tr></thead>
+          <tbody>
+            {volist name="tasks" id="task"}
+            <tr>
+              <td>{$task.task_id}</td><td>#{$task.vod_id} {$task.vod_name|mac_default='影片已删除'}</td>
+              <td>{$task.type_name|mac_default='-'} / {$task.vod_year|mac_default='-'}</td><td>{$task.task_type_label|mac_default='-'}</td>
+              <td>{$task.status_label|mac_default='-'}</td><td>{:intval($task['attempts'] ?? 0)}</td>
+              <td>{$task.run_after_label|mac_default='-'}</td><td class="task-error">{$task.last_error|mac_default='-'}</td>
+            </tr>
+            {/volist}
+          </tbody>
+        </table>
+        {/if}
+      </section>
+
+      <section class="system-box">
+        <h3>最近日志</h3>
+        {if condition="empty($logs)"}<p class="calibration-note">暂无操作日志。</p>{else/}
+        <div class="device-meta">{volist name="logs" id="log"}<span>#{$log.log_id} {$log.action} / vod {$log.vod_id} / {$log.reason|mac_default='-'}</span>{/volist}</div>
+        {/if}
+      </section>
     </div>
-    {/if}
-  </div>
-</section>
+  </details>
+</main>
 <script>
   (function () {
-    function post(url, data, button, onSuccess) {
-      if (button) button.disabled = true;
-      return fetch(url, {
-        method: "POST",
-        credentials: "same-origin",
-        body: data
-      }).then(function (response) {
-        return response.json();
-      }).then(function (result) {
-        if (result && result.code === 1) {
-          if (typeof onSuccess === "function") {
-            if (button) button.disabled = false;
-            onSuccess(result);
-            return;
-          }
-          window.location.reload();
-          return;
+    var feedback = document.getElementById("doubanOperationStatus");
+    var feedbackTitle = feedback.querySelector("[data-feedback-title]");
+    var feedbackDetail = feedback.querySelector("[data-feedback-detail]");
+    var feedbackTime = feedback.querySelector("[data-feedback-time]");
+    var syncResult = document.getElementById("doubanSyncResult");
+    var syncResultTitle = syncResult.querySelector("[data-sync-title]");
+    var syncResultSummary = syncResult.querySelector("[data-sync-summary]");
+    var syncChanges = syncResult.querySelector("[data-sync-changes]");
+    var feedbackTimer = null;
+    var feedbackStartedAt = 0;
+    var activeButton = null;
+    var requestActive = false;
+    var auditPanel = document.getElementById("doubanAuditPanel");
+    var auditLoopActive = false;
+    var auditPauseRequested = false;
+    var auditPauseButton = null;
+
+    function setFeedback(state, title, detail) {
+      feedback.setAttribute("data-state", state);
+      feedbackTitle.textContent = title;
+      feedbackDetail.textContent = detail || "";
+      if (state !== "running") feedbackTime.textContent = "";
+    }
+
+    function updateElapsed() {
+      var seconds = Math.max(1, Math.floor((Date.now() - feedbackStartedAt) / 1000));
+      feedbackTime.textContent = seconds + " 秒";
+      if (activeButton) activeButton.textContent = "处理中 · " + seconds + "秒";
+    }
+
+    function beginRequest(button, title, detail) {
+      requestActive = true;
+      activeButton = button || null;
+      if (activeButton) {
+        activeButton.setAttribute("data-original-label", activeButton.textContent);
+        activeButton.disabled = true;
+      }
+      feedbackStartedAt = Date.now();
+      setFeedback("running", title, detail || "请求已发送，请保持页面开启；下方时间会持续更新。");
+      updateElapsed();
+      feedbackTimer = setInterval(updateElapsed, 1000);
+    }
+
+    function endRequest() {
+      requestActive = false;
+      if (feedbackTimer) window.clearInterval(feedbackTimer);
+      feedbackTimer = null;
+      if (activeButton) {
+        activeButton.disabled = false;
+        activeButton.textContent = activeButton.getAttribute("data-original-label") || activeButton.textContent;
+        activeButton.removeAttribute("data-original-label");
+      }
+      activeButton = null;
+    }
+
+    function rememberFeedback(state, title, detail) {
+      try {
+        sessionStorage.setItem("doubanFeedback", JSON.stringify({ state: state, title: title, detail: detail }));
+      } catch (error) {
+      }
+    }
+
+    function reloadWithFeedback(state, title, detail) {
+      rememberFeedback(state, title, detail);
+      window.setTimeout(function () { window.location.reload(); }, 700);
+    }
+
+    function reloadAuditWithFeedback(state, title, detail) {
+      rememberFeedback(state, title, detail);
+      window.location.hash = "doubanAuditPanel";
+      window.setTimeout(function () { window.location.reload(); }, 700);
+    }
+
+    function restoreFeedback() {
+      try {
+        var stored = sessionStorage.getItem("doubanFeedback");
+        if (!stored) return;
+        sessionStorage.removeItem("doubanFeedback");
+        var value = JSON.parse(stored);
+        setFeedback(value.state || "success", value.title || "操作完成", value.detail || "页面数据已更新。");
+      } catch (error) {
+      }
+    }
+
+    function displaySyncValue(value) {
+      return value === null || typeof value === "undefined" || value === "" ? "（空）" : String(value);
+    }
+
+    function createSyncValue(label, value, extraClass) {
+      var valueBox = document.createElement("div");
+      valueBox.className = "sync-value" + (extraClass ? " " + extraClass : "");
+      var valueLabel = document.createElement("span");
+      valueLabel.className = "sync-value-label";
+      valueLabel.textContent = label;
+      var changeValue = document.createElement("pre");
+      changeValue.textContent = displaySyncValue(value);
+      valueBox.appendChild(valueLabel);
+      valueBox.appendChild(changeValue);
+      return valueBox;
+    }
+
+    function renderSyncWarnings(warnings) {
+      warnings.forEach(function (warning) {
+        var item = document.createElement("article");
+        item.className = "sync-warning";
+        var message = document.createElement("strong");
+        message.textContent = warning.message || ((warning.field || "字段") + "未同步，已保留本地值");
+        item.appendChild(message);
+        if (warning.incoming) {
+          var incoming = document.createElement("pre");
+          incoming.textContent = "豆瓣返回：" + String(warning.incoming);
+          item.appendChild(incoming);
         }
-        alert((result && result.msg) || "操作失败");
-        if (button) button.disabled = false;
-      }).catch(function () {
-        alert("网络异常，请稍后再试");
-        if (button) button.disabled = false;
+        syncChanges.appendChild(item);
       });
     }
+
+    function renderSyncResult(result) {
+      var data = result && result.data ? result.data : {};
+      var changes = Array.isArray(data.changes) ? data.changes : [];
+      var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+      var titleParts = [];
+      if (data.vod_name) titleParts.push(String(data.vod_name));
+      if (data.vod_id) titleParts.push("本地视频 #" + data.vod_id);
+      syncResultTitle.textContent = titleParts.length ? titleParts.join(" · ") : "同步完成";
+      var doubanId = data.matched_douban_id || data.douban_id || "";
+      syncResultSummary.textContent = (changes.length
+        ? "已更新 " + changes.length + " 个字段" + (doubanId ? "，豆瓣 ID " + doubanId : "")
+        : "资料内容与本地一致，没有字段发生变化" + (doubanId ? "；豆瓣 ID " + doubanId : ""))
+        + (warnings.length ? "；另有 " + warnings.length + " 个字段因不兼容而保留本地值。" : "。")
+        + " 请逐项确认后再刷新列表。";
+      syncChanges.textContent = "";
+      if (changes.length === 0) {
+        var empty = document.createElement("p");
+        empty.className = "sync-empty";
+        empty.textContent = "本次没有改写影片资料。";
+        syncChanges.appendChild(empty);
+      } else {
+        changes.forEach(function (change) {
+          var item = document.createElement("article");
+          item.className = "sync-change";
+          var heading = document.createElement("div");
+          heading.className = "sync-change-heading";
+          var name = document.createElement("h3");
+          name.className = "sync-change-name";
+          name.textContent = change.label || change.field || "未命名字段";
+          heading.appendChild(name);
+          item.appendChild(heading);
+          item.appendChild(createSyncValue("同步前", change.before, ""));
+          item.appendChild(createSyncValue("同步后", change.after, "sync-value-after"));
+          syncChanges.appendChild(item);
+        });
+      }
+      renderSyncWarnings(warnings);
+      syncResult.hidden = false;
+      window.requestAnimationFrame(function () {
+        var reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        syncResult.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
+      });
+    }
+
+    function post(url, data, button, options) {
+      options = options || {};
+      if (requestActive) {
+        feedbackDetail.textContent = "当前操作仍在进行，请等待完成后再继续。";
+        return Promise.resolve(null);
+      }
+      beginRequest(button, options.pending || "正在处理", options.pendingDetail || "");
+      return fetch(url, { method: "POST", credentials: "same-origin", headers: { "X-Requested-With": "XMLHttpRequest" }, body: data })
+        .then(function (response) {
+          return response.text().then(function (body) {
+            var result;
+            try {
+              result = JSON.parse(body);
+            } catch (error) {
+              throw new Error("服务器返回了无法识别的响应");
+            }
+            if (!response.ok) throw new Error(result.msg || ("HTTP " + response.status));
+            return result;
+          });
+        })
+        .then(function (result) {
+          endRequest();
+          if (!result || result.code !== 1) {
+            setFeedback("error", (result && result.msg) || "操作失败", "请检查输入或后台日志后重试。");
+            return null;
+          }
+          var state = typeof options.state === "function" ? options.state(result) : "success";
+          var detail = typeof options.detail === "function" ? options.detail(result) : (options.detail || "操作已完成，页面数据将更新。");
+          var title = result.msg || options.success || "操作完成";
+          setFeedback(state, title, detail);
+          if (typeof options.onSuccess === "function") {
+            options.onSuccess(result);
+          } else if (options.reload !== false) {
+            reloadWithFeedback(state, title, detail);
+          }
+          return result;
+        })
+        .catch(function (error) {
+          endRequest();
+          setFeedback("error", "请求失败", error.message || "网络异常，请稍后再试。");
+          return null;
+        });
+    }
+
+    function missingSelection(message) {
+      setFeedback("warning", "还不能继续", message);
+    }
+
+    function runWorkerBatches(button, totalLimit) {
+      var remaining = Math.max(1, totalLimit);
+      var completed = { success: 0, retrying: 0, failed: 0, skipped: 0, recovered: 0 };
+      var processed = 0;
+
+      function summary() {
+        return "已处理 " + processed + " 条：成功 " + completed.success + "，等待重试 " + completed.retrying + "，失败 " + completed.failed + "，跳过 " + completed.skipped + "。";
+      }
+
+      function runNext() {
+        var batchLimit = Math.min(3, remaining);
+        var data = new FormData();
+        data.append("limit", String(batchLimit));
+        post("{:url('douban/run')}", data, button, {
+          pending: "正在执行 Worker，本批最多 " + batchLimit + " 条",
+          pendingDetail: processed > 0 ? summary() : "请求已发送，请保持页面开启；完成后将自动继续下一批。",
+          reload: false,
+          onSuccess: function (result) {
+            var batch = result.data || {};
+            var batchProcessed = 0;
+            ["success", "retrying", "failed", "skipped"].forEach(function (key) {
+              var count = Number(batch[key] || 0);
+              completed[key] += count;
+              batchProcessed += count;
+            });
+            completed.recovered += Number(batch.recovered || 0);
+            processed += batchProcessed;
+            remaining -= batchProcessed;
+            if (batchProcessed === 0 || remaining <= 0) {
+              reloadWithFeedback(completed.failed ? "warning" : "success", "Worker 分批执行完成", summary());
+              return;
+            }
+            setFeedback("running", "Worker 正在继续", summary());
+            runNext();
+          }
+        });
+      }
+
+      runNext();
+    }
+
+    function auditProgressSummary(scan) {
+      return "已扫描 " + Number(scan.scanned_videos || 0) + " / " + Number(scan.total_videos || 0) + " 条，发现 " + Number(scan.issue_count || 0) + " 项问题。";
+    }
+
+    function renderAuditProgress(scan) {
+      if (!auditPanel || !scan) return;
+      var progress = Math.max(0, Math.min(100, Number(scan.progress || 0)));
+      auditPanel.setAttribute("data-scan-id", String(scan.scan_id || 0));
+      auditPanel.setAttribute("data-status", scan.status || "");
+      var status = auditPanel.querySelector("[data-audit-status]");
+      var bar = auditPanel.querySelector("[data-audit-progress]");
+      var track = auditPanel.querySelector("[role='progressbar']");
+      if (status) {
+        status.textContent = scan.status_label || scan.status || "扫描中";
+        status.setAttribute("data-status", scan.status || "");
+      }
+      if (bar) bar.style.width = progress + "%";
+      if (track) track.setAttribute("aria-valuenow", String(progress));
+      var values = {
+        "[data-audit-progress-label]": progress + "%",
+        "[data-audit-scanned]": Number(scan.scanned_videos || 0),
+        "[data-audit-total]": Number(scan.total_videos || 0),
+        "[data-audit-issues]": Number(scan.issue_count || 0),
+        "[data-audit-cursor]": Number(scan.cursor_vod_id || 0)
+      };
+      Object.keys(values).forEach(function (selector) {
+        var node = auditPanel.querySelector(selector);
+        if (node) node.textContent = String(values[selector]);
+      });
+    }
+
+    function pauseAuditNow(button, scanId) {
+      var data = new FormData();
+      data.append("scan_id", String(scanId));
+      post("{:url('douban/pauseAudit')}", data, button, {
+        pending: "正在暂停全库体检",
+        reload: false,
+        onSuccess: function (result) {
+          auditLoopActive = false;
+          auditPauseRequested = false;
+          auditPauseButton = null;
+          renderAuditProgress(result.data || {});
+          reloadAuditWithFeedback("warning", result.msg || "全库体检已暂停", auditProgressSummary(result.data || {}));
+        }
+      }).then(function (result) {
+        if (result) return;
+        auditLoopActive = false;
+        auditPauseRequested = false;
+        if (auditPauseButton) auditPauseButton.disabled = false;
+        auditPauseButton = null;
+      });
+    }
+
+    function runAuditLoop(button, scanId) {
+      if (auditLoopActive) {
+        setFeedback("warning", "体检正在进行", "当前浏览器已在分批扫描，请等待实时进度更新。");
+        return;
+      }
+      auditLoopActive = true;
+      auditPauseRequested = false;
+
+      function runNext() {
+        if (auditPauseRequested) {
+          auditLoopActive = false;
+          var pauseButton = auditPauseButton;
+          auditPauseButton = null;
+          pauseAuditNow(pauseButton, scanId);
+          return;
+        }
+        var data = new FormData();
+        data.append("scan_id", String(scanId));
+        post("{:url('douban/runAuditBatch')}", data, button, {
+          pending: "正在扫描下一批本地视频",
+          pendingDetail: "只读取本地数据库并写入体检报告，请保持本页开启。",
+          reload: false,
+          onSuccess: function (result) {
+            var scan = result.data || {};
+            renderAuditProgress(scan);
+            if (scan.busy) {
+              setFeedback("running", "上一批仍在收尾", auditProgressSummary(scan));
+              window.setTimeout(runNext, 1000);
+              return;
+            }
+            if (scan.status === "RUNNING") {
+              setFeedback("running", "全库体检正在进行", auditProgressSummary(scan) + " 可随时点击暂停。");
+              window.setTimeout(runNext, 650);
+              return;
+            }
+            auditLoopActive = false;
+            if (scan.status === "DONE") {
+              reloadAuditWithFeedback("success", "全库体检已完成", auditProgressSummary(scan));
+            } else if (scan.status === "PAUSED") {
+              reloadAuditWithFeedback("warning", "全库体检已暂停", auditProgressSummary(scan));
+            } else {
+              reloadAuditWithFeedback("error", "全库体检已停止", scan.error_message || auditProgressSummary(scan));
+            }
+          }
+        }).then(function (result) {
+          if (!result) {
+            auditLoopActive = false;
+            auditPauseRequested = false;
+            if (auditPauseButton) auditPauseButton.disabled = false;
+            auditPauseButton = null;
+          }
+        });
+      }
+
+      runNext();
+    }
+
+    function reloadAndAutoRunAudit(scanId, title, detail) {
+      rememberFeedback("running", title, detail);
+      try {
+        sessionStorage.setItem("doubanAuditAutoRun", String(scanId));
+      } catch (error) {
+      }
+      window.location.hash = "doubanAuditPanel";
+      window.setTimeout(function () { window.location.reload(); }, 350);
+    }
+
+    function revealAuditPanel() {
+      if (!auditPanel || window.location.hash !== "#doubanAuditPanel") return;
+      var advancedPanel = auditPanel.closest("details");
+      if (advancedPanel) advancedPanel.open = true;
+      window.requestAnimationFrame(function () {
+        auditPanel.scrollIntoView({ behavior: "auto", block: "start" });
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+      });
+    }
+
+    function restoreAuditAutoRun() {
+      var saved = "";
+      try {
+        saved = sessionStorage.getItem("doubanAuditAutoRun") || "";
+        sessionStorage.removeItem("doubanAuditAutoRun");
+      } catch (error) {
+      }
+      if (!auditPanel || auditPanel.getAttribute("data-status") !== "RUNNING") return;
+      var scanId = Number(auditPanel.getAttribute("data-scan-id") || 0);
+      if (scanId < 1 || saved !== String(scanId)) return;
+      var button = auditPanel.querySelector("[data-douban-action='run-audit']");
+      if (button) runAuditLoop(button, scanId);
+    }
+
+    restoreFeedback();
+    revealAuditPanel();
+    restoreAuditAutoRun();
 
     document.addEventListener("submit", function (event) {
       var form = event.target.closest("#doubanConfigForm, .douban-id-form");
       if (!form) return;
       event.preventDefault();
-      post(form.getAttribute("action"), new FormData(form), form.querySelector("button[type='submit']"));
+      var configForm = form.id === "doubanConfigForm";
+      post(form.getAttribute("action"), new FormData(form), form.querySelector("button[type='submit']"), {
+        pending: configForm ? "正在保存批量任务设置" : "正在保存豆瓣ID",
+        reload: !configForm,
+        detail: configForm ? "设置已立即生效，无需刷新页面。" : "豆瓣ID已保存，页面数据即将更新。"
+      });
     });
 
     document.addEventListener("click", function (event) {
+      var refreshButton = event.target.closest("[data-sync-refresh]");
+      if (refreshButton) {
+        if (requestActive) {
+          feedbackDetail.textContent = "当前操作仍在进行，请等待完成后再刷新。";
+          return;
+        }
+        window.location.reload();
+        return;
+      }
       var button = event.target.closest("[data-douban-action]");
       if (!button || button.disabled) return;
       var action = button.getAttribute("data-douban-action");
       var formData = new FormData();
       var url = "";
-      if (action === "enqueue") {
+      var pending = "正在处理";
+      if (action === "start-audit") {
+        if (!window.confirm("体检会分批读取全库视频，只生成报告，不修改视频数据。确认开始？")) return;
+        var batchInput = document.getElementById("doubanAuditBatchSize");
+        formData.append("batch_size", batchInput ? batchInput.value : "100");
+        formData.append("confirm", "1");
+        post("{:url('douban/startAudit')}", formData, button, {
+          pending: "正在创建全库体检任务",
+          reload: false,
+          onSuccess: function (result) {
+            var scan = result.data || {};
+            reloadAndAutoRunAudit(scan.scan_id, result.msg || "全库体检已开始", auditProgressSummary(scan));
+          }
+        });
+        return;
+      } else if (action === "run-audit") {
+        runAuditLoop(button, Number(button.getAttribute("data-scan-id") || 0));
+        return;
+      } else if (action === "pause-audit") {
+        var pauseScanId = Number(button.getAttribute("data-scan-id") || 0);
+        if (auditLoopActive) {
+          auditPauseRequested = true;
+          auditPauseButton = button;
+          button.disabled = true;
+          setFeedback("running", "将在本批结束后暂停", "当前小批次完成后会立即停止，不会丢失已扫描进度。");
+        } else {
+          pauseAuditNow(button, pauseScanId);
+        }
+        return;
+      } else if (action === "resume-audit") {
+        formData.append("scan_id", button.getAttribute("data-scan-id"));
+        post("{:url('douban/resumeAudit')}", formData, button, {
+          pending: "正在恢复全库体检",
+          reload: false,
+          onSuccess: function (result) {
+            var scan = result.data || {};
+            reloadAndAutoRunAudit(scan.scan_id, result.msg || "全库体检已恢复", auditProgressSummary(scan));
+          }
+        });
+        return;
+      } else if (action === "enqueue") {
         url = "{:url('douban/enqueue')}";
+        pending = "正在生成到期任务";
         formData.append("limit", "{:intval($config['batch_size'] ?? 100)}");
       } else if (action === "run") {
-        url = "{:url('douban/run')}";
-        formData.append("limit", "{:intval($config['worker_limit'] ?? 20)}");
+        runWorkerBatches(button, {:intval($config['worker_limit'] ?? 20)});
+        return;
       } else if (action === "retry-failed") {
         if (!window.confirm("将失败任务清零尝试次数并重新入队，是否继续？")) return;
         url = "{:url('douban/retryFailed')}";
+        pending = "正在重新入队失败任务";
         formData.append("limit", "{:intval($config['batch_size'] ?? 100)}");
+      } else if (action === "fetch-vod") {
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+        post("{:url('douban/fetchVod')}", formData, button, {
+          pending: "正在为视频 #" + button.getAttribute("data-vod-id") + " 搜索豆瓣候选，歧义时将使用 AI 复核",
+          state: function (result) { return result.data && result.data.skipped ? "warning" : "success"; },
+          detail: function (result) {
+            if (result.data && Array.isArray(result.data.changes)) return "豆瓣资料同步完成，下面已列出本次更新的数据。";
+            if (result.data && result.data.skipped) return "已保存匹配结果，请查看候选或提示原因。";
+            return "豆瓣资料已更新，页面即将刷新。";
+          },
+          reload: false,
+          onSuccess: function (result) {
+            if (result.data && Array.isArray(result.data.changes)) {
+              renderSyncResult(result);
+              return;
+            }
+            reloadWithFeedback(result.data && result.data.skipped ? "warning" : "success", result.msg || "搜索完成", "匹配结果已保存，页面正在刷新。");
+          }
+        });
+        return;
       } else if (action === "sync") {
         url = "{:url('douban/sync')}";
+        pending = "正在同步视频 #" + button.getAttribute("data-vod-id") + " 的豆瓣资料";
         formData.append("vod_id", button.getAttribute("data-vod-id"));
+        post(url, formData, button, {
+          pending: pending,
+          reload: false,
+          detail: "豆瓣资料同步完成，下面已列出本次更新的数据。",
+          onSuccess: renderSyncResult
+        });
+        return;
+      } else if (action === "rollback-pic") {
+        if (!window.confirm("只恢复最近一次豆瓣同步前的图片，评分、简介等其他字段不会改变。确认回退？")) return;
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+        formData.append("confirm", "1");
+        post("{:url('douban/rollbackPic')}", formData, button, {
+          pending: "正在回退视频 #" + button.getAttribute("data-vod-id") + " 的图片",
+          reload: false,
+          detail: "仅图片字段已恢复，其他同步数据保持不变。",
+          onSuccess: function (result) {
+            reloadWithFeedback("success", result.msg || "图片已回退", "仅图片字段已恢复，页面正在刷新。");
+          }
+        });
+        return;
       } else if (action === "select-candidate") {
         url = "{:url('douban/setDoubanId')}";
+        pending = "正在采用候选豆瓣ID";
         formData.append("vod_id", button.getAttribute("data-vod-id"));
         formData.append("douban_id", button.getAttribute("data-douban-id"));
         formData.append("lock", "0");
       } else if (action === "calibrate") {
         if (!window.confirm("全量校准会扫描视频表，仅建议在评分字段异常时执行。是否继续？")) return;
         url = "{:url('douban/calibrate')}";
+        pending = "正在全量校准豆瓣评分";
         formData.append("confirm", "1");
       } else if (action === "preview-targeted") {
         var targetedForm = document.getElementById("doubanTargetedForm");
         var targetedSelect = targetedForm.querySelector("select[name='type_ids[]']");
         if (targetedSelect.selectedOptions.length === 0) {
-          alert("未选择分类，请至少选择一个分类");
+          missingSelection("请至少选择一个分类后再预览任务。");
           return;
         }
         var targetedData = new FormData(targetedForm);
         targetedData.set("include_children", targetedForm.querySelector("input[name='include_children']").checked ? "1" : "0");
-        post("{:url('douban/previewTargeted')}", targetedData, button, function (result) {
-          var preview = result.data || {};
-          var names = Array.isArray(preview.type_names) ? preview.type_names : [];
-          var scopeLabel = names.slice(0, 5).join("、");
-          if (names.length > 5) scopeLabel += " 等 " + names.length + " 个分类";
-          var message = "分类：" + scopeLabel + "\n" +
-            "数据范围：" + (preview.target_label || "-") + "\n" +
-            "筛选命中视频：" + (preview.total || 0) + "\n" +
-            "可新建匹配任务：" + (preview.match_tasks || 0) + "\n" +
-            "可新建同步任务：" + (preview.sync_tasks || 0) + "\n" +
-            "已有活动任务：" + (preview.existing_tasks || 0) + "\n" +
-            "本批预计入队：" + (preview.will_enqueue || 0) + "\n\n" +
-            "确认生成任务？生成后仍需执行 Pending Worker。";
-          if (!window.confirm(message)) return;
-          var enqueueData = new FormData(targetedForm);
-          enqueueData.set("include_children", targetedForm.querySelector("input[name='include_children']").checked ? "1" : "0");
-          enqueueData.append("confirm", "1");
-          post("{:url('douban/enqueueTargeted')}", enqueueData, button);
+        post("{:url('douban/previewTargeted')}", targetedData, button, {
+          pending: "正在预览定向任务",
+          reload: false,
+          onSuccess: function (result) {
+            var preview = result.data || {};
+            var names = Array.isArray(preview.type_names) ? preview.type_names : [];
+            var scopeLabel = names.slice(0, 5).join("、");
+            if (names.length > 5) scopeLabel += " 等 " + names.length + " 个分类";
+            var message = "分类：" + scopeLabel + "\n数据范围：" + (preview.target_label || "-") + "\n筛选命中视频：" + (preview.total || 0) + "\n可新建匹配任务：" + (preview.match_tasks || 0) + "\n可新建同步任务：" + (preview.sync_tasks || 0) + "\n已有活动任务：" + (preview.existing_tasks || 0) + "\n本批预计入队：" + (preview.will_enqueue || 0) + "\n\n确认生成任务？";
+            if (!window.confirm(message)) return;
+            var enqueueData = new FormData(targetedForm);
+            enqueueData.set("include_children", targetedForm.querySelector("input[name='include_children']").checked ? "1" : "0");
+            enqueueData.append("confirm", "1");
+            post("{:url('douban/enqueueTargeted')}", enqueueData, button, { pending: "正在生成定向任务" });
+          }
         });
         return;
       } else if (action === "preview-calibrate-category") {
         var calibrationForm = document.getElementById("doubanCalibrationForm");
         var selectedOptions = Array.prototype.slice.call(calibrationForm.querySelector("select[name='type_ids[]']").selectedOptions);
         if (selectedOptions.length === 0) {
-          alert("未选择分类，请至少选择一个分类");
+          missingSelection("请至少选择一个分类后再预览校准。");
           return;
         }
         var selectedTypeIds = selectedOptions.map(function (option) { return option.value; });
         var includeChildren = calibrationForm.querySelector("input[name='include_children']").checked ? "1" : "0";
         selectedTypeIds.forEach(function (typeId) { formData.append("type_ids[]", typeId); });
         formData.append("include_children", includeChildren);
-        post("{:url('douban/previewCalibration')}", formData, button, function (result) {
-          var preview = result.data || {};
-          var names = Array.isArray(preview.type_names) ? preview.type_names : [];
-          var scopeLabel = names.slice(0, 5).join("、");
-          if (names.length > 5) scopeLabel += " 等 " + names.length + " 个分类";
-          var message = "分类：" + scopeLabel + "\n" +
-            "范围内视频：" + (preview.total || 0) + "\n" +
-            "异常评分归零：" + (preview.invalid_reset || 0) + "\n" +
-            "评分镜像：" + (preview.mirrored || 0) + "\n" +
-            "无豆瓣评分清零：" + (preview.reset || 0) + "\n\n确认执行？";
-          if (!window.confirm(message)) return;
-          var applyData = new FormData();
-          selectedTypeIds.forEach(function (typeId) { applyData.append("type_ids[]", typeId); });
-          applyData.append("include_children", includeChildren);
-          applyData.append("confirm", "1");
-          post("{:url('douban/calibrateByType')}", applyData, button);
+        post("{:url('douban/previewCalibration')}", formData, button, {
+          pending: "正在预览分类校准",
+          reload: false,
+          onSuccess: function (result) {
+            var preview = result.data || {};
+            var names = Array.isArray(preview.type_names) ? preview.type_names : [];
+            var scopeLabel = names.slice(0, 5).join("、");
+            if (names.length > 5) scopeLabel += " 等 " + names.length + " 个分类";
+            var message = "分类：" + scopeLabel + "\n范围内视频：" + (preview.total || 0) + "\n异常评分归零：" + (preview.invalid_reset || 0) + "\n评分镜像：" + (preview.mirrored || 0) + "\n无豆瓣评分清零：" + (preview.reset || 0) + "\n\n确认执行？";
+            if (!window.confirm(message)) return;
+            var applyData = new FormData();
+            selectedTypeIds.forEach(function (typeId) { applyData.append("type_ids[]", typeId); });
+            applyData.append("include_children", includeChildren);
+            applyData.append("confirm", "1");
+            post("{:url('douban/calibrateByType')}", applyData, button, { pending: "正在校准所选分类" });
+          }
         });
         return;
       } else if (action === "lock-id" || action === "lock-intro") {
         url = "{:url('douban/lock')}";
+        pending = "正在更新锁定状态";
         formData.append("vod_id", button.getAttribute("data-vod-id"));
         formData.append("field", action === "lock-intro" ? "intro" : "id");
         formData.append("locked", button.getAttribute("data-locked") || "1");
       } else if (action === "ignore") {
         url = "{:url('douban/ignore')}";
+        pending = "正在忽略该影片";
         formData.append("vod_id", button.getAttribute("data-vod-id"));
         formData.append("days", "30");
       }
-      if (url !== "") {
-        post(url, formData, button);
-      }
+      if (url !== "") post(url, formData, button, { pending: pending });
     });
   })();
 </script>

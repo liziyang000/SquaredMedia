@@ -92,7 +92,7 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-`DEPLOY_PATH` 必须是远端 MacCMS 的 `template` 目录，脚本以其父目录作为站点根目录。仓库中的 `scripts/deploy-ping2.env` 只保存当前目标的非密码连接参数、专用密钥路径和站点验证 Host；其中 `ping2.my` 是 SSH 主机，`www.ping2video.xyz` 才是公开站点域名。在确认目标无误且已获得发布授权后可执行：
+`DEPLOY_PATH` 必须是远端 MacCMS 的 `template` 目录，脚本以其父目录作为站点根目录。仓库中的 `scripts/deploy-ping2.env` 只保存当前目标的非密码连接参数、专用密钥路径和站点验证 Host；SSH 目标固定为 `144.34.184.95:814`，`www.ping2video.xyz` 是独立的公开站点验证域名。在确认目标无误且已获得发布授权后可执行：
 
 ```bash
 source scripts/deploy-ping2.env
@@ -133,11 +133,11 @@ npm run deploy
 - 发布脚本会替换远端目录、修改 `application/extra/addons.php` 并执行数据库 DDL。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
 - 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
 - 站点回环验证发生在文件、hook 和数据库更新之后；验证失败会让部署命令返回非零，但不会自动回滚已经应用的变化，应先检查响应和备份，再决定修复或执行明确回滚。
-- 脚本会为两个插件目录、应用控制器、被清理的旧 Douban 前台控制器和 hook 配置创建备份，但不会自动执行插件回滚。
+- 脚本会为两个插件目录、应用控制器、被清理的旧 Douban 前台控制器和 hook 配置创建备份；主题和 Douban 插件均提供显式回滚入口，但发布失败时不会自动执行回滚。
 
 ## 回滚
 
-`npm run rollback` 调用 `scripts/rollback-theme.sh`。默认选择远端模板目录中名称排序最后的 `pingfangvideo.backup.*`：
+`npm run rollback` 调用 `scripts/rollback-theme.sh`。默认 `ROLLBACK_SCOPE=theme`，选择远端模板目录中名称排序最后的 `pingfangvideo.backup.*`：
 
 ```bash
 DEPLOY_HOST=example.com \
@@ -155,7 +155,15 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 
 回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并默认清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
 
-此命令只回滚主题，不回滚 `pingfangdevice`、`douban`、应用兼容控制器、hook 配置或数据库表结构。若故障来自插件发布，必须基于部署时留下的备份和数据库审计结果制定单独恢复方案。主题回滚后仍需完成与发布后相同的线上验证。
+Douban 插件可选择最新备份，或显式指定 `addons/` 下的备份目录名：
+
+```bash
+source scripts/deploy-ping2.env
+ROLLBACK_SCOPE=douban npm run rollback
+ROLLBACK_SCOPE=douban ROLLBACK_BACKUP=douban.backup.20260807213535 npm run rollback
+```
+
+Douban 回滚会恢复插件目录和 `application/admin/controller/Douban.php`，失败时尝试恢复刚移走的插件与控制器；不会回滚或删除插件数据库表。`pingfangdevice`、hook 配置和数据库结构仍需按对应备份及审计结果单独处理。任一回滚完成后都需执行与发布后相同的线上验证。
 
 ## 数据维护工具
 

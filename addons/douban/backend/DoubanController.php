@@ -13,17 +13,56 @@ class DoubanController extends Controller
             return '请先使用管理员账号登录后台后访问该页面。';
         }
 
-        $status = trim((string) input('status', 'review'));
+        $status = trim((string) input('status', 'all'));
         $q = trim((string) input('q', ''));
+        $typeId = max(0, (int) input('type_id/d', 0));
+        $year = trim((string) input('year', ''));
+        if (!preg_match('/^\d{4}$/', $year) || (int) $year < 1800 || (int) $year > 2100) {
+            $year = '';
+        }
         $taskStatus = strtoupper(trim((string) input('task_status', 'PENDING')));
         if (!in_array($taskStatus, ['PENDING', 'RUNNING', 'FAILED', 'SUCCESS', 'SKIP', 'ALL'], true)) {
             $taskStatus = 'PENDING';
         }
         $page = max(1, (int) input('page/d', 1));
         $limit = max(10, min(100, (int) input('limit/d', 20)));
+        $auditScanId = max(0, (int) input('audit_scan_id/d', 0));
+        $auditCode = trim((string) input('audit_code', ''));
+        $auditQ = trim((string) input('audit_q', ''));
+        $auditPage = max(1, (int) input('audit_page/d', 1));
         $dashboard = DoubanData::dashboard();
-        $videos = DoubanData::listVideos($status, $page, $limit, $q);
+        $videos = DoubanData::listVideos($status, $page, $limit, $q, $typeId, $year);
         $tasks = DoubanData::listTasks($taskStatus, 50);
+        $audit = DoubanData::auditDashboard($auditScanId, $auditCode, $auditPage, 20, $auditQ);
+        $currentPage = (int) ($videos['page'] ?? 1);
+        $pageQuery = [
+            'status' => $status,
+            'task_status' => $taskStatus,
+            'q' => $q,
+            'type_id' => $typeId,
+            'year' => $year,
+            'limit' => $limit,
+        ];
+        $videos['prev_url'] = !empty($videos['has_prev'])
+            ? url('douban/index', array_merge($pageQuery, ['page' => $currentPage - 1]))
+            : '';
+        $videos['next_url'] = !empty($videos['has_next'])
+            ? url('douban/index', array_merge($pageQuery, ['page' => $currentPage + 1]))
+            : '';
+        $auditPagination = $audit['pagination'];
+        $auditCurrentPage = (int) ($auditPagination['page'] ?? 1);
+        $auditQuery = array_merge($pageQuery, [
+            'page' => $currentPage,
+            'audit_scan_id' => (int) ($audit['scan']['scan_id'] ?? 0),
+            'audit_code' => (string) ($audit['filters']['code'] ?? ''),
+            'audit_q' => (string) ($audit['filters']['q'] ?? ''),
+        ]);
+        $auditPagination['prev_url'] = !empty($auditPagination['has_prev'])
+            ? url('douban/index', array_merge($auditQuery, ['audit_page' => $auditCurrentPage - 1]))
+            : '';
+        $auditPagination['next_url'] = !empty($auditPagination['has_next'])
+            ? url('douban/index', array_merge($auditQuery, ['audit_page' => $auditCurrentPage + 1]))
+            : '';
 
         $this->assign('config', $dashboard['config']);
         $this->assign('stats', $dashboard['stats']);
@@ -36,6 +75,20 @@ class DoubanController extends Controller
         $this->assign('status', $status);
         $this->assign('task_status', $taskStatus);
         $this->assign('q', $q);
+        $this->assign('type_id', $typeId);
+        $this->assign('year', $year);
+        $this->assign('audit_scan', $audit['scan']);
+        $this->assign('audit_issues', $audit['issues']);
+        $this->assign('audit_stats', $audit['stats']);
+        $this->assign('audit_codes', $audit['codes']);
+        $this->assign('audit_filters', $audit['filters']);
+        $this->assign('audit_pagination', $auditPagination);
+        $this->assign('audit_export_url', !empty($audit['scan'])
+            ? url('douban/exportAudit', [
+                'scan_id' => (int) ($audit['scan']['scan_id'] ?? 0),
+                'code' => (string) ($audit['filters']['code'] ?? ''),
+            ])
+            : '');
         $this->assign('current_url', url('douban/index'));
 
         return $this->fetch();
@@ -149,6 +202,24 @@ class DoubanController extends Controller
         }
     }
 
+    public function fetchVod()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            $result = DoubanData::fetchVod((int) input('vod_id/d', 0), $this->adminId());
+            return json([
+                'code' => 1,
+                'msg' => (string) ($result['msg'] ?? '豆瓣数据获取完成'),
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
     public function sync()
     {
         if (($error = $this->guardPost()) !== null) {
@@ -160,6 +231,26 @@ class DoubanController extends Controller
                 'code' => 1,
                 'msg' => '同步完成',
                 'data' => DoubanData::syncVod((int) input('vod_id/d', 0), $this->adminId()),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function rollbackPic()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+        if ((int) input('confirm/d', 0) !== 1) {
+            return json(['code' => 1001, 'msg' => '请确认回退图片']);
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '图片已回退',
+                'data' => DoubanData::rollbackPicture((int) input('vod_id/d', 0), $this->adminId()),
             ]);
         } catch (\Throwable $e) {
             return $this->errorJson($e);
@@ -291,6 +382,133 @@ class DoubanController extends Controller
         }
     }
 
+    public function startAudit()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+        if ((int) input('confirm/d', 0) !== 1) {
+            return json(['code' => 1001, 'msg' => '请确认开始全库体检']);
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '全库体检已开始',
+                'data' => DoubanData::startAudit((int) input('batch_size/d', 100), $this->adminId()),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function runAuditBatch()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '本批体检完成',
+                'data' => DoubanData::runAuditBatch((int) input('scan_id/d', 0)),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function pauseAudit()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '全库体检已暂停',
+                'data' => DoubanData::pauseAudit((int) input('scan_id/d', 0)),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function resumeAudit()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '全库体检已恢复',
+                'data' => DoubanData::resumeAudit((int) input('scan_id/d', 0)),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function exportAudit()
+    {
+        if (!$this->isAdmin()) {
+            return '请先使用管理员账号登录后台后导出体检报告。';
+        }
+
+        $scanId = max(0, (int) input('scan_id/d', 0));
+        if ($scanId < 1) {
+            return '体检任务ID无效。';
+        }
+        $code = trim((string) input('code', ''));
+
+        try {
+            $afterId = 0;
+            $rows = DoubanData::auditIssueExportBatch($scanId, $afterId, 1000, $code);
+            header('Content-Type: text/csv; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="douban-audit-' . $scanId . '-' . date('Ymd-His') . '.csv"');
+            header('X-Content-Type-Options: nosniff');
+            $output = fopen('php://output', 'wb');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, ['问题ID', '扫描ID', '视频ID', '分类ID', '视频名称', '级别', '问题代码', '字段', '说明', '记录时间']);
+            while (true) {
+                foreach ($rows as $row) {
+                    $afterId = max($afterId, (int) ($row['issue_id'] ?? 0));
+                    fputcsv($output, [
+                        (int) ($row['issue_id'] ?? 0),
+                        (int) ($row['scan_id'] ?? 0),
+                        (int) ($row['vod_id'] ?? 0),
+                        (int) ($row['type_id'] ?? 0),
+                        $this->csvCell($row['vod_name'] ?? ''),
+                        $this->csvCell($row['issue_level'] ?? ''),
+                        $this->csvCell($row['issue_code'] ?? ''),
+                        $this->csvCell($row['field_name'] ?? ''),
+                        $this->csvCell($row['message'] ?? ''),
+                        date('Y-m-d H:i:s', (int) ($row['created_at'] ?? 0)),
+                    ]);
+                }
+                if (count($rows) < 1000) {
+                    break;
+                }
+                $rows = DoubanData::auditIssueExportBatch($scanId, $afterId, 1000, $code);
+            }
+            fclose($output);
+
+            return '';
+        } catch (\Throwable $e) {
+            return '导出失败：' . $e->getMessage();
+        }
+    }
+
+    private function csvCell($value)
+    {
+        $value = (string) $value;
+        return preg_match('/^[\s]*[=+\-@]/u', $value) ? ("'" . $value) : $value;
+    }
+
     private function guardPost()
     {
         if (!Request()->isPost()) {
@@ -298,6 +516,9 @@ class DoubanController extends Controller
         }
         if (!$this->isAdmin()) {
             return json(['code' => 1003, 'msg' => '请先登录管理员账号']);
+        }
+        if (!Request()->isAjax()) {
+            return json(['code' => 1004, 'msg' => '请求来源校验失败']);
         }
 
         return null;

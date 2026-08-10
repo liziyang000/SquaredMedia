@@ -14,6 +14,24 @@ if (($defaults['max_attempts'] ?? 0) !== 5) {
     exit(1);
 }
 
+$listVideosMethod = new ReflectionMethod(DoubanData::class, 'listVideos');
+$listVideoParameters = array_map(static function (ReflectionParameter $parameter): string {
+    return $parameter->getName();
+}, $listVideosMethod->getParameters());
+if ($listVideoParameters !== ['status', 'page', 'limit', 'q', 'typeId', 'year']) {
+    fwrite(STDERR, "Video listing should accept name, category, and year filters\n");
+    exit(1);
+}
+
+$videoQueryMethod = new ReflectionMethod(DoubanData::class, 'videoQuery');
+$videoQueryParameters = array_map(static function (ReflectionParameter $parameter): string {
+    return $parameter->getName();
+}, $videoQueryMethod->getParameters());
+if ($videoQueryParameters !== ['status', 'q', 'typeId', 'year']) {
+    fwrite(STDERR, "Video query should receive category and year filters\n");
+    exit(1);
+}
+
 function assertResolvedId(string $expected, array $meta, array $vod, string $message): void
 {
     $method = new ReflectionMethod(DoubanData::class, 'resolveDoubanId');
@@ -64,11 +82,118 @@ if (!$mismatchedIdRejected) {
     exit(1);
 }
 
+$syncChangesMethod = new ReflectionMethod(DoubanData::class, 'syncChangesForView');
+$syncChangesMethod->setAccessible(true);
+$syncChanges = $syncChangesMethod->invoke(null, [
+    'vod_douban_score' => '0.0',
+    'vod_content' => '旧简介',
+], [
+    'vod_douban_score' => '9.4',
+    'vod_content' => '新简介',
+]);
+if (($syncChanges[0]['label'] ?? '') !== '豆瓣评分'
+    || ($syncChanges[0]['before'] ?? '') !== '0.0'
+    || ($syncChanges[0]['after'] ?? '') !== '9.4'
+    || ($syncChanges[1]['label'] ?? '') !== '简介'
+    || ($syncChanges[1]['before'] ?? '') !== '旧简介'
+    || ($syncChanges[1]['after'] ?? '') !== '新简介') {
+    fwrite(STDERR, "Sync responses should expose readable before and after values\n");
+    exit(1);
+}
+
+$rollbackPictureMethod = new ReflectionMethod(DoubanData::class, 'rollbackPictureSnapshot');
+$rollbackPictureMethod->setAccessible(true);
+$pictureSnapshot = $rollbackPictureMethod->invoke(null, [
+    [
+        'log_id' => 12,
+        'old_values' => json_encode(['vod_score' => '8.0']),
+        'new_values' => json_encode(['vod_score' => '9.4']),
+    ],
+    [
+        'log_id' => 11,
+        'old_values' => json_encode(['vod_pic' => '/upload/old.jpg']),
+        'new_values' => json_encode(['vod_pic' => 'https://img.example/new.jpg']),
+    ],
+], 'https://img.example/new.jpg');
+if (($pictureSnapshot['log_id'] ?? 0) !== 11
+    || ($pictureSnapshot['before'] ?? '') !== 'https://img.example/new.jpg'
+    || ($pictureSnapshot['after'] ?? '') !== '/upload/old.jpg') {
+    fwrite(STDERR, "Picture rollback should select the latest image-changing sync snapshot\n");
+    exit(1);
+}
+
+$changedPictureRejected = false;
+try {
+    $rollbackPictureMethod->invoke(null, [[
+        'log_id' => 11,
+        'old_values' => json_encode(['vod_pic' => '/upload/old.jpg']),
+        'new_values' => json_encode(['vod_pic' => 'https://img.example/new.jpg']),
+    ]], '/upload/manually-edited.jpg');
+} catch (RuntimeException $e) {
+    $changedPictureRejected = $e->getMessage() === '当前图片已被再次修改，未执行回退';
+}
+if (!$changedPictureRejected) {
+    fwrite(STDERR, "Picture rollback should not overwrite a later manual edit\n");
+    exit(1);
+}
+
+$emptyPreviousPictureRejected = false;
+try {
+    $rollbackPictureMethod->invoke(null, [[
+        'log_id' => 11,
+        'old_values' => json_encode(['vod_pic' => '']),
+        'new_values' => json_encode(['vod_pic' => 'https://img.example/new.jpg']),
+    ]], 'https://img.example/new.jpg');
+} catch (RuntimeException $e) {
+    $emptyPreviousPictureRejected = $e->getMessage() === '该次同步前没有可回退的图片';
+}
+if (!$emptyPreviousPictureRejected) {
+    fwrite(STDERR, "Picture rollback should reject an empty previous image\n");
+    exit(1);
+}
+
 $normalizeConfigMethod = new ReflectionMethod(DoubanData::class, 'normalizeConfig');
 $normalizeConfigMethod->setAccessible(true);
 $boundedConfig = $normalizeConfigMethod->invoke(null, ['max_attempts' => 99]);
 if (($boundedConfig['max_attempts'] ?? 0) !== 10) {
     fwrite(STDERR, "Task retry limits should be capped at ten attempts\n");
+    exit(1);
+}
+
+$applyAiReviewMethod = new ReflectionMethod(DoubanData::class, 'applyAiReview');
+$applyAiReviewMethod->setAccessible(true);
+$aiRanked = $applyAiReviewMethod->invoke(null, [
+    'auto_confirm' => false,
+    'candidates' => [
+        ['douban_id' => '111', 'score_total' => 100, 'score_detail' => [], 'conflicts' => []],
+        ['douban_id' => '222', 'score_total' => 100, 'score_detail' => [], 'conflicts' => []],
+    ],
+], [
+    'status' => 'selected',
+    'douban_id' => '222',
+    'confidence' => 96,
+    'reason' => '别名与演员信息一致',
+]);
+if (($aiRanked['candidates'][0]['douban_id'] ?? '') !== '222'
+    || empty($aiRanked['ai_auto_confirm'])
+    || (int) ($aiRanked['candidates'][0]['score_detail']['ai_recommended'] ?? 0) !== 1) {
+    fwrite(STDERR, "AI review should only break a safe exact-match tie inside the candidate set\n");
+    exit(1);
+}
+
+$unsafeAiRanked = $applyAiReviewMethod->invoke(null, [
+    'auto_confirm' => false,
+    'candidates' => [
+        ['douban_id' => '333', 'score_total' => 75, 'score_detail' => [], 'conflicts' => []],
+    ],
+], [
+    'status' => 'selected',
+    'douban_id' => '333',
+    'confidence' => 99,
+    'reason' => '模型推荐但规则证据不足',
+]);
+if (!empty($unsafeAiRanked['ai_auto_confirm'])) {
+    fwrite(STDERR, "AI confidence alone must not auto-confirm a weak deterministic match\n");
     exit(1);
 }
 
@@ -168,6 +293,33 @@ if (($optionLabels[3] ?? '') !== '电影 / 动作片 / 功夫片') {
 if (isset($optionLabels[5])) {
     fwrite(STDERR, "Category calibration should not expose non-video categories\n");
     exit(1);
+}
+
+$auditIssuesMethod = new ReflectionMethod(DoubanData::class, 'auditVodIssues');
+$auditIssuesMethod->setAccessible(true);
+$auditIssues = $auditIssuesMethod->invoke(null, [
+    'vod_id' => 99,
+    'vod_name' => '边界影片',
+    'type_id' => 1,
+    'vod_year' => '',
+    'vod_area' => str_repeat('中', 21),
+    'vod_lang' => str_repeat('语', 11),
+    'vod_douban_id' => '1290001',
+    'vod_douban_score' => '8.8',
+    'vod_score' => '7.0',
+    'vod_status' => 0,
+], [
+    'vod_id' => 99,
+    'douban_id' => '1290002',
+    'douban_sync_fail_count' => 2,
+    'douban_review_status' => 'REVIEW',
+]);
+$auditIssueCodes = array_column($auditIssues, 'issue_code');
+foreach (['YEAR_MISSING', 'FIELD_TOO_LONG', 'DOUBAN_ID_CONFLICT', 'SCORE_MISMATCH', 'SYNC_FAILED', 'NEEDS_REVIEW', 'STATUS_DISABLED'] as $expectedCode) {
+    if (!in_array($expectedCode, $auditIssueCodes, true)) {
+        fwrite(STDERR, "Audit rules should report {$expectedCode}\n");
+        exit(1);
+    }
 }
 
 $scopeSqlMethod = new ReflectionMethod(DoubanData::class, 'scoreCalibrationScopeSql');

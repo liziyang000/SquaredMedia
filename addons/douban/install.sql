@@ -99,6 +99,46 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__douban_review_candidate` (
   KEY `idx_candidate_douban_id` (`douban_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `__PREFIX__douban_scan` (
+  `scan_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `status` varchar(16) NOT NULL DEFAULT 'RUNNING',
+  `high_water_vod_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `cursor_vod_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `total_videos` int(10) unsigned NOT NULL DEFAULT 0,
+  `scanned_videos` int(10) unsigned NOT NULL DEFAULT 0,
+  `issue_count` int(10) unsigned NOT NULL DEFAULT 0,
+  `batch_size` smallint(5) unsigned NOT NULL DEFAULT 100,
+  `run_by` int(10) unsigned NOT NULL DEFAULT 0,
+  `batch_lock_until` int(10) unsigned NOT NULL DEFAULT 0,
+  `error_message` varchar(255) NOT NULL DEFAULT '',
+  `started_at` int(10) unsigned NOT NULL DEFAULT 0,
+  `updated_at` int(10) unsigned NOT NULL DEFAULT 0,
+  `finished_at` int(10) unsigned NOT NULL DEFAULT 0,
+  `created_at` int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`scan_id`),
+  KEY `idx_scan_status` (`status`,`updated_at`),
+  KEY `idx_scan_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__douban_scan_issue` (
+  `issue_id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `scan_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `vod_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `type_id` int(10) unsigned NOT NULL DEFAULT 0,
+  `vod_name` varchar(255) NOT NULL DEFAULT '',
+  `issue_level` varchar(16) NOT NULL DEFAULT 'warning',
+  `issue_code` varchar(64) NOT NULL DEFAULT '',
+  `field_name` varchar(64) NOT NULL DEFAULT '',
+  `message` varchar(255) NOT NULL DEFAULT '',
+  `snapshot` text NULL,
+  `created_at` int(10) unsigned NOT NULL DEFAULT 0,
+  PRIMARY KEY (`issue_id`),
+  KEY `idx_scan_issue` (`scan_id`,`issue_id`),
+  KEY `idx_scan_code_issue` (`scan_id`,`issue_code`,`issue_id`),
+  KEY `idx_scan_level_issue` (`scan_id`,`issue_level`,`issue_id`),
+  KEY `idx_scan_vod` (`scan_id`,`vod_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 INSERT IGNORE INTO `__PREFIX__douban_config` (`config_key`, `config_value`, `updated_at`) VALUES
 ('douban_endpoint', 'internal', UNIX_TIMESTAMP()),
 ('exclude_type_ids', '', UNIX_TIMESTAMP()),
@@ -108,6 +148,7 @@ INSERT IGNORE INTO `__PREFIX__douban_config` (`config_key`, `config_value`, `upd
 ('max_attempts', '5', UNIX_TIMESTAMP()),
 ('auto_confirm_score', '85', UNIX_TIMESTAMP()),
 ('candidate_topn', '5', UNIX_TIMESTAMP()),
+('audit_start_lock', '0', UNIX_TIMESTAMP()),
 ('rate_limit_next_at', '0', UNIX_TIMESTAMP());
 
 UPDATE `__PREFIX__douban_config`

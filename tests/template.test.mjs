@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
@@ -182,14 +183,22 @@ const requiredRootFiles = [
   "addons/pingfangdevice/service/VodFilterOptions.php",
   "addons/pingfangdevice/view/index/index.html",
   "addons/vodops/Vodops.php",
+  "addons/vodops/application/admin/controller/Douban.php",
   "addons/vodops/application/admin/controller/Vodops.php",
   "addons/vodops/application/admin/view_new/vodops/index.html",
+  "addons/vodops/backend/DoubanController.php",
+  "addons/vodops/bin/vodops-worker.php",
   "addons/vodops/config.php",
   "addons/vodops/info.ini",
   "addons/vodops/install.sql",
+  "addons/vodops/service/DoubanAiReviewer.php",
+  "addons/vodops/service/DoubanData.php",
+  "addons/vodops/service/DoubanGateway.php",
+  "addons/vodops/service/DoubanMatcher.php",
   "addons/vodops/service/VodQualityAnalyzer.php",
   "addons/vodops/service/VodQualityRepair.php",
   "addons/vodops/service/VodQualityScanner.php",
+  "addons/vodops/view/index/index.html",
   "preview/data.json",
   "preview/qixi.html",
   "scripts/lint-template.mjs",
@@ -221,6 +230,7 @@ assert.ok(
   !existsSync(path.join(addonRoot, "bridge/Pingfangdevice.php")),
   "The frontend compatibility controller should use the standard addon application payload"
 );
+assert.ok(!existsSync(path.join(root, "addons", "douban")), "Douban should be absorbed into the single vodops addon");
 
 for (const file of requiredFiles) {
   assert.ok(existsSync(path.join(themeRoot, file)), `${file} should exist`);
@@ -899,7 +909,7 @@ assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num
 assert.doesNotMatch(index, /is-rank-extra/);
 assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
 assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
-assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='8\.0'\}"/);
+assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='0\.0'\}"/);
 assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
 assert.match(index, /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/);
 assert.match(index, /rank-body/);
@@ -1341,11 +1351,13 @@ assert.match(diggPartial, /vod_down/);
 const scorePartial = readThemeFile("html/public/score.html");
 assert.match(scorePartial, /score-panel/);
 assert.match(scorePartial, /vod_score/);
-assert.match(scorePartial, /vod_score_num/);
+assert.match(scorePartial, /豆瓣评分/);
+assert.doesNotMatch(scorePartial, /vod_score_num/);
 
 const starPartial = readThemeFile("html/public/star.html");
 assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
+assert.match(starPartial, /豆瓣/);
 
 const style = readThemeFile("css/style.css");
 assert.match(style, /\.multiplayer-page \[hidden\]\s*\{\s*display: none !important;/);
@@ -2281,6 +2293,16 @@ assert.equal(packageJson.dependencies.ws, "8.21.1");
 assert.match(packageJson.scripts.deploy, /deploy-theme\.sh/);
 assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
 assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh");
+for (const testFile of [
+  "douban-gateway.test.php",
+  "douban-matcher.test.php",
+  "douban-ai-reviewer.test.php",
+  "douban-data.test.php",
+  "douban-controller.test.php",
+  "douban-worker.test.php",
+]) {
+  assert.match(packageJson.scripts.test, new RegExp(testFile.replace(".", "\\.")));
+}
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
@@ -2334,13 +2356,25 @@ assert.match(deployScript, /dist\/vodops\.tar\.gz/);
 assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
 assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]/);
 assert.match(deployScript, /application\/admin\/controller\/Vodops\.php/);
+assert.match(deployScript, /application\/admin\/controller\/Douban\.php/);
 assert.match(deployScript, /application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(deployScript, /legacy_douban_dir="\$maccms_root\/addons\/douban"/);
+assert.match(deployScript, /\.vodops-deploy-state/);
+assert.match(deployScript, /cp -a "\$legacy_douban_dir" "\$state_dir\/addons\/douban"/);
+assert.match(deployScript, /rm -rf "\$legacy_douban_dir"/);
+assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
+assert.match(deployScript, /rm -f "\$legacy_index_controller_target"/);
 assert.match(deployScript, /application\/extra\/quickmenu\.php/);
 assert.match(deployScript, /vodops_lock/);
 assert.match(deployScript, /vodops_scan/);
 assert.match(deployScript, /vodops_issue/);
 assert.match(deployScript, /vodops_fingerprint/);
 assert.match(deployScript, /vodops_repair_log/);
+assert.match(deployScript, /douban_vod_meta/);
+assert.match(deployScript, /douban_task/);
+assert.match(deployScript, /douban_log/);
+assert.match(deployScript, /douban_review_candidate/);
+assert.match(deployScript, /douban_scan_issue/);
 assert.match(deployScript, /response_end/);
 assert.match(deployScript, /array_filter/);
 assert.match(deployScript, /Vodops response_end hook removal failed/);
@@ -2486,6 +2520,16 @@ assert.match(rollbackScript, /\$\{DEPLOY_USER/);
 assert.match(rollbackScript, /\$\{DEPLOY_PORT/);
 assert.match(rollbackScript, /\$\{DEPLOY_PATH/);
 assert.match(rollbackScript, /ROLLBACK_BACKUP/);
+assert.match(rollbackScript, /ROLLBACK_SCOPE/);
+assert.match(rollbackScript, /ROLLBACK_SCOPE must be theme or vodops/);
+assert.match(rollbackScript, /rollback_vodops/);
+assert.match(rollbackScript, /vodops\.backup/);
+assert.match(rollbackScript, /application\/admin\/controller\/Douban\.php/);
+assert.match(rollbackScript, /vodops-rollback-payload/);
+assert.match(rollbackScript, /\.vodops-deploy-state/);
+assert.match(rollbackScript, /state_dir\/addons\/douban/);
+assert.match(rollbackScript, /legacy_index_controller_target/);
+assert.match(rollbackScript, /restore_optional_file/);
 assert.match(rollbackScript, /SSHPASS/);
 assert.match(rollbackScript, /DEPLOY_IDENTITY_FILE/);
 assert.match(rollbackScript, /IdentitiesOnly=yes/);
@@ -2495,6 +2539,80 @@ assert.match(rollbackScript, /cp -a "\$backup" "\$THEME_NAME"/);
 assert.match(rollbackScript, /DEPLOY_CLEAR_CACHE/);
 assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
+
+const remoteRollbackScript = rollbackScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/)?.[1] || "";
+assert.ok(remoteRollbackScript, "rollback script should expose a remote payload");
+const rollbackFixture = mkdtempSync(path.join(tmpdir(), "vodops-rollback-test-"));
+try {
+  const siteRoot = path.join(rollbackFixture, "site");
+  const backupRoot = path.join(siteRoot, "addons", "vodops.backup.20260810120000");
+  const stateRoot = path.join(backupRoot, ".vodops-deploy-state");
+  const adminControllerRoot = path.join(siteRoot, "application", "admin", "controller");
+  const adminViewRoot = path.join(siteRoot, "application", "admin", "view_new", "vodops");
+  const indexControllerRoot = path.join(siteRoot, "application", "index", "controller");
+  for (const directory of [
+    path.join(siteRoot, "template"),
+    path.join(siteRoot, "addons", "vodops"),
+    path.join(siteRoot, "addons", "douban"),
+    path.join(siteRoot, "runtime"),
+    path.join(stateRoot, "addons", "douban", "application", "admin", "controller"),
+    path.join(stateRoot, "application", "admin", "controller"),
+    path.join(stateRoot, "application", "admin", "view_new", "vodops"),
+    path.join(stateRoot, "application", "index", "controller"),
+    adminControllerRoot,
+    adminViewRoot,
+    indexControllerRoot,
+  ]) {
+    mkdirSync(directory, { recursive: true });
+  }
+
+  writeFileSync(path.join(backupRoot, "info.ini"), "name = vodops\ntitle = legacy vodops\n");
+  writeFileSync(path.join(backupRoot, "legacy-vodops.txt"), "legacy vodops\n");
+  writeFileSync(path.join(stateRoot, "vodops-addon-present"), "");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "info.ini"), "name = douban\n");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "legacy-douban.txt"), "legacy douban\n");
+  writeFileSync(
+    path.join(stateRoot, "addons", "douban", "application", "admin", "controller", "Douban.php"),
+    "<?php\nnamespace app\\admin\\controller;\nclass Douban {}\n",
+  );
+  writeFileSync(
+    path.join(stateRoot, "application", "admin", "controller", "Vodops.php"),
+    "<?php\nnamespace app\\admin\\controller;\nclass Vodops {}\n",
+  );
+  writeFileSync(
+    path.join(stateRoot, "application", "admin", "controller", "Douban.php"),
+    "<?php\nnamespace app\\admin\\controller;\nclass Douban {}\n",
+  );
+  writeFileSync(path.join(stateRoot, "application", "admin", "view_new", "vodops", "index.html"), "X-CSRF-Token legacy\n");
+  writeFileSync(path.join(siteRoot, "addons", "vodops", "current-vodops.txt"), "current\n");
+  writeFileSync(path.join(siteRoot, "addons", "douban", "current-douban.txt"), "current\n");
+  writeFileSync(path.join(adminControllerRoot, "Vodops.php"), "<?php\nclass CurrentVodops {}\n");
+  writeFileSync(path.join(adminControllerRoot, "Douban.php"), "<?php\nclass CurrentDouban {}\n");
+  writeFileSync(path.join(adminViewRoot, "index.html"), "X-CSRF-Token current\n");
+  writeFileSync(path.join(indexControllerRoot, "Douban.php"), "<?php\nclass ObsoletePublicDouban {}\n");
+
+  const rollbackResult = spawnSync("bash", [], {
+    encoding: "utf8",
+    input: remoteRollbackScript,
+    env: {
+      ...process.env,
+      DEPLOY_PATH: path.join(siteRoot, "template"),
+      THEME_NAME: "pingfangvideo",
+      DEPLOY_CLEAR_CACHE: "0",
+      ROLLBACK_SCOPE: "vodops",
+      ROLLBACK_BACKUP: "vodops.backup.20260810120000",
+      VODOPS_ADDON_NAME: "vodops",
+    },
+  });
+  assert.equal(rollbackResult.status, 0, rollbackResult.stderr || rollbackResult.stdout);
+  assert.ok(existsSync(path.join(siteRoot, "addons", "vodops", "legacy-vodops.txt")));
+  assert.ok(existsSync(path.join(siteRoot, "addons", "douban", "legacy-douban.txt")));
+  assert.doesNotMatch(readFileSync(path.join(adminControllerRoot, "Vodops.php"), "utf8"), /CurrentVodops/);
+  assert.doesNotMatch(readFileSync(path.join(adminControllerRoot, "Douban.php"), "utf8"), /CurrentDouban/);
+  assert.ok(!existsSync(path.join(indexControllerRoot, "Douban.php")), "an absent pre-merge public bridge should stay absent");
+} finally {
+  rmSync(rollbackFixture, { recursive: true, force: true });
+}
 
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
 assert.match(ciWorkflow, /name: Theme, Addons, Player, and Games CI/);
@@ -2549,6 +2667,25 @@ assert.match(vodopsView, /scope_label/);
 assert.match(vodopsView, /runner_state_label/);
 assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
+assert.match(vodopsView, /douban\/index/);
+const doubanBridge = readFileSync(path.join(vodopsAddonRoot, "application/admin/controller/Douban.php"), "utf8");
+assert.match(doubanBridge, /addons\\vodops\\backend\\DoubanController/);
+assert.match(doubanBridge, /'addon'\s*=>\s*'vodops'/);
+const doubanBackend = readFileSync(path.join(vodopsAddonRoot, "backend/DoubanController.php"), "utf8");
+assert.match(doubanBackend, /namespace addons\\vodops\\backend/);
+assert.match(doubanBackend, /public function startAudit\(\)/);
+assert.match(doubanBackend, /public function calibrateByType\(\)/);
+const doubanData = readFileSync(path.join(vodopsAddonRoot, "service/DoubanData.php"), "utf8");
+assert.match(doubanData, /namespace addons\\vodops\\service/);
+assert.match(doubanData, /MATCH_DOUBAN_ID/);
+assert.match(doubanData, /SYNC_DOUBAN/);
+const doubanView = readFileSync(path.join(vodopsAddonRoot, "view/index/index.html"), "utf8");
+assert.match(doubanView, /豆瓣匹配工作台/);
+assert.match(doubanView, /vodops\/index/);
+const integratedSql = readFileSync(path.join(vodopsAddonRoot, "install.sql"), "utf8");
+for (const table of ["douban_config", "douban_vod_meta", "douban_task", "douban_log", "douban_review_candidate", "douban_scan", "douban_scan_issue"]) {
+  assert.match(integratedSql, new RegExp("CREATE TABLE IF NOT EXISTS `__PREFIX__" + table + "`"));
+}
 const vodopsWorker = readFileSync(path.join(vodopsAddonRoot, "bin/vodops-worker.php"), "utf8");
 assert.match(vodopsWorker, /App::initCommon/);
 assert.match(vodopsWorker, /ensureScheduledScan/);
@@ -2747,6 +2884,9 @@ assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /requiredVodopsEntries/);
 assert.match(releaseVerifier, /vodops\/application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(releaseVerifier, /vodops\/application\/admin\/controller\/Douban\.php/);
+assert.match(releaseVerifier, /vodops\/service\/DoubanData\.php/);
+assert.match(releaseVerifier, /Douban must be packaged inside vodops/);
 assert.match(releaseVerifier, /scope_json/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);

@@ -147,15 +147,22 @@ const requiredAddonEntries = [
 ];
 const requiredVodopsEntries = [
   "vodops/Vodops.php",
+  "vodops/application/admin/controller/Douban.php",
   "vodops/application/admin/controller/Vodops.php",
   "vodops/application/admin/view_new/vodops/index.html",
+  "vodops/backend/DoubanController.php",
   "vodops/bin/vodops-worker.php",
   "vodops/config.php",
   "vodops/info.ini",
   "vodops/install.sql",
+  "vodops/service/DoubanAiReviewer.php",
+  "vodops/service/DoubanData.php",
+  "vodops/service/DoubanGateway.php",
+  "vodops/service/DoubanMatcher.php",
   "vodops/service/VodQualityAnalyzer.php",
   "vodops/service/VodQualityRepair.php",
   "vodops/service/VodQualityScanner.php",
+  "vodops/view/index/index.html",
 ];
 
 function assertBalanced(content, openPattern, closePattern, label, file) {
@@ -180,6 +187,7 @@ function assertSafeAssetReference(value, file, tag) {
 assert.ok(existsSync(archive), "dist/pingfangvideo.tar.gz should exist. Run npm run package first.");
 assert.ok(existsSync(addonArchive), "dist/pingfangdevice.tar.gz should exist. Run npm run package first.");
 assert.ok(existsSync(vodopsArchive), "dist/vodops.tar.gz should exist. Run npm run package first.");
+assert.ok(!existsSync(path.join(root, "dist", "douban.tar.gz")), "Douban must be packaged inside vodops, not as a second addon");
 
 const tarList = spawnSync("tar", ["-tzf", archive], { encoding: "utf8" });
 assert.equal(tarList.status, 0, tarList.stderr || "Release archive should be readable");
@@ -318,6 +326,40 @@ assert.match(vodopsController, /public function deleteScan\(\)/);
 assert.match(vodopsController, /catch \(VodQualityActionException \$e\)/);
 assert.match(vodopsController, /catch \(VodQualityExportException \$e\)/);
 assert.match(vodopsController, /导出扫描结果失败，请查看服务端日志/);
+const doubanBridge = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/application/admin/controller/Douban.php"], { encoding: "utf8" });
+assert.match(doubanBridge, /use addons\\vodops\\backend\\DoubanController/);
+assert.match(doubanBridge, /'addon'\s*=>\s*'vodops'/);
+const doubanController = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/backend/DoubanController.php"], { encoding: "utf8" });
+for (const action of [
+  "index",
+  "saveConfig",
+  "enqueue",
+  "previewTargeted",
+  "enqueueTargeted",
+  "run",
+  "retryFailed",
+  "fetchVod",
+  "sync",
+  "rollbackPic",
+  "calibrate",
+  "previewCalibration",
+  "calibrateByType",
+  "setDoubanId",
+  "lock",
+  "ignore",
+  "startAudit",
+  "runAuditBatch",
+  "pauseAudit",
+  "resumeAudit",
+  "exportAudit",
+]) {
+  assert.match(doubanController, new RegExp(`public function ${action}\\(\\)`));
+}
+const doubanData = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/DoubanData.php"], { encoding: "utf8" });
+assert.match(doubanData, /namespace addons\\vodops\\service/);
+assert.match(doubanData, /MATCH_DOUBAN_ID/);
+assert.match(doubanData, /SYNC_DOUBAN/);
+assert.doesNotMatch(doubanData.match(/private static function buildVodUpdates[\s\S]*?return \$updates;/)?.[0] || "", /'vod_pic'\s*=>/);
 const vodopsHook = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/Vodops.php"], { encoding: "utf8" });
 assert.doesNotMatch(vodopsHook, /responseEnd|runTrafficChunk/);
 const vodopsView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/application/admin/view_new/vodops/index.html"], { encoding: "utf8" });
@@ -335,6 +377,11 @@ assert.match(vodopsView, /url\('vod\/info',[\s\S]*?vod_id/);
 assert.match(vodopsView, /detail_label/);
 assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
+assert.match(vodopsView, /douban\/index/);
+const doubanView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/index/index.html"], { encoding: "utf8" });
+assert.match(doubanView, /豆瓣匹配工作台/);
+assert.match(doubanView, /vodops\/index/);
+assert.match(doubanView, /同步不会修改现有图片/);
 const vodopsScanner = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodQualityScanner.php"], { encoding: "utf8" });
 assert.match(vodopsScanner, /class VodQualityExportException extends \\RuntimeException/);
 assert.match(vodopsScanner, /class VodQualityActionException extends \\RuntimeException/);
@@ -359,18 +406,33 @@ assert.match(vodopsWorker, /PHP_SAPI[\s\S]*?cli/);
 assert.match(vodopsWorker, /thinkphp[\s\S]*?base\.php[\s\S]*?App::initCommon/);
 assert.match(vodopsWorker, /ensureScheduledScan[\s\S]*?runWorker/);
 const vodopsSql = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/install.sql"], { encoding: "utf8" });
-for (const table of ["vodops_lock", "vodops_scan", "vodops_issue", "vodops_fingerprint", "vodops_repair_log"]) {
-  assert.match(vodopsSql, new RegExp("CREATE TABLE IF NOT EXISTS `__PREFIX__" + table + "`"));
+for (const table of [
+  "vodops_lock",
+  "vodops_scan",
+  "vodops_issue",
+  "vodops_fingerprint",
+  "vodops_repair_log",
+  "douban_config",
+  "douban_vod_meta",
+  "douban_task",
+  "douban_log",
+  "douban_review_candidate",
+  "douban_scan",
+  "douban_scan_issue",
+]) {
+  assert.match(vodopsSql, new RegExp("CREATE TABLE IF NOT EXISTS `__PREFIX__" + table + "`[\\s\\S]*?ENGINE=InnoDB"));
 }
 assert.match(vodopsSql, /INSERT IGNORE INTO `__PREFIX__vodops_lock`[\s\S]*?scan_start/);
-assert.equal((vodopsSql.match(/ENGINE=InnoDB/g) || []).length, 5, "Every vodops table should use InnoDB");
+assert.match(vodopsSql, /INSERT IGNORE INTO `__PREFIX__douban_config`/);
+assert.match(vodopsSql, /PREPARE douban_task_stats_index_stmt/);
+assert.doesNotMatch(vodopsSql, /DROP\s+TABLE/i);
 assert.match(vodopsSql, /`guard_json` text NULL/);
 assert.match(vodopsSql, /`scope_json` text NULL/);
 assert.match(vodopsSql, /`execution_mode` varchar\(16\) NOT NULL DEFAULT 'manual'/);
 assert.match(vodopsSql, /`lease_until` int\(10\) unsigned NOT NULL DEFAULT 0/);
 assert.match(vodopsSql, /`next_run_at` int\(10\) unsigned NOT NULL DEFAULT 0/);
 assert.match(vodopsSql, /information_schema\.COLUMNS[\s\S]*?COLUMN_NAME = 'scope_json'/);
-assert.equal((vodopsSql.match(/'ALTER TABLE `/g) || []).length, 4, "Vodops upgrades should only add four documented columns");
+assert.equal((vodopsSql.match(/ADD COLUMN `/g) || []).length, 4, "Vodops upgrades should only add four documented columns");
 for (const migration of [
   "ADD COLUMN `scope_json` text NULL AFTER `error_message`",
   "ADD COLUMN `execution_mode` varchar(16) NOT NULL DEFAULT ''manual'' AFTER `scope_json`",
@@ -379,7 +441,22 @@ for (const migration of [
 ]) {
   assert.match(vodopsSql, new RegExp(migration.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
-assert.doesNotMatch(vodopsSql, /\b(?:DROP|DELETE|UPDATE|OPTIMIZE|REPAIR)\b/i);
+const legacyEndpointMigration = [
+  "UPDATE `__PREFIX__douban_config`",
+  "SET `config_value` = 'internal', `updated_at` = UNIX_TIMESTAMP()",
+  "WHERE `config_key` = 'douban_endpoint'",
+  "  AND `config_value` = '/extend/douban.php';",
+].join("\n");
+assert.equal(
+  vodopsSql.split(legacyEndpointMigration).length - 1,
+  1,
+  "VodOps should retain exactly one bounded legacy endpoint migration",
+);
+const vodopsSqlWithoutEndpointMigration = vodopsSql.replace(legacyEndpointMigration, "");
+assert.doesNotMatch(
+  vodopsSqlWithoutEndpointMigration,
+  /\b(?:DROP|DELETE|UPDATE|OPTIMIZE|REPAIR|RENAME|TRUNCATE)\b/i,
+);
 
 console.log(`Verified ${archive}`);
 console.log(`Verified ${addonArchive}`);

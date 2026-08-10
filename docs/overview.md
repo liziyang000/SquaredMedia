@@ -11,7 +11,7 @@
 - 主题目录：`template/pingfangvideo/`
 - 主题发布包：`dist/pingfangvideo.tar.gz`
 - 登录设备插件：`addons/pingfangdevice/`
-- 视频数据质量插件：`addons/vodops/`
+- 视频数据中心插件（含豆瓣模块）：`addons/vodops/`
 - 插件发布包：`dist/pingfangdevice.tar.gz`、`dist/vodops.tar.gz`
 
 这些名称会参与 MacCMS 配置、远端目录、路由、数据库表和部署脚本，不应仅因仓库名称不同而单独重命名。若要迁移运行时标识，需要同时核对模板配置、插件钩子、数据库、发布脚本和线上安装状态。
@@ -23,7 +23,7 @@ SquaredMedia/
 ├── .github/workflows/ci.yml      # GitHub Actions 验证与发布包构建
 ├── addons/                       # MacCMS 插件源码
 │   ├── pingfangdevice/           # 登录设备与会话管理
-│   └── vodops/                   # 只读扫描与显式单条数据修复
+│   └── vodops/                   # 质量扫描/修复与豆瓣匹配/同步
 ├── docker/                       # PHP 8.4 + Apache 开发镜像
 ├── docs/                         # 规范、模块说明、运维文档和历史方案
 ├── ops/security/                 # 独立的安全规则数据快照
@@ -50,7 +50,7 @@ SquaredMedia/
 | `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包并由完整部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
 | `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态筛选、线路检测和联机游戏短票据 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
-| `addons/vodops/` | 按全部或指定分类、视频 ID 游标分块生成确定性数据质量异常快照；支持页面驱动或带过期租约的 CLI/Cron Worker、CSV，以及带审计和条件回滚的低风险单条修复 | 是，独立打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
+| `addons/vodops/` | 通用质量扫描、CSV、显式单条修复；完整吸收豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检、AI 复核和日志，并兼容原 `douban_*` 数据及 `admin/douban/*` 路由 | 是，作为一个插件独立打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
 | `docs/` | 保存当前规范、模块上下文、操作手册和历史设计记录 | 不进入生产包 | 本文与各模块文档 |
@@ -90,6 +90,7 @@ npm run verify:release
 数据库维护工具独立于主题发布：
 
 - `vodops` 的扫描过程只生成插件自有审计快照；任务结束后，管理员可逐条确认父分类、年份、地区、语言和海报修复。每次写入保留字段原值并条件复检，但不替代数据库完整备份和写入授权。
+- `vodops` 内的豆瓣模块继续使用原 `douban_*` 表；匹配、同步、校准和任务执行是显式写入流程，普通安装、打包与发布验证不会运行真实同步。同步不会覆盖现有 `vod_pic`。
 - `scripts/sql/maccms-vod-category-maintenance.sql` 只修正分类父子关系，不根据片名猜测分类。
 - `scripts/repair-vod-posters.php` 默认预演，按本地文件存在性和确定性匹配修复海报，并保留应用报告与备份表。
 

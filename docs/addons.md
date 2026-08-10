@@ -8,7 +8,7 @@
 | 插件 | 当前职责 | 持久化表 | 钩子 | 仓库发布链路 |
 | --- | --- | --- | --- | --- |
 | `pingfangdevice` | 管理会员设备会话；为主题提供动态筛选、线路检测和联机游戏短票据 | `__PREFIX__pingfang_device_session` | `app_begin` | 已纳入打包、发布校验和 SSH 部署 |
-| `vodops` | 分块扫描视频元数据，保存确定性异常快照，并对低风险字段执行显式单条修复 | `__PREFIX__vodops_lock`、`__PREFIX__vodops_scan`、`__PREFIX__vodops_issue`、`__PREFIX__vodops_fingerprint`、`__PREFIX__vodops_repair_log` | 无前台钩子；后台由 CLI/Cron Worker 执行扫描 | 已纳入打包、发布校验和 SSH 部署 |
+| `vodops` | 通用质量扫描与单条修复；豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检和日志 | 五张 `vodops_*` 表及七张兼容保留的 `douban_*` 表 | 无前台钩子；质量扫描由 CLI/Cron Worker 执行，豆瓣外部请求由管理员动作或任务 Worker 明确触发 | 已作为一个插件纳入打包、发布校验和 SSH 部署 |
 
 两个插件主类的 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
 仓库部署脚本会执行对应的 `install.sql`；其他安装方式必须确认安装器已导入 SQL。卸载代码不会自动删除历史数据。
@@ -85,7 +85,7 @@
 - `tests/vod-source-quality.test.php`：覆盖指定集数跨源映射、HLS/直链多样本中位速度、健康线路排序和唯一推荐、过期分片容错、主清单分辨率排序与回退、异常/未知分辨率、样本不足、超时、伪媒体内容、失败/缺集/解析型地址状态、私网拒绝和响应地址脱敏。
 - 仓库的 `npm test` 会执行以上 PHP 测试。当前没有 `VodFilterOptions` 的专门行为测试。
 
-## `vodops`
+## `vodops` 统一视频数据中心
 
 ### 扫描边界与显式修复
 
@@ -110,7 +110,8 @@
 ### 后台入口与安全
 
 - 后台控制器位于 `application/admin/controller/Vodops.php` 载荷中，继承 MacCMS 原生 `Base`，因此沿用后台登录和 `controller/action` 权限检查；未单独授予路由时只有超级管理员可访问。
-- 页面位于 `application/admin/view_new/vodops/index.html`，通过 `application/extra/quickmenu.php` 的“视频数据质量”快捷入口打开。插件不声明前台 URL，也不包含公开插件控制器。
+- 质量页面位于 `application/admin/view_new/vodops/index.html`，豆瓣工作台位于插件内 `view/index/index.html`；两页互相提供模块导航，通过 `application/extra/quickmenu.php` 的唯一“视频数据中心”快捷入口打开。插件不声明前台 URL，也不包含公开插件控制器。
+- `application/admin/controller/Douban.php` 继续保留原 `admin/douban/*` 后台动作，但将插件视图上下文绑定到 `vodops`。现有书签、任务按钮和权限规则不需要改 URL。
 - CLI Worker 只处理标记为 `worker` 的进行中任务，并兼容旧版本的 `traffic` 值。认领使用条件更新和 180 秒租约，失败批次等待 30 秒再试；进程异常遗留的租约到期后可被下一次 Cron 自动恢复。部署的外层 `flock` 防止同一服务器重叠启动，数据库租约负责第二层并发保护。
 - 插件主类不再注册 `response_end`，因此普通前台响应不会为 VodOps 查询任务表或执行扫描。Worker 每次调用最多处理指定批次数和时间预算，空闲时不输出日志。
 - 启动、续跑、结束扫描、删除审计结果、加载修复信息、应用修复、复检和回滚只接受同源 Ajax POST，并转发后台页面提供的 `X-CSRF-Token`。结束任务只改变插件任务状态，不删除已生成结果。底层数据库或文件异常只写入服务端日志，页面统一显示可公开的重试提示。
@@ -118,9 +119,25 @@
 - 只有已完成或已结束的任务可由管理员确认后删除；该操作仅删除对应的 `vodops_issue`、`vodops_fingerprint` 和 `vodops_scan` 记录，不触碰视频、分类或其他 MacCMS 表，已经形成的 `vodops_repair_log` 继续保留，并以管理员 ID、任务 ID、状态和异常数写入服务端日志。插件不自动执行历史保留期清理，页面可选择最近 50 次任务。
 - 列表支持异常类型、完整视频 ID 或视频名称筛选，每条异常可打开 MacCMS 原生视频编辑页；父分类期望值和播放空组位置等脱敏结构化依据直接显示在判定说明下方。CSV 导出沿用当前筛选，最多 50000 条，并处理电子表格公式前缀；进行中的任务不能导出，任务不存在或结果过多会返回可操作提示，其他数据库或文件异常只在服务端记录。导出不包含原始播放地址。
 
+### 豆瓣匹配、同步与专项体检
+
+原豆瓣插件已整体吸收到 `addons/vodops`，不是删减版。以下能力继续保留：
+
+- 按名称、分类、年份和处理状态搜索本地视频；手动设置、锁定或临时忽略豆瓣 ID；
+- 搜索候选并按标题、年份排序，支持阈值自动确认和站点已有 AI 搜索能力辅助复核；
+- 单条获取/同步、按筛选条件预览后批量入队、失败重试、任务限流和执行时再次检查忽略状态；
+- 同步片名、年份、地区、语言、类型、导演、演员、简介、评分、集数和备注；`vod_douban_score` 为豆瓣标准值，同时镜像到 MacCMS 原生排序使用的 `vod_score`；
+- 按分类预览和执行评分校准，查看任务统计与操作日志；
+- 独立豆瓣数据库体检、暂停/恢复、异常筛选和 CSV 导出，覆盖 ID、评分、字段长度、同步失败、待核查和停用状态；
+- 保留简介锁、豆瓣 ID 锁、候选记录、历史图片回滚资格判断和 AI 复核状态。
+
+同步入口统一经过 `DoubanData::buildVodUpdates()`，当前不会写入 `vod_pic`，因此合并不会恢复旧版自动覆盖图片的行为。海报缺失仍由质量模块逐条预览、确认和条件回滚。
+
+为实现无损升级，安装 SQL 原样保留 `douban_config`、`douban_vod_meta`、`douban_task`、`douban_log`、`douban_review_candidate`、`douban_scan`、`douban_scan_issue` 表名及关键索引。`CREATE TABLE IF NOT EXISTS` 不重建已有表；唯一兼容更新是把历史 `/extend/douban.php` 接口配置迁到等价的插件内置 `internal` 网关。安装过程不删除、重命名或清空任何 `douban_*`/`vodops_*` 数据。
+
 ### 安装、发布与测试
 
-`npm run package` 生成 `dist/vodops.tar.gz`。`npm run deploy` 会先检查 Cron 命令和现有 crontab 的读取权限，再备份旧插件目录、后台控制器和后台视图，保留旧配置中仍存在的同名设置，安装 `application/admin/view_new` 与 CLI Worker 载荷，执行五个 `CREATE TABLE IF NOT EXISTS`、幂等补充扫描范围与 Worker 字段并写入固定互斥行，随后实际查询确认字段存在且 `scan_start` 恰有一行；脚本还会追加而不覆盖快捷菜单，移除旧版 `response_end` 注册，并安装、复核每分钟一次且由 `flock` 保证单实例的 Cron。服务器没有 `crontab` 或 `flock` 时会在替换插件前停止；明确由其他调度器接管时可设置 `VODOPS_INSTALL_CRON=0`。
+`npm run package` 只生成一个 `dist/vodops.tar.gz`，不再生成 `douban.tar.gz`。`npm run deploy` 会先检查 Cron 命令和现有 crontab 的读取权限，再把原 VodOps/豆瓣插件目录、两个后台控制器、质量后台视图和旧公开豆瓣桥接保存到同一个 `vodops.backup.*` 迁移快照；快照成功后才停用独立 `addons/douban` 和旧公开桥接。随后脚本保留旧 VodOps 配置中仍存在的同名设置，安装完整豆瓣模块、`application/admin/view_new` 与 CLI Worker 载荷，执行并校验五张 `vodops_*` 和七张 `douban_*` 表、幂等补充扫描范围与 Worker 字段并写入固定互斥行；旧 VodOps/豆瓣快捷菜单会归并为一个入口，旧版 `response_end` 注册会被移除，并安装、复核每分钟一次且由 `flock` 保证单实例的 Cron。服务器没有 `crontab` 或 `flock` 时会在替换插件前停止；明确由其他调度器接管时可设置 `VODOPS_INSTALL_CRON=0`。
 
 插件设置中的 `scheduled_scan_hours` 控制定时新建任务，`0` 为默认值并表示关闭，`1`～`720` 表示间隔小时数；`scheduled_scope_type_id` 和 `scheduled_batch_size` 分别控制分类范围与每批 100～1000 条。定时器在 `scan_start` 互斥锁内重新检查进行中任务和上次自动任务时间，因此并发 Cron 不会重复创建任务；即使定时新建关闭，Cron 仍会继续管理员明确启用 Worker 的任务。
 
@@ -133,12 +150,14 @@
 - `tests/vodops-controller.test.php`：覆盖原生后台渲染、管理员 ID、分类范围与 Worker 选择传递、范围冲突提示、POST/Ajax 约束、结束与删除任务、修复/复检/回滚入口，以及安全业务提示和内部异常分流后的响应；
 - `tests/vodops-worker.test.php`：覆盖 CLI 帮助和批次、时间预算在 MacCMS 初始化前的边界校验；
 - `tests/vodops-contract.test.php`：约束扫描只读、修复字段白名单、原值条件更新、并发锁、分类过滤、Worker 租约、定时任务互斥、旧前台钩子移除、幂等表升级、结果删除范围、游标和批次上限，以及后台载荷、打包、部署、CI 与文档边界。
+- `tests/douban-gateway.test.php`、`tests/douban-matcher.test.php`、`tests/douban-ai-reviewer.test.php`：覆盖豆瓣数据标准化、评分边界、候选排序和 AI 结果约束；
+- `tests/douban-data.test.php`、`tests/douban-controller.test.php`、`tests/douban-worker.test.php`：覆盖配置、全部后台动作、旧路由绑定、同步字段、图片保护、任务去重/重试/忽略、体检和校准；这些测试已改为直接加载 `addons/vodops` 内的合并实现。
 
 ## 历史 Douban 文档
 
-以下带日期文档记录了曾规划的 Douban 评分插件，不属于当前插件清单：
+以下带日期文档记录了合并前独立 Douban 插件的设计过程，不再代表当前目录和发布边界：
 
 - `docs/superpowers/specs/2026-07-10-douban-rating-integration-design.md`
 - `docs/superpowers/plans/2026-07-10-douban-rating-integration.md`
 
-当前仓库没有文中描述的 `addons/douban/**`、Douban 桥接控制器或网关实现，现行打包/部署链路也不包含它们。因此这些文件只能用于理解历史目标和取舍，不能作为当前安装说明、可用性证明或生产状态依据。方案是否曾在其他工作区或服务器落地，无法从当前仓库确认。
+当前实现位于 `addons/vodops/**`：豆瓣后台桥接控制器、服务和工作台均由同一个 VodOps 归档发布，并继续使用原 `douban_*` 数据表和 `admin/douban/*` 动作。判断现状时以上文和代码为准。

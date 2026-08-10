@@ -95,8 +95,8 @@ approved files under `static/player/`: the player HTML, versioned ArtPlayer and
 hls.js distributions, and the first-party player JavaScript and CSS. PHP,
 hidden files, and links are rejected by `npm run verify:player-release`. The
 `npm run deploy` installs the theme, addons, and multiplayer game service, while
-`npm run rollback` remains theme-only. Neither command installs or removes this
-player archive.
+`npm run rollback` defaults to the theme and also supports an explicit VodOps
+scope. Neither command installs or removes this player archive.
 
 This player is the performance-first HLS profile: it keeps ArtPlayer controls,
 playback-rate selection, progress restore, native HLS fallback, bounded hls.js
@@ -122,7 +122,7 @@ instead. Logout and manual revoke actions require same-origin Ajax `POST`
 requests. `device_token_cookie` changes the actual cookie name; changing it on a
 running site signs current devices out and requires users to log in again.
 
-The `vodops` addon adds a native-admin video data quality center. It scans a
+The `vodops` addon adds a native-admin video data center. Its quality module scans a
 fixed `vod_id` range in bounded chunks and records deterministic category,
 metadata, poster, playback-source, and exact-duplicate findings in addon-owned
 InnoDB tables. Scans never write the video table. After a scan is completed or
@@ -143,6 +143,18 @@ the server Cron continues bounded chunks without depending on visitor traffic.
 An expiring database lease and an external `flock` prevent overlapping workers;
 legacy `traffic` tasks are treated as worker tasks and abandoned leases recover
 automatically. Front-end responses no longer query VodOps task state.
+
+The same `vodops` archive now contains the former Douban addon as a second
+admin module. It keeps the complete local-video search, Douban ID matching,
+candidate review, direct and queued synchronization, retry/ignore controls,
+score calibration by category, database audit, CSV export, AI-assisted review,
+configuration, task statistics, and operation history. The existing
+`douban_config`, `douban_vod_meta`, `douban_task`, `douban_log`,
+`douban_review_candidate`, `douban_scan`, and `douban_scan_issue` tables keep
+their names, so an existing installation continues from its current data.
+The legacy `admin/douban/*` actions remain valid, while the two work areas link
+to each other under one “视频数据中心” menu entry. Douban sync preserves the
+current `vod_pic`; image replacement remains an explicit VodOps repair action.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
@@ -199,10 +211,14 @@ controller is packaged in the addon's standard
 `application/index/controller/Pingfangdevice.php` payload and copied to the
 matching MacCMS application path during SSH deployment.
 
-Deployment separately installs `vodops`, its native admin controller and
-`application/admin/view_new` page, creates one plugin mutex table plus three
-scan/result tables plus a persistent repair log, and appends a “视频数据质量” shortcut without replacing
-existing quick-menu entries. The route inherits MacCMS admin authentication and
+Deployment separately installs the integrated `vodops` archive, both native
+admin controllers and the `application/admin/view_new` quality page. It creates
+or verifies five `vodops_*` tables and the seven retained `douban_*` tables,
+captures the previous VodOps/Douban directories and application payloads in one
+`vodops.backup.*` migration snapshot, then retires the standalone `addons/douban`
+directory and obsolete public Douban bridge only after that snapshot succeeds.
+It then replaces legacy VodOps/Douban shortcuts with one “视频数据中心” entry without
+touching unrelated quick-menu entries. Both routes inherit MacCMS admin authentication and
 action permissions; without a separately granted route it is available to the
 super administrator. Finished audit results can be deleted explicitly from the
 page; this cleanup never writes to or deletes from `mac_vod`. Deployment also
@@ -250,13 +266,16 @@ To roll back to a specific backup directory, pass its directory name:
 ROLLBACK_BACKUP=pingfangvideo.backup.20260627093000 npm run rollback
 ```
 
-Rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
+Theme rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
 the selected backup to `pingfangvideo`, and clears the same MacCMS cache
-directories unless `DEPLOY_CLEAR_CACHE=0` is set. This command intentionally
-rolls back only the theme. Addon code and additive schemas are left in place so
-a theme rollback cannot discard login history or audit snapshots;
-deploy-created addon, controller, admin-view, hook, and menu backups remain on
-the server for an explicit manual addon rollback if required.
+directories unless `DEPLOY_CLEAR_CACHE=0` is set. Set
+`ROLLBACK_SCOPE=vodops` to restore a selected `vodops.backup.*` directory and
+its application payloads. A first merged release can therefore restore the
+previous standalone VodOps/Douban directories as well; later backups restore the
+previous integrated plugin.
+Neither rollback removes or rewinds database tables, so device history,
+quality snapshots, repair logs, Douban metadata, tasks, and audit history remain
+available for an explicit data-recovery decision.
 
 GitHub Actions installs the pinned npm dependencies with `npm ci`, then runs the
 same release gate on pushes and pull requests: `npm test`, `npm run lint`,

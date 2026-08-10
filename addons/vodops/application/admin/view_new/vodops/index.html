@@ -3,6 +3,9 @@
   .vodops-page { padding: 18px; color: #1f2937; }
   .vodops-header, .vodops-actions, .vodops-filters, .vodops-meta, .vodops-pager { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .vodops-header { justify-content: space-between; margin-bottom: 14px; }
+  .vodops-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #e4e7ec; }
+  .vodops-tab { padding: 9px 13px; border-bottom: 2px solid transparent; color: #667085; text-decoration: none; }
+  .vodops-tab.is-active { border-color: #2563eb; color: #175cd3; font-weight: 650; }
   .vodops-title { margin: 0; font-size: 22px; font-weight: 650; }
   .vodops-subtitle, .vodops-muted { color: #667085; }
   .vodops-panel { margin-bottom: 14px; padding: 16px; border: 1px solid #e4e7ec; border-radius: 8px; background: #fff; }
@@ -46,6 +49,10 @@
 </style>
 
 <main class="vodops-page">
+  <nav class="vodops-tabs" aria-label="视频数据中心功能">
+    <a class="vodops-tab is-active" href="{:url('vodops/index')}">数据质量与修复</a>
+    <a class="vodops-tab" href="{:url('douban/index')}">豆瓣匹配与同步</a>
+  </nav>
   <header class="vodops-header">
     <div>
       <h1 class="vodops-title">视频数据质量中心</h1>

@@ -21,12 +21,19 @@ $required = [
     'addons/vodops/config.php',
     'addons/vodops/info.ini',
     'addons/vodops/install.sql',
+    'addons/vodops/application/admin/controller/Douban.php',
     'addons/vodops/application/admin/controller/Vodops.php',
     'addons/vodops/application/admin/view_new/vodops/index.html',
+    'addons/vodops/backend/DoubanController.php',
     'addons/vodops/bin/vodops-worker.php',
+    'addons/vodops/service/DoubanAiReviewer.php',
+    'addons/vodops/service/DoubanData.php',
+    'addons/vodops/service/DoubanGateway.php',
+    'addons/vodops/service/DoubanMatcher.php',
     'addons/vodops/service/VodQualityAnalyzer.php',
     'addons/vodops/service/VodQualityRepair.php',
     'addons/vodops/service/VodQualityScanner.php',
+    'addons/vodops/view/index/index.html',
 ];
 foreach ($required as $file) {
     if (!is_file($root . '/' . $file)) {
@@ -39,6 +46,9 @@ vodops_contract_match('/^name\s*=\s*vodops$/m', $info, 'Vodops info.ini must dec
 vodops_contract_match('/^url\s*=\s*$/m', $info, 'Vodops must not declare a public addon route.');
 if (is_file($root . '/addons/vodops/controller/Index.php')) {
     vodops_contract_fail('Vodops must not ship a public addon controller.');
+}
+if (is_dir($root . '/addons/douban')) {
+    vodops_contract_fail('Douban must be absorbed into the single vodops addon directory.');
 }
 
 $controller = file_get_contents($root . '/addons/vodops/application/admin/controller/Vodops.php');
@@ -71,6 +81,7 @@ vodops_contract_match('/scope_label/', $view, 'Scan history and progress should 
 vodops_contract_match('/history\.scope_label\|htmlspecialchars/', $view, 'Persisted category labels must be escaped in scan history.');
 vodops_contract_match('/id="vodopsWorkerMode"[\s\S]*?worker_mode/', $view, 'The administrator must explicitly control CLI worker continuation.');
 vodops_contract_match('/runner_state_label/', $view, 'The admin page should expose worker heartbeat and recovery state.');
+vodops_contract_match('/douban\/index/', $view, 'The unified navigation should expose the absorbed Douban module.');
 if (preg_match('/\{volist\s+name="issue_types"/', $view)) {
     vodops_contract_fail('Associative issue type maps must use foreach because ThinkPHP volist applies modulo to string keys on PHP 8.');
 }
@@ -79,11 +90,24 @@ if (substr_count($view, '{foreach name="issue_types" item="label" key="key"}') !
 }
 
 $sql = file_get_contents($root . '/addons/vodops/install.sql');
-foreach (['vodops_lock', 'vodops_scan', 'vodops_issue', 'vodops_fingerprint', 'vodops_repair_log'] as $table) {
+foreach ([
+    'vodops_lock',
+    'vodops_scan',
+    'vodops_issue',
+    'vodops_fingerprint',
+    'vodops_repair_log',
+    'douban_config',
+    'douban_vod_meta',
+    'douban_task',
+    'douban_log',
+    'douban_review_candidate',
+    'douban_scan',
+    'douban_scan_issue',
+] as $table) {
     vodops_contract_match('/CREATE TABLE IF NOT EXISTS `__PREFIX__' . $table . '`/', $sql, 'Missing additive table: ' . $table);
 }
-if (substr_count($sql, 'ENGINE=InnoDB') !== 5) {
-    vodops_contract_fail('Every vodops table must use InnoDB.');
+if (substr_count($sql, 'ENGINE=InnoDB') !== 12) {
+    vodops_contract_fail('Every integrated plugin table must use InnoDB.');
 }
 vodops_contract_match('/`guard_json` text NULL/', $sql, 'Repair audits must preserve dependency guards used for safe rollback.');
 vodops_contract_match('/INSERT IGNORE INTO `__PREFIX__vodops_lock`[\s\S]*?scan_start/', $sql, 'The scan-start mutex row should be installed idempotently.');
@@ -92,8 +116,12 @@ vodops_contract_match('/`execution_mode` varchar\(16\) NOT NULL DEFAULT \'manual
 vodops_contract_match('/`lease_until` int\(10\) unsigned NOT NULL DEFAULT 0/', $sql, 'Traffic workers need an expiring concurrency lease.');
 vodops_contract_match('/`next_run_at` int\(10\) unsigned NOT NULL DEFAULT 0/', $sql, 'Traffic workers should throttle follow-up chunks.');
 vodops_contract_match('/information_schema\.COLUMNS[\s\S]*?COLUMN_NAME = \'scope_json\'[\s\S]*?ALTER TABLE `__PREFIX__vodops_scan` ADD COLUMN `scope_json` text NULL/', $sql, 'Existing installations must add only the missing scope column idempotently.');
-if (preg_match('/\b(?:DROP|DELETE|UPDATE|OPTIMIZE|REPAIR)\b/i', $sql)) {
-    vodops_contract_fail('Vodops install.sql must remain additive and must not mutate existing tables.');
+if (substr_count($sql, 'UPDATE `__PREFIX__douban_config`') !== 1) {
+    vodops_contract_fail('The integrated installer must retain exactly one legacy endpoint migration.');
+}
+$sqlWithoutEndpointMigration = str_replace('UPDATE `__PREFIX__douban_config`', '', $sql);
+if (preg_match('/\b(?:DROP|DELETE|UPDATE|OPTIMIZE|REPAIR|RENAME|TRUNCATE)\b/i', $sqlWithoutEndpointMigration)) {
+    vodops_contract_fail('Vodops install.sql must not perform destructive data or table migrations.');
 }
 foreach (['execution_mode', 'lease_until', 'next_run_at'] as $column) {
     vodops_contract_match('/information_schema\.COLUMNS[\s\S]*?COLUMN_NAME = \'' . $column . '\'[\s\S]*?ALTER TABLE `__PREFIX__vodops_scan` ADD COLUMN `' . $column . '`/', $sql, 'Existing installations must add worker column idempotently: ' . $column);
@@ -192,6 +220,15 @@ foreach (['execution_mode', 'lease_until', 'next_run_at'] as $column) {
     vodops_contract_match('/COLUMN_NAME = \?[\s\S]*?' . $column . '/', $deployScript, 'SSH deployment must verify worker column: ' . $column);
 }
 vodops_contract_match('/vodops_repair_log/', $deployScript, 'SSH deployment must verify the repair audit table.');
+foreach (['douban_vod_meta', 'douban_task', 'douban_log', 'douban_review_candidate', 'douban_scan', 'douban_scan_issue'] as $table) {
+    vodops_contract_match('/' . $table . '/', $deployScript, 'SSH deployment must verify the retained Douban table: ' . $table);
+}
+vodops_contract_match('/application\/admin\/controller\/Douban\.php/', $deployScript, 'SSH deployment must install the legacy-compatible Douban admin route from VodOps.');
+vodops_contract_match('/legacy_douban_dir="\$maccms_root\/addons\/douban"[\s\S]*?\.vodops-deploy-state[\s\S]*?cp -a "\$legacy_douban_dir" "\$state_dir\/addons\/douban"[\s\S]*?rm -rf "\$legacy_douban_dir"/', $deployScript, 'SSH deployment must snapshot and retire the standalone Douban addon after it has been absorbed.');
+vodops_contract_match('/legacy_index_controller_target="\$maccms_root\/application\/index\/controller\/Douban\.php"[\s\S]*?rm -f "\$legacy_index_controller_target"/', $deployScript, 'SSH deployment must snapshot and remove the obsolete public Douban bridge.');
+$rollbackScript = file_get_contents($root . '/scripts/rollback-theme.sh');
+vodops_contract_match('/\.vodops-deploy-state[\s\S]*?state_dir\/addons\/douban[\s\S]*?restore_optional_file/', $rollbackScript, 'Vodops rollback must understand the pre-merge two-addon snapshot.');
+vodops_contract_match('/application\/index\/controller\/Douban\.php/', $rollbackScript, 'Vodops rollback must restore the legacy public bridge only when it existed before deployment.');
 $packageJson = json_decode(file_get_contents($root . '/package.json'), true);
 if (($packageJson['scripts']['deploy:vodops'] ?? '') !== 'DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh') {
     vodops_contract_fail('package.json must expose a Vodops-only deployment command.');

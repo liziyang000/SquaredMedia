@@ -21,7 +21,7 @@
 | `npm ci` | 按 `package-lock.json` 安装前端检查工具与播放器发布依赖 | 只写入已忽略的 `node_modules/` |
 | `npm run lint` | 依次检查一方浏览器 JavaScript、主题 CSS 和 Prettier 格式 | 否 |
 | `npm run format` | 用 Prettier 格式化一方 JavaScript 与配置文件 | 是，直接修改被覆盖的源码与配置 |
-| `npm test` | 运行模板、播放器、联机房间/WebSocket、设备会话与控制器 PHP 测试、海报修复单元测试 | 否；WebSocket 测试只临时监听本机随机端口 |
+| `npm test` | 运行模板、播放器、联机房间/WebSocket、设备会话、海报修复、VodOps 质量模块及豆瓣模块测试 | 否；WebSocket 测试只临时监听本机随机端口 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
@@ -93,13 +93,13 @@ dist/
 打包过程有以下固定行为：
 
 - `pingfangvideo` 来自 `template/pingfangvideo/`，两个插件分别来自 `addons/pingfangdevice/` 和 `addons/vodops/`。
-- 两个插件的 `application/` 都保留 MacCMS 标准应用载荷结构；SSH 部署会把设备兼容控制器，以及 `vodops` 后台控制器和 `view_new` 页面复制到对应 CMS 应用目录。
+- 两个插件的 `application/` 都保留 MacCMS 标准应用载荷结构；SSH 部署会把设备兼容控制器，以及 `vodops` 内的 VodOps/Douban 两个后台控制器和 `view_new` 质量页面复制到对应 CMS 应用目录。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
 - 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器、竹知了交互和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
 - `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
-- 当前自动化打包主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务，不会自动包含其他 `addons/` 子目录；`npm run deploy` 会部署主题、两个插件与游戏服务，但不会安装独立播放器。`npm run rollback` 仍只回滚主题，不删除插件、播放器或游戏服务。
+- 当前自动化打包主题、`pingfangdevice`、合并后的 `vodops`、独立播放器和联机游戏服务，不会自动包含其他 `addons/` 子目录；不会生成独立 `douban.tar.gz`。`npm run deploy` 会部署主题、两个插件与游戏服务，但不会安装独立播放器。`npm run rollback` 默认回滚主题，也可用 `ROLLBACK_SCOPE=vodops` 回滚合并插件代码和应用载荷；两种模式都不删除数据库数据。
 
 `dist/` 已被 `.gitignore` 忽略，是可重复生成的发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
@@ -144,14 +144,14 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
-只发布视频数据质量中心时使用专用范围，不要执行上面的全量命令：
+只发布合并后的视频数据中心时使用专用范围，不要执行上面的全量命令：
 
 ```bash
 source scripts/deploy-ping2.env
 npm run deploy:vodops
 ```
 
-`deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装 `vodops`：备份插件目录、后台控制器、后台视图、hook 与快捷菜单配置，保留旧 VodOps 配置值，增量创建并校验五张自有表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，移除旧版 `response_end` hook，再安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器。
+`deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装一个 `vodops`：先把现有 VodOps/豆瓣目录及其应用载荷写入同一个 `vodops.backup.*` 迁移快照，成功后停用独立 `addons/douban` 和旧公开豆瓣桥接，再保留旧 VodOps 配置值，增量创建并校验五张 `vodops_*` 和七张兼容保留的 `douban_*` 表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，归并旧快捷菜单、移除旧版 `response_end` hook，安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器，也不会删除旧豆瓣数据。
 
 发布顺序如下：
 
@@ -160,7 +160,7 @@ npm run deploy:vodops
 3. 上传主题、`pingfangdevice` 与 `vodops` 归档到远端临时路径。
 4. 先安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
 5. 把旧插件配置中仍存在的同名设置值合并到新配置，避免主题发布清空设备限制或联机签名密钥。
-6. 安装并验证 `vodops`：备份旧插件、后台控制器和 `view_new` 页面并保留已有配置，创建一张互斥表、三张扫描结果表和一张修复日志表，幂等补齐分类范围与 Worker 字段并实际查询验证扫描锁行，移除旧 `response_end` hook，安装由 `flock` 防重入的每分钟 Cron，并向 `quickmenu.php` 追加“视频数据质量”入口。
+6. 安装并验证合并后的 `vodops`：用同一时间戳快照旧 VodOps/豆瓣目录和应用载荷，停用独立豆瓣目录及旧公开桥接，保留已有配置，创建或复用五张 `vodops_*` 与七张 `douban_*` 表，幂等补齐分类范围与 Worker 字段并实际查询验证扫描锁行，移除旧 `response_end` hook，安装由 `flock` 防重入的每分钟 Cron，并把旧 VodOps/豆瓣菜单归并为一个“视频数据中心”入口。
 7. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
 8. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
 9. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
@@ -176,6 +176,7 @@ VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`�
 - 首页、分类、详情、播放及用户入口返回预期页面，没有 PHP 运行时错误。
 - `pingfangdevice` 管理页可访问，登录、设备登记和撤销流程按预期工作。
 - 超级管理员可从快捷菜单打开 `vodops`，分别验证仅页面驱动和“后台 Worker”任务，执行一批扫描、继续或结束任务，并导出当前筛选 CSV；Worker 验收应关闭后台页且不制造任何前台访问，等待下一次 Cron 后刷新任务，确认进度或心跳前进，并检查 `crontab -l` 中当前站点标记恰好一条。确认已结束任务为支持类型显示修复侧边栏，播放和重复候选仍只显示原生编辑入口；未取得单独的数据写入授权时，只检查预览，不点击确认修改或回滚，并确认部署过程没有写入视频主表。
+- 从同一页面导航到豆瓣工作台，确认旧 `admin/douban/*` 地址仍受管理员登录保护，现有配置、元数据、任务、候选、日志和体检历史能够读取；发布验收只做查询和预览，不执行真实同步、评分校准、图片回滚或批量任务。
 - MacCMS 缓存目录仍可由 Web 进程写入。
 - 远端实际主题和插件文件来自本次归档，并记录本次生成的备份目录名。
 
@@ -188,7 +189,7 @@ VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`�
 - 发布脚本会替换远端目录、修改 `application/extra/addons.php` 与 `application/extra/quickmenu.php` 并执行数据库 DDL。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
 - 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
 - 站点回环验证发生在文件、hook 和数据库更新之后；验证失败会让部署命令返回非零，但不会自动回滚已经应用的变化，应先检查响应和备份，再决定修复或执行明确回滚。
-- 脚本会为插件目录、应用控制器、`vodops` 后台视图、hook 和快捷菜单配置创建备份；修改已有 crontab 前也会把原内容保存到站点 `runtime`。它不会自动执行插件或 Cron 回滚，恢复旧插件时必须同步确认是否保留带当前站点标记的 `vodops-worker` 条目。
+- 脚本会为插件目录、两个后台控制器、`vodops` 后台视图、hook 和快捷菜单配置创建备份；修改已有 crontab 前也会把原内容保存到站点 `runtime`。它不会自动回滚插件或 Cron；显式执行 `ROLLBACK_SCOPE=vodops` 只恢复插件代码和三个应用载荷，仍须确认是否保留带当前站点标记的 `vodops-worker` 条目。
 - 游戏服务部署会单独备份服务环境、systemd、Nginx 和插件配置；该阶段失败时自动恢复上一个服务版本，但不会回滚此前已成功更新的主题与插件代码。
 
 ## 回滚
@@ -209,9 +210,15 @@ npm run rollback
 ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 ```
 
-回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并默认清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
+默认回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
 
-此命令只回滚主题，不回滚 `pingfangdevice`、`vodops`、应用控制器和后台视图、hook、快捷菜单、VodOps Cron 或数据库表结构。若故障来自插件发布，必须基于部署时留下的备份和数据库审计结果制定单独恢复方案。主题回滚后仍需完成与发布后相同的线上验证。
+合并插件可显式回滚到 `addons/` 目录中的某个 `vodops.backup.*`：
+
+```bash
+ROLLBACK_SCOPE=vodops ROLLBACK_BACKUP=vodops.backup.20260810120000 npm run rollback
+```
+
+该模式读取备份内的迁移状态：首次合并发布可恢复发布前的 VodOps 与独立豆瓣目录、两个后台控制器、质量后台视图及当时存在的旧公开豆瓣桥接；后续发布则恢复上一版合并插件。切换或载荷恢复失败时会放回当前插件和应用文件。回滚不会修改 `vodops_*`、`douban_*` 表、快捷菜单、hook 或 Cron，因此数据库与调度兼容性必须结合目标备份版本复核。
 
 ## 数据维护工具
 

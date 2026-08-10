@@ -1,8 +1,9 @@
 # Douban Rating Integration Design
 
-> **历史状态（2026-07-17）：** 这是旧版设计快照。当前仓库没有本文所述的
-> `addons/douban/**`、Douban 桥接控制器或网关，发布链路也未包含这些文件。
-> 请以 `addons/**` 和 `docs/addons.md` 为当前事实源；本文不能证明功能已实现或已部署。
+> **历史状态（2026-07-17）：** 这是首次落地时的设计快照。当前实现已经纳入
+> `addons/douban/**` 和发布链路，但控制器源码已迁入标准 `application/` 载荷，
+> 默认数据源改为插件内置 `internal` 网关，不再部署根目录 `extend/douban.php`。
+> 请以代码和 `docs/addons.md` 为当前事实源。
 
 ## Goal
 
@@ -34,8 +35,8 @@ non-admin sessions.
 
 ## Data Source
 
-The addon ships a self-hosted `extend/douban.php` gateway. Deployment copies
-it to the MacCMS `extend` directory.
+The addon ships a self-hosted `bridge/DoubanEndpoint.php` gateway source.
+Deployment copies it to `extend/douban.php` in the MacCMS root.
 
 - `id=<douban_id>` requests subject details from Douban's mobile JSON endpoint
   and normalizes them into the existing addon contract.

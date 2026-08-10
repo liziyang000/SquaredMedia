@@ -393,12 +393,17 @@ install_vodops_worker_cron() {
 }
 
 install_vodops_addon() {
-  local maccms_root addon_dir backup tmp_dir controller_source controller_target controller_backup view_source view_target view_backup required_file
+  local maccms_root addon_dir legacy_douban_dir backup backup_dir state_dir stamp tmp_dir
+  local controller_source controller_target controller_backup douban_controller_source douban_controller_target douban_controller_backup
+  local legacy_index_controller_target view_source view_target view_backup required_file
 
   install_vodops_worker_cron preflight
   maccms_root="$(dirname "$DEPLOY_PATH")"
   addon_dir="$maccms_root/addons/$VODOPS_ADDON_NAME"
+  legacy_douban_dir="$maccms_root/addons/douban"
   controller_target="$maccms_root/application/admin/controller/Vodops.php"
+  douban_controller_target="$maccms_root/application/admin/controller/Douban.php"
+  legacy_index_controller_target="$maccms_root/application/index/controller/Douban.php"
   view_target="$maccms_root/application/admin/view_new/vodops/index.html"
   backup=""
   mkdir -p "$maccms_root/addons"
@@ -410,12 +415,19 @@ install_vodops_addon() {
     "Vodops.php" \
     "info.ini" \
     "install.sql" \
+    "application/admin/controller/Douban.php" \
     "application/admin/controller/Vodops.php" \
     "application/admin/view_new/vodops/index.html" \
+    "backend/DoubanController.php" \
     "bin/vodops-worker.php" \
+    "service/DoubanAiReviewer.php" \
+    "service/DoubanData.php" \
+    "service/DoubanGateway.php" \
+    "service/DoubanMatcher.php" \
     "service/VodQualityAnalyzer.php" \
     "service/VodQualityRepair.php" \
-    "service/VodQualityScanner.php"
+    "service/VodQualityScanner.php" \
+    "view/index/index.html"
   do
     if [[ ! -f "$tmp_dir/$VODOPS_ADDON_NAME/$required_file" ]]; then
       echo "Uploaded vodops archive is missing ${required_file}" >&2
@@ -426,11 +438,46 @@ install_vodops_addon() {
     php -l "$php_file" >/dev/null
   done < <(find "$tmp_dir/$VODOPS_ADDON_NAME" -type f -name '*.php' -print0)
 
-  if [[ -d "$addon_dir" ]]; then
-    backup="${VODOPS_ADDON_NAME}.backup.$(date +%Y%m%d%H%M%S)"
-    cp -a "$addon_dir" "$maccms_root/addons/$backup"
+  stamp="$(date +%Y%m%d%H%M%S)"
+  backup="${VODOPS_ADDON_NAME}.backup.${stamp}"
+  backup_dir="$maccms_root/addons/$backup"
+  if [[ -e "$backup_dir" ]]; then
+    echo "VodOps backup target already exists: $backup_dir" >&2
+    exit 1
   fi
+  if [[ -d "$addon_dir" ]]; then
+    cp -a "$addon_dir" "$backup_dir"
+  else
+    mkdir -p "$backup_dir"
+  fi
+  state_dir="$backup_dir/.vodops-deploy-state"
+  mkdir -p \
+    "$state_dir/addons" \
+    "$state_dir/application/admin/controller" \
+    "$state_dir/application/admin/view_new/vodops" \
+    "$state_dir/application/index/controller"
+  if [[ -d "$addon_dir" ]]; then
+    touch "$state_dir/vodops-addon-present"
+  fi
+  if [[ -d "$legacy_douban_dir" ]]; then
+    cp -a "$legacy_douban_dir" "$state_dir/addons/douban"
+  fi
+  if [[ -f "$controller_target" ]]; then
+    cp -a "$controller_target" "$state_dir/application/admin/controller/Vodops.php"
+  fi
+  if [[ -f "$douban_controller_target" ]]; then
+    cp -a "$douban_controller_target" "$state_dir/application/admin/controller/Douban.php"
+  fi
+  if [[ -f "$view_target" ]]; then
+    cp -a "$view_target" "$state_dir/application/admin/view_new/vodops/index.html"
+  fi
+  if [[ -f "$legacy_index_controller_target" ]]; then
+    cp -a "$legacy_index_controller_target" "$state_dir/application/index/controller/Douban.php"
+  fi
+
   rm -rf "$addon_dir"
+  rm -rf "$legacy_douban_dir"
+  rm -f "$legacy_index_controller_target"
   mv "$tmp_dir/$VODOPS_ADDON_NAME" "$addon_dir"
 
   if [[ -n "$backup" && -f "$maccms_root/addons/$backup/config.php" ]]; then
@@ -467,17 +514,23 @@ PHP_VODOPS_CONFIG
   fi
 
   controller_source="$addon_dir/application/admin/controller/Vodops.php"
+  douban_controller_source="$addon_dir/application/admin/controller/Douban.php"
   view_source="$addon_dir/application/admin/view_new/vodops/index.html"
   mkdir -p "$(dirname "$controller_target")" "$(dirname "$view_target")"
   if [[ -f "$controller_target" ]]; then
-    controller_backup="${controller_target}.backup.$(date +%Y%m%d%H%M%S)"
+    controller_backup="${controller_target}.backup.${stamp}"
     cp -a "$controller_target" "$controller_backup"
   fi
+  if [[ -f "$douban_controller_target" ]]; then
+    douban_controller_backup="${douban_controller_target}.backup.${stamp}"
+    cp -a "$douban_controller_target" "$douban_controller_backup"
+  fi
   if [[ -f "$view_target" ]]; then
-    view_backup="${view_target}.backup.$(date +%Y%m%d%H%M%S)"
+    view_backup="${view_target}.backup.${stamp}"
     cp -a "$view_target" "$view_backup"
   fi
   cp -a "$controller_source" "$controller_target"
+  cp -a "$douban_controller_source" "$douban_controller_target"
   cp -a "$view_source" "$view_target"
 
   MACCMS_ROOT="$maccms_root" php <<'PHP_VODOPS_MENU'
@@ -489,7 +542,15 @@ if (!is_array($menu)) {
     file_put_contents('php://stderr', "Vodops quick menu config is not an array.\n");
     exit(1);
 }
-$entry = '视频数据质量,vodops/index';
+$entry = '视频数据中心,vodops/index';
+$legacyEntries = [
+    '视频数据质量,vodops/index',
+    '豆瓣评分,admin/douban/index',
+    '豆瓣数据,admin/douban/index',
+];
+$menu = array_values(array_filter($menu, static function ($item) use ($legacyEntries, $entry) {
+    return $item === $entry || !in_array($item, $legacyEntries, true);
+}));
 if (!in_array($entry, $menu, true)) {
     $menu[] = $entry;
 }
@@ -550,7 +611,20 @@ foreach (preg_split('/\r?\n/', $sql) as $line) {
     }
 }
 $check = $pdo->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
-foreach (['vodops_lock', 'vodops_scan', 'vodops_issue', 'vodops_fingerprint', 'vodops_repair_log'] as $table) {
+foreach ([
+    'vodops_lock',
+    'vodops_scan',
+    'vodops_issue',
+    'vodops_fingerprint',
+    'vodops_repair_log',
+    'douban_config',
+    'douban_vod_meta',
+    'douban_task',
+    'douban_log',
+    'douban_review_candidate',
+    'douban_scan',
+    'douban_scan_issue',
+] as $table) {
     $check->execute([$prefix . $table]);
     if (strtolower((string)$check->fetchColumn()) !== 'innodb') {
         file_put_contents('php://stderr', "Vodops schema verification failed for {$table}.\n");
@@ -631,9 +705,13 @@ if (in_array($addon, $verified['hooks']['response_end'] ?? [], true)) {
 PHP_VODOPS_HOOK
 
   php -l "$controller_target" >/dev/null
+  php -l "$douban_controller_target" >/dev/null
   php -l "$addon_dir/bin/vodops-worker.php" >/dev/null
+  php -l "$addon_dir/backend/DoubanController.php" >/dev/null
+  php -l "$addon_dir/service/DoubanData.php" >/dev/null
   php -l "$addon_dir/service/VodQualityScanner.php" >/dev/null
   grep -Fq 'X-CSRF-Token' "$view_target"
+  grep -Fq '同步不会修改现有图片' "$addon_dir/view/index/index.html"
   install_vodops_worker_cron
 
   echo "Installed and verified ${VODOPS_ADDON_NAME} addon under ${addon_dir}"

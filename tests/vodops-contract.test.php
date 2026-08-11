@@ -62,6 +62,7 @@ foreach (['repairInfo', 'applyRepair', 'recheckIssue', 'rollbackRepair'] as $act
 }
 vodops_contract_match('/catch \(VodQualityActionException \$e\)/', $controller, 'Expected category conflicts should remain actionable without exposing internal errors.');
 vodops_contract_match('/catch \(VodQualityRepairException \$e\)/', $controller, 'Expected repair conflicts should remain actionable without exposing internal errors.');
+vodops_contract_match('/workspace[\s\S]*?DoubanData::dashboard\(\)/', $controller, 'The native Vodops index must load the absorbed Douban module in the same workbench.');
 
 $doubanController = file_get_contents($root . '/addons/vodops/backend/DoubanController.php');
 vodops_contract_match('/class DoubanController extends Base/', $doubanController, 'Douban actions must inherit native MacCMS admin authorization.');
@@ -71,6 +72,13 @@ if (preg_match('/model\([\'\"]Admin[\'\"]\)->checkLogin/', $doubanController)) {
 vodops_contract_match('/instanceof DoubanActionException[\s\S]*?409/', $doubanController, 'Expected Douban conflicts should remain actionable.');
 vodops_contract_match('/logFailure\(\'豆瓣操作\'[\s\S]*?豆瓣操作失败，请查看服务端日志/', $doubanController, 'Unexpected Douban failures must remain server-log only.');
 vodops_contract_match('/trace\(/', $doubanController, 'Unexpected Douban failures must be written to the server log.');
+vodops_contract_match('/public function index\(\)[\s\S]*?redirect\(url\(\'vodops\/index\',[\s\S]*?workspace[\s\S]*?douban/', $doubanController, 'The legacy Douban index must redirect to the single Vodops workbench.');
+if (preg_match('/fetch\([\'"]index\/index/', $doubanController)) {
+    vodops_contract_fail('The integrated addon must not render a second standalone Douban workbench.');
+}
+if (strpos($doubanController, 'view_path') !== false) {
+    vodops_contract_fail('Legacy Douban actions must not configure a second private page renderer.');
+}
 
 $hook = file_get_contents($root . '/addons/vodops/Vodops.php');
 if (strpos($hook, 'responseEnd') !== false || strpos($hook, 'runTrafficChunk') !== false) {
@@ -92,9 +100,18 @@ vodops_contract_match('/scope_label/', $view, 'Scan history and progress should 
 vodops_contract_match('/history\.scope_label\|htmlspecialchars/', $view, 'Persisted category labels must be escaped in scan history.');
 vodops_contract_match('/id="vodopsWorkerMode"[\s\S]*?worker_mode/', $view, 'The administrator must explicitly control CLI worker continuation.');
 vodops_contract_match('/runner_state_label/', $view, 'The admin page should expose worker heartbeat and recovery state.');
-vodops_contract_match('/douban\/index/', $view, 'The unified navigation should expose the absorbed Douban module.');
+vodops_contract_match('/workspace[\s\S]*?douban/', $view, 'The single workbench navigation should expose the absorbed Douban module.');
+vodops_contract_match('/addons\/vodops\/view\/index\/index/', $view, 'The single native workbench should include the Douban module partial.');
 $doubanView = file_get_contents($root . '/addons/vodops/view/index/index.html');
 vodops_contract_match('/X-CSRF-Token/', $doubanView, 'Douban Ajax requests should forward the native admin CSRF token when available.');
+if (preg_match('/<!doctype|<html|<body|豆瓣匹配工作台/i', $doubanView)) {
+    vodops_contract_fail('The Douban module must be an embedded partial, not a second HTML workbench.');
+}
+if (preg_match('/url\(\'douban\/index\'/', $doubanView)) {
+    vodops_contract_fail('Douban filters must stay on the single Vodops workbench route.');
+}
+vodops_contract_match('/\.douban-workspace \.system-box/', $doubanView, 'Embedded Douban styles must stay inside the module root.');
+vodops_contract_match('/@keyframes douban-status-pulse/', $doubanView, 'Embedded Douban animations must use a module-specific name.');
 if (preg_match('/\{volist\s+name="issue_types"/', $view)) {
     vodops_contract_fail('Associative issue type maps must use foreach because ThinkPHP volist applies modulo to string keys on PHP 8.');
 }
@@ -262,6 +279,9 @@ vodops_contract_match('/VODOPS_ADDON_NAME="vodops"/', $deployScript, 'SSH deploy
 vodops_contract_match('/DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/', $deployScript, 'SSH deployment must support an explicit scoped release.');
 vodops_contract_match('/if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]/', $deployScript, 'Vodops-only deployment must have an explicit remote branch.');
 vodops_contract_match('/application\/extra\/quickmenu\.php/', $deployScript, 'SSH deployment must add the native admin shortcut safely.');
+vodops_contract_match('/\$singleWorkbenchRoutes[\s\S]*?vodops\/index[\s\S]*?admin\/vodops\/index[\s\S]*?douban\/index[\s\S]*?admin\/douban\/index/', $deployScript, 'SSH deployment must collapse every legacy Vodops and Douban shortcut route into one workbench entry.');
+vodops_contract_match('/count\(array_keys\(\$verified, \$entry, true\)\) !== 1/', $deployScript, 'SSH deployment must verify that exactly one canonical workbench shortcut remains.');
+vodops_contract_match('/workspace eq \'douban\'[\s\S]*?addons\/vodops\/view\/index\/index[\s\S]*?Vodops single-workbench verification failed/', $deployScript, 'SSH deployment must verify the installed unified view and reject a standalone Douban renderer.');
 vodops_contract_match('/hooks[\s\S]*?response_end[\s\S]*?array_filter[\s\S]*?Vodops response_end hook removal failed/', $deployScript, 'SSH deployment must remove the obsolete per-response worker hook without touching other addons.');
 vodops_contract_match('/for required_file in[\s\S]*?"bin\/vodops-worker\.php"[\s\S]*?Uploaded vodops archive is missing/', $deployScript, 'Remote installation must require the CLI worker.');
 vodops_contract_match('/crontab -l[\s\S]*?flock[\s\S]*?vodops-worker[\s\S]*?crontab/', $deployScript, 'SSH deployment must install an idempotent single-instance worker cron entry.');

@@ -169,6 +169,57 @@ namespace addons\vodops\service {
             ];
         }
     }
+
+    class DoubanData
+    {
+        public static $calls = [];
+
+        public static function dashboard()
+        {
+            self::$calls[] = ['dashboard'];
+            return [
+                'config' => ['batch_size' => 100],
+                'stats' => ['total' => 2],
+                'task_stats' => ['PENDING' => 1],
+                'logs' => [],
+                'categories' => [['type_id' => 20, 'display_name' => '电视剧']],
+            ];
+        }
+
+        public static function listVideos($status, $page, $limit, $q, $typeId, $year)
+        {
+            self::$calls[] = ['videos', $status, $page, $limit, $q, $typeId, $year];
+            return [
+                'data' => [['vod_id' => 88]],
+                'page' => $page,
+                'has_prev' => false,
+                'has_next' => true,
+            ];
+        }
+
+        public static function listTasks($status, $limit)
+        {
+            self::$calls[] = ['tasks', $status, $limit];
+            return [['task_id' => 9]];
+        }
+
+        public static function auditDashboard($scanId, $code, $page, $limit, $q)
+        {
+            self::$calls[] = ['audit', $scanId, $code, $page, $limit, $q];
+            return [
+                'scan' => [],
+                'issues' => [],
+                'stats' => [],
+                'codes' => [],
+                'filters' => ['code' => '', 'q' => ''],
+                'pagination' => [
+                    'page' => 1,
+                    'has_prev' => false,
+                    'has_next' => false,
+                ],
+            ];
+        }
+    }
 }
 
 namespace {
@@ -218,6 +269,11 @@ namespace {
         return ['status' => $status, 'content' => $content, 'headers' => $headers];
     }
 
+    function url($route, array $params = [])
+    {
+        return $route . (empty($params) ? '' : '?' . http_build_query($params));
+    }
+
     function vodops_controller_fail(string $message): void
     {
         fwrite(STDERR, $message . "\n");
@@ -241,6 +297,18 @@ namespace {
     vodops_controller_assert_same(50, \addons\vodops\service\VodQualityScanner::$lastScanLimit, 'The history selector should expose enough terminal scans for manual management.');
     vodops_controller_assert_same(10, $controller->assigned['categories'][0]['type_id'] ?? null, 'The scan form should receive native category choices.');
     vodops_controller_assert_same([['decorate', 'completed']], \addons\vodops\service\VodQualityRepair::$calls, 'Issue rows should be decorated with their latest repair status.');
+
+    $vodopsInput = ['workspace' => 'douban', 'q' => '霸王别姬', 'page' => 2];
+    \addons\vodops\service\DoubanData::$calls = [];
+    $doubanWorkspace = new \app\admin\controller\Vodops();
+    vodops_controller_assert_same('rendered', $doubanWorkspace->index(), 'The Douban module should render through the single Vodops workbench.');
+    vodops_controller_assert_same('douban', $doubanWorkspace->assigned['workspace'] ?? null, 'The unified workbench should retain the selected module.');
+    vodops_controller_assert_same(88, $doubanWorkspace->assigned['videos'][0]['vod_id'] ?? null, 'The unified workbench should receive Douban video data.');
+    vodops_controller_assert_same(
+        'vodops/index?workspace=douban&status=all&task_status=PENDING&q=%E9%9C%B8%E7%8E%8B%E5%88%AB%E5%A7%AC&type_id=0&year=&limit=20&page=3',
+        $doubanWorkspace->assigned['pagination']['next_url'] ?? null,
+        'Douban pagination should stay inside the single Vodops workbench.'
+    );
 
     \addons\vodops\service\VodQualityScanner::$calls = [];
     $vodopsInput = ['batch_size' => 500, 'scope_type_id' => 10, 'worker_mode' => 1];

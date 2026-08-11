@@ -110,11 +110,11 @@
 ### 后台入口与安全
 
 - 后台控制器位于 `application/admin/controller/Vodops.php` 载荷中，继承 MacCMS 原生 `Base`，因此沿用后台登录和 `controller/action` 权限检查；未单独授予路由时只有超级管理员可访问。
-- 质量页面位于 `application/admin/view_new/vodops/index.html`，豆瓣工作台位于插件内 `view/index/index.html`；两页互相提供模块导航，通过 `application/extra/quickmenu.php` 的唯一“视频数据中心”快捷入口打开。插件不声明前台 URL，也不包含公开插件控制器。
-- `application/admin/controller/Douban.php` 继续保留原 `admin/douban/*` 后台动作，实际控制器继承 MacCMS 原生 `Base` 并显式使用插件私有视图目录；登录与 `controller/action` 权限检查不会再被插件控制器绕过，现有书签和任务按钮不需要改 URL。
+- 唯一工作台位于 `application/admin/view_new/vodops/index.html`，通过 `workspace=quality|douban` 在同一原生页面壳层切换“数据质量与修复”和“豆瓣匹配与同步”；插件内 `view/index/index.html` 只是由该页面按需包含的豆瓣模块片段，不再拥有独立 HTML 页面或第二套导航。`application/extra/quickmenu.php` 只保留“视频数据中心”快捷入口，插件不声明前台 URL，也不包含公开插件控制器。
+- `application/admin/controller/Douban.php` 继续保留原 `admin/douban/*` 后台动作，实际控制器继承 MacCMS 原生 `Base`；旧 `admin/douban/index` 会跳转到统一工作台的豆瓣模块，其余动作 URL 不变，登录与 `controller/action` 权限检查不会被插件控制器绕过。
 - CLI Worker 只处理标记为 `worker` 的进行中任务，并兼容旧版本的 `traffic` 值。认领使用条件更新和 180 秒租约，失败批次等待 30 秒再试；进程异常遗留的租约到期后可被下一次 Cron 自动恢复。部署的外层 `flock` 防止同一服务器重叠启动，数据库租约负责第二层并发保护。
 - 插件主类不再注册 `response_end`，因此普通前台响应不会为 VodOps 查询任务表或执行扫描。Worker 每次调用最多处理指定批次数和时间预算，空闲时不输出日志。
-- 启动、续跑、结束扫描、删除审计结果、加载修复信息、应用修复、复检和回滚只接受同源 Ajax POST；质量页面和豆瓣工作台都会在后台提供令牌时转发 `X-CSRF-Token`。结束任务只改变插件任务状态，不删除已生成结果。底层数据库或文件异常只写入服务端日志，页面、豆瓣任务 `last_error` 和体检任务 `error_message` 统一保存可公开的重试提示。
+- 启动、续跑、结束扫描、删除审计结果、加载修复信息、应用修复、复检和回滚只接受同源 Ajax POST；统一工作台的两个模块都会在后台提供令牌时转发 `X-CSRF-Token`。结束任务只改变插件任务状态，不删除已生成结果。底层数据库或文件异常只写入服务端日志，页面、豆瓣任务 `last_error` 和体检任务 `error_message` 统一保存可公开的重试提示。
 - 豆瓣数据接口默认固定为插件内置 `internal` 网关。管理员保留的自定义 HTTP(S) 接口只允许公网 IPv4 和标准 80/443 端口；请求前会校验全部 DNS 结果并用 cURL 固定选中的公网地址，禁用代理与重定向、启用 TLS 校验，并把响应体限制为 1 MiB，避免把后台接口变成私网探测入口。
 - 已有任务进行时，只能恢复相同根分类的任务；选择其他范围会返回明确冲突提示，不能静默扩大或替换原任务范围。历史下拉框、进度区域和分类化 CSV 文件名都会保留任务范围。
 - 只有已完成或已结束的任务可由管理员确认后删除；该操作仅删除对应的 `vodops_issue`、`vodops_fingerprint` 和 `vodops_scan` 记录，不触碰视频、分类或其他 MacCMS 表，已经形成的 `vodops_repair_log` 继续保留，并以管理员 ID、任务 ID、状态和异常数写入服务端日志。插件不自动执行历史保留期清理，页面可选择最近 50 次任务。
@@ -161,4 +161,4 @@
 - `docs/superpowers/specs/2026-07-10-douban-rating-integration-design.md`
 - `docs/superpowers/plans/2026-07-10-douban-rating-integration.md`
 
-当前实现位于 `addons/vodops/**`：豆瓣后台桥接控制器、服务和工作台均由同一个 VodOps 归档发布，并继续使用原 `douban_*` 数据表和 `admin/douban/*` 动作。判断现状时以上文和代码为准。
+当前实现位于 `addons/vodops/**`：豆瓣后台桥接控制器、服务和嵌入式模块均由同一个 VodOps 归档发布，并继续使用原 `douban_*` 数据表和 `admin/douban/*` 动作；可见后台只保留 `vodops/index` 这一套工作台。判断现状时以上文和代码为准。

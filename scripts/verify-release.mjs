@@ -328,12 +328,16 @@ assert.match(vodopsController, /public function deleteScan\(\)/);
 assert.match(vodopsController, /catch \(VodQualityActionException \$e\)/);
 assert.match(vodopsController, /catch \(VodQualityExportException \$e\)/);
 assert.match(vodopsController, /导出扫描结果失败，请查看服务端日志/);
+assert.match(vodopsController, /workspace[\s\S]*?DoubanData::dashboard\(\)/);
 const doubanBridge = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/application/admin/controller/Douban.php"], { encoding: "utf8" });
 assert.match(doubanBridge, /use addons\\vodops\\backend\\DoubanController/);
 assert.doesNotMatch(doubanBridge, /->route\(/);
 const doubanController = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/backend/DoubanController.php"], { encoding: "utf8" });
 assert.match(doubanController, /class DoubanController extends Base/);
 assert.match(doubanController, /豆瓣操作失败，请查看服务端日志/);
+assert.match(doubanController, /redirect\(url\('vodops\/index',[\s\S]*?workspace[\s\S]*?douban/);
+assert.doesNotMatch(doubanController, /fetch\(['"]index\/index/);
+assert.doesNotMatch(doubanController, /view_path/);
 for (const action of [
   "index",
   "saveConfig",
@@ -384,12 +388,16 @@ assert.match(vodopsView, /url\('vod\/info',[\s\S]*?vod_id/);
 assert.match(vodopsView, /detail_label/);
 assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
-assert.match(vodopsView, /douban\/index/);
+assert.match(vodopsView, /workspace/);
+assert.match(vodopsView, /addons\/vodops\/view\/index\/index/);
 const doubanView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/index/index.html"], { encoding: "utf8" });
-assert.match(doubanView, /豆瓣匹配工作台/);
-assert.match(doubanView, /vodops\/index/);
+assert.match(doubanView, /豆瓣匹配与同步/);
+assert.doesNotMatch(doubanView, /<!doctype|<html|<body|豆瓣匹配工作台/i);
+assert.doesNotMatch(doubanView, /url\('douban\/index'/);
 assert.match(doubanView, /同步不会修改现有图片/);
 assert.match(doubanView, /X-CSRF-Token/);
+assert.match(doubanView, /\.douban-workspace \.system-box/);
+assert.match(doubanView, /@keyframes douban-status-pulse/);
 const vodopsScanner = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodQualityScanner.php"], { encoding: "utf8" });
 assert.match(vodopsScanner, /class VodQualityExportException extends \\RuntimeException/);
 assert.match(vodopsScanner, /class VodQualityActionException extends \\RuntimeException/);

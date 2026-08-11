@@ -2,6 +2,7 @@
 
 namespace app\admin\controller;
 
+use addons\vodops\service\DoubanData;
 use addons\vodops\service\VodQualityActionException;
 use addons\vodops\service\VodQualityExportException;
 use addons\vodops\service\VodQualityRepair;
@@ -18,6 +19,17 @@ class Vodops extends Base
 
     public function index()
     {
+        $workspace = trim((string) input('workspace/s', 'quality'));
+        if ($workspace !== 'douban') {
+            $workspace = 'quality';
+        }
+        $this->assign('workspace', $workspace);
+        $this->assign('title', '视频数据中心');
+        if ($workspace === 'douban') {
+            $this->assignDoubanWorkspace();
+            return $this->fetch('vodops/index');
+        }
+
         $runId = max(0, intval(input('run_id/d', 0)));
         $scan = VodQualityScanner::getScan($runId);
         if (empty($scan) && $runId > 0) {
@@ -55,8 +67,6 @@ class Vodops extends Base
         $this->assign('categories', VodQualityScanner::categoryOptions());
         $this->assign('issue_type', $issueType);
         $this->assign('q', $query);
-        $this->assign('title', '视频数据质量中心');
-
         return $this->fetch('vodops/index');
     }
 
@@ -244,6 +254,88 @@ class Vodops extends Base
             return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
         }
         return null;
+    }
+
+    private function assignDoubanWorkspace()
+    {
+        $status = trim((string) input('status', 'all'));
+        $q = trim((string) input('q', ''));
+        $typeId = max(0, (int) input('type_id/d', 0));
+        $year = trim((string) input('year', ''));
+        if (!preg_match('/^\d{4}$/', $year) || (int) $year < 1800 || (int) $year > 2100) {
+            $year = '';
+        }
+        $taskStatus = strtoupper(trim((string) input('task_status', 'PENDING')));
+        if (!in_array($taskStatus, ['PENDING', 'RUNNING', 'FAILED', 'SUCCESS', 'SKIP', 'ALL'], true)) {
+            $taskStatus = 'PENDING';
+        }
+        $page = max(1, (int) input('page/d', 1));
+        $limit = max(10, min(100, (int) input('limit/d', 20)));
+        $auditScanId = max(0, (int) input('audit_scan_id/d', 0));
+        $auditCode = trim((string) input('audit_code', ''));
+        $auditQ = trim((string) input('audit_q', ''));
+        $auditPage = max(1, (int) input('audit_page/d', 1));
+        $dashboard = DoubanData::dashboard();
+        $videos = DoubanData::listVideos($status, $page, $limit, $q, $typeId, $year);
+        $tasks = DoubanData::listTasks($taskStatus, 50);
+        $audit = DoubanData::auditDashboard($auditScanId, $auditCode, $auditPage, 20, $auditQ);
+        $currentPage = (int) ($videos['page'] ?? 1);
+        $pageQuery = [
+            'workspace' => 'douban',
+            'status' => $status,
+            'task_status' => $taskStatus,
+            'q' => $q,
+            'type_id' => $typeId,
+            'year' => $year,
+            'limit' => $limit,
+        ];
+        $videos['prev_url'] = !empty($videos['has_prev'])
+            ? url('vodops/index', array_merge($pageQuery, ['page' => $currentPage - 1]))
+            : '';
+        $videos['next_url'] = !empty($videos['has_next'])
+            ? url('vodops/index', array_merge($pageQuery, ['page' => $currentPage + 1]))
+            : '';
+        $auditPagination = $audit['pagination'];
+        $auditCurrentPage = (int) ($auditPagination['page'] ?? 1);
+        $auditQuery = array_merge($pageQuery, [
+            'page' => $currentPage,
+            'audit_scan_id' => (int) ($audit['scan']['scan_id'] ?? 0),
+            'audit_code' => (string) ($audit['filters']['code'] ?? ''),
+            'audit_q' => (string) ($audit['filters']['q'] ?? ''),
+        ]);
+        $auditPagination['prev_url'] = !empty($auditPagination['has_prev'])
+            ? url('vodops/index', array_merge($auditQuery, ['audit_page' => $auditCurrentPage - 1]))
+            : '';
+        $auditPagination['next_url'] = !empty($auditPagination['has_next'])
+            ? url('vodops/index', array_merge($auditQuery, ['audit_page' => $auditCurrentPage + 1]))
+            : '';
+
+        $this->assign('config', $dashboard['config']);
+        $this->assign('stats', $dashboard['stats']);
+        $this->assign('task_stats', $dashboard['task_stats']);
+        $this->assign('logs', $dashboard['logs']);
+        $this->assign('categories', $dashboard['categories']);
+        $this->assign('videos', $videos['data']);
+        $this->assign('tasks', $tasks);
+        $this->assign('pagination', $videos);
+        $this->assign('status', $status);
+        $this->assign('task_status', $taskStatus);
+        $this->assign('q', $q);
+        $this->assign('type_id', $typeId);
+        $this->assign('year', $year);
+        $this->assign('audit_scan', $audit['scan']);
+        $this->assign('audit_issues', $audit['issues']);
+        $this->assign('audit_stats', $audit['stats']);
+        $this->assign('audit_codes', $audit['codes']);
+        $this->assign('audit_filters', $audit['filters']);
+        $this->assign('audit_pagination', $auditPagination);
+        $this->assign('audit_export_url', !empty($audit['scan'])
+            ? url('douban/exportAudit', [
+                'scan_id' => (int) ($audit['scan']['scan_id'] ?? 0),
+                'code' => (string) ($audit['filters']['code'] ?? ''),
+            ])
+            : '');
+        $this->assign('current_url', url('vodops/index', ['workspace' => 'douban']));
     }
 
     private function adminId()

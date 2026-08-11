@@ -5,21 +5,10 @@ namespace app\admin\controller {
     {
         public $_admin = ['admin_id' => 7];
         public $baseInitialized = false;
-        public $view;
 
         public function __construct()
         {
             $this->baseInitialized = true;
-            $this->view = new class {
-                public $path = '';
-
-                public function config($name, $value)
-                {
-                    if ($name === 'view_path') {
-                        $this->path = $value;
-                    }
-                }
-            };
         }
 
         public function assign($name, $value)
@@ -39,6 +28,16 @@ namespace {
     function json($data, $status = 200)
     {
         return ['status' => $status, 'data' => $data];
+    }
+
+    function url($route, array $params = [])
+    {
+        return $route . (empty($params) ? '' : '?' . http_build_query($params));
+    }
+
+    function redirect($target)
+    {
+        return ['redirect' => $target];
     }
 
     function trace($message, $level = '')
@@ -65,8 +64,9 @@ namespace {
     if (!$controller instanceof \app\admin\controller\Base || !$controller->baseInitialized) {
         failControllerTest('Douban actions must run through the native MacCMS admin permission base');
     }
-    if ($controller->view->path !== $root . '/addons/vodops/view/') {
-        failControllerTest('Douban should configure its private addon view path explicitly');
+    $legacyIndex = $controller->index();
+    if (($legacyIndex['redirect'] ?? '') !== 'vodops/index?workspace=douban') {
+        failControllerTest('The legacy Douban index should redirect into the single Vodops workbench');
     }
 
     $backend = new ReflectionClass(\addons\vodops\backend\DoubanController::class);
@@ -100,12 +100,17 @@ namespace {
     $backendSource = file_get_contents($root . '/addons/vodops/backend/DoubanController.php');
     $bridgeSource = file_get_contents($root . '/addons/vodops/application/admin/controller/Douban.php');
     if (!preg_match('/class DoubanController extends Base/', $backendSource)
-        || !preg_match('/public function __construct\(\)[\s\S]*?parent::__construct\(\)/', $backendSource)
         || preg_match('/model\([\'\"]Admin[\'\"]\)->checkLogin/', $backendSource)) {
-        failControllerTest('Douban should use the native Base constructor and action authorization instead of performing login-only checks');
+        failControllerTest('Douban should inherit native Base authorization instead of performing login-only checks');
     }
     if (preg_match('/->route\s*\(/', $bridgeSource)) {
         failControllerTest('Douban must not rewrite the native controller route used by action permissions');
+    }
+    if (preg_match('/fetch\([\'"]index\/index/', $backendSource)) {
+        failControllerTest('Douban must not render a second standalone workbench');
+    }
+    if (strpos($backendSource, 'view_path') !== false) {
+        failControllerTest('Douban action routes must not configure a second private page renderer');
     }
     $csvCell = $backend->getMethod('csvCell');
     $csvCell->setAccessible(true);

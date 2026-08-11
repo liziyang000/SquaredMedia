@@ -152,9 +152,11 @@ configuration, task statistics, and operation history. The existing
 `douban_config`, `douban_vod_meta`, `douban_task`, `douban_log`,
 `douban_review_candidate`, `douban_scan`, and `douban_scan_issue` tables keep
 their names, so an existing installation continues from its current data.
-The legacy `admin/douban/*` actions remain valid, while the two work areas link
-to each other under one “视频数据中心” menu entry. Douban sync preserves the
-current `vod_pic`; image replacement remains an explicit VodOps repair action.
+The legacy `admin/douban/*` actions remain valid, but there is now only one
+native “视频数据中心” workbench. Its module tabs switch between quality repair
+and Douban metadata without opening a second page shell; the legacy Douban index
+redirects into that workbench. Douban sync preserves the current `vod_pic`;
+image replacement remains an explicit VodOps repair action.
 
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development

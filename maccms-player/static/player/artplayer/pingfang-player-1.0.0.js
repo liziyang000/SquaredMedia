@@ -1,7 +1,7 @@
 (function initPingfangPlayer(global) {
   "use strict";
 
-  var PLAYER_VERSION = "1.0.0";
+  var PLAYER_VERSION = "1.1.0";
   var STARTUP_TIMEOUT_MS = 12000;
   var STALL_TIMEOUT_MS = 8000;
   var MEDIA_RECOVERY_COOLDOWN_MS = 5000;
@@ -125,6 +125,27 @@
     var hasPlayed = false;
     var resumeChecked = false;
     var autoSwitching = false;
+    var qoeStartedAt = monotonicNow();
+    var qoeSessionId = Date.now().toString(36) + "-" + Math.round(qoeStartedAt).toString(36);
+    var qoeStatus = "starting";
+    var qoeFirstFrameMs = 0;
+    var qoeFirstFrameReported = false;
+    var qoeBufferingCount = 0;
+    var qoeBufferingMs = 0;
+    var qoeBufferingStartedAt = null;
+    var qoePlayedMs = 0;
+    var qoeLastPlaybackPosition = null;
+    var qoeLastReportAt = 0;
+    var currentHlsLevel = -1;
+    var currentVideoWidth = 0;
+    var currentVideoHeight = 0;
+
+    function monotonicNow() {
+      try {
+        if (global.performance && typeof global.performance.now === "function") return global.performance.now();
+      } catch (error) {}
+      return Date.now();
+    }
 
     function clearTimer(timer) {
       if (timer) global.clearTimeout(timer);
@@ -190,6 +211,78 @@
       return Number.isFinite(time) && time > 0 ? time : 0;
     }
 
+    function activeBufferingMs() {
+      return qoeBufferingStartedAt === null ? qoeBufferingMs : qoeBufferingMs + Math.max(0, monotonicNow() - qoeBufferingStartedAt);
+    }
+
+    function reportPlaybackQoe(statusName, errorType, hlsOverride) {
+      if (statusName) qoeStatus = statusName;
+
+      var playerVideo = art && art.video;
+      var activeHls = hlsOverride || (art && art.hls);
+      var bandwidthEstimate = Number(activeHls && activeHls.bandwidthEstimate);
+      var videoWidth = currentVideoWidth || Number(playerVideo && playerVideo.videoWidth) || 0;
+      var videoHeight = currentVideoHeight || Number(playerVideo && playerVideo.videoHeight) || 0;
+      var payload = {
+        version: 1,
+        sessionId: qoeSessionId,
+        status: qoeStatus,
+        firstFrameMs: qoeFirstFrameMs,
+        bufferingCount: qoeBufferingCount,
+        bufferingMs: Math.round(activeBufferingMs()),
+        playedMs: Math.round(qoePlayedMs),
+        bandwidthEstimate: Number.isFinite(bandwidthEstimate) && bandwidthEstimate > 0 ? Math.round(bandwidthEstimate) : 0,
+        currentLevel: currentHlsLevel,
+        currentWidth: Math.round(videoWidth),
+        currentHeight: Math.round(videoHeight),
+        errorType: errorType || ""
+      };
+      qoeLastReportAt = monotonicNow();
+
+      var bridge = parentPlayerBridge();
+      try {
+        if (bridge && typeof bridge.reportPlaybackQoe === "function") return bridge.reportPlaybackQoe(payload);
+      } catch (error) {}
+      return null;
+    }
+
+    function finishBuffering() {
+      if (qoeBufferingStartedAt === null) return false;
+      qoeBufferingMs += Math.max(0, monotonicNow() - qoeBufferingStartedAt);
+      qoeBufferingStartedAt = null;
+      return true;
+    }
+
+    function reportPlaying() {
+      var firstFrame = !qoeFirstFrameReported;
+      if (firstFrame) {
+        qoeFirstFrameReported = true;
+        qoeFirstFrameMs = Math.max(0, Math.round(monotonicNow() - qoeStartedAt));
+      }
+      var resumed = finishBuffering();
+      if (firstFrame || resumed) {
+        reportPlaybackQoe("playing");
+      } else if (monotonicNow() - qoeLastReportAt >= 5000) {
+        reportPlaybackQoe("playing");
+      }
+    }
+
+    function recordPlaybackProgress() {
+      var position = currentPlaybackTime();
+      if (qoeLastPlaybackPosition !== null) {
+        var progress = position - qoeLastPlaybackPosition;
+        if (progress > 0 && progress <= 10) qoePlayedMs += progress * 1000;
+      }
+      qoeLastPlaybackPosition = position;
+    }
+
+    function startBuffering() {
+      if (!hasPlayed || qoeBufferingStartedAt !== null) return;
+      qoeBufferingCount += 1;
+      qoeBufferingStartedAt = monotonicNow();
+      reportPlaybackQoe("buffering");
+    }
+
     function openLineSelector() {
       var bridge = parentPlayerBridge();
       try {
@@ -223,11 +316,13 @@
 
     var sourceUrl = resolveSourceUrl();
     if (!sourceUrl) {
+      reportPlaybackQoe("failed", "invalid_source");
       showStatus("播放地址无效，请切换线路后重试。");
       return;
     }
 
     if (typeof global.Artplayer !== "function") {
+      reportPlaybackQoe("failed", "player_core_missing");
       showStatus("播放器核心加载失败，请刷新页面后重试。");
       return;
     }
@@ -251,6 +346,73 @@
       art.hls = null;
     }
 
+    function hlsLevelLabel(level, index, levels) {
+      var height = Math.round(Number(level && level.height) || 0);
+      var bitrate = Math.round(Number(level && level.bitrate) || 0);
+      if (height > 0) {
+        var duplicateHeight =
+          levels.filter(function (candidate) {
+            return Math.round(Number(candidate && candidate.height) || 0) === height;
+          }).length > 1;
+        if (!duplicateHeight) return height + "p";
+        return height + "p · " + (bitrate > 0 ? Math.round(bitrate / 1000) + " Kbps" : "档位 " + (index + 1));
+      }
+      if (bitrate > 0) return Math.round(bitrate / 1000) + " Kbps";
+      return "档位 " + (index + 1);
+    }
+
+    function hlsQualitySelector(hls) {
+      var levels = Array.isArray(hls.levels) ? hls.levels : [];
+      var selector = [
+        {
+          html: "自动",
+          level: -1,
+          default: Boolean(hls.autoLevelEnabled)
+        }
+      ];
+      levels
+        .map(function (level, index) {
+          return {
+            html: hlsLevelLabel(level, index, levels),
+            level: index,
+            height: Number(level && level.height) || 0,
+            bitrate: Number(level && level.bitrate) || 0,
+            default: !hls.autoLevelEnabled && Number(hls.manualLevel) === index
+          };
+        })
+        .sort(function (left, right) {
+          return right.height - left.height || right.bitrate - left.bitrate || left.level - right.level;
+        })
+        .forEach(function (item) {
+          selector.push(item);
+        });
+      return selector;
+    }
+
+    function hlsQualityTooltip(hls, activeLevel) {
+      var levels = Array.isArray(hls.levels) ? hls.levels : [];
+      var level = levels[activeLevel];
+      var label = level ? hlsLevelLabel(level, activeLevel, levels) : "";
+      if (hls.autoLevelEnabled) return label ? "自动（当前 " + label + "）" : "自动";
+      return label || "清晰度";
+    }
+
+    function updateHlsQualitySetting(art, hls, activeLevel) {
+      if (!art.setting || typeof art.setting.update !== "function" || !Array.isArray(hls.levels) || !hls.levels.length) return;
+      art.setting.update({
+        name: "pingfang-quality",
+        html: "清晰度",
+        tooltip: hlsQualityTooltip(hls, activeLevel),
+        selector: hlsQualitySelector(hls),
+        onSelect: function selectHlsQuality(item) {
+          var level = Number(item && item.level);
+          if (!Number.isInteger(level) || level < -1 || level >= hls.levels.length) return hlsQualityTooltip(hls, currentHlsLevel);
+          hls.nextLevel = level;
+          return level === -1 ? hlsQualityTooltip(hls, currentHlsLevel) : String(item.html || "清晰度");
+        }
+      });
+    }
+
     function playM3u8(video, url, art) {
       destroyHls(art);
 
@@ -265,6 +427,7 @@
           return;
         }
 
+        reportPlaybackQoe("failed", "hls_unsupported");
         showStatus("当前浏览器不支持 HLS 播放，请更换浏览器或线路。");
         return;
       }
@@ -282,12 +445,14 @@
           if (mediaRecoveryCount < MAX_MEDIA_RECOVERIES && now - lastMediaRecoveryAt >= MEDIA_RECOVERY_COOLDOWN_MS) {
             mediaRecoveryCount += 1;
             lastMediaRecoveryAt = now;
+            reportPlaybackQoe("recovering", "hls_media_error", hls);
             art.notice.show = "正在恢复视频播放…";
             hls.recoverMediaError();
             return;
           }
         }
 
+        reportPlaybackQoe("failed", data.type === global.Hls.ErrorTypes.NETWORK_ERROR ? "hls_network_error" : "hls_media_error", hls);
         clearPlaybackTimers();
         if (tryAutomaticLineSwitch("当前线路异常，正在自动切换…")) return;
         if (data.type === global.Hls.ErrorTypes.NETWORK_ERROR) {
@@ -295,6 +460,21 @@
         } else {
           showStatus("视频解码失败，请重新加载或切换线路。");
         }
+      });
+
+      hls.on(global.Hls.Events.MANIFEST_PARSED, function handleManifestParsed() {
+        updateHlsQualitySetting(art, hls, currentHlsLevel);
+      });
+
+      hls.on(global.Hls.Events.LEVEL_SWITCHED, function handleLevelSwitched(event, data) {
+        var levelIndex = Number(data && data.level);
+        if (!Number.isInteger(levelIndex) || levelIndex < 0 || levelIndex >= hls.levels.length) return;
+        var level = hls.levels[levelIndex] || {};
+        currentHlsLevel = levelIndex;
+        currentVideoWidth = Number(level.width) || 0;
+        currentVideoHeight = Number(level.height) || 0;
+        updateHlsQualitySetting(art, hls, currentHlsLevel);
+        reportPlaybackQoe(qoeStatus, "", hls);
       });
 
       hls.loadSource(url);
@@ -350,6 +530,7 @@
 
     var art = new global.Artplayer(options);
     startupTimer = global.setTimeout(function showSlowStartup() {
+      reportPlaybackQoe("failed", "startup_timeout");
       if (tryAutomaticLineSwitch("当前线路启动超时，正在自动切换…")) return;
       showStatus("视频加载较慢，可以重新加载或切换线路。");
     }, STARTUP_TIMEOUT_MS);
@@ -386,7 +567,9 @@
 
     function scheduleStallWarning() {
       if (!hasPlayed || stallTimer) return;
+      startBuffering();
       stallTimer = global.setTimeout(function showStallWarning() {
+        reportPlaybackQoe("failed", "stall_timeout");
         if (tryAutomaticLineSwitch("当前线路持续缓冲，正在自动切换…")) return;
         showStatus("视频缓冲时间较长，可以重新加载或切换线路。");
       }, STALL_TIMEOUT_MS);
@@ -395,22 +578,30 @@
     art.on("video:canplay", playbackReady);
     art.on("video:playing", function onPlaying() {
       hasPlayed = true;
+      reportPlaying();
       playbackReady();
     });
     art.on("video:timeupdate", function onTimeUpdate() {
       if (!art.video.paused && art.video.readyState >= 3) {
         hasPlayed = true;
+        recordPlaybackProgress();
+        reportPlaying();
         playbackReady();
       }
     });
     art.on("video:waiting", scheduleStallWarning);
     art.on("video:stalled", scheduleStallWarning);
     art.on("video:error", function onVideoError() {
+      reportPlaybackQoe("failed", "video_error");
       clearPlaybackTimers();
       if (tryAutomaticLineSwitch("当前线路播放失败，正在自动切换…")) return;
       showStatus("视频播放失败，请重新加载或切换线路。");
     });
-    art.once("destroy", clearPlaybackTimers);
+    art.once("destroy", function finishPlaybackQoe() {
+      finishBuffering();
+      reportPlaybackQoe(qoeStatus);
+      clearPlaybackTimers();
+    });
 
     global.PingfangPlayerInstance = art;
   }

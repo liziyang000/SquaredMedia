@@ -8,7 +8,7 @@
     "lint:frontend": "npm run lint:js && npm run lint:css && npm run format:check",
     "lint:js": "eslint \"template/pingfangvideo/js/*.js\" \"maccms-player/static/player/artplayer/*.js\" \"services/game-server/**/*.mjs\"",
     "lint:css": "stylelint \"template/pingfangvideo/{css,player}/**/*.css\" \"maccms-player/static/player/artplayer/*.css\"",
-    "test": "node tests/template.test.mjs && node tests/player-package.test.mjs && node tests/player-runtime.test.mjs && node tests/game-server.test.mjs && php tests/device-session.test.php && php tests/device-controller.test.php && php tests/game-access-ticket.test.php && php tests/vod-source-quality.test.php && php tests/poster-repair.test.php",
+    "test": "node tests/template.test.mjs && node tests/player-package.test.mjs && node tests/player-runtime.test.mjs && node tests/playback-qoe.test.mjs && node tests/game-server.test.mjs && php tests/device-session.test.php && php tests/device-controller.test.php && php tests/game-access-ticket.test.php && php tests/vod-source-quality.test.php && php tests/poster-repair.test.php",
     "lint:template": "node scripts/lint-template.mjs",
     "format": "prettier --write \"template/pingfangvideo/js/*.js\" \"maccms-player/**/*.{html,js,css}\" \"services/game-server/**/*.mjs\" \"*.config.js\" package.json",
     "format:check": "prettier --check \"template/pingfangvideo/js/*.js\" \"maccms-player/**/*.{html,js,css}\" \"services/game-server/**/*.mjs\" \"*.config.js\" package.json",

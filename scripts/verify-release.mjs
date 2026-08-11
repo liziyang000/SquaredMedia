@@ -155,7 +155,9 @@ const requiredVodopsEntries = [
   "vodops/config.php",
   "vodops/info.ini",
   "vodops/install.sql",
+  "vodops/schema.php",
   "vodops/service/DoubanAiReviewer.php",
+  "vodops/service/DoubanActionException.php",
   "vodops/service/DoubanData.php",
   "vodops/service/DoubanGateway.php",
   "vodops/service/DoubanMatcher.php",
@@ -328,8 +330,10 @@ assert.match(vodopsController, /catch \(VodQualityExportException \$e\)/);
 assert.match(vodopsController, /导出扫描结果失败，请查看服务端日志/);
 const doubanBridge = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/application/admin/controller/Douban.php"], { encoding: "utf8" });
 assert.match(doubanBridge, /use addons\\vodops\\backend\\DoubanController/);
-assert.match(doubanBridge, /'addon'\s*=>\s*'vodops'/);
+assert.doesNotMatch(doubanBridge, /->route\(/);
 const doubanController = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/backend/DoubanController.php"], { encoding: "utf8" });
+assert.match(doubanController, /class DoubanController extends Base/);
+assert.match(doubanController, /豆瓣操作失败，请查看服务端日志/);
 for (const action of [
   "index",
   "saveConfig",
@@ -359,6 +363,9 @@ const doubanData = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/D
 assert.match(doubanData, /namespace addons\\vodops\\service/);
 assert.match(doubanData, /MATCH_DOUBAN_ID/);
 assert.match(doubanData, /SYNC_DOUBAN/);
+assert.match(doubanData, /CALIBRATE_SCORE/);
+assert.match(doubanData, /conditionalVodUpdate/);
+assert.doesNotMatch(doubanData, /UPDATE \{\$vodTable\} SET vod_(?:douban_)?score/);
 assert.doesNotMatch(doubanData.match(/private static function buildVodUpdates[\s\S]*?return \$updates;/)?.[0] || "", /'vod_pic'\s*=>/);
 const vodopsHook = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/Vodops.php"], { encoding: "utf8" });
 assert.doesNotMatch(vodopsHook, /responseEnd|runTrafficChunk/);
@@ -382,6 +389,7 @@ const doubanView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/inde
 assert.match(doubanView, /豆瓣匹配工作台/);
 assert.match(doubanView, /vodops\/index/);
 assert.match(doubanView, /同步不会修改现有图片/);
+assert.match(doubanView, /X-CSRF-Token/);
 const vodopsScanner = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodQualityScanner.php"], { encoding: "utf8" });
 assert.match(vodopsScanner, /class VodQualityExportException extends \\RuntimeException/);
 assert.match(vodopsScanner, /class VodQualityActionException extends \\RuntimeException/);
@@ -423,6 +431,7 @@ for (const table of [
   assert.match(vodopsSql, new RegExp("CREATE TABLE IF NOT EXISTS `__PREFIX__" + table + "`[\\s\\S]*?ENGINE=InnoDB"));
 }
 assert.match(vodopsSql, /INSERT IGNORE INTO `__PREFIX__vodops_lock`[\s\S]*?scan_start/);
+assert.match(vodopsSql, /douban_enqueue/);
 assert.match(vodopsSql, /INSERT IGNORE INTO `__PREFIX__douban_config`/);
 assert.match(vodopsSql, /PREPARE douban_task_stats_index_stmt/);
 assert.doesNotMatch(vodopsSql, /DROP\s+TABLE/i);

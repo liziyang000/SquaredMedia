@@ -16,7 +16,7 @@ class DoubanGateway
 
         $subject = self::normalizeSubject(self::requestJson(sprintf(self::SUBJECT_URL, $doubanId)));
         if ($subject['vod_douban_id'] !== $doubanId) {
-            throw new \RuntimeException('豆瓣数据源ID与请求不一致');
+            throw new DoubanActionException('豆瓣数据源ID与请求不一致');
         }
 
         return $subject;
@@ -38,18 +38,18 @@ class DoubanGateway
     {
         $rating = is_array($data['rating'] ?? null) ? $data['rating'] : [];
         if (!array_key_exists('value', $rating) || !is_numeric($rating['value'])) {
-            throw new \RuntimeException('豆瓣数据源未返回有效评分');
+            throw new DoubanActionException('豆瓣数据源未返回有效评分');
         }
         $rawRatingValue = $rating['value'];
         if ((float) $rawRatingValue < 0 || (float) $rawRatingValue > 10) {
-            throw new \RuntimeException('豆瓣评分必须在 0 到 10 之间');
+            throw new DoubanActionException('豆瓣评分必须在 0 到 10 之间');
         }
         $ratingValue = (float) $rawRatingValue;
         $ratingCount = max(0, (int) ($rating['count'] ?? 0));
         $score = number_format($ratingValue, 1, '.', '');
         $doubanId = self::normalizeId((string) ($data['id'] ?? ''));
         if ($doubanId === '') {
-            throw new \RuntimeException('豆瓣数据源返回无效ID');
+            throw new DoubanActionException('豆瓣数据源返回无效ID');
         }
         $pic = is_array($data['pic'] ?? null) ? $data['pic'] : [];
         $episodeCount = max(
@@ -105,7 +105,7 @@ class DoubanGateway
     private static function requestJson(string $url): array
     {
         if (!function_exists('curl_init')) {
-            throw new \RuntimeException('服务器未启用 cURL 扩展');
+            throw new DoubanActionException('服务器未启用 cURL 扩展');
         }
         $curl = curl_init($url);
         curl_setopt_array($curl, [
@@ -126,11 +126,11 @@ class DoubanGateway
         curl_close($curl);
 
         if ($failed || $status < 200 || $status >= 300 || trim((string) $raw) === '') {
-            throw new \RuntimeException('豆瓣数据源请求失败');
+            throw new DoubanActionException('豆瓣数据源请求失败');
         }
         $decoded = json_decode((string) $raw, true);
         if (!is_array($decoded)) {
-            throw new \RuntimeException('豆瓣数据源返回格式错误');
+            throw new DoubanActionException('豆瓣数据源返回格式错误');
         }
 
         return $decoded;

@@ -1,5 +1,6 @@
 <?php
 
+require __DIR__ . '/../addons/vodops/service/DoubanActionException.php';
 require __DIR__ . '/../addons/vodops/service/DoubanGateway.php';
 
 use addons\vodops\service\DoubanGateway;

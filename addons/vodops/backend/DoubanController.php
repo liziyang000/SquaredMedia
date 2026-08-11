@@ -2,17 +2,20 @@
 
 namespace addons\vodops\backend;
 
+use addons\vodops\service\DoubanActionException;
 use addons\vodops\service\DoubanData;
-use think\addons\Controller;
+use app\admin\controller\Base;
 
-class DoubanController extends Controller
+class DoubanController extends Base
 {
+    public function __construct()
+    {
+        parent::__construct();
+        $this->view->config('view_path', dirname(__DIR__) . DIRECTORY_SEPARATOR . 'view' . DIRECTORY_SEPARATOR);
+    }
+
     public function index()
     {
-        if (!$this->isAdmin()) {
-            return '请先使用管理员账号登录后台后访问该页面。';
-        }
-
         $status = trim((string) input('status', 'all'));
         $q = trim((string) input('q', ''));
         $typeId = max(0, (int) input('type_id/d', 0));
@@ -91,7 +94,7 @@ class DoubanController extends Controller
             : '');
         $this->assign('current_url', url('douban/index'));
 
-        return $this->fetch();
+        return $this->fetch('index/index');
     }
 
     public function saveConfig()
@@ -309,7 +312,7 @@ class DoubanController extends Controller
         try {
             return json([
                 'code' => 1,
-                'msg' => '所选分类的豆瓣评分校准完成',
+                'msg' => '所选分类的评分校准任务已生成',
                 'data' => DoubanData::calibrateScoresByType(
                     (array) input('type_ids/a', []),
                     (int) input('include_children/d', 1),
@@ -455,10 +458,6 @@ class DoubanController extends Controller
 
     public function exportAudit()
     {
-        if (!$this->isAdmin()) {
-            return '请先使用管理员账号登录后台后导出体检报告。';
-        }
-
         $scanId = max(0, (int) input('scan_id/d', 0));
         if ($scanId < 1) {
             return '体检任务ID无效。';
@@ -499,7 +498,8 @@ class DoubanController extends Controller
 
             return '';
         } catch (\Throwable $e) {
-            return '导出失败：' . $e->getMessage();
+            $this->logFailure('导出体检报告', $e);
+            return '导出失败，请查看服务端日志。';
         }
     }
 
@@ -512,13 +512,10 @@ class DoubanController extends Controller
     private function guardPost()
     {
         if (!Request()->isPost()) {
-            return json(['code' => 1001, 'msg' => '请求方式错误']);
-        }
-        if (!$this->isAdmin()) {
-            return json(['code' => 1003, 'msg' => '请先登录管理员账号']);
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
         }
         if (!Request()->isAjax()) {
-            return json(['code' => 1004, 'msg' => '请求来源校验失败']);
+            return json(['code' => 1004, 'msg' => '请求来源校验失败'], 405);
         }
 
         return null;
@@ -526,28 +523,31 @@ class DoubanController extends Controller
 
     private function errorJson(\Throwable $e)
     {
+        if ($e instanceof DoubanActionException || $e instanceof \InvalidArgumentException) {
+            return json([
+                'code' => 1003,
+                'msg' => $e->getMessage(),
+                'data' => null,
+            ], 409);
+        }
+
+        $this->logFailure('豆瓣操作', $e);
         return json([
             'code' => 1002,
-            'msg' => $e->getMessage(),
+            'msg' => '豆瓣操作失败，请查看服务端日志。',
             'data' => null,
-        ]);
-    }
-
-    private function isAdmin()
-    {
-        return $this->adminId() > 0;
+        ], 500);
     }
 
     private function adminId()
     {
-        try {
-            $result = model('Admin')->checkLogin();
-            if ((int) ($result['code'] ?? 0) === 1) {
-                return (int) ($result['info']['admin_id'] ?? 0);
-            }
-        } catch (\Throwable $e) {
-        }
+        return (int) ($this->_admin['admin_id'] ?? 0);
+    }
 
-        return 0;
+    private function logFailure(string $action, \Throwable $error)
+    {
+        if (function_exists('trace')) {
+            trace('[vodops] ' . $action . '失败：' . $error->getMessage(), 'error');
+        }
     }
 }

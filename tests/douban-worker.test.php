@@ -5,6 +5,7 @@ namespace think {
     {
         public static $tables = [];
         public static $columns = [];
+        public static $beforeUpdate = null;
 
         public static function name($name)
         {
@@ -113,6 +114,12 @@ namespace think {
 
         public function update(array $data)
         {
+            if (is_callable(Db::$beforeUpdate)) {
+                $callback = Db::$beforeUpdate;
+                if ($callback($this->table, $this->where, $data) !== false) {
+                    Db::$beforeUpdate = null;
+                }
+            }
             $updated = 0;
             foreach (Db::$tables[$this->table] ?? [] as $index => $row) {
                 if (!$this->matches($row)) {
@@ -132,7 +139,9 @@ namespace think {
 
         public function insertGetId(array $data)
         {
-            $primaryKey = $this->table === 'douban_scan' ? 'scan_id' : 'id';
+            $primaryKey = $this->table === 'douban_scan'
+                ? 'scan_id'
+                : ($this->table === 'douban_log' ? 'log_id' : 'id');
             $ids = array_map(static function ($row) use ($primaryKey) {
                 return (int) ($row[$primaryKey] ?? 0);
             }, Db::$tables[$this->table] ?? []);
@@ -310,6 +319,7 @@ namespace {
 
     require dirname(__DIR__) . '/addons/vodops/service/DoubanMatcher.php';
     require dirname(__DIR__) . '/addons/vodops/service/DoubanAiReviewer.php';
+    require dirname(__DIR__) . '/addons/vodops/service/DoubanActionException.php';
     require dirname(__DIR__) . '/addons/vodops/service/DoubanData.php';
 
     $fail = static function ($message) {
@@ -399,6 +409,18 @@ namespace {
     $assertSame(1, $duplicateRetry['skipped'], 'The active task conflict should be reported as skipped');
     $assertSame('FAILED', $task(3)['status'] ?? '', 'Skipped duplicate failures should stay inspectable');
 
+    Db::$tables['vodops_lock'] = [['lock_name' => 'douban_enqueue']];
+    $emptyEnqueue = DoubanData::enqueueDue(1, 9);
+    $assertSame(0, $emptyEnqueue['created'] ?? -1, 'An empty due queue should still pass through the enqueue mutex');
+    Db::$tables['vodops_lock'] = [];
+    $missingEnqueueLockRejected = false;
+    try {
+        DoubanData::enqueueDue(1, 9);
+    } catch (\addons\vodops\service\DoubanActionException $e) {
+        $missingEnqueueLockRejected = $e->getMessage() === '任务队列协调锁未初始化，请重新执行插件 install.sql';
+    }
+    $assertSame(true, $missingEnqueueLockRejected, 'Task generation should stop when its transactional mutex is unavailable');
+
     $reserveMethod = new \ReflectionMethod(DoubanData::class, 'reserveRequestSlot');
     $reserveMethod->setAccessible(true);
     $firstSlot = $reserveMethod->invoke(null, 2.0);
@@ -406,6 +428,18 @@ namespace {
     if ($secondSlot < $firstSlot + 1.999) {
         $fail('Shared rate-limit reservations should not overlap');
     }
+    $failureMessageMethod = new \ReflectionMethod(DoubanData::class, 'failureMessage');
+    $failureMessageMethod->setAccessible(true);
+    $assertSame(
+        '任务执行失败，请查看服务端日志',
+        $failureMessageMethod->invoke(null, new \RuntimeException('SQLSTATE[42S02] private table name'), '任务执行失败，请查看服务端日志'),
+        'Unexpected worker failures must not expose database details in task state'
+    );
+    $assertSame(
+        '影片不存在',
+        $failureMessageMethod->invoke(null, new \addons\vodops\service\DoubanActionException('影片不存在'), '任务执行失败，请查看服务端日志'),
+        'Expected worker failures should remain actionable'
+    );
 
     Db::$tables = [
         'douban_config' => [
@@ -502,6 +536,91 @@ namespace {
     $assertSame('/upload/existing-500.jpg', Db::$tables['vod'][0]['vod_pic'] ?? '', 'Direct sync should preserve the existing picture');
     $assertSame(false, in_array('vod_pic', $syncedVod['updated_fields'] ?? [], true), 'Direct sync should not report a picture update');
     $assertSame(false, in_array('vod_pic', array_column($syncedVod['changes'] ?? [], 'field'), true), 'Direct sync changes should not contain a picture');
+    $syncLogs = array_values(array_filter(Db::$tables['douban_log'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 500;
+    }));
+    $assertSame('AUTO_SYNC', end($syncLogs)['action'] ?? '', 'A successful source write should finalize its pre-write audit record');
+
+    Db::$tables['douban_vod_meta'][] = [
+        'vod_id' => 506,
+        'douban_id' => '1290506',
+        'douban_id_locked' => 0,
+        'intro_locked' => 0,
+        'douban_id_source' => 'manual',
+    ];
+    Db::$tables['vod'][] = [
+        'vod_id' => 506,
+        'vod_name' => '同步状态异常影片',
+        'vod_douban_score' => '0.0',
+        'vod_score' => '0.0',
+    ];
+    DoubanGateway::$subjectResponses['1290506'] = [
+        'vod_douban_id' => '1290506',
+        'vod_douban_score' => '8.2',
+        'vod_score' => '8.2',
+    ];
+    Db::$beforeUpdate = static function ($table) {
+        if ($table !== 'douban_vod_meta') {
+            return false;
+        }
+        Db::$beforeUpdate = null;
+        throw new \RuntimeException('SQLSTATE metadata write failed');
+    };
+    try {
+        DoubanData::fetchVod(506, 9);
+    } catch (\RuntimeException $e) {
+    }
+    $partialSyncLogs = array_values(array_filter(Db::$tables['douban_log'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 506;
+    }));
+    $assertSame('AUTO_SYNC_PENDING', end($partialSyncLogs)['action'] ?? '', 'A sync must not be marked successful before its metadata state is saved');
+
+    Db::$tables['douban_vod_meta'][] = [
+        'vod_id' => 505,
+        'douban_id' => '1290505',
+        'douban_id_locked' => 0,
+        'intro_locked' => 0,
+        'douban_id_source' => 'manual',
+    ];
+    Db::$tables['vod'][] = [
+        'vod_id' => 505,
+        'vod_name' => '并发编辑影片',
+        'vod_douban_score' => '0.0',
+        'vod_score' => '0.0',
+    ];
+    DoubanGateway::$subjectResponses['1290505'] = [
+        'vod_douban_id' => '1290505',
+        'vod_douban_score' => '8.6',
+        'vod_score' => '8.6',
+    ];
+    Db::$beforeUpdate = static function ($table) {
+        if ($table !== 'vod') {
+            return false;
+        }
+        foreach (Db::$tables['vod'] as $index => $row) {
+            if ((int) ($row['vod_id'] ?? 0) === 505) {
+                Db::$tables['vod'][$index]['vod_score'] = '7.7';
+            }
+        }
+        return true;
+    };
+    $concurrentSyncRejected = false;
+    try {
+        DoubanData::fetchVod(505, 9);
+    } catch (\addons\vodops\service\DoubanActionException $e) {
+        $concurrentSyncRejected = $e->getMessage() === '视频数据已变化，本次同步已停止，请刷新后重试。';
+    }
+    $assertSame(true, $concurrentSyncRejected, 'A sync must reject stale source values instead of overwriting a native edit');
+    $concurrentVod = array_values(array_filter(Db::$tables['vod'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 505;
+    }))[0] ?? [];
+    $assertSame('7.7', $concurrentVod['vod_score'] ?? '', 'A concurrent native score edit must be preserved');
+    $conflictLogs = array_values(array_filter(Db::$tables['douban_log'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 505;
+    }));
+    $assertSame('AUTO_SYNC_CONFLICT', end($conflictLogs)['action'] ?? '', 'A rejected stale sync should retain an explicit conflict audit');
+    $assertSame('1290505', end(DoubanGateway::$subjectCalls), 'A rejected stale sync may fetch data but must not overwrite the source row');
+    DoubanGateway::$subjectCalls = ['1295644'];
 
     $matchedVod = DoubanData::fetchVod(501, 9);
     $assertSame(1, $matchedVod['code'] ?? 0, 'A unique specified video match should continue to sync');
@@ -641,6 +760,40 @@ namespace {
     $assertSame(31, $rolledBackPicture['source_log_id'] ?? 0, 'Picture rollback should report its source sync log');
     $latestRollbackLog = end(Db::$tables['douban_log']);
     $assertSame('ROLLBACK_PIC', $latestRollbackLog['action'] ?? '', 'Picture rollback should write an audit log');
+
+    Db::$tables = [
+        'douban_config' => [
+            ['config_key' => 'request_per_minute', 'config_value' => '30'],
+            ['config_key' => 'max_attempts', 'config_value' => '5'],
+            ['config_key' => 'rate_limit_next_at', 'config_value' => '0', 'updated_at' => 0],
+        ],
+        'douban_task' => [[
+            'task_id' => 7,
+            'vod_id' => 700,
+            'task_type' => 'CALIBRATE_SCORE',
+            'status' => 'PENDING',
+            'priority' => 1,
+            'run_after' => 0,
+            'attempts' => 0,
+            'last_error' => '',
+            'payload' => '{}',
+            'created_at' => 1,
+            'updated_at' => 1,
+        ]],
+        'douban_vod_meta' => [],
+        'douban_log' => [],
+        'vod' => [[
+            'vod_id' => 700,
+            'vod_name' => '待校准影片',
+            'vod_douban_score' => '8.8',
+            'vod_score' => '7.0',
+        ]],
+    ];
+    $calibrated = DoubanData::runPending(1, 9);
+    $assertSame(1, $calibrated['success'] ?? 0, 'Score calibration should run as one bounded queue task');
+    $assertSame('8.8', Db::$tables['vod'][0]['vod_score'] ?? '', 'A calibration task should mirror one video score');
+    $assertSame('SUCCESS', $task(7)['status'] ?? '', 'A calibration task should use the normal resumable worker state machine');
+    $assertSame('CALIBRATE_SCORE', Db::$tables['douban_log'][0]['action'] ?? '', 'A calibration task should retain a per-video audit record');
 
     Db::$tables = [
         'vod' => [

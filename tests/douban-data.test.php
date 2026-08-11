@@ -1,5 +1,6 @@
 <?php
 
+require __DIR__ . '/../addons/vodops/service/DoubanActionException.php';
 require __DIR__ . '/../addons/vodops/service/DoubanData.php';
 
 use addons\vodops\service\DoubanData;
@@ -327,6 +328,41 @@ $scopeSqlMethod->setAccessible(true);
 [$scopeSql, $scopeBind] = $scopeSqlMethod->invoke(null, [3, 1, 3]);
 if ($scopeSql !== 'type_id IN (?,?)' || $scopeBind !== [3, 1]) {
     fwrite(STDERR, "Category calibration SQL should deduplicate IDs and bind placeholders\n");
+    exit(1);
+}
+
+$calibrationUpdatesMethod = new ReflectionMethod(DoubanData::class, 'calibrationUpdates');
+$calibrationUpdatesMethod->setAccessible(true);
+$invalidCalibration = $calibrationUpdatesMethod->invoke(null, [
+    'vod_douban_score' => '12.0',
+    'vod_score' => '7.0',
+]);
+if ($invalidCalibration !== ['vod_douban_score' => 0, 'vod_score' => 0]) {
+    fwrite(STDERR, "Invalid Douban scores should be reset by one bounded video task\n");
+    exit(1);
+}
+$mirroredCalibration = $calibrationUpdatesMethod->invoke(null, [
+    'vod_douban_score' => '8.8',
+    'vod_score' => '7.0',
+]);
+if ($mirroredCalibration !== ['vod_score' => '8.8']) {
+    fwrite(STDERR, "Valid Douban scores should be mirrored without changing the source score\n");
+    exit(1);
+}
+$resetCalibration = $calibrationUpdatesMethod->invoke(null, [
+    'vod_douban_score' => '0.0',
+    'vod_score' => '7.0',
+]);
+if ($resetCalibration !== ['vod_score' => 0]) {
+    fwrite(STDERR, "Missing Douban scores should clear only the mirrored score\n");
+    exit(1);
+}
+$noopCalibration = $calibrationUpdatesMethod->invoke(null, [
+    'vod_douban_score' => '9.4',
+    'vod_score' => '9.4',
+]);
+if ($noopCalibration !== []) {
+    fwrite(STDERR, "Already calibrated videos should not produce a write\n");
     exit(1);
 }
 

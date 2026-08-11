@@ -164,7 +164,7 @@ SET `config_value` = 'internal', `updated_at` = UNIX_TIMESTAMP()
 WHERE `config_key` = 'douban_endpoint'
   AND `config_value` = '/extend/douban.php';
 
-INSERT IGNORE INTO `__PREFIX__vodops_lock` (`lock_name`) VALUES ('scan_start');
+INSERT IGNORE INTO `__PREFIX__vodops_lock` (`lock_name`) VALUES ('scan_start'), ('douban_enqueue');
 
 CREATE TABLE IF NOT EXISTS `__PREFIX__vodops_scan` (
   `run_id` int(10) unsigned NOT NULL AUTO_INCREMENT,

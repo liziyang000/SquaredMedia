@@ -21,12 +21,14 @@ $required = [
     'addons/vodops/config.php',
     'addons/vodops/info.ini',
     'addons/vodops/install.sql',
+    'addons/vodops/schema.php',
     'addons/vodops/application/admin/controller/Douban.php',
     'addons/vodops/application/admin/controller/Vodops.php',
     'addons/vodops/application/admin/view_new/vodops/index.html',
     'addons/vodops/backend/DoubanController.php',
     'addons/vodops/bin/vodops-worker.php',
     'addons/vodops/service/DoubanAiReviewer.php',
+    'addons/vodops/service/DoubanActionException.php',
     'addons/vodops/service/DoubanData.php',
     'addons/vodops/service/DoubanGateway.php',
     'addons/vodops/service/DoubanMatcher.php',
@@ -61,6 +63,15 @@ foreach (['repairInfo', 'applyRepair', 'recheckIssue', 'rollbackRepair'] as $act
 vodops_contract_match('/catch \(VodQualityActionException \$e\)/', $controller, 'Expected category conflicts should remain actionable without exposing internal errors.');
 vodops_contract_match('/catch \(VodQualityRepairException \$e\)/', $controller, 'Expected repair conflicts should remain actionable without exposing internal errors.');
 
+$doubanController = file_get_contents($root . '/addons/vodops/backend/DoubanController.php');
+vodops_contract_match('/class DoubanController extends Base/', $doubanController, 'Douban actions must inherit native MacCMS admin authorization.');
+if (preg_match('/model\([\'\"]Admin[\'\"]\)->checkLogin/', $doubanController)) {
+    vodops_contract_fail('Douban must not replace action authorization with a login-only check.');
+}
+vodops_contract_match('/instanceof DoubanActionException[\s\S]*?409/', $doubanController, 'Expected Douban conflicts should remain actionable.');
+vodops_contract_match('/logFailure\(\'豆瓣操作\'[\s\S]*?豆瓣操作失败，请查看服务端日志/', $doubanController, 'Unexpected Douban failures must remain server-log only.');
+vodops_contract_match('/trace\(/', $doubanController, 'Unexpected Douban failures must be written to the server log.');
+
 $hook = file_get_contents($root . '/addons/vodops/Vodops.php');
 if (strpos($hook, 'responseEnd') !== false || strpos($hook, 'runTrafficChunk') !== false) {
     vodops_contract_fail('Vodops must not query scan state from every front-end response.');
@@ -82,6 +93,8 @@ vodops_contract_match('/history\.scope_label\|htmlspecialchars/', $view, 'Persis
 vodops_contract_match('/id="vodopsWorkerMode"[\s\S]*?worker_mode/', $view, 'The administrator must explicitly control CLI worker continuation.');
 vodops_contract_match('/runner_state_label/', $view, 'The admin page should expose worker heartbeat and recovery state.');
 vodops_contract_match('/douban\/index/', $view, 'The unified navigation should expose the absorbed Douban module.');
+$doubanView = file_get_contents($root . '/addons/vodops/view/index/index.html');
+vodops_contract_match('/X-CSRF-Token/', $doubanView, 'Douban Ajax requests should forward the native admin CSRF token when available.');
 if (preg_match('/\{volist\s+name="issue_types"/', $view)) {
     vodops_contract_fail('Associative issue type maps must use foreach because ThinkPHP volist applies modulo to string keys on PHP 8.');
 }
@@ -125,6 +138,41 @@ if (preg_match('/\b(?:DROP|DELETE|UPDATE|OPTIMIZE|REPAIR|RENAME|TRUNCATE)\b/i', 
 }
 foreach (['execution_mode', 'lease_until', 'next_run_at'] as $column) {
     vodops_contract_match('/information_schema\.COLUMNS[\s\S]*?COLUMN_NAME = \'' . $column . '\'[\s\S]*?ALTER TABLE `__PREFIX__vodops_scan` ADD COLUMN `' . $column . '`/', $sql, 'Existing installations must add worker column idempotently: ' . $column);
+}
+$schema = include $root . '/addons/vodops/schema.php';
+foreach ([
+    'douban_config' => ['config_key', 'config_value', 'updated_at'],
+    'douban_vod_meta' => ['vod_id', 'douban_id', 'douban_review_status', 'douban_ignore_until', 'updated_at'],
+    'douban_task' => ['task_id', 'vod_id', 'task_type', 'status', 'run_after', 'attempts', 'payload', 'updated_at'],
+    'douban_log' => ['log_id', 'vod_id', 'action', 'old_values', 'new_values', 'reason', 'operator', 'created_at'],
+    'douban_review_candidate' => ['id', 'vod_id', 'douban_id', 'score_total', 'score_detail', 'conflicts', 'rank'],
+    'douban_scan' => ['scan_id', 'status', 'high_water_vod_id', 'cursor_vod_id', 'batch_lock_until'],
+    'douban_scan_issue' => ['issue_id', 'scan_id', 'vod_id', 'issue_code', 'snapshot'],
+] as $table => $requiredColumns) {
+    if (!isset($schema[$table]) || array_diff($requiredColumns, $schema[$table])) {
+        vodops_contract_fail('Douban compatibility schema is incomplete for ' . $table);
+    }
+}
+foreach ($schema as $table => $requiredColumns) {
+    if (!preg_match('/CREATE TABLE IF NOT EXISTS `__PREFIX__' . $table . '` \(([\s\S]*?)\) ENGINE=InnoDB/', $sql, $tableMatch)) {
+        vodops_contract_fail('Douban compatibility schema has no matching install table: ' . $table);
+    }
+    preg_match_all('/^\s*`([a-z_]+)`\s+/m', $tableMatch[1], $columnMatches);
+    if (($columnMatches[1] ?? []) !== $requiredColumns) {
+        vodops_contract_fail('Douban compatibility schema must exactly match install.sql columns for ' . $table);
+    }
+}
+
+$doubanData = file_get_contents($root . '/addons/vodops/service/DoubanData.php');
+vodops_contract_match('/ACTION_AUTO_SYNC_PENDING/', $doubanData, 'Douban source writes must create a pending audit first.');
+vodops_contract_match('/conditionalVodUpdate\(\$vodId, \$oldValues, \$updates\)/', $doubanData, 'Douban source writes must use audited old values as optimistic guards.');
+vodops_contract_match('/ACTION_AUTO_SYNC_CONFLICT/', $doubanData, 'Rejected stale Douban writes must remain auditable.');
+vodops_contract_match('/failureMessage\(\$e, \'任务执行失败，请查看服务端日志\'\)[\s\S]*?\'last_error\'\s*=>\s*\$message/', $doubanData, 'Worker task state must not expose unexpected backend exception details.');
+vodops_contract_match('/failureMessage\(\$e, \'体检批次执行失败，请查看服务端日志\'\)[\s\S]*?\'error_message\'\s*=>\s*\$failureMessage/', $doubanData, 'Audit task state must not expose unexpected backend exception details.');
+vodops_contract_match('/withEnqueueLock[\s\S]*?LOCK_TABLE[\s\S]*?lock\(true\)/', $doubanData, 'Concurrent task generation must serialize on the plugin lock table.');
+vodops_contract_match('/TASK_CALIBRATE\s*=\s*\'CALIBRATE_SCORE\'/', $doubanData, 'Score calibration must use the bounded task queue.');
+if (preg_match('/UPDATE \{\$vodTable\} SET vod_(?:douban_)?score/', $doubanData)) {
+    vodops_contract_fail('Score calibration must not execute whole-table score updates.');
 }
 $allowedAlterColumns = ['scope_json', 'execution_mode', 'lease_until', 'next_run_at'];
 preg_match_all('/ALTER TABLE `__PREFIX__vodops_scan` ADD COLUMN `([a-z_]+)`/', $sql, $alterMatches);
@@ -215,6 +263,15 @@ vodops_contract_match('/for required_file in[\s\S]*?"bin\/vodops-worker\.php"[\s
 vodops_contract_match('/crontab -l[\s\S]*?flock[\s\S]*?vodops-worker[\s\S]*?crontab/', $deployScript, 'SSH deployment must install an idempotent single-instance worker cron entry.');
 vodops_contract_match('/install_vodops_addon\(\)[\s\S]*?install_vodops_worker_cron preflight[\s\S]*?rm -rf "\$addon_dir"/', $deployScript, 'Cron availability must be checked before the remote addon is replaced.');
 vodops_contract_match('/scan_start[\s\S]*?mutex row verification failed/', $deployScript, 'SSH deployment must verify the installed scan mutex row.');
+vodops_contract_match('/douban_enqueue[\s\S]*?mutex row verification failed/', $deployScript, 'SSH deployment must verify the task-enqueue mutex row.');
+vodops_contract_match('/VodOps Douban schema preflight failed/', $deployScript, 'SSH deployment must report incompatible legacy Douban tables before replacement.');
+vodops_contract_match('/VODOPS_STAGED_ADDON[\s\S]*?SELECT ENGINE FROM information_schema\.TABLES[\s\S]*?information_schema\.COLUMNS[\s\S]*?array_diff/', $deployScript, 'The preflight must check existing table engines and required columns from the staged manifest.');
+$vodopsInstallStart = strpos($deployScript, 'install_vodops_addon()');
+$vodopsPreflight = strpos($deployScript, 'VodOps Douban schema preflight failed', $vodopsInstallStart);
+$vodopsReplace = strpos($deployScript, 'rm -rf "$addon_dir"', $vodopsInstallStart);
+if ($vodopsPreflight === false || $vodopsReplace === false || $vodopsPreflight > $vodopsReplace) {
+    vodops_contract_fail('Douban schema preflight must run before replacing the installed addon.');
+}
 vodops_contract_match('/COLUMN_NAME = \?[\s\S]*?scope_json[\s\S]*?scope column verification failed/', $deployScript, 'SSH deployment must verify the category-scope migration.');
 foreach (['execution_mode', 'lease_until', 'next_run_at'] as $column) {
     vodops_contract_match('/COLUMN_NAME = \?[\s\S]*?' . $column . '/', $deployScript, 'SSH deployment must verify worker column: ' . $column);

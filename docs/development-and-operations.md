@@ -151,7 +151,7 @@ source scripts/deploy-ping2.env
 npm run deploy:vodops
 ```
 
-`deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装一个 `vodops`：先把现有 VodOps/豆瓣目录及其应用载荷写入同一个 `vodops.backup.*` 迁移快照，成功后停用独立 `addons/douban` 和旧公开豆瓣桥接，再保留旧 VodOps 配置值，增量创建并校验五张 `vodops_*` 和七张兼容保留的 `douban_*` 表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，归并旧快捷菜单、移除旧版 `response_end` hook，安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器，也不会删除旧豆瓣数据。
+`deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装一个 `vodops`：先只读检查现有七张 `douban_*` 表的 InnoDB 引擎和必要字段，兼容后才把 VodOps/豆瓣目录及其应用载荷写入同一个 `vodops.backup.*` 迁移快照；随后停用独立 `addons/douban` 和旧公开豆瓣桥接，保留旧 VodOps 配置值，增量创建并校验五张 `vodops_*` 和七张兼容保留的 `douban_*` 表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，归并旧快捷菜单、移除旧版 `response_end` hook，安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器，也不会删除旧豆瓣数据；旧表引擎或字段不兼容时会在替换任何插件文件前停止并列出缺口。
 
 发布顺序如下：
 
@@ -160,7 +160,7 @@ npm run deploy:vodops
 3. 上传主题、`pingfangdevice` 与 `vodops` 归档到远端临时路径。
 4. 先安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
 5. 把旧插件配置中仍存在的同名设置值合并到新配置，避免主题发布清空设备限制或联机签名密钥。
-6. 安装并验证合并后的 `vodops`：用同一时间戳快照旧 VodOps/豆瓣目录和应用载荷，停用独立豆瓣目录及旧公开桥接，保留已有配置，创建或复用五张 `vodops_*` 与七张 `douban_*` 表，幂等补齐分类范围与 Worker 字段并实际查询验证扫描锁行，移除旧 `response_end` hook，安装由 `flock` 防重入的每分钟 Cron，并把旧 VodOps/豆瓣菜单归并为一个“视频数据中心”入口。
+6. 安装并验证合并后的 `vodops`：先只读核对旧 `douban_*` 必要字段，再用同一时间戳快照旧 VodOps/豆瓣目录和应用载荷，停用独立豆瓣目录及旧公开桥接，保留已有配置，创建或复用五张 `vodops_*` 与七张 `douban_*` 表，幂等补齐分类范围与 Worker 字段并实际查询验证扫描锁、豆瓣入队锁，移除旧 `response_end` hook，安装由 `flock` 防重入的每分钟 Cron，并把旧 VodOps/豆瓣菜单归并为一个“视频数据中心”入口。
 7. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录。
 8. 默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
 9. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。

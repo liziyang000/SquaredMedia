@@ -1,47 +1,52 @@
 <?php
 
-namespace think {
-    class Request
+namespace app\admin\controller {
+    class Base
     {
-        private $actionName;
-        public $routeData = [];
+        public $_admin = ['admin_id' => 7];
+        public $baseInitialized = false;
+        public $view;
 
-        public function __construct(string $actionName = 'index')
+        public function __construct()
         {
-            $this->actionName = $actionName;
+            $this->baseInitialized = true;
+            $this->view = new class {
+                public $path = '';
+
+                public function config($name, $value)
+                {
+                    if ($name === 'view_path') {
+                        $this->path = $value;
+                    }
+                }
+            };
         }
 
-        public static function instance()
+        public function assign($name, $value)
         {
-            return new self();
         }
 
-        public function action()
+        public function fetch($template = '')
         {
-            return $this->actionName;
-        }
-
-        public function route(array $route)
-        {
-            $this->routeData = $route;
-            return $this;
-        }
-    }
-}
-
-namespace think\addons {
-    class Controller
-    {
-        public $parentRequest;
-
-        public function __construct(?\think\Request $request = null)
-        {
-            $this->parentRequest = $request;
+            return $template;
         }
     }
 }
 
 namespace {
+    $doubanControllerTraces = [];
+
+    function json($data, $status = 200)
+    {
+        return ['status' => $status, 'data' => $data];
+    }
+
+    function trace($message, $level = '')
+    {
+        global $doubanControllerTraces;
+        $doubanControllerTraces[] = [$message, $level];
+    }
+
     function failControllerTest(string $message): void
     {
         fwrite(STDERR, $message . "\n");
@@ -49,23 +54,19 @@ namespace {
     }
 
     $root = dirname(__DIR__);
+    require $root . '/addons/vodops/service/DoubanActionException.php';
     require $root . '/addons/vodops/backend/DoubanController.php';
     require $root . '/addons/vodops/application/admin/controller/Douban.php';
 
-    $request = new \think\Request('previewCalibration');
-    $controller = new \app\admin\controller\Douban($request);
+    $controller = new \app\admin\controller\Douban();
     if (!$controller instanceof \addons\vodops\backend\DoubanController) {
         failControllerTest('Admin controller should inherit the private backend implementation');
     }
-    if ($controller->parentRequest !== $request) {
-        failControllerTest('Admin controller should pass the same request to the addon base controller');
+    if (!$controller instanceof \app\admin\controller\Base || !$controller->baseInitialized) {
+        failControllerTest('Douban actions must run through the native MacCMS admin permission base');
     }
-    if ($request->routeData !== [
-        'addon' => 'vodops',
-        'controller' => 'index',
-        'action' => 'previewCalibration',
-    ]) {
-        failControllerTest('Admin controller should bind the expected addon view route');
+    if ($controller->view->path !== $root . '/addons/vodops/view/') {
+        failControllerTest('Douban should configure its private addon view path explicitly');
     }
 
     $backend = new ReflectionClass(\addons\vodops\backend\DoubanController::class);
@@ -97,14 +98,38 @@ namespace {
         }
     }
     $backendSource = file_get_contents($root . '/addons/vodops/backend/DoubanController.php');
-    if (!preg_match('/public function exportAudit\(\)[\s\S]*?if \(!\$this->isAdmin\(\)\)[\s\S]*?DoubanData::auditIssueExportBatch/', $backendSource)) {
-        failControllerTest('Audit CSV export should verify the administrator session before reading report rows');
+    $bridgeSource = file_get_contents($root . '/addons/vodops/application/admin/controller/Douban.php');
+    if (!preg_match('/class DoubanController extends Base/', $backendSource)
+        || !preg_match('/public function __construct\(\)[\s\S]*?parent::__construct\(\)/', $backendSource)
+        || preg_match('/model\([\'\"]Admin[\'\"]\)->checkLogin/', $backendSource)) {
+        failControllerTest('Douban should use the native Base constructor and action authorization instead of performing login-only checks');
+    }
+    if (preg_match('/->route\s*\(/', $bridgeSource)) {
+        failControllerTest('Douban must not rewrite the native controller route used by action permissions');
     }
     $csvCell = $backend->getMethod('csvCell');
     $csvCell->setAccessible(true);
     if ($csvCell->invoke($controller, '=WEBSERVICE("https://example.invalid")') !== '\'=WEBSERVICE("https://example.invalid")'
         || $csvCell->invoke($controller, '普通影片') !== '普通影片') {
         failControllerTest('Audit CSV export should neutralize spreadsheet formulas without changing normal text');
+    }
+
+    $errorJson = $backend->getMethod('errorJson');
+    $errorJson->setAccessible(true);
+    $internalError = $errorJson->invoke($controller, new \RuntimeException('SQLSTATE sensitive failure'));
+    if (($internalError['status'] ?? 0) !== 500
+        || ($internalError['data']['msg'] ?? '') !== '豆瓣操作失败，请查看服务端日志。'
+        || strpos((string) ($internalError['data']['msg'] ?? ''), 'SQLSTATE') !== false
+        || empty($doubanControllerTraces)) {
+        failControllerTest('Unexpected backend failures must be logged without exposing internal exception messages');
+    }
+    $actionError = $errorJson->invoke(
+        $controller,
+        new \addons\vodops\service\DoubanActionException('视频数据已变化，请刷新后重试。')
+    );
+    if (($actionError['status'] ?? 0) !== 409
+        || ($actionError['data']['msg'] ?? '') !== '视频数据已变化，请刷新后重试。') {
+        failControllerTest('Expected data conflicts should remain actionable to administrators');
     }
 
     if (is_file($root . '/addons/vodops/application/index/controller/Douban.php')) {

@@ -415,12 +415,14 @@ install_vodops_addon() {
     "Vodops.php" \
     "info.ini" \
     "install.sql" \
+    "schema.php" \
     "application/admin/controller/Douban.php" \
     "application/admin/controller/Vodops.php" \
     "application/admin/view_new/vodops/index.html" \
     "backend/DoubanController.php" \
     "bin/vodops-worker.php" \
     "service/DoubanAiReviewer.php" \
+    "service/DoubanActionException.php" \
     "service/DoubanData.php" \
     "service/DoubanGateway.php" \
     "service/DoubanMatcher.php" \
@@ -437,6 +439,68 @@ install_vodops_addon() {
   while IFS= read -r -d '' php_file; do
     php -l "$php_file" >/dev/null
   done < <(find "$tmp_dir/$VODOPS_ADDON_NAME" -type f -name '*.php' -print0)
+
+  MACCMS_ROOT="$maccms_root" VODOPS_STAGED_ADDON="$tmp_dir/$VODOPS_ADDON_NAME" php <<'PHP_VODOPS_SCHEMA_PREFLIGHT'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$stagedAddon = rtrim(getenv('VODOPS_STAGED_ADDON'), '/');
+$dbFile = $root . '/application/database.php';
+$schemaFile = $stagedAddon . '/schema.php';
+if (!is_file($dbFile) || !is_file($schemaFile)) {
+    file_put_contents('php://stderr', "MacCMS database config or VodOps schema manifest is missing.\n");
+    exit(1);
+}
+$db = include $dbFile;
+$schema = include $schemaFile;
+if (!is_array($db) || !is_array($schema)) {
+    file_put_contents('php://stderr', "MacCMS database config or VodOps schema manifest is invalid.\n");
+    exit(1);
+}
+$prefix = isset($db['prefix']) ? $db['prefix'] : '';
+$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
+    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+    $db['hostname'] ?? '127.0.0.1',
+    $db['hostport'] ?? '3306',
+    $db['database'] ?? '',
+    $db['charset'] ?? 'utf8'
+);
+$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+]);
+$tableCheck = $pdo->prepare(
+    'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+);
+$columnQuery = $pdo->prepare(
+    'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+);
+$incompatible = [];
+foreach ($schema as $table => $requiredColumns) {
+    $tableName = $prefix . $table;
+    $tableCheck->execute([$tableName]);
+    $engine = $tableCheck->fetchColumn();
+    if ($engine === false) {
+        continue;
+    }
+    if (strtolower((string)$engine) !== 'innodb') {
+        $incompatible[] = $tableName . ': ENGINE=' . (string)$engine . ', expected InnoDB';
+    }
+    $columnQuery->execute([$tableName]);
+    $actualColumns = array_map('strtolower', $columnQuery->fetchAll(PDO::FETCH_COLUMN));
+    $missing = array_values(array_diff($requiredColumns, $actualColumns));
+    if (!empty($missing)) {
+        $incompatible[] = $tableName . ': ' . implode(',', $missing);
+    }
+}
+if (!empty($incompatible)) {
+    file_put_contents(
+        'php://stderr',
+        "VodOps Douban schema preflight failed; no addon files were replaced. Incompatible legacy schema:\n- " .
+        implode("\n- ", $incompatible) .
+        "\nBack up and migrate the listed legacy tables before retrying.\n"
+    );
+    exit(1);
+}
+PHP_VODOPS_SCHEMA_PREFLIGHT
 
   stamp="$(date +%Y%m%d%H%M%S)"
   backup="${VODOPS_ADDON_NAME}.backup.${stamp}"
@@ -632,6 +696,16 @@ foreach ([
     }
 }
 $columnCheck = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+$schema = include $root . '/addons/' . $addon . '/schema.php';
+foreach ($schema as $table => $requiredColumns) {
+    foreach ($requiredColumns as $column) {
+        $columnCheck->execute([$prefix . $table, $column]);
+        if ((int)$columnCheck->fetchColumn() !== 1) {
+            file_put_contents('php://stderr', "Vodops retained schema verification failed: {$table}.{$column}.\n");
+            exit(1);
+        }
+    }
+}
 $columnCheck->execute([$prefix . 'vodops_scan', 'scope_json']);
 if ((int)$columnCheck->fetchColumn() !== 1) {
     file_put_contents('php://stderr', "Vodops scope column verification failed.\n");
@@ -650,10 +724,12 @@ if (!preg_match('/^[A-Za-z0-9_]+$/', $lockTable)) {
     exit(1);
 }
 $lockCheck = $pdo->prepare("SELECT COUNT(*) FROM `{$lockTable}` WHERE `lock_name` = ?");
-$lockCheck->execute(['scan_start']);
-if ((int)$lockCheck->fetchColumn() !== 1) {
-    file_put_contents('php://stderr', "Vodops mutex row verification failed.\n");
-    exit(1);
+foreach (['scan_start', 'douban_enqueue'] as $lockName) {
+    $lockCheck->execute([$lockName]);
+    if ((int)$lockCheck->fetchColumn() !== 1) {
+        file_put_contents('php://stderr', "Vodops mutex row verification failed: {$lockName}.\n");
+        exit(1);
+    }
 }
 PHP_VODOPS_SQL
 
@@ -711,6 +787,7 @@ PHP_VODOPS_HOOK
   php -l "$addon_dir/service/DoubanData.php" >/dev/null
   php -l "$addon_dir/service/VodQualityScanner.php" >/dev/null
   grep -Fq 'X-CSRF-Token' "$view_target"
+  grep -Fq 'X-CSRF-Token' "$addon_dir/view/index/index.html"
   grep -Fq '同步不会修改现有图片' "$addon_dir/view/index/index.html"
   install_vodops_worker_cron
 

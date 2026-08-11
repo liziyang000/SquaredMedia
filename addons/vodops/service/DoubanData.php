@@ -8,6 +8,7 @@ class DoubanData
 {
     private const VOD_TABLE = 'vod';
     private const TYPE_TABLE = 'type';
+    private const LOCK_TABLE = 'vodops_lock';
     private const CONFIG_TABLE = 'douban_config';
     private const META_TABLE = 'douban_vod_meta';
     private const TASK_TABLE = 'douban_task';
@@ -21,10 +22,14 @@ class DoubanData
     private const AUDIT_START_LOCK_KEY = 'audit_start_lock';
     private const MANUAL_RETRY_AT = 2147483647;
     private const AUDIT_LOCK_SECONDS = 120;
+    private const CALIBRATION_BATCH_SIZE = 500;
 
     private const TASK_SYNC = 'SYNC_DOUBAN';
     private const TASK_MATCH = 'MATCH_DOUBAN_ID';
+    private const TASK_CALIBRATE = 'CALIBRATE_SCORE';
     private const ACTION_AUTO_SYNC = 'AUTO_SYNC';
+    private const ACTION_AUTO_SYNC_PENDING = 'AUTO_SYNC_PENDING';
+    private const ACTION_AUTO_SYNC_CONFLICT = 'AUTO_SYNC_CONFLICT';
     private const ACTION_ROLLBACK_PIC = 'ROLLBACK_PIC';
     private static $nextLocalRequestAt = 0.0;
     private static $rateLimitStateReady = false;
@@ -155,7 +160,7 @@ class DoubanData
                 ->order('scan_id desc')
                 ->find();
             if (!empty($active)) {
-                throw new \RuntimeException('已有未完成的全库体检，请继续或暂停后恢复该任务');
+                throw new DoubanActionException('已有未完成的全库体检，请继续或暂停后恢复该任务');
             }
 
             $now = time();
@@ -180,7 +185,7 @@ class DoubanData
             ];
             $scanId = (int) Db::name(self::SCAN_TABLE)->insertGetId($scan);
             if ($scanId < 1) {
-                throw new \RuntimeException('全库体检任务创建失败');
+                throw new DoubanActionException('全库体检任务创建失败');
             }
             $scan['scan_id'] = $scanId;
             Db::commit();
@@ -203,7 +208,7 @@ class DoubanData
             return self::auditScanForView($scan);
         }
         if ($status !== 'RUNNING') {
-            throw new \RuntimeException('该体检任务未处于可执行状态，请先恢复任务');
+            throw new DoubanActionException('该体检任务未处于可执行状态，请先恢复任务');
         }
 
         $now = time();
@@ -290,7 +295,7 @@ class DoubanData
                 ->where('batch_lock_until', $lockUntil)
                 ->update($updates);
             if ($updated !== 1) {
-                throw new \RuntimeException('体检任务状态已变化，本批结果未写入');
+                throw new DoubanActionException('体检任务状态已变化，本批结果未写入');
             }
             Db::commit();
 
@@ -300,6 +305,7 @@ class DoubanData
                 Db::rollback();
             }
             $failedAt = time();
+            $failureMessage = self::failureMessage($e, '体检批次执行失败，请查看服务端日志');
             Db::name(self::SCAN_TABLE)
                 ->where('scan_id', $scanId)
                 ->where('status', 'RUNNING')
@@ -307,7 +313,7 @@ class DoubanData
                 ->update([
                     'status' => 'FAILED',
                     'batch_lock_until' => 0,
-                    'error_message' => mb_substr($e->getMessage(), 0, 255, 'UTF-8'),
+                    'error_message' => $failureMessage,
                     'updated_at' => $failedAt,
                 ]);
             throw $e;
@@ -322,7 +328,7 @@ class DoubanData
             return self::auditScanForView($scan);
         }
         if ($status !== 'RUNNING') {
-            throw new \RuntimeException('该体检任务当前无法暂停');
+            throw new DoubanActionException('该体检任务当前无法暂停');
         }
 
         $now = time();
@@ -336,7 +342,7 @@ class DoubanData
                 'updated_at' => $now,
             ]);
         if ($paused !== 1) {
-            throw new \RuntimeException('当前批次仍在处理，请在本批完成后再暂停');
+            throw new DoubanActionException('当前批次仍在处理，请在本批完成后再暂停');
         }
 
         return self::auditScanForView(array_merge($scan, [
@@ -354,7 +360,7 @@ class DoubanData
             return self::auditScanForView($scan);
         }
         if (!in_array($status, ['PAUSED', 'FAILED'], true)) {
-            throw new \RuntimeException('该体检任务已经结束，不能恢复');
+            throw new DoubanActionException('该体检任务已经结束，不能恢复');
         }
 
         Db::startTrans();
@@ -365,7 +371,7 @@ class DoubanData
                 ->where('scan_id', '<>', $scanId)
                 ->find();
             if (!empty($otherActive)) {
-                throw new \RuntimeException('已有其他未完成的全库体检，不能同时恢复当前任务');
+                throw new DoubanActionException('已有其他未完成的全库体检，不能同时恢复当前任务');
             }
 
             $now = time();
@@ -380,7 +386,7 @@ class DoubanData
                     'finished_at' => 0,
                 ]);
             if ($resumed !== 1) {
-                throw new \RuntimeException('体检任务状态已变化，请刷新页面后重试');
+                throw new DoubanActionException('体检任务状态已变化，请刷新页面后重试');
             }
             Db::commit();
 
@@ -419,7 +425,7 @@ class DoubanData
         }
         $scan = Db::name(self::SCAN_TABLE)->where('scan_id', $scanId)->find();
         if (empty($scan)) {
-            throw new \RuntimeException('体检任务不存在');
+            throw new DoubanActionException('体检任务不存在');
         }
 
         return $scan;
@@ -432,7 +438,7 @@ class DoubanData
             ->lock(true)
             ->find();
         if (empty($row)) {
-            throw new \RuntimeException('全库体检协调锁未初始化，请重新执行插件 install.sql');
+            throw new DoubanActionException('全库体检协调锁未初始化，请重新执行插件 install.sql');
         }
     }
 
@@ -764,6 +770,13 @@ class DoubanData
 
     public static function enqueueTargeted(array $input, int $operatorId = 0)
     {
+        return self::withEnqueueLock(function () use ($input, $operatorId) {
+            return self::enqueueTargetedLocked($input, $operatorId);
+        });
+    }
+
+    private static function enqueueTargetedLocked(array $input, int $operatorId)
+    {
         $filters = self::normalizeTargetedFilters($input, self::categoryRows());
         $now = time();
         $parts = self::targetedQueryParts($filters, $now);
@@ -811,6 +824,13 @@ class DoubanData
     }
 
     public static function enqueueDue(int $limit = 100, int $operatorId = 0)
+    {
+        return self::withEnqueueLock(function () use ($limit, $operatorId) {
+            return self::enqueueDueLocked($limit, $operatorId);
+        });
+    }
+
+    private static function enqueueDueLocked(int $limit, int $operatorId)
     {
         $config = self::config();
         $limit = max(1, min(500, $limit));
@@ -939,7 +959,7 @@ class DoubanData
                 }
                 $result['items'][] = $itemResult;
             } catch (\Throwable $e) {
-                $message = mb_substr($e->getMessage(), 0, 255, 'UTF-8');
+                $message = self::failureMessage($e, '任务执行失败，请查看服务端日志');
                 $failedAt = time();
                 $failureUpdate = self::taskFailureUpdate($attempts, (int) $config['max_attempts'], $failedAt);
                 $failed = Db::name(self::TASK_TABLE)
@@ -1046,7 +1066,7 @@ class DoubanData
         }
         $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
         if (empty($vod)) {
-            throw new \RuntimeException('影片不存在');
+            throw new DoubanActionException('影片不存在');
         }
         $meta = self::ensureMeta($vodId);
         if (self::resolveDoubanId($meta, $vod) !== '') {
@@ -1080,7 +1100,7 @@ class DoubanData
         }
         $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->field('vod_id,vod_name,vod_pic')->find();
         if (empty($vod)) {
-            throw new \RuntimeException('影片不存在');
+            throw new DoubanActionException('影片不存在');
         }
         $logs = self::toArray(Db::name(self::LOG_TABLE)
             ->where('vod_id', $vodId)
@@ -1090,22 +1110,25 @@ class DoubanData
             ->limit(1)
             ->select());
         $snapshot = self::rollbackPictureSnapshot($logs, (string) ($vod['vod_pic'] ?? ''));
-        $updated = Db::name(self::VOD_TABLE)
-            ->where('vod_id', $vodId)
-            ->where('vod_pic', $snapshot['before'])
-            ->update(['vod_pic' => $snapshot['after']]);
-        if ((int) $updated !== 1) {
-            throw new \RuntimeException('图片在回退前已发生变化，请刷新后重试');
-        }
-        self::recordLog(
+        $reason = '回退豆瓣同步图片，来源日志 #' . $snapshot['log_id'];
+        $logId = self::recordLog(
             $vodId,
-            self::ACTION_ROLLBACK_PIC,
+            'ROLLBACK_PIC_PENDING',
             ['vod_pic' => $snapshot['before']],
             ['vod_pic' => $snapshot['after']],
-            '回退豆瓣同步图片，来源日志 #' . $snapshot['log_id'],
+            '等待' . $reason,
             0,
             $operatorId
         );
+        if (self::conditionalVodUpdate(
+            $vodId,
+            ['vod_pic' => $snapshot['before']],
+            ['vod_pic' => $snapshot['after']]
+        ) !== 1) {
+            self::finishLog($logId, 'ROLLBACK_PIC_CONFLICT', '图片已变化，未执行回退');
+            throw new DoubanActionException('图片在回退前已发生变化，请刷新后重试');
+        }
+        self::finishLog($logId, self::ACTION_ROLLBACK_PIC, $reason);
 
         return [
             'vod_id' => $vodId,
@@ -1123,7 +1146,7 @@ class DoubanData
         }
         $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
         if (empty($vod)) {
-            throw new \RuntimeException('影片不存在');
+            throw new DoubanActionException('影片不存在');
         }
         $meta = self::ensureMeta($vodId);
         $doubanId = self::resolveDoubanId($meta, $vod);
@@ -1142,8 +1165,25 @@ class DoubanData
         foreach ($updates as $field => $value) {
             $oldValues[$field] = $vod[$field] ?? '';
         }
+        $logReason = '调用豆瓣数据接口同步资料';
+        if (!empty($warnings)) {
+            $logReason .= '；保留本地字段：' . implode(',', array_column($warnings, 'field'));
+        }
+        $logId = self::recordLog(
+            $vodId,
+            self::ACTION_AUTO_SYNC_PENDING,
+            $oldValues,
+            $updates,
+            '等待写入：' . $logReason,
+            0,
+            $operatorId
+        );
         if (!empty($updates)) {
-            Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->update($updates);
+            $updated = self::conditionalVodUpdate($vodId, $oldValues, $updates);
+            if ($updated !== 1) {
+                self::finishLog($logId, self::ACTION_AUTO_SYNC_CONFLICT, '视频数据已变化，未执行豆瓣同步');
+                throw new DoubanActionException('视频数据已变化，本次同步已停止，请刷新后重试。');
+            }
         }
 
         $now = time();
@@ -1158,11 +1198,7 @@ class DoubanData
             'douban_last_fail_at' => 0,
             'douban_last_fail_reason' => '',
         ]);
-        $logReason = '调用豆瓣数据接口同步资料';
-        if (!empty($warnings)) {
-            $logReason .= '；保留本地字段：' . implode(',', array_column($warnings, 'field'));
-        }
-        self::recordLog($vodId, self::ACTION_AUTO_SYNC, $oldValues, $updates, $logReason, 0, $operatorId);
+        self::finishLog($logId, self::ACTION_AUTO_SYNC, $logReason);
 
         return [
             'vod_id' => $vodId,
@@ -1185,15 +1221,34 @@ class DoubanData
         }
         $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
         if (empty($vod)) {
-            throw new \RuntimeException('影片不存在');
+            throw new DoubanActionException('影片不存在');
         }
+        $old = self::ensureMeta($vodId);
+        $newValues = ['douban_id' => $doubanId, 'lock' => $lock ? 1 : 0];
+        $logId = self::recordLog(
+            $vodId,
+            'MANUAL_SET_ID_PENDING',
+            $old,
+            $newValues,
+            '等待手动设置豆瓣ID',
+            100,
+            $operatorId
+        );
         if (self::columnExists(self::VOD_TABLE, 'vod_douban_id')) {
-            Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->update([
-                'vod_douban_id' => $doubanId,
-            ]);
+            $oldVodDoubanId = $vod['vod_douban_id'] ?? '';
+            if ((string) $oldVodDoubanId !== $doubanId) {
+                $updated = self::conditionalVodUpdate(
+                    $vodId,
+                    ['vod_douban_id' => $oldVodDoubanId],
+                    ['vod_douban_id' => $doubanId]
+                );
+                if ($updated !== 1) {
+                    self::finishLog($logId, 'MANUAL_SET_ID_CONFLICT', '视频数据已变化，未设置豆瓣ID');
+                    throw new DoubanActionException('视频数据已变化，本次设置已停止，请刷新后重试。');
+                }
+            }
         }
 
-        $old = self::ensureMeta($vodId);
         $now = time();
         self::updateMeta($vodId, [
             'douban_id' => $doubanId,
@@ -1205,7 +1260,7 @@ class DoubanData
             'douban_review_reason' => '',
             'douban_next_sync_at' => $now,
         ]);
-        self::recordLog($vodId, 'MANUAL_SET_ID', $old, ['douban_id' => $doubanId, 'lock' => $lock], '手动设置豆瓣ID', 100, $operatorId);
+        self::finishLog($logId, 'MANUAL_SET_ID', '手动设置豆瓣ID');
         self::resolveFailedTasks($vodId, '已由手动设置豆瓣ID解决');
         self::forgetStatsCache();
 
@@ -1272,10 +1327,7 @@ class DoubanData
 
     public static function calibrateScores(int $operatorId = 0)
     {
-        $result = self::applyScoreCalibration([]);
-        self::recordLog(0, 'CALIBRATE_SCORE', [], $result, '统一使用豆瓣评分排序', 0, $operatorId);
-
-        return $result;
+        throw new DoubanActionException('全量校准已停用，请先选择分类并预览，再生成分批校准任务。');
     }
 
     public static function calibrationCategories()
@@ -1294,18 +1346,23 @@ class DoubanData
     public static function calibrateScoresByType(array $typeIds, int $includeChildren = 1, int $operatorId = 0)
     {
         $scope = self::calibrationScope($typeIds, $includeChildren === 1);
-        $result = array_merge(self::applyScoreCalibration($scope['type_ids']), $scope);
-        self::recordLog(
-            0,
-            'CALIBRATE_TYPE_SCORE',
-            [],
-            $result,
-            '按分类校准豆瓣评分：' . implode('、', $scope['type_names']),
-            0,
-            $operatorId
-        );
+        return self::withEnqueueLock(function () use ($scope, $operatorId) {
+            $result = array_merge(
+                self::enqueueScoreCalibration($scope['type_ids'], self::CALIBRATION_BATCH_SIZE),
+                $scope
+            );
+            self::recordLog(
+                0,
+                'ENQUEUE_CALIBRATE_SCORE',
+                [],
+                $result,
+                '按分类生成豆瓣评分校准任务：' . implode('、', $scope['type_names']),
+                0,
+                $operatorId
+            );
 
-        return $result;
+            return $result;
+        });
     }
 
     private static function calibrationScope(array $typeIds, bool $includeChildren)
@@ -1453,7 +1510,7 @@ class DoubanData
     {
         if (in_array((string) ($filters['target'] ?? ''), ['missing_score', 'has_id_missing_score'], true)
             && !self::columnExists(self::VOD_TABLE, 'vod_douban_score')) {
-            throw new \RuntimeException('视频表缺少豆瓣评分字段');
+            throw new DoubanActionException('视频表缺少豆瓣评分字段');
         }
         $metaIdExpr = "CASE WHEN CAST(IFNULL(m.douban_id, '0') AS UNSIGNED) > 0 " .
             'THEN TRIM(m.douban_id) ';
@@ -1486,30 +1543,67 @@ class DoubanData
         ];
     }
 
-    private static function applyScoreCalibration(array $typeIds)
+    private static function enqueueScoreCalibration(array $typeIds, int $limit)
     {
         self::assertScoreColumns();
+        $limit = max(1, min(self::CALIBRATION_BATCH_SIZE, $limit));
         $vodTable = self::quoteTable(self::tableName(self::VOD_TABLE));
+        $taskTable = self::quoteTable(self::tableName(self::TASK_TABLE));
         [$scopePredicate, $bind] = self::scoreCalibrationScopeSql($typeIds);
         $scopeSql = $scopePredicate === '' ? '' : $scopePredicate . ' AND ';
-        $invalidReset = Db::execute(
-            "UPDATE {$vodTable} SET vod_douban_score = 0, vod_score = 0 " .
-            "WHERE {$scopeSql}(vod_douban_score < 0 OR vod_douban_score > 10)",
+        $rows = self::toArray(Db::query(
+            "SELECT v.vod_id FROM {$vodTable} v WHERE {$scopeSql}" .
+            '((v.vod_douban_score < 0 OR v.vod_douban_score > 10) ' .
+            'OR (v.vod_douban_score > 0 AND v.vod_douban_score <= 10 AND IFNULL(v.vod_score, 0) <> v.vod_douban_score) ' .
+            'OR (IFNULL(v.vod_douban_score, 0) = 0 AND IFNULL(v.vod_score, 0) <> 0)) ' .
+            "AND NOT EXISTS (SELECT 1 FROM {$taskTable} t WHERE t.vod_id = v.vod_id " .
+            "AND t.task_type = '" . self::TASK_CALIBRATE . "' AND t.status IN ('PENDING','RUNNING','FAILED')) " .
+            'ORDER BY v.vod_id ASC LIMIT ' . $limit,
             $bind
-        );
-        $mirrored = Db::execute(
-            "UPDATE {$vodTable} SET vod_score = vod_douban_score " .
-            "WHERE {$scopeSql}vod_douban_score > 0 AND vod_douban_score <= 10 " .
-            "AND IFNULL(vod_score, 0) <> vod_douban_score",
-            $bind
-        );
-        $reset = Db::execute(
-            "UPDATE {$vodTable} SET vod_score = 0 " .
-            "WHERE {$scopeSql}IFNULL(vod_douban_score, 0) = 0 AND IFNULL(vod_score, 0) <> 0",
-            $bind
-        );
+        ));
+        $now = time();
+        $taskRows = [];
+        foreach ($rows as $row) {
+            $vodId = (int) ($row['vod_id'] ?? 0);
+            if ($vodId < 1) {
+                continue;
+            }
+            $taskRows[] = [
+                'vod_id' => $vodId,
+                'task_type' => self::TASK_CALIBRATE,
+                'status' => 'PENDING',
+                'priority' => 1,
+                'run_after' => $now,
+                'attempts' => 0,
+                'payload' => '{}',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        self::insertTaskRows($taskRows);
 
-        return ['invalid_reset' => (int) $invalidReset, 'mirrored' => (int) $mirrored, 'reset' => (int) $reset];
+        return [
+            'created' => count($taskRows),
+            'batch_limit' => $limit,
+            'requires_worker' => true,
+        ];
+    }
+
+    private static function calibrationUpdates(array $vod)
+    {
+        $doubanScore = (float) ($vod['vod_douban_score'] ?? 0);
+        $localScore = (float) ($vod['vod_score'] ?? 0);
+        if ($doubanScore < 0 || $doubanScore > 10) {
+            return ['vod_douban_score' => 0, 'vod_score' => 0];
+        }
+        if ($doubanScore > 0 && $localScore !== $doubanScore) {
+            return ['vod_score' => (string) ($vod['vod_douban_score'] ?? $doubanScore)];
+        }
+        if ($doubanScore === 0.0 && $localScore !== 0.0) {
+            return ['vod_score' => 0];
+        }
+
+        return [];
     }
 
     private static function scoreCalibrationPreview(array $typeIds)
@@ -1557,7 +1651,7 @@ class DoubanData
     private static function assertScoreColumns()
     {
         if (!self::columnExists(self::VOD_TABLE, 'vod_douban_score') || !self::columnExists(self::VOD_TABLE, 'vod_score')) {
-            throw new \RuntimeException('视频表缺少豆瓣评分字段');
+            throw new DoubanActionException('视频表缺少豆瓣评分字段');
         }
     }
 
@@ -1684,6 +1778,9 @@ class DoubanData
         if ((int) ($meta['douban_ignore_until'] ?? 0) > time()) {
             return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '影片仍在忽略期内'];
         }
+        if ($taskType === self::TASK_CALIBRATE) {
+            return self::calibrateVod($vodId, $operatorId);
+        }
         if ($taskType === self::TASK_SYNC) {
             return self::syncVodWithConfig($vodId, $operatorId, $config);
         }
@@ -1694,11 +1791,50 @@ class DoubanData
         return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '未知任务类型'];
     }
 
+    private static function calibrateVod(int $vodId, int $operatorId)
+    {
+        $vod = Db::name(self::VOD_TABLE)
+            ->where('vod_id', $vodId)
+            ->field('vod_id,vod_name,vod_douban_score,vod_score')
+            ->find();
+        if (empty($vod)) {
+            throw new DoubanActionException('影片不存在');
+        }
+        $updates = self::calibrationUpdates((array) $vod);
+        if (empty($updates)) {
+            return ['vod_id' => $vodId, 'skipped' => true, 'msg' => '评分已经一致'];
+        }
+        $oldValues = [];
+        foreach ($updates as $field => $value) {
+            $oldValues[$field] = $vod[$field] ?? '';
+        }
+        $logId = self::recordLog(
+            $vodId,
+            'CALIBRATE_SCORE_PENDING',
+            $oldValues,
+            $updates,
+            '等待分批校准豆瓣评分',
+            0,
+            $operatorId
+        );
+        if (self::conditionalVodUpdate($vodId, $oldValues, $updates) !== 1) {
+            self::finishLog($logId, 'CALIBRATE_SCORE_CONFLICT', '视频评分已变化，未执行本次校准');
+            throw new DoubanActionException('视频评分已变化，本批任务将按最新数据重试。');
+        }
+        self::finishLog($logId, self::TASK_CALIBRATE, '分批校准豆瓣评分');
+
+        return [
+            'vod_id' => $vodId,
+            'vod_name' => (string) ($vod['vod_name'] ?? ''),
+            'updated_fields' => array_keys($updates),
+        ];
+    }
+
     private static function matchVod(int $vodId, int $operatorId, array $config, bool $allowAiReview = false)
     {
         $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
         if (empty($vod)) {
-            throw new \RuntimeException('影片不存在');
+            throw new DoubanActionException('影片不存在');
         }
         $meta = self::ensureMeta($vodId);
         if (self::resolveDoubanId($meta, $vod) !== '') {
@@ -2245,6 +2381,26 @@ class DoubanData
             ]);
     }
 
+    private static function withEnqueueLock(callable $callback)
+    {
+        Db::startTrans();
+        try {
+            $lock = Db::name(self::LOCK_TABLE)
+                ->where('lock_name', 'douban_enqueue')
+                ->lock(true)
+                ->find();
+            if (empty($lock)) {
+                throw new DoubanActionException('任务队列协调锁未初始化，请重新执行插件 install.sql');
+            }
+            $result = $callback();
+            Db::commit();
+            return $result;
+        } catch (\Throwable $e) {
+            Db::rollback();
+            throw $e;
+        }
+    }
+
     private static function insertTaskRows(array $rows)
     {
         if (empty($rows)) {
@@ -2280,7 +2436,7 @@ class DoubanData
     {
         $endpoint = trim((string) ($config['douban_endpoint'] ?? ''));
         if ($endpoint === '') {
-            throw new \RuntimeException('未配置豆瓣数据接口');
+            throw new DoubanActionException('未配置豆瓣数据接口');
         }
         self::throttleRequests($config);
         if ($endpoint === 'internal' || $endpoint === '/extend/douban.php') {
@@ -2296,7 +2452,7 @@ class DoubanData
     {
         $endpoint = trim((string) ($config['douban_endpoint'] ?? ''));
         if ($endpoint === '') {
-            throw new \RuntimeException('未配置豆瓣数据接口');
+            throw new DoubanActionException('未配置豆瓣数据接口');
         }
         self::throttleRequests($config);
         if ($endpoint === 'internal' || $endpoint === '/extend/douban.php') {
@@ -2322,14 +2478,14 @@ class DoubanData
         ]);
         $raw = @file_get_contents($url, false, $context);
         if ($raw === false || trim($raw) === '') {
-            throw new \RuntimeException('豆瓣数据接口无响应');
+            throw new DoubanActionException('豆瓣数据接口无响应');
         }
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) {
-            throw new \RuntimeException('豆瓣数据接口返回内容不是 JSON');
+            throw new DoubanActionException('豆瓣数据接口返回内容不是 JSON');
         }
         if (isset($decoded['code']) && (int) $decoded['code'] !== 1 && empty($decoded['data'])) {
-            throw new \RuntimeException((string) ($decoded['msg'] ?? '豆瓣数据接口返回失败'));
+            throw new DoubanActionException('豆瓣数据接口返回失败');
         }
         if (isset($decoded['data']) && is_array($decoded['data'])) {
             return $decoded['data'];
@@ -2345,11 +2501,11 @@ class DoubanData
         } elseif (str_starts_with($endpoint, '/')) {
             $siteUrl = self::siteUrl();
             if ($siteUrl === '') {
-                throw new \RuntimeException('相对豆瓣数据接口地址需要配置站点 URL');
+                throw new DoubanActionException('相对豆瓣数据接口地址需要配置站点 URL');
             }
             $url = rtrim($siteUrl, '/') . $endpoint;
         } else {
-            throw new \RuntimeException('豆瓣数据接口地址必须是完整 URL 或以 / 开头');
+            throw new DoubanActionException('豆瓣数据接口地址必须是完整 URL 或以 / 开头');
         }
 
         return $url . (strpos($url, '?') === false ? '?' : '&') . http_build_query($query);
@@ -2378,7 +2534,7 @@ class DoubanData
                 ->where('config_key', self::RATE_LIMIT_STATE_KEY)->lock(true)
                 ->find();
             if (empty($row)) {
-                throw new \RuntimeException('限流状态不存在');
+                throw new DoubanActionException('限流状态不存在');
             }
             $reservation = self::requestReservation($now, (float) ($row['config_value'] ?? 0), $interval);
             $updated = Db::name(self::CONFIG_TABLE)
@@ -2388,7 +2544,7 @@ class DoubanData
                     'updated_at' => time(),
                 ]);
             if ((int) $updated !== 1) {
-                throw new \RuntimeException('限流状态更新失败');
+                throw new DoubanActionException('限流状态更新失败');
             }
             Db::commit();
             self::$nextLocalRequestAt = $reservation['next_available_at'];
@@ -2436,14 +2592,14 @@ class DoubanData
     {
         $doubanId = self::normalizeDoubanId(self::extractValue($data, ['vod_douban_id', 'douban_id', 'id']));
         if ($doubanId === '') {
-            throw new \RuntimeException('豆瓣数据源未返回有效ID');
+            throw new DoubanActionException('豆瓣数据源未返回有效ID');
         }
         if ($doubanId !== self::normalizeDoubanId($expectedDoubanId)) {
-            throw new \RuntimeException('豆瓣数据源ID与请求不一致');
+            throw new DoubanActionException('豆瓣数据源ID与请求不一致');
         }
         $score = self::extractValue($data, ['vod_douban_score', 'vod_score', 'score', 'rating']);
         if ($score === '' || !is_numeric($score)) {
-            throw new \RuntimeException('豆瓣数据源未返回有效评分');
+            throw new DoubanActionException('豆瓣数据源未返回有效评分');
         }
         $score = self::normalizeDoubanScore($score);
         $data['vod_douban_id'] = $doubanId;
@@ -2580,10 +2736,10 @@ class DoubanData
                 ? (string) $oldValues['vod_pic']
                 : '';
             if ($currentPic !== $before) {
-                throw new \RuntimeException('当前图片已被再次修改，未执行回退');
+                throw new DoubanActionException('当前图片已被再次修改，未执行回退');
             }
             if (trim($after) === '') {
-                throw new \RuntimeException('该次同步前没有可回退的图片');
+                throw new DoubanActionException('该次同步前没有可回退的图片');
             }
 
             return [
@@ -2593,13 +2749,13 @@ class DoubanData
             ];
         }
 
-        throw new \RuntimeException('没有找到可回退的图片同步记录');
+        throw new DoubanActionException('没有找到可回退的图片同步记录');
     }
 
     private static function normalizeDoubanScore(string $value)
     {
         if (!is_numeric($value) || (float) $value < 0 || (float) $value > 10) {
-            throw new \RuntimeException('豆瓣评分必须在 0 到 10 之间');
+            throw new DoubanActionException('豆瓣评分必须在 0 到 10 之间');
         }
 
         return number_format((float) $value, 1, '.', '');
@@ -2706,9 +2862,33 @@ class DoubanData
         return 10;
     }
 
+    private static function conditionalVodUpdate(int $vodId, array $expected, array $updates)
+    {
+        $query = Db::name(self::VOD_TABLE)->where('vod_id', $vodId);
+        foreach ($expected as $field => $value) {
+            $query->where($field, $value);
+        }
+
+        return (int) $query->update($updates);
+    }
+
+    private static function finishLog(int $logId, string $action, string $reason)
+    {
+        if ($logId < 1) {
+            throw new DoubanActionException('审计日志创建失败，未继续执行数据写入');
+        }
+        $updated = Db::name(self::LOG_TABLE)->where('log_id', $logId)->update([
+            'action' => $action,
+            'reason' => mb_substr($reason, 0, 255, 'UTF-8'),
+        ]);
+        if ((int) $updated !== 1) {
+            throw new \RuntimeException('审计日志状态更新失败');
+        }
+    }
+
     private static function recordLog(int $vodId, string $action, array $oldValues, array $newValues, string $reason, int $score = 0, int $operatorId = 0)
     {
-        Db::name(self::LOG_TABLE)->insert([
+        $logId = (int) Db::name(self::LOG_TABLE)->insertGetId([
             'vod_id' => $vodId,
             'action' => $action,
             'old_values' => self::json($oldValues),
@@ -2718,6 +2898,23 @@ class DoubanData
             'operator' => $operatorId > 0 ? ('admin:' . $operatorId) : 'system',
             'created_at' => time(),
         ]);
+        if ($logId < 1) {
+            throw new DoubanActionException('审计日志创建失败，未继续执行数据写入');
+        }
+
+        return $logId;
+    }
+
+    private static function failureMessage(\Throwable $error, string $fallback)
+    {
+        if ($error instanceof DoubanActionException || $error instanceof \InvalidArgumentException) {
+            return mb_substr($error->getMessage(), 0, 255, 'UTF-8');
+        }
+        if (function_exists('trace')) {
+            trace('[vodops] ' . $fallback . '：' . $error->getMessage(), 'error');
+        }
+
+        return mb_substr($fallback, 0, 255, 'UTF-8');
     }
 
     private static function resolveDoubanId(array $meta, array $vod)

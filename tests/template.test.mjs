@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -2405,6 +2405,79 @@ assert.match(deployScript, /view\/_cache/);
 assert.match(deployScript, /find "\$cache_dir" -mindepth 1/);
 assert.match(deployScript, /existing.*config/i);
 assert.doesNotMatch(deployScript, /DEPLOY_PASSWORD=/);
+
+const remoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/)?.[1] || "";
+const autoRollbackFunction =
+  remoteDeployScript.match(/restore_vodops_deploy_snapshot\(\) \{\n[\s\S]*?\n\}/)?.[0] || "";
+assert.ok(autoRollbackFunction, "VodOps deployment should expose an automatic file rollback function");
+const autoRollbackFixture = mkdtempSync(path.join(tmpdir(), "vodops-auto-rollback-test-"));
+try {
+  const siteRoot = path.join(autoRollbackFixture, "site");
+  const addonsRoot = path.join(siteRoot, "addons");
+  const backupRoot = path.join(addonsRoot, "vodops.backup.20260811120000");
+  const stateRoot = path.join(backupRoot, ".vodops-deploy-state");
+  const adminControllerRoot = path.join(siteRoot, "application", "admin", "controller");
+  const adminViewRoot = path.join(siteRoot, "application", "admin", "view_new", "vodops");
+  const indexControllerRoot = path.join(siteRoot, "application", "index", "controller");
+  const extraRoot = path.join(siteRoot, "application", "extra");
+  const cronCapture = path.join(autoRollbackFixture, "restored.crontab");
+  for (const directory of [
+    path.join(addonsRoot, "vodops"),
+    path.join(addonsRoot, "douban"),
+    path.join(stateRoot, "addons", "douban"),
+    path.join(stateRoot, "application", "admin", "controller"),
+    path.join(stateRoot, "application", "admin", "view_new", "vodops"),
+    path.join(stateRoot, "application", "index", "controller"),
+    path.join(stateRoot, "application", "extra"),
+    adminControllerRoot,
+    adminViewRoot,
+    indexControllerRoot,
+    extraRoot,
+  ]) {
+    mkdirSync(directory, { recursive: true });
+  }
+  writeFileSync(path.join(backupRoot, "info.ini"), "name = vodops\nold addon\n");
+  writeFileSync(path.join(backupRoot, "old-vodops.txt"), "old vodops\n");
+  writeFileSync(path.join(stateRoot, "vodops-addon-present"), "");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "info.ini"), "name = douban\n");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "old-douban.txt"), "old douban\n");
+  writeFileSync(path.join(stateRoot, "application", "admin", "controller", "Vodops.php"), "old vodops controller\n");
+  writeFileSync(path.join(stateRoot, "application", "admin", "controller", "Douban.php"), "old douban controller\n");
+  writeFileSync(path.join(stateRoot, "application", "admin", "view_new", "vodops", "index.html"), "old view\n");
+  writeFileSync(path.join(stateRoot, "application", "index", "controller", "Douban.php"), "old public bridge\n");
+  writeFileSync(path.join(stateRoot, "application", "extra", "quickmenu.php"), "old quickmenu\n");
+  writeFileSync(path.join(stateRoot, "application", "extra", "addons.php"), "old hooks\n");
+  writeFileSync(path.join(stateRoot, "crontab"), "old cron\n");
+  writeFileSync(path.join(addonsRoot, "vodops", "new-vodops.txt"), "new vodops\n");
+  writeFileSync(path.join(addonsRoot, "douban", "new-douban.txt"), "new douban\n");
+  writeFileSync(path.join(adminControllerRoot, "Vodops.php"), "new vodops controller\n");
+  writeFileSync(path.join(adminControllerRoot, "Douban.php"), "new douban controller\n");
+  writeFileSync(path.join(adminViewRoot, "index.html"), "new view\n");
+  writeFileSync(path.join(indexControllerRoot, "Douban.php"), "new public bridge\n");
+  writeFileSync(path.join(extraRoot, "quickmenu.php"), "new quickmenu\n");
+  writeFileSync(path.join(extraRoot, "addons.php"), "new hooks\n");
+
+  const autoRollbackResult = spawnSync("bash", [], {
+    encoding: "utf8",
+    input: `set -euo pipefail\n${autoRollbackFunction}\ncrontab() { cp "$1" ${JSON.stringify(cronCapture)}; }\nrestore_vodops_deploy_snapshot ${JSON.stringify(backupRoot)} ${JSON.stringify(siteRoot)} vodops 1\n`,
+  });
+  assert.equal(autoRollbackResult.status, 0, autoRollbackResult.stderr || autoRollbackResult.stdout);
+  assert.ok(existsSync(path.join(addonsRoot, "vodops", "old-vodops.txt")));
+  assert.ok(existsSync(path.join(addonsRoot, "douban", "old-douban.txt")));
+  assert.equal(readFileSync(path.join(adminControllerRoot, "Vodops.php"), "utf8"), "old vodops controller\n");
+  assert.equal(readFileSync(path.join(adminControllerRoot, "Douban.php"), "utf8"), "old douban controller\n");
+  assert.equal(readFileSync(path.join(adminViewRoot, "index.html"), "utf8"), "old view\n");
+  assert.equal(readFileSync(path.join(indexControllerRoot, "Douban.php"), "utf8"), "old public bridge\n");
+  assert.equal(readFileSync(path.join(extraRoot, "quickmenu.php"), "utf8"), "old quickmenu\n");
+  assert.equal(readFileSync(path.join(extraRoot, "addons.php"), "utf8"), "old hooks\n");
+  assert.equal(readFileSync(cronCapture, "utf8"), "old cron\n");
+  const failedVodops = readdirSync(addonsRoot).find((name) => name.startsWith("vodops.failed."));
+  const failedDouban = readdirSync(addonsRoot).find((name) => name.startsWith("douban.failed."));
+  assert.ok(failedVodops && existsSync(path.join(addonsRoot, failedVodops, "new-vodops.txt")));
+  assert.ok(failedDouban && existsSync(path.join(addonsRoot, failedDouban, "new-douban.txt")));
+} finally {
+  rmSync(autoRollbackFixture, { recursive: true, force: true });
+}
 
 const gameDeployScript = readFileSync(path.join(root, "scripts/deploy-game-server.sh"), "utf8");
 const gameDeployMode = statSync(path.join(root, "scripts/deploy-game-server.sh")).mode & 0o777;

@@ -101,6 +101,168 @@ remote_env=(
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_SCRIPT'
 set -euo pipefail
 
+deploy_tmp_dir=""
+vodops_auto_rollback_backup=""
+vodops_auto_rollback_root=""
+vodops_auto_rollback_addon=""
+vodops_auto_rollback_cron="0"
+
+restore_vodops_deploy_snapshot() {
+  local backup_dir="$1" maccms_root="$2" addon_name="$3" restore_cron="${4:-1}"
+  local addons_dir state_dir stamp candidate legacy_candidate failed_addon failed_douban switch_failed restore_failed
+  local sources targets index source target
+
+  if [[ -z "$maccms_root" || "$maccms_root" != /* || ! "$addon_name" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    echo "VodOps automatic rollback target is invalid." >&2
+    return 1
+  fi
+  addons_dir="$maccms_root/addons"
+  state_dir="$backup_dir/.vodops-deploy-state"
+  if [[ "$backup_dir" != "$addons_dir/"* || ! -d "$state_dir" ]]; then
+    echo "VodOps automatic rollback snapshot is invalid: $backup_dir" >&2
+    return 1
+  fi
+
+  stamp="$(date +%Y%m%d%H%M%S).$$"
+  candidate=""
+  legacy_candidate=""
+  if [[ -f "$state_dir/vodops-addon-present" ]]; then
+    candidate="$addons_dir/.${addon_name}.auto-rollback.${stamp}"
+    if ! cp -a "$backup_dir" "$candidate" \
+      || ! rm -rf "$candidate/.vodops-deploy-state" \
+      || [[ ! -f "$candidate/info.ini" ]]; then
+      rm -rf "$candidate"
+      echo "VodOps automatic rollback could not prepare the previous addon." >&2
+      return 1
+    fi
+  fi
+  if [[ -d "$state_dir/addons/douban" ]]; then
+    legacy_candidate="$addons_dir/.douban.auto-rollback.${stamp}"
+    if ! cp -a "$state_dir/addons/douban" "$legacy_candidate" \
+      || [[ ! -f "$legacy_candidate/info.ini" ]]; then
+      if [[ -n "$candidate" ]]; then
+        rm -rf "$candidate"
+      fi
+      rm -rf "$legacy_candidate"
+      echo "VodOps automatic rollback could not prepare the previous Douban addon." >&2
+      return 1
+    fi
+  fi
+
+  failed_addon=""
+  if [[ -d "$addons_dir/$addon_name" ]]; then
+    failed_addon="$addons_dir/${addon_name}.failed.${stamp}"
+    if ! mv "$addons_dir/$addon_name" "$failed_addon"; then
+      if [[ -n "$candidate" ]]; then
+        rm -rf "$candidate"
+      fi
+      if [[ -n "$legacy_candidate" ]]; then
+        rm -rf "$legacy_candidate"
+      fi
+      echo "VodOps automatic rollback could not preserve the failed addon." >&2
+      return 1
+    fi
+  fi
+  failed_douban=""
+  if [[ -d "$addons_dir/douban" ]]; then
+    failed_douban="$addons_dir/douban.failed.${stamp}"
+    if ! mv "$addons_dir/douban" "$failed_douban"; then
+      if [[ -n "$failed_addon" && -d "$failed_addon" ]]; then
+        mv "$failed_addon" "$addons_dir/$addon_name" || true
+      fi
+      if [[ -n "$candidate" ]]; then
+        rm -rf "$candidate"
+      fi
+      if [[ -n "$legacy_candidate" ]]; then
+        rm -rf "$legacy_candidate"
+      fi
+      echo "VodOps automatic rollback could not preserve the failed Douban addon." >&2
+      return 1
+    fi
+  fi
+
+  switch_failed=0
+  if [[ -n "$candidate" ]] && ! mv "$candidate" "$addons_dir/$addon_name"; then
+    switch_failed=1
+  fi
+  if [[ "$switch_failed" == "0" && -n "$legacy_candidate" ]] && ! mv "$legacy_candidate" "$addons_dir/douban"; then
+    switch_failed=1
+  fi
+  if [[ "$switch_failed" != "0" ]]; then
+    rm -rf "$addons_dir/$addon_name" "$addons_dir/douban"
+    if [[ -n "$failed_addon" && -d "$failed_addon" ]]; then
+      mv "$failed_addon" "$addons_dir/$addon_name"
+    fi
+    if [[ -n "$failed_douban" && -d "$failed_douban" ]]; then
+      mv "$failed_douban" "$addons_dir/douban"
+    fi
+    echo "VodOps automatic addon rollback failed; restored the failed release directories." >&2
+    return 1
+  fi
+
+  sources=(
+    "$state_dir/application/admin/controller/Vodops.php"
+    "$state_dir/application/admin/controller/Douban.php"
+    "$state_dir/application/admin/view_new/vodops/index.html"
+    "$state_dir/application/index/controller/Douban.php"
+    "$state_dir/application/extra/quickmenu.php"
+    "$state_dir/application/extra/addons.php"
+  )
+  targets=(
+    "$maccms_root/application/admin/controller/Vodops.php"
+    "$maccms_root/application/admin/controller/Douban.php"
+    "$maccms_root/application/admin/view_new/vodops/index.html"
+    "$maccms_root/application/index/controller/Douban.php"
+    "$maccms_root/application/extra/quickmenu.php"
+    "$maccms_root/application/extra/addons.php"
+  )
+  restore_failed=0
+  for index in "${!sources[@]}"; do
+    source="${sources[$index]}"
+    target="${targets[$index]}"
+    mkdir -p "$(dirname "$target")" || restore_failed=1
+    if [[ -f "$source" ]]; then
+      cp -a "$source" "$target" || restore_failed=1
+    else
+      rm -f "$target" || restore_failed=1
+    fi
+  done
+  if [[ "$restore_cron" == "1" && -f "$state_dir/crontab" ]]; then
+    crontab "$state_dir/crontab" || restore_failed=1
+  fi
+  if [[ "$restore_failed" != "0" ]]; then
+    echo "VodOps automatic payload rollback was incomplete; inspect ${backup_dir}." >&2
+    return 1
+  fi
+
+  echo "Automatically restored VodOps files from $(basename "$backup_dir"); database changes were preserved." >&2
+}
+
+remote_deploy_exit() {
+  local status=$?
+
+  trap - EXIT
+  if [[ "$status" != "0" && -n "$vodops_auto_rollback_backup" ]]; then
+    echo "VodOps deployment failed after replacement; starting automatic file rollback." >&2
+    if ! restore_vodops_deploy_snapshot \
+      "$vodops_auto_rollback_backup" \
+      "$vodops_auto_rollback_root" \
+      "$vodops_auto_rollback_addon" \
+      "$vodops_auto_rollback_cron"; then
+      echo "VodOps automatic rollback failed; use the preserved snapshot for manual recovery." >&2
+    elif declare -F clear_maccms_cache >/dev/null 2>&1; then
+      clear_maccms_cache || true
+    fi
+  fi
+  if [[ -n "$deploy_tmp_dir" ]]; then
+    rm -rf "$deploy_tmp_dir" || true
+  fi
+  rm -rf "$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP" || true
+  exit "$status"
+}
+
+trap remote_deploy_exit EXIT
+
 clear_maccms_cache() {
   local maccms_root cache_dir cleared
 
@@ -519,7 +681,8 @@ PHP_VODOPS_SCHEMA_PREFLIGHT
     "$state_dir/addons" \
     "$state_dir/application/admin/controller" \
     "$state_dir/application/admin/view_new/vodops" \
-    "$state_dir/application/index/controller"
+    "$state_dir/application/index/controller" \
+    "$state_dir/application/extra"
   if [[ -d "$addon_dir" ]]; then
     touch "$state_dir/vodops-addon-present"
   fi
@@ -538,6 +701,20 @@ PHP_VODOPS_SCHEMA_PREFLIGHT
   if [[ -f "$legacy_index_controller_target" ]]; then
     cp -a "$legacy_index_controller_target" "$state_dir/application/index/controller/Douban.php"
   fi
+  if [[ -f "$maccms_root/application/extra/quickmenu.php" ]]; then
+    cp -a "$maccms_root/application/extra/quickmenu.php" "$state_dir/application/extra/quickmenu.php"
+  fi
+  if [[ -f "$maccms_root/application/extra/addons.php" ]]; then
+    cp -a "$maccms_root/application/extra/addons.php" "$state_dir/application/extra/addons.php"
+  fi
+  if [[ "$VODOPS_INSTALL_CRON" == "1" ]]; then
+    cp -a "$deploy_tmp_dir/vodops.crontab.current" "$state_dir/crontab"
+  fi
+
+  vodops_auto_rollback_backup="$backup_dir"
+  vodops_auto_rollback_root="$maccms_root"
+  vodops_auto_rollback_addon="$VODOPS_ADDON_NAME"
+  vodops_auto_rollback_cron="$VODOPS_INSTALL_CRON"
 
   rm -rf "$addon_dir"
   rm -rf "$legacy_douban_dir"
@@ -791,6 +968,13 @@ PHP_VODOPS_HOOK
   grep -Fq '同步不会修改现有图片' "$addon_dir/view/index/index.html"
   install_vodops_worker_cron
 
+  if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+    vodops_auto_rollback_backup=""
+    vodops_auto_rollback_root=""
+    vodops_auto_rollback_addon=""
+    vodops_auto_rollback_cron="0"
+  fi
+
   echo "Installed and verified ${VODOPS_ADDON_NAME} addon under ${addon_dir}"
 }
 
@@ -800,7 +984,6 @@ if [[ ! -d "$DEPLOY_PATH" ]]; then
 fi
 
 deploy_tmp_dir="$(mktemp -d)"
-trap 'rm -rf "$deploy_tmp_dir" "$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP"' EXIT
 
 if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
   install_vodops_addon
@@ -834,6 +1017,13 @@ if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
 fi
 
 verify_deployed_site
+
+if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
+  vodops_auto_rollback_backup=""
+  vodops_auto_rollback_root=""
+  vodops_auto_rollback_addon=""
+  vodops_auto_rollback_cron="0"
+fi
 REMOTE_SCRIPT
 
 if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then

@@ -449,7 +449,7 @@
           <label>候选TopN<input type="number" name="candidate_topn" value="{:intval($config['candidate_topn'] ?? 5)}" min="1" max="10"></label>
           <button class="primary-btn" type="submit">保存配置</button>
         </form>
-        <p class="calibration-note">这些设置只控制手动生成和执行的批次，不会自行启动服务器定时任务。</p>
+        <p class="calibration-note">默认使用 <code>internal</code>。自定义接口只允许公网 IPv4 的标准 HTTP/HTTPS 端口，禁止跳转和私网目标；这些设置不会自行启动服务器定时任务。</p>
       </section>
 
       <section class="system-box">

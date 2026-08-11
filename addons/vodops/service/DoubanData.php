@@ -23,6 +23,7 @@ class DoubanData
     private const MANUAL_RETRY_AT = 2147483647;
     private const AUDIT_LOCK_SECONDS = 120;
     private const CALIBRATION_BATCH_SIZE = 500;
+    private const CUSTOM_ENDPOINT_MAX_BYTES = 1048576;
 
     private const TASK_SYNC = 'SYNC_DOUBAN';
     private const TASK_MATCH = 'MATCH_DOUBAN_ID';
@@ -69,6 +70,10 @@ class DoubanData
     public static function saveConfig(array $input)
     {
         $config = self::normalizeConfig(array_merge(self::config(), $input));
+        $endpoint = (string) ($config['douban_endpoint'] ?? '');
+        if (!self::isInternalEndpoint($endpoint)) {
+            self::endpointTarget(self::buildEndpointUrl($endpoint, []));
+        }
         $now = time();
         foreach ($config as $key => $value) {
             $row = Db::name(self::CONFIG_TABLE)->where('config_key', $key)->find();
@@ -2439,7 +2444,7 @@ class DoubanData
             throw new DoubanActionException('未配置豆瓣数据接口');
         }
         self::throttleRequests($config);
-        if ($endpoint === 'internal' || $endpoint === '/extend/douban.php') {
+        if (self::isInternalEndpoint($endpoint)) {
             $data = DoubanGateway::subject($doubanId);
         } else {
             $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, ['id' => $doubanId]));
@@ -2455,7 +2460,7 @@ class DoubanData
             throw new DoubanActionException('未配置豆瓣数据接口');
         }
         self::throttleRequests($config);
-        if ($endpoint === 'internal' || $endpoint === '/extend/douban.php') {
+        if (self::isInternalEndpoint($endpoint)) {
             return DoubanGateway::search($query, (int) ($config['candidate_topn'] ?? 5));
         }
         $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, [
@@ -2468,16 +2473,55 @@ class DoubanData
 
     private static function requestEndpoint(string $url)
     {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => 20,
-                'ignore_errors' => true,
-                'header' => "Accept: application/json\r\n",
+        if (!function_exists('curl_init')) {
+            throw new DoubanActionException('服务器未启用 cURL 扩展');
+        }
+        $target = self::endpointTarget($url);
+        $raw = '';
+        $tooLarge = false;
+        $curl = curl_init($url);
+        if ($curl === false) {
+            throw new DoubanActionException('豆瓣数据接口初始化失败');
+        }
+        $options = [
+            CURLOPT_HTTPGET => true,
+            CURLOPT_HEADER => false,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_MAXREDIRS => 0,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_NOSIGNAL => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_HTTPHEADER => ['Accept: application/json'],
+            CURLOPT_USERAGENT => 'SquaredMedia-VodOps/1.1',
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_PROXY => '',
+            CURLOPT_RESOLVE => [
+                $target['host'] . ':' . $target['port'] . ':' . $target['address'],
             ],
-        ]);
-        $raw = @file_get_contents($url, false, $context);
-        if ($raw === false || trim($raw) === '') {
+            CURLOPT_WRITEFUNCTION => static function ($handle, $chunk) use (&$raw, &$tooLarge) {
+                if (strlen($raw) + strlen($chunk) > self::CUSTOM_ENDPOINT_MAX_BYTES) {
+                    $tooLarge = true;
+                    return 0;
+                }
+                $raw .= $chunk;
+                return strlen($chunk);
+            },
+        ];
+        if (defined('CURLOPT_PROTOCOLS') && defined('CURLPROTO_HTTP') && defined('CURLPROTO_HTTPS')) {
+            $options[CURLOPT_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
+        }
+        curl_setopt_array($curl, $options);
+        $ok = curl_exec($curl);
+        $status = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        if ($tooLarge) {
+            throw new DoubanActionException('豆瓣数据接口响应超过 1 MiB 限制');
+        }
+        if (!$ok || $status < 200 || $status >= 300 || trim($raw) === '') {
             throw new DoubanActionException('豆瓣数据接口无响应');
         }
         $decoded = json_decode($raw, true);
@@ -2492,6 +2536,61 @@ class DoubanData
         }
 
         return $decoded;
+    }
+
+    private static function endpointTarget(string $url)
+    {
+        if ($url === '' || strlen($url) > 2048 || preg_match('/[\x00-\x20\x7f]/', $url)) {
+            throw new DoubanActionException('豆瓣数据接口地址格式错误');
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            throw new DoubanActionException('豆瓣数据接口地址必须使用 HTTP 或 HTTPS');
+        }
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower(trim((string) ($parts['host'] ?? ''), '[]'));
+        if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+            throw new DoubanActionException('豆瓣数据接口地址必须使用 HTTP 或 HTTPS');
+        }
+        if (isset($parts['user']) || isset($parts['pass']) || isset($parts['fragment'])) {
+            throw new DoubanActionException('豆瓣数据接口地址不能包含账号、密码或片段');
+        }
+        $defaultPort = $scheme === 'https' ? 443 : 80;
+        $port = isset($parts['port']) ? (int) $parts['port'] : $defaultPort;
+        if ($port !== $defaultPort) {
+            throw new DoubanActionException('豆瓣数据接口只允许标准 HTTP/HTTPS 端口');
+        }
+
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $addresses = [$host];
+        } else {
+            if (strlen($host) > 253
+                || strpos($host, '.') === false
+                || !preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i', $host)) {
+                throw new DoubanActionException('豆瓣数据接口主机名无效');
+            }
+            $addresses = gethostbynamel($host);
+            if (!is_array($addresses) || empty($addresses)) {
+                throw new DoubanActionException('豆瓣数据接口主机名无法解析');
+            }
+        }
+
+        $addresses = array_values(array_unique($addresses));
+        foreach ($addresses as $address) {
+            if (filter_var(
+                $address,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            ) === false) {
+                throw new DoubanActionException('豆瓣数据接口禁止访问私网或保留地址');
+            }
+        }
+
+        return [
+            'host' => $host,
+            'port' => $port,
+            'address' => $addresses[0],
+        ];
     }
 
     private static function buildEndpointUrl(string $endpoint, array $query)
@@ -2509,6 +2608,11 @@ class DoubanData
         }
 
         return $url . (strpos($url, '?') === false ? '?' : '&') . http_build_query($query);
+    }
+
+    private static function isInternalEndpoint(string $endpoint)
+    {
+        return $endpoint === 'internal' || $endpoint === '/extend/douban.php';
     }
 
     private static function throttleRequests(array $config)

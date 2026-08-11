@@ -161,6 +161,52 @@ if (($boundedConfig['max_attempts'] ?? 0) !== 10) {
     exit(1);
 }
 
+$endpointTargetMethod = new ReflectionMethod(DoubanData::class, 'endpointTarget');
+$endpointTargetMethod->setAccessible(true);
+$publicEndpoint = $endpointTargetMethod->invoke(null, 'https://8.8.8.8/douban');
+if (($publicEndpoint['host'] ?? '') !== '8.8.8.8'
+    || ($publicEndpoint['address'] ?? '') !== '8.8.8.8'
+    || ($publicEndpoint['port'] ?? 0) !== 443) {
+    fwrite(STDERR, "A public custom endpoint should retain a pinned public target\n");
+    exit(1);
+}
+foreach ([
+    'http://127.0.0.1/douban',
+    'http://169.254.169.254/latest/meta-data',
+    'http://10.0.0.8/douban',
+] as $privateEndpoint) {
+    $privateEndpointRejected = false;
+    try {
+        $endpointTargetMethod->invoke(null, $privateEndpoint);
+    } catch (RuntimeException $e) {
+        $privateEndpointRejected = $e->getMessage() === '豆瓣数据接口禁止访问私网或保留地址';
+    }
+    if (!$privateEndpointRejected) {
+        fwrite(STDERR, "Custom endpoints should reject private target: {$privateEndpoint}\n");
+        exit(1);
+    }
+}
+$credentialEndpointRejected = false;
+try {
+    $endpointTargetMethod->invoke(null, 'https://user:pass@8.8.8.8/douban');
+} catch (RuntimeException $e) {
+    $credentialEndpointRejected = $e->getMessage() === '豆瓣数据接口地址不能包含账号、密码或片段';
+}
+if (!$credentialEndpointRejected) {
+    fwrite(STDERR, "Custom endpoints should reject URL credentials\n");
+    exit(1);
+}
+$nonstandardPortRejected = false;
+try {
+    $endpointTargetMethod->invoke(null, 'https://8.8.8.8:8443/douban');
+} catch (RuntimeException $e) {
+    $nonstandardPortRejected = $e->getMessage() === '豆瓣数据接口只允许标准 HTTP/HTTPS 端口';
+}
+if (!$nonstandardPortRejected) {
+    fwrite(STDERR, "Custom endpoints should reject nonstandard ports\n");
+    exit(1);
+}
+
 $applyAiReviewMethod = new ReflectionMethod(DoubanData::class, 'applyAiReview');
 $applyAiReviewMethod->setAccessible(true);
 $aiRanked = $applyAiReviewMethod->invoke(null, [

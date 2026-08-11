@@ -169,6 +169,10 @@ vodops_contract_match('/conditionalVodUpdate\(\$vodId, \$oldValues, \$updates\)/
 vodops_contract_match('/ACTION_AUTO_SYNC_CONFLICT/', $doubanData, 'Rejected stale Douban writes must remain auditable.');
 vodops_contract_match('/failureMessage\(\$e, \'任务执行失败，请查看服务端日志\'\)[\s\S]*?\'last_error\'\s*=>\s*\$message/', $doubanData, 'Worker task state must not expose unexpected backend exception details.');
 vodops_contract_match('/failureMessage\(\$e, \'体检批次执行失败，请查看服务端日志\'\)[\s\S]*?\'error_message\'\s*=>\s*\$failureMessage/', $doubanData, 'Audit task state must not expose unexpected backend exception details.');
+vodops_contract_match('/endpointTarget\(\$url\)[\s\S]*?FILTER_FLAG_NO_PRIV_RANGE[\s\S]*?FILTER_FLAG_NO_RES_RANGE/', $doubanData, 'Custom Douban endpoints must reject private and reserved network targets.');
+vodops_contract_match('/CURLOPT_RESOLVE/', $doubanData, 'Custom Douban requests must pin the validated DNS address.');
+vodops_contract_match('/CURLOPT_FOLLOWLOCATION\s*=>\s*false/', $doubanData, 'Custom Douban requests must reject redirects.');
+vodops_contract_match('/CUSTOM_ENDPOINT_MAX_BYTES/', $doubanData, 'Custom Douban responses must have a fixed size limit.');
 vodops_contract_match('/withEnqueueLock[\s\S]*?LOCK_TABLE[\s\S]*?lock\(true\)/', $doubanData, 'Concurrent task generation must serialize on the plugin lock table.');
 vodops_contract_match('/TASK_CALIBRATE\s*=\s*\'CALIBRATE_SCORE\'/', $doubanData, 'Score calibration must use the bounded task queue.');
 if (preg_match('/UPDATE \{\$vodTable\} SET vod_(?:douban_)?score/', $doubanData)) {
@@ -283,6 +287,10 @@ foreach (['douban_vod_meta', 'douban_task', 'douban_log', 'douban_review_candida
 vodops_contract_match('/application\/admin\/controller\/Douban\.php/', $deployScript, 'SSH deployment must install the legacy-compatible Douban admin route from VodOps.');
 vodops_contract_match('/legacy_douban_dir="\$maccms_root\/addons\/douban"[\s\S]*?\.vodops-deploy-state[\s\S]*?cp -a "\$legacy_douban_dir" "\$state_dir\/addons\/douban"[\s\S]*?rm -rf "\$legacy_douban_dir"/', $deployScript, 'SSH deployment must snapshot and retire the standalone Douban addon after it has been absorbed.');
 vodops_contract_match('/legacy_index_controller_target="\$maccms_root\/application\/index\/controller\/Douban\.php"[\s\S]*?rm -f "\$legacy_index_controller_target"/', $deployScript, 'SSH deployment must snapshot and remove the obsolete public Douban bridge.');
+vodops_contract_match('/restore_vodops_deploy_snapshot\(\)[\s\S]*?quickmenu\.php[\s\S]*?application\/extra\/addons\.php[\s\S]*?crontab/', $deployScript, 'Automatic rollback must restore every non-database payload changed by the VodOps deployment.');
+vodops_contract_match('/trap remote_deploy_exit EXIT[\s\S]*?vodops_auto_rollback_backup="\$backup_dir"[\s\S]*?rm -rf "\$addon_dir"/', $deployScript, 'Automatic rollback must be armed only after the snapshot and before addon replacement.');
+vodops_contract_match('/install_vodops_worker_cron[\s\S]*?if \[\[ "\$DEPLOY_SCOPE" != "vodops" \]\]; then[\s\S]*?vodops_auto_rollback_backup=""/', $deployScript, 'Full deployment may disarm VodOps rollback only after Cron verification succeeds.');
+vodops_contract_match('/verify_deployed_site\s+if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]; then[\s\S]*?vodops_auto_rollback_backup=""/', $deployScript, 'Vodops-only deployment must remain rollback-protected through final site verification.');
 $rollbackScript = file_get_contents($root . '/scripts/rollback-theme.sh');
 vodops_contract_match('/\.vodops-deploy-state[\s\S]*?state_dir\/addons\/douban[\s\S]*?restore_optional_file/', $rollbackScript, 'Vodops rollback must understand the pre-merge two-addon snapshot.');
 vodops_contract_match('/application\/index\/controller\/Douban\.php/', $rollbackScript, 'Vodops rollback must restore the legacy public bridge only when it existed before deployment.');

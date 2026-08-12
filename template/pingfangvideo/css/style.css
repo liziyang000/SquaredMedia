@@ -12721,11 +12721,11 @@ html.qixi-immersive .qixi-rose-page {
   position: relative;
   display: grid;
   min-height: max(720px, calc(100svh - 76px));
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(circle at 72% 46%, rgba(232, 54, 93, 0.16), transparent 28%),
-    radial-gradient(circle at 36% 16%, rgba(137, 44, 112, 0.16), transparent 32%),
+    radial-gradient(circle at 72% 46%, rgba(232, 54, 93, 0.16), transparent 28%), radial-gradient(circle at 36% 16%, rgba(137, 44, 112, 0.16), transparent 32%),
     linear-gradient(132deg, #0d050f 0%, var(--qixi-night) 45%, #160714 100%);
   color: var(--qixi-ivory);
 }
@@ -12739,11 +12739,16 @@ html.qixi-immersive .qixi-rose-page {
   z-index: 0;
   inset: 0;
   background-image:
-    radial-gradient(circle, rgba(255, 231, 210, 0.8) 0 0.7px, transparent 0.9px),
-    radial-gradient(circle, rgba(255, 154, 179, 0.52) 0 0.8px, transparent 1px),
+    radial-gradient(circle, rgba(255, 231, 210, 0.8) 0 0.7px, transparent 0.9px), radial-gradient(circle, rgba(255, 154, 179, 0.52) 0 0.8px, transparent 1px),
     radial-gradient(circle, rgba(245, 215, 161, 0.44) 0 0.65px, transparent 0.9px);
-  background-position: 0 0, 42px 68px, 94px 22px;
-  background-size: 132px 132px, 181px 181px, 217px 217px;
+  background-position:
+    0 0,
+    42px 68px,
+    94px 22px;
+  background-size:
+    132px 132px,
+    181px 181px,
+    217px 217px;
   content: "";
   opacity: 0.64;
   pointer-events: none;
@@ -12753,9 +12758,7 @@ html.qixi-immersive .qixi-rose-page {
   position: absolute;
   z-index: 0;
   inset: 0;
-  background:
-    linear-gradient(90deg, rgba(7, 2, 8, 0.34), transparent 48%),
-    radial-gradient(ellipse at center, transparent 46%, rgba(4, 1, 5, 0.52) 100%);
+  background: linear-gradient(90deg, rgba(7, 2, 8, 0.34), transparent 48%), radial-gradient(ellipse at center, transparent 46%, rgba(4, 1, 5, 0.52) 100%);
   content: "";
   pointer-events: none;
 }
@@ -12768,7 +12771,7 @@ html.qixi-immersive .qixi-rose-page {
   width: min(68vw, 880px);
   aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(232, 54, 93, 0.16) 0%, rgba(133, 18, 45, 0.08) 34%, transparent 68%);
+  background: radial-gradient(circle, rgba(255, 115, 145, 0.18) 0%, rgba(133, 18, 45, 0.09) 36%, transparent 70%);
   pointer-events: none;
 }
 
@@ -12779,6 +12782,9 @@ html.qixi-immersive .qixi-rose-page {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.qixi-rose-canvas {
   cursor: grab;
   touch-action: none;
 }
@@ -12786,8 +12792,7 @@ html.qixi-immersive .qixi-rose-page {
 .qixi-rose-page.is-entering::before,
 .qixi-rose-page.is-entering .qixi-rose-glow,
 .qixi-rose-page.is-entering .qixi-rose-edition,
-.qixi-rose-page.is-entering .qixi-rose-vow,
-.qixi-rose-page.is-entering .qixi-rose-gesture {
+.qixi-rose-page.is-entering .qixi-rose-vow {
   opacity: 0;
 }
 
@@ -12850,8 +12855,7 @@ html.qixi-immersive .qixi-rose-page {
 }
 
 .qixi-rose-page.is-entering.is-entered .qixi-rose-edition,
-.qixi-rose-page.is-entering.is-entered .qixi-rose-vow,
-.qixi-rose-page.is-entering.is-entered .qixi-rose-gesture {
+.qixi-rose-page.is-entering.is-entered .qixi-rose-vow {
   opacity: 1;
   transition: opacity 680ms cubic-bezier(0.22, 1, 0.36, 1) 680ms;
 }
@@ -12949,14 +12953,21 @@ html.qixi-immersive .qixi-rose-page {
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 0 22px;
-  transition: border-color 200ms ease, background-color 200ms ease, color 200ms ease, opacity 200ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    color 200ms ease,
+    opacity 200ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .qixi-bloom-button {
   gap: 10px;
   border: 1px solid rgba(255, 201, 211, 0.48);
   background: linear-gradient(112deg, #b51d42, var(--qixi-rouge));
-  box-shadow: 0 14px 34px rgba(162, 21, 57, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 14px 34px rgba(162, 21, 57, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   color: #fffaf7;
 }
 
@@ -12997,31 +13008,11 @@ html.qixi-immersive .qixi-rose-page {
   letter-spacing: 0.07em;
 }
 
-.qixi-rose-gesture {
-  position: absolute;
-  z-index: 3;
-  right: 14%;
-  bottom: 36px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin: 0;
-  color: rgba(255, 241, 236, 0.46);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  pointer-events: none;
-}
-
-.qixi-rose-gesture span {
-  color: rgba(245, 215, 161, 0.7);
-  font-size: 16px;
-}
-
 .qixi-rose-vow {
   position: absolute;
   z-index: 3;
   top: 50%;
-  right: 28px;
+  right: max(28px, calc(env(safe-area-inset-right, 0px) + 12px));
   margin: 0;
   color: rgba(255, 247, 240, 0.42);
   font-family: "Songti SC", STSong, serif;
@@ -13040,8 +13031,8 @@ html.qixi-immersive .qixi-rose-page {
 .qixi-rose-edition {
   position: absolute;
   z-index: 3;
-  top: 28px;
-  right: 34px;
+  top: max(28px, calc(env(safe-area-inset-top, 0px) + 12px));
+  right: max(34px, calc(env(safe-area-inset-right, 0px) + 12px));
   display: flex;
   align-items: baseline;
   gap: 12px;
@@ -13057,6 +13048,28 @@ html.qixi-immersive .qixi-rose-page {
   font-family: "Songti SC", STSong, serif;
   font-size: 12px;
   letter-spacing: 0.16em;
+}
+
+.qixi-rose-credit {
+  position: absolute;
+  z-index: 3;
+  right: max(18px, env(safe-area-inset-right, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  color: rgba(255, 247, 240, 0.3);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.qixi-rose-credit a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.qixi-rose-credit a:focus-visible {
+  border-radius: 2px;
+  outline: 1px solid var(--qixi-champagne);
+  outline-offset: 3px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -13093,8 +13106,7 @@ html.qixi-immersive .qixi-rose-page {
     min-height: max(760px, 100svh);
     background:
       radial-gradient(circle at 50% 66%, rgba(232, 54, 93, 0.17), transparent 35%),
-      radial-gradient(circle at 46% 9%, rgba(137, 44, 112, 0.13), transparent 32%),
-      linear-gradient(165deg, #0d050f 0%, var(--qixi-night) 50%, #170714 100%);
+      radial-gradient(circle at 46% 9%, rgba(137, 44, 112, 0.13), transparent 32%), linear-gradient(165deg, #0d050f 0%, var(--qixi-night) 50%, #170714 100%);
   }
 
   .qixi-rose-page::after {
@@ -13146,15 +13158,16 @@ html.qixi-immersive .qixi-rose-page {
     margin-top: 10px;
   }
 
-  .qixi-rose-gesture {
-    right: 50%;
-    bottom: 20px;
-    white-space: nowrap;
-    transform: translateX(50%);
-  }
-
   .qixi-rose-edition {
     display: none;
+  }
+
+  .qixi-rose-credit {
+    right: 50%;
+    width: max-content;
+    max-width: calc(100% - 28px);
+    text-align: center;
+    transform: translateX(50%);
   }
 }
 
@@ -13189,7 +13202,6 @@ html.qixi-immersive .qixi-rose-page {
   .qixi-rose-page.is-entering .qixi-rose-glow,
   .qixi-rose-page.is-entering .qixi-rose-edition,
   .qixi-rose-page.is-entering .qixi-rose-vow,
-  .qixi-rose-page.is-entering .qixi-rose-gesture,
   .qixi-rose-page.is-entering .qixi-rose-kicker,
   .qixi-rose-page.is-entering .qixi-rose-copy h1 span,
   .qixi-rose-page.is-entering .qixi-rose-copy h1 strong,
@@ -13204,11 +13216,8 @@ html.qixi-immersive .qixi-rose-page {
 
   .qixi-bloom-button,
   .qixi-share-button,
-  .qixi-bloom-button i {
+  .qixi-bloom-button i,
+  .qixi-rose-canvas {
     transition: none;
-  }
-
-  .qixi-rose-gesture {
-    display: none;
   }
 }

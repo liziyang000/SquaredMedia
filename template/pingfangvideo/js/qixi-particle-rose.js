@@ -1,1077 +1,575 @@
-(function () {
-  "use strict";
+import * as THREE from "./third-party/three/three.module.min.js";
+import { GLTFLoader } from "./third-party/three/GLTFLoader.js";
+import { MeshSurfaceSampler } from "./third-party/three/MeshSurfaceSampler.js";
+import { mergeGeometries } from "./third-party/three/BufferGeometryUtils.js";
 
-  // Original Canvas point-cloud implementation. Creative references:
-  // https://github.com/jirotubuyaki/FlowerJS (flower layering, MIT)
-  // https://github.com/valnub/particle-animation-javascript (Canvas particles, MIT)
-  // Parametric rose surface adapted from https://github.com/Vasileios-Bellos/BloomingRose (MIT)
-  var root = document.querySelector("[data-qixi-rose]");
-  if (!root) return;
+const MODEL_URL = new URL("../images/qixi/qixi-bouquet.glb?v=a931cafa7bfe", import.meta.url).href;
+const BOUQUET_HEIGHT = 4.8;
+const root = document.querySelector("[data-qixi-rose]");
 
-  var canvas = root.querySelector("[data-qixi-canvas]");
-  var context = canvas && canvas.getContext("2d");
-  if (!context) return;
+if (root) initQixiRose(root);
 
-  var bloomButton = root.querySelector("[data-qixi-bloom]");
-  var shareButton = root.querySelector("[data-qixi-share]");
-  var status = root.querySelector("[data-qixi-status]");
-  var reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-  var palette = ["#3a0717", "#701027", "#a91b3a", "#dc3157", "#ff6f8d", "#ffc0cb", "#f5d7a1", "#12382f", "#4e9f78"];
-  var paletteOpacity = [0.7, 0.76, 0.82, 0.88, 0.93, 0.96, 0.92, 0.74, 0.82];
-  var alphaLevels = [0.22, 0.52, 0.92];
-  var depthBinCount = 36;
-  var particles = [];
-  var depthBuckets = createDepthBuckets();
-  var random = createRandom(20260807);
-  var roses = createRoseDome();
-  var width = 0;
-  var height = 0;
-  var pixelRatio = 1;
-  var quality = 0;
-  var rotationY = 0.18;
-  var rotationX = 0.32;
-  var hoverRotationY = 0;
-  var hoverRotationX = 0;
-  var hoverTargetY = 0;
-  var hoverTargetX = 0;
-  var pointerId = null;
-  var pointerStartX = 0;
-  var pointerStartY = 0;
-  var rotationStartY = 0;
-  var rotationStartX = 0;
-  var didDrag = false;
-  var bloomStart = 0;
-  var isBlooming = false;
-  var bloomDuration = 3100;
-  var entryStart = 0;
-  var entryDuration = 2800;
-  var isEntering = false;
-  var hasEntered = false;
-  var isVisible = true;
-  var frameRequest = 0;
-  var lastFrame = 0;
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
 
-  function createRandom(seed) {
-    var value = seed >>> 0;
-    return function () {
-      value = (value * 1664525 + 1013904223) >>> 0;
-      return value / 4294967296;
-    };
+function easeInOutCubic(value) {
+  return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2;
+}
+
+function surfaceArea(geometry) {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const edgeA = new THREE.Vector3();
+  const edgeB = new THREE.Vector3();
+  let area = 0;
+
+  const faceCount = index ? index.count / 3 : position.count / 3;
+  for (let face = 0; face < faceCount; face += 1) {
+    const first = index ? index.getX(face * 3) : face * 3;
+    const second = index ? index.getX(face * 3 + 1) : face * 3 + 1;
+    const third = index ? index.getX(face * 3 + 2) : face * 3 + 2;
+    a.fromBufferAttribute(position, first);
+    b.fromBufferAttribute(position, second);
+    c.fromBufferAttribute(position, third);
+    edgeA.subVectors(b, a);
+    edgeB.subVectors(c, a);
+    area += edgeA.cross(edgeB).length() * 0.5;
   }
 
-  function clamp(value, minimum, maximum) {
-    return Math.max(minimum, Math.min(maximum, value));
-  }
+  return area;
+}
 
-  function easeOutCubic(value) {
-    return 1 - Math.pow(1 - value, 3);
-  }
-
-  function easeOutQuart(value) {
-    return 1 - Math.pow(1 - value, 4);
-  }
-
-  function easeOutQuint(value) {
-    return 1 - Math.pow(1 - value, 5);
-  }
-
-  function normalizeVector(x, y, z) {
-    var length = Math.sqrt(x * x + y * y + z * z) || 1;
-    return { x: x / length, y: y / length, z: z / length };
-  }
-
-  function crossVector(left, right) {
-    return {
-      x: left.y * right.z - left.z * right.y,
-      y: left.z * right.x - left.x * right.z,
-      z: left.x * right.y - left.y * right.x
-    };
-  }
-
-  function createRoseBasis(normal, spin) {
-    var reference = Math.abs(normal.y) > 0.92 ? { x: 0, y: 0, z: 1 } : { x: 0, y: 1, z: 0 };
-    var rightRaw = crossVector(reference, normal);
-    var right = normalizeVector(rightRaw.x, rightRaw.y, rightRaw.z);
-    var upRaw = crossVector(normal, right);
-    var up = normalizeVector(upRaw.x, upRaw.y, upRaw.z);
-    var cos = Math.cos(spin);
-    var sin = Math.sin(spin);
-    return {
-      axisX: {
-        x: right.x * cos + up.x * sin,
-        y: right.y * cos + up.y * sin,
-        z: right.z * cos + up.z * sin
-      },
-      axisY: {
-        x: up.x * cos - right.x * sin,
-        y: up.y * cos - right.y * sin,
-        z: up.z * cos - right.z * sin
-      },
-      normal: normal
-    };
-  }
-
-  function createRoseDome() {
-    var dome = [];
-    var ringCounts = [1, 7, 13, 20];
-    var ringAngles = [0, 0.52, 0.93, 1.34];
-    var ringSizes = [0.58, 0.54, 0.5, 0.46];
-    var ringParticles = [650, 560, 500, 440];
-    var centerY = 0.31;
-
-    ringCounts.forEach(function (count, ring) {
-      for (var index = 0; index < count; index += 1) {
-        var polarJitter = count === 1 ? 0 : Math.cos((index + 1) * 5.713 + ring * 2.171) * 0.032;
-        var polar = ringAngles[ring] + polarJitter;
-        var sinPolar = Math.sin(polar);
-        var cosPolar = Math.cos(polar);
-        var angleJitter = count === 1 ? 0 : Math.sin((index + 1) * 7.137 + ring * 2.413) * 0.05;
-        var angle = count === 1 ? 0 : (index / count) * Math.PI * 2 + ring * 0.37 + angleJitter;
-        var normal = normalizeVector(sinPolar * Math.cos(angle), cosPolar, sinPolar * Math.sin(angle));
-        var phase = ((index + 1) * 0.61803398875 + ring * 0.137) % 1;
-        var basis = createRoseBasis(normal, angle * 0.21 + ring * 0.17 + phase * 0.46);
-        var radialJitter = count === 1 ? 0 : Math.sin((index + 1) * 12.9898 + ring * 4.1414) * 0.028;
-        var sizeJitter = count === 1 ? 0 : Math.cos((index + 1) * 4.573 + ring * 1.831) * 0.075;
-        dome.push({
-          x: normal.x * (1.14 + radialJitter),
-          y: centerY + normal.y * (0.88 + radialJitter * 0.4),
-          z: normal.z * (1.02 + radialJitter),
-          size: ringSizes[ring] * (1 + sizeJitter),
-          count: ringParticles[ring],
-          normal: basis.normal,
-          axisX: basis.axisX,
-          axisY: basis.axisY,
-          tone: (index + ring * 3) % 9 === 0 ? 1 : 0,
-          phase: phase,
-          openness: 0.82 + (Math.sin((index + 1) * 3.917 + ring * 1.53) * 0.5 + 0.5) * 0.36,
-          petalWidth: 0.86 + (Math.cos((index + 1) * 6.173 + ring * 0.91) * 0.5 + 0.5) * 0.28,
-          curl: 0.82 + (Math.sin((index + 1) * 8.113 + ring * 2.07) * 0.5 + 0.5) * 0.36,
-          irregularity: 0.045 + (Math.cos((index + 1) * 2.731 + ring * 3.11) * 0.5 + 0.5) * 0.055,
-          leanX: Math.sin((index + 1) * 9.17 + ring) * 0.038,
-          leanY: Math.cos((index + 1) * 7.31 + ring * 1.7) * 0.038,
-          petalShift: ((index + ring * 2) % 3) - 1
-        });
-      }
-    });
-    return dome;
-  }
-
-  function transformRosePoint(rose, x, y, z) {
-    return {
-      x: rose.x + rose.axisX.x * x + rose.axisY.x * y + rose.normal.x * z,
-      y: rose.y + rose.axisX.y * x + rose.axisY.y * y + rose.normal.y * z,
-      z: rose.z + rose.axisX.z * x + rose.axisY.z * y + rose.normal.z * z
-    };
-  }
-
-  function transformRoseNormal(rose, x, y, z) {
-    return normalizeVector(
-      rose.axisX.x * x + rose.axisY.x * y + rose.normal.x * z,
-      rose.axisX.y * x + rose.axisY.y * y + rose.normal.y * z,
-      rose.axisX.z * x + rose.axisY.z * y + rose.normal.z * z
-    );
-  }
-
-  function createDepthBuckets() {
-    var bins = [];
-    for (var depth = 0; depth < depthBinCount; depth += 1) {
-      var colors = [];
-      for (var color = 0; color < palette.length; color += 1) {
-        colors.push([[], [], []]);
-      }
-      bins.push(colors);
+function toFloatAttribute(attribute) {
+  const values = new Float32Array(attribute.count * attribute.itemSize);
+  for (let index = 0; index < attribute.count; index += 1) {
+    for (let component = 0; component < attribute.itemSize; component += 1) {
+      values[index * attribute.itemSize + component] = attribute.getComponent(index, component);
     }
-    return bins;
   }
+  return new THREE.Float32BufferAttribute(values, attribute.itemSize);
+}
 
-  function clearDepthBuckets() {
-    for (var depth = 0; depth < depthBuckets.length; depth += 1) {
-      for (var color = 0; color < depthBuckets[depth].length; color += 1) {
-        for (var alpha = 0; alpha < alphaLevels.length; alpha += 1) {
-          depthBuckets[depth][color][alpha].length = 0;
-        }
-      }
+function standardizeGeometry(sourceGeometry, worldMatrix, normalizationMatrix) {
+  let geometry = sourceGeometry.clone();
+
+  for (const name of ["position", "normal", "uv"]) {
+    const attribute = geometry.getAttribute(name);
+    if (attribute && (attribute.normalized || attribute.isInterleavedBufferAttribute || !(attribute.array instanceof Float32Array))) {
+      geometry.setAttribute(name, toFloatAttribute(attribute));
     }
   }
 
-  function addParticle(x, y, z, color, size, delay, kind, normal, opacity) {
-    var safeNormal = normal || normalizeVector(x, y, z);
-    var phase = random() * Math.PI * 2;
-    var entryDistance = 1.75 + (Math.sin(phase * 2.31) * 0.5 + 0.5) * 1.65;
-    var entryLift = kind === "petal" ? 0.46 : kind === "filler" ? 0.28 : -0.08;
-    var entryDelayBase =
-      kind === "wrapper"
-        ? 0.04
-        : kind === "stem"
-          ? 0.08
-          : kind === "leaf"
-            ? 0.14
-            : kind === "ribbon"
-              ? 0.18
-              : kind === "filler"
-                ? 0.24
-                : kind === "calyx"
-                  ? 0.3
-                  : 0.34;
-    particles.push({
-      x: x,
-      y: y,
-      z: z,
-      ex: x + Math.cos(phase) * entryDistance,
-      ey: y + Math.sin(phase * 1.37) * 1.12 + entryLift,
-      ez: z + Math.sin(phase) * entryDistance,
-      entryDelay: entryDelayBase + (phase / (Math.PI * 2)) * 0.14,
-      bx: x,
-      by: y,
-      bz: z,
-      color: color,
-      size: size,
-      delay: delay,
-      kind: kind,
-      nx: safeNormal.x,
-      ny: safeNormal.y,
-      nz: safeNormal.z,
-      opacity: opacity == null ? 0.9 : opacity,
-      phase: phase,
-      screenX: 0,
-      screenY: 0,
-      screenRadius: 1
+  geometry.applyMatrix4(worldMatrix);
+  geometry.applyMatrix4(normalizationMatrix);
+
+  for (const name of Object.keys(geometry.attributes)) {
+    if (name !== "position" && name !== "normal" && name !== "uv") geometry.deleteAttribute(name);
+  }
+
+  if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+  if (!geometry.getAttribute("uv")) {
+    const count = geometry.getAttribute("position").count;
+    geometry.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array(count * 2), 2));
+  }
+
+  geometry.clearGroups();
+  geometry.morphAttributes = {};
+  geometry.morphTargetsRelative = false;
+  return geometry;
+}
+
+function isPetalMaterial(material) {
+  return material.name.toLowerCase().includes("petal");
+}
+
+function isLeafMaterial(material) {
+  const name = material.name.toLowerCase();
+  return name.includes("leaf") || name.includes("smallplants1") || name.includes("smallplants2");
+}
+
+function samplingWeightForMaterial(material) {
+  const name = material.name.toLowerCase();
+  if (isPetalMaterial(material)) return 1.4;
+  if (name.includes("stem")) return 2.6;
+  if (name.includes("ribbon")) return 2.2;
+  if (name.includes("smallplant")) return 1.35;
+  if (name.includes("leaf")) return 1.15;
+  return 1;
+}
+
+function texturePixelsForMaterial(material) {
+  const texture = material.map;
+  const image = texture?.image;
+  if (!image?.width || !image?.height) return null;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.min(128, image.width);
+  canvas.height = Math.min(128, image.height);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return null;
+
+  try {
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    texture.updateMatrix();
+    return {
+      texture,
+      width: canvas.width,
+      height: canvas.height,
+      pixels: context.getImageData(0, 0, canvas.width, canvas.height).data
+    };
+  } catch {
+    return null;
+  }
+}
+
+function textureShadeAt(texturePixels, uv, emphasizePetals) {
+  if (!texturePixels) return 1;
+  const { texture, width, height, pixels } = texturePixels;
+  texture.transformUv(uv);
+  const x = Math.min(width - 1, Math.max(0, Math.floor(uv.x * width)));
+  const y = Math.min(height - 1, Math.max(0, Math.floor(uv.y * height)));
+  const offset = (y * width + x) * 4;
+  const brightness = (pixels[offset] * 0.2126 + pixels[offset + 1] * 0.7152 + pixels[offset + 2] * 0.0722) / 255;
+  if (emphasizePetals) {
+    const contrast = brightness * brightness * (3 - brightness * 2);
+    return 0.48 + contrast * 0.72;
+  }
+  return 0.55 + brightness * 0.6;
+}
+
+function particleColorForMaterial(material) {
+  const name = material.name.toLowerCase();
+  if (isPetalMaterial(material)) {
+    const petalNumber = Number(name.match(/\d+/)?.[0] || 1);
+    const petalPalette = ["#ff76b3", "#ffacce", "#7295ff", "#a4c2ff"];
+    return new THREE.Color(petalPalette[(petalNumber - 1) % petalPalette.length]);
+  }
+  if (isLeafMaterial(material)) return new THREE.Color("#4b8a5a");
+  if (name.includes("stem")) return new THREE.Color("#8a603f");
+  if (name.includes("smallplant")) return new THREE.Color("#d5b2bf");
+  if (name.includes("ribbon")) return new THREE.Color("#e2c284");
+  return material.color.clone();
+}
+
+function createBouquetSurfaces(sourceScene) {
+  const sourceBouquet = sourceScene;
+  sourceScene.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(sourceBouquet);
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = bounds.getCenter(new THREE.Vector3());
+  if (!Number.isFinite(size.y) || size.y <= 0) throw new Error("The bouquet model has invalid bounds.");
+
+  const scale = BOUQUET_HEIGHT / size.y;
+  const normalizationMatrix = new THREE.Matrix4().makeScale(scale, scale, scale).multiply(new THREE.Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+  const materialGroups = new Map();
+
+  sourceBouquet.traverse((object) => {
+    if (!object.isMesh || !object.geometry) return;
+    const sourceMaterial = Array.isArray(object.material) ? object.material[0] : object.material;
+    if (!sourceMaterial) return;
+
+    const geometry = standardizeGeometry(object.geometry, object.matrixWorld, normalizationMatrix);
+    const group = materialGroups.get(sourceMaterial.uuid) || { sourceMaterial, geometries: [] };
+    group.geometries.push(geometry);
+    materialGroups.set(sourceMaterial.uuid, group);
+  });
+
+  if (!materialGroups.size) throw new Error("The bouquet model has no renderable meshes.");
+
+  const surfaces = [];
+
+  for (const entry of materialGroups.values()) {
+    // The source Leaves6 atlas exposes broken UV islands as large black planes.
+    if (entry.sourceMaterial.name === "Leaves6") {
+      for (const sourceGeometry of entry.geometries) sourceGeometry.dispose();
+      continue;
+    }
+    const geometry = mergeGeometries(entry.geometries, false);
+    for (const sourceGeometry of entry.geometries) sourceGeometry.dispose();
+    if (!geometry) throw new Error(`Unable to merge bouquet material: ${entry.sourceMaterial.name}`);
+
+    const mesh = new THREE.Mesh(geometry);
+    mesh.name = `qixi-${entry.sourceMaterial.name || "bouquet"}`;
+    surfaces.push({
+      mesh,
+      area: surfaceArea(geometry),
+      weight: samplingWeightForMaterial(entry.sourceMaterial),
+      isPetal: isPetalMaterial(entry.sourceMaterial),
+      texturePixels: texturePixelsForMaterial(entry.sourceMaterial),
+      color: particleColorForMaterial(entry.sourceMaterial)
     });
   }
 
-  function addRoseCalyx(rose, count) {
-    for (var index = 0; index < count; index += 1) {
-      var sepal = index % 5;
-      var progress = random();
-      var angle = (sepal / 5) * Math.PI * 2 + progress * 0.22;
-      var radius = (0.025 + progress * 0.16) * rose.size;
-      var localX = Math.cos(angle) * radius;
-      var localY = Math.sin(angle) * radius;
-      var localZ = (-0.05 - progress * 0.24) * rose.size;
-      var point = transformRosePoint(rose, localX, localY, localZ);
-      var normal = transformRoseNormal(rose, Math.cos(angle) * 0.8, Math.sin(angle) * 0.8, -0.4);
-      addParticle(point.x, point.y, point.z, random() > 0.62 ? 8 : 7, 0.72 + random() * 0.72, 0.15 + random() * 0.12, "calyx", normal, 0.82);
+  return surfaces;
+}
+
+function createParticles(surfaces, particleCount, pixelRatio) {
+  const totalArea = surfaces.reduce((sum, surface) => sum + surface.area * surface.weight, 0);
+  const allocations = surfaces.map((surface) => {
+    const exact = ((surface.area * surface.weight) / totalArea) * particleCount;
+    return { surface, count: Math.floor(exact), remainder: exact - Math.floor(exact) };
+  });
+  let assigned = allocations.reduce((sum, allocation) => sum + allocation.count, 0);
+  allocations.sort((a, b) => b.remainder - a.remainder);
+
+  for (let index = 0; assigned < particleCount; index += 1, assigned += 1) {
+    allocations[index % allocations.length].count += 1;
+  }
+
+  const positions = new Float32Array(particleCount * 3);
+  const starts = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const normals = new Float32Array(particleCount * 3);
+  const petals = new Float32Array(particleCount);
+  const spins = new Float32Array(particleCount);
+  const delays = new Float32Array(particleCount);
+  const sizes = new Float32Array(particleCount);
+  const target = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const uv = new THREE.Vector2();
+  let particleIndex = 0;
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+  for (const allocation of allocations) {
+    const sampler = new MeshSurfaceSampler(allocation.surface.mesh).build();
+
+    for (let count = 0; count < allocation.count; count += 1) {
+      sampler.sample(target, normal, undefined, uv);
+      const offset = particleIndex * 3;
+      const height = clamp(target.y / BOUQUET_HEIGHT + 0.5, 0, 1);
+      const angle = particleIndex * goldenAngle + Math.random() * 0.45;
+      const radius = 1.25 + Math.random() * 1.9 * (1 - height * 0.24);
+      const brightness = (0.88 + Math.random() * 0.18) * textureShadeAt(allocation.surface.texturePixels, uv, allocation.surface.isPetal);
+
+      positions[offset] = target.x;
+      positions[offset + 1] = target.y;
+      positions[offset + 2] = target.z;
+      starts[offset] = target.x * 0.12 + Math.cos(angle) * radius;
+      starts[offset + 1] = -BOUQUET_HEIGHT * 0.72 - Math.random() * 1.15 + height * 0.22;
+      starts[offset + 2] = target.z * 0.12 + Math.sin(angle) * radius;
+      colors[offset] = Math.min(1, allocation.surface.color.r * brightness);
+      colors[offset + 1] = Math.min(1, allocation.surface.color.g * brightness);
+      colors[offset + 2] = Math.min(1, allocation.surface.color.b * brightness);
+      normals[offset] = normal.x;
+      normals[offset + 1] = normal.y;
+      normals[offset + 2] = normal.z;
+      petals[particleIndex] = allocation.surface.isPetal ? 1 : 0;
+      spins[particleIndex] = Math.random() * Math.PI * 2;
+      delays[particleIndex] = 0.05 + height * 0.43 + Math.random() * 0.1;
+      sizes[particleIndex] = (1.4 + Math.pow(Math.random(), 1.8) * 1.25) * 1.1 * (allocation.surface.isPetal ? 1.16 : 1);
+      particleIndex += 1;
     }
   }
 
-  function positiveModulo(value, divisor) {
-    return ((value % divisor) + divisor) % divisor;
-  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aStart", new THREE.Float32BufferAttribute(starts, 3));
+  geometry.setAttribute("aColor", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("aNormal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute("aPetal", new THREE.Float32BufferAttribute(petals, 1));
+  geometry.setAttribute("aSpin", new THREE.Float32BufferAttribute(spins, 1));
+  geometry.setAttribute("aDelay", new THREE.Float32BufferAttribute(delays, 1));
+  geometry.setAttribute("aSize", new THREE.Float32BufferAttribute(sizes, 1));
 
-  function petalEnvelope(theta) {
-    var petalPosition = positiveModulo(3.6 * theta, Math.PI * 2) / Math.PI;
-    var inner = 1.25 * Math.pow(1 - petalPosition, 2) - 0.25;
-    return 1 - 0.5 * inner * inner;
-  }
+  const uniforms = {
+    uProgress: { value: 0 },
+    uPixelRatio: { value: pixelRatio },
+    uTime: { value: 0 }
+  };
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      uniform float uProgress;
+      uniform float uPixelRatio;
+      uniform float uTime;
+      attribute vec3 aStart;
+      attribute vec3 aColor;
+      attribute vec3 aNormal;
+      attribute float aPetal;
+      attribute float aSpin;
+      attribute float aDelay;
+      attribute float aSize;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vPetal;
+      varying float vSpin;
 
-  function roseSurfacePoint(radius, turnProgress) {
-    var theta = -2 + turnProgress * (Math.PI * 20 + 2);
-    var envelope = petalEnvelope(theta);
-    var openness = 0.21 + turnProgress * 0.84;
-    var phi = (Math.PI / 2) * openness * openness;
-    var sinPhi = Math.sin(phi);
-    var cosPhi = Math.cos(phi);
-    var curl = 1.995653 * radius * radius * Math.pow(1.27689 * radius - 1, 2) * sinPhi;
-    var radial = envelope * (radius * sinPhi + curl * cosPhi);
-    return {
-      x: radial * Math.sin(theta),
-      y: radial * Math.cos(theta),
-      z: envelope * (radius * cosPhi - curl * sinPhi),
-      envelope: envelope
-    };
-  }
+      void main() {
+        float moveProgress = smoothstep(aDelay, min(1.0, aDelay + 0.33), uProgress);
+        vec3 transformed = mix(aStart, position, moveProgress);
+        transformed.x += sin(uTime * 0.0017 + aDelay * 29.0) * (1.0 - moveProgress) * 0.07;
+        transformed.z += cos(uTime * 0.0013 + aDelay * 23.0) * (1.0 - moveProgress) * 0.06;
+        float appear = smoothstep(aDelay - 0.13, aDelay + 0.015, uProgress);
+        vec3 viewNormal = normalize(normalMatrix * aNormal);
+        float keyLight = max(dot(viewNormal, normalize(vec3(0.35, 0.72, 0.58))), 0.0);
+        float facing = abs(viewNormal.z);
+        vColor = aColor * (0.78 + keyLight * 0.22 + facing * 0.08);
+        vAlpha = appear * mix(0.18, 1.0, moveProgress) * (0.78 + facing * 0.22);
+        vPetal = aPetal;
+        vSpin = aSpin;
 
-  function roseSurfaceNormal(radius, turnProgress) {
-    var radiusStep = radius > 0.992 ? -0.008 : 0.008;
-    var turnStep = turnProgress > 0.998 ? -0.002 : 0.002;
-    var point = roseSurfacePoint(radius, turnProgress);
-    var radiusPoint = roseSurfacePoint(radius + radiusStep, turnProgress);
-    var turnPoint = roseSurfacePoint(radius, turnProgress + turnStep);
-    var radiusVector = {
-      x: (radiusPoint.x - point.x) / radiusStep,
-      y: (radiusPoint.y - point.y) / radiusStep,
-      z: (radiusPoint.z - point.z) / radiusStep
-    };
-    var turnVector = {
-      x: (turnPoint.x - point.x) / turnStep,
-      y: (turnPoint.y - point.y) / turnStep,
-      z: (turnPoint.z - point.z) / turnStep
-    };
-    var normal = crossVector(radiusVector, turnVector);
-    if (normal.z < 0) {
-      normal.x *= -1;
-      normal.y *= -1;
-      normal.z *= -1;
-    }
-    return normalizeVector(normal.x / 0.52, normal.y / 0.52, normal.z / 0.42);
-  }
-
-  function petalSurfacePoint(band, angle, progress, across, rose, petalVariation) {
-    var widthProfile = Math.pow(Math.sin(Math.PI * progress), 0.72) * (0.7 + progress * 0.3);
-    var direction = angle + (band.twist + petalVariation.twist) * (progress - 0.38);
-    var radial = band.base + band.length * petalVariation.length * (0.06 + progress * 0.94);
-    var side = band.width * rose.petalWidth * petalVariation.width * widthProfile * across;
-    var edgeCup = band.cup * rose.curl * Math.pow(Math.abs(across), 1.7) * widthProfile;
-    var z =
-      band.height +
-      band.arch * Math.sin(Math.PI * progress) +
-      edgeCup -
-      band.drop * rose.openness * progress -
-      band.tipCurl * rose.openness * Math.pow(progress, 3) +
-      petalVariation.lift * progress;
-    return {
-      x: Math.cos(direction) * radial - Math.sin(direction) * side + rose.leanX * (1 - progress),
-      y: Math.sin(direction) * radial + Math.cos(direction) * side + rose.leanY * (1 - progress),
-      z: z
-    };
-  }
-
-  function petalSurfaceNormal(band, angle, progress, across, rose, petalVariation) {
-    var progressStep = progress > 0.992 ? -0.008 : 0.008;
-    var acrossStep = across > 0.98 ? -0.02 : 0.02;
-    var point = petalSurfacePoint(band, angle, progress, across, rose, petalVariation);
-    var progressPoint = petalSurfacePoint(band, angle, progress + progressStep, across, rose, petalVariation);
-    var acrossPoint = petalSurfacePoint(band, angle, progress, across + acrossStep, rose, petalVariation);
-    var progressVector = {
-      x: (progressPoint.x - point.x) / progressStep,
-      y: (progressPoint.y - point.y) / progressStep,
-      z: (progressPoint.z - point.z) / progressStep
-    };
-    var acrossVector = {
-      x: (acrossPoint.x - point.x) / acrossStep,
-      y: (acrossPoint.y - point.y) / acrossStep,
-      z: (acrossPoint.z - point.z) / acrossStep
-    };
-    var normal = crossVector(progressVector, acrossVector);
-    if (normal.z < 0) {
-      normal.x *= -1;
-      normal.y *= -1;
-      normal.z *= -1;
-    }
-    return normalizeVector(normal.x, normal.y, normal.z);
-  }
-
-  function addRoseSurfaceDepth(rose, count) {
-    var goldenAngle = 0.61803398875;
-    var roseRimShare = 0.18;
-
-    for (var index = 0; index < count; index += 1) {
-      var sequence = (index * goldenAngle + rose.phase) % 1;
-      var turnProgress = (index + 0.5) / count;
-      var isRim = ((index * 37) % 100) / 100 < roseRimShare;
-      var radius = isRim ? 0.92 + sequence * 0.08 : Math.sqrt(sequence) * 0.9;
-      var surface = roseSurfacePoint(radius, turnProgress);
-      var surfaceNormal = roseSurfaceNormal(radius, turnProgress);
-      var localX = surface.x * rose.size * 0.43;
-      var localY = surface.y * rose.size * 0.43;
-      var localZ = (surface.z - 0.1) * rose.size * 0.34;
-      var point = transformRosePoint(rose, localX, localY, localZ);
-      var normal = transformRoseNormal(rose, surfaceNormal.x, surfaceNormal.y, surfaceNormal.z);
-      addParticle(
-        point.x,
-        point.y,
-        point.z,
-        Math.min(3, (isRim ? 2 : 1) + rose.tone),
-        isRim ? 0.92 + random() * 0.58 : 0.62 + random() * 0.7,
-        0.18 + turnProgress * 0.12 + random() * 0.08,
-        "petal",
-        normal,
-        isRim ? 0.82 : 0.68
-      );
-    }
-  }
-
-  function addRoseCore(rose, count) {
-    for (var index = 0; index < count; index += 1) {
-      var progress = index / Math.max(1, count - 1);
-      var angle = rose.phase * Math.PI * 2 + progress * Math.PI * (8.4 + rose.curl * 0.8);
-      var radius = 0.014 + progress * 0.12;
-      var localX = (Math.cos(angle) * radius + rose.leanX * (1 - progress)) * rose.size;
-      var localY = (Math.sin(angle) * radius * 0.82 + rose.leanY * (1 - progress)) * rose.size;
-      var localZ = (0.35 - progress * 0.09 + Math.sin(progress * Math.PI * 3) * 0.008) * rose.size;
-      var point = transformRosePoint(rose, localX, localY, localZ);
-      addParticle(
-        point.x,
-        point.y,
-        point.z,
-        Math.min(5, (index % 7 === 0 ? 4 : index % 2 === 0 ? 2 : 1) + rose.tone),
-        1.1 + random() * 0.9,
-        0.24 + random() * 0.1,
-        "petal",
-        rose.normal,
-        0.97
-      );
-    }
-  }
-
-  function addRosePetal(rose, band, bandIndex, petal, petalCount, count) {
-    var petalAngle =
-      rose.phase * Math.PI * 2 +
-      band.offset +
-      (petal / petalCount) * Math.PI * 2 +
-      Math.sin((petal + 1) * 5.173 + rose.phase * 11.7 + bandIndex * 2.31) * rose.irregularity;
-    var petalVariation = {
-      length: 0.93 + (Math.sin((petal + 1) * 7.11 + rose.phase * 9.2 + bandIndex) * 0.5 + 0.5) * 0.14,
-      width: 0.9 + (Math.cos((petal + 1) * 4.37 + rose.phase * 13.1 + bandIndex) * 0.5 + 0.5) * 0.2,
-      twist: Math.sin((petal + 1) * 6.19 + rose.phase * 8.4) * rose.irregularity,
-      lift: Math.cos((petal + 1) * 3.83 + rose.phase * 10.3) * rose.irregularity * 0.55
-    };
-    var edgeCount = Math.min(count, Math.max(6, Math.floor(count * 0.82)));
-    var sideCount = Math.max(2, edgeCount - 2);
-    var sidePairs = Math.max(1, Math.ceil(sideCount / 2) - 1);
-
-    for (var sample = 0; sample < count; sample += 1) {
-      var progress;
-      var across;
-      var isEdge = sample < edgeCount;
-      if (sample < sideCount) {
-        progress = 0.12 + (Math.floor(sample / 2) / sidePairs) * 0.76;
-        across = (sample % 2 === 0 ? -1 : 1) * (0.91 + random() * 0.07);
-      } else if (isEdge) {
-        progress = 0.94 + random() * 0.035;
-        across = sample === sideCount ? -0.5 : 0.5;
-      } else {
-        progress = 0.16 + Math.sqrt(random()) * 0.72;
-        across = (random() * 2 - 1) * 0.76;
+        vec4 modelViewPosition = modelViewMatrix * vec4(transformed, 1.0);
+        gl_Position = projectionMatrix * modelViewPosition;
+        gl_PointSize = aSize * mix(0.35, 1.0, moveProgress) * uPixelRatio * (8.0 / max(4.0, -modelViewPosition.z));
       }
-      var surface = petalSurfacePoint(band, petalAngle, progress, across, rose, petalVariation);
-      var surfaceNormal = petalSurfaceNormal(band, petalAngle, progress, across, rose, petalVariation);
-      var point = transformRosePoint(rose, surface.x * rose.size, surface.y * rose.size, surface.z * rose.size);
-      var normal = transformRoseNormal(rose, surfaceNormal.x, surfaceNormal.y, surfaceNormal.z);
-      var color = Math.min(4, 1 + bandIndex + (isEdge ? 1 : 0) + rose.tone);
-      if (isEdge && (sample + petal * 3 + bandIndex) % 11 === 0) color = 5;
-      addParticle(
-        point.x,
-        point.y,
-        point.z,
-        color,
-        isEdge ? 1.2 + random() * 0.82 : 0.76 + random() * 0.92,
-        0.2 + bandIndex * 0.035 + random() * 0.08,
-        "petal",
-        normal,
-        isEdge ? 0.98 : 0.8
-      );
-    }
-  }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vPetal;
+      varying float vSpin;
 
-  function addRose(rose, count) {
-    var rosePetalBands = [
-      {
-        petals: 3,
-        share: 0.14,
-        base: 0.012,
-        length: 0.17,
-        width: 0.12,
-        height: 0.33,
-        drop: 0.035,
-        arch: 0.045,
-        cup: 0.075,
-        tipCurl: 0.015,
-        twist: 0.16,
-        offset: 0.2
-      },
-      {
-        petals: 5,
-        share: 0.2,
-        base: 0.03,
-        length: 0.23,
-        width: 0.16,
-        height: 0.31,
-        drop: 0.07,
-        arch: 0.052,
-        cup: 0.07,
-        tipCurl: 0.03,
-        twist: 0.12,
-        offset: 0.84
-      },
-      {
-        petals: 7,
-        share: 0.27,
-        base: 0.07,
-        length: 0.29,
-        width: 0.195,
-        height: 0.285,
-        drop: 0.115,
-        arch: 0.06,
-        cup: 0.06,
-        tipCurl: 0.055,
-        twist: 0.09,
-        offset: 1.42
-      },
-      {
-        petals: 9,
-        share: 0.39,
-        base: 0.105,
-        length: 0.36,
-        width: 0.24,
-        height: 0.25,
-        drop: 0.175,
-        arch: 0.065,
-        cup: 0.055,
-        tipCurl: 0.09,
-        twist: 0.07,
-        offset: 2.02
+      void main() {
+        vec2 centered = gl_PointCoord - vec2(0.5);
+        float spinCos = cos(vSpin);
+        float spinSin = sin(vSpin);
+        vec2 rotated = vec2(centered.x * spinCos - centered.y * spinSin, centered.x * spinSin + centered.y * spinCos);
+        float circleDistance = length(centered);
+        float petalDistance = length(vec2(rotated.x * 1.5, rotated.y * 0.86));
+        float distanceToCenter = mix(circleDistance, petalDistance, vPetal);
+        float coreAlpha = 1.0 - smoothstep(0.32, 0.49, distanceToCenter);
+        float haloAlpha = 1.0 - smoothstep(0.44, 0.5, distanceToCenter);
+        float alpha = vAlpha * (coreAlpha * 0.94 + haloAlpha * 0.06);
+        if (alpha < 0.01) discard;
+        gl_FragColor = vec4(vColor, alpha);
       }
-    ];
-    var surfaceCount = Math.floor(count * 0.05);
-    var coreCount = Math.floor(count * 0.1);
-    var petalPointCount = count - surfaceCount - coreCount;
-    var remaining = petalPointCount;
+    `,
+    transparent: true,
+    depthTest: true,
+    depthWrite: true,
+    blending: THREE.NormalBlending,
+    toneMapped: false
+  });
+  const points = new THREE.Points(geometry, material);
+  points.name = "qixi-surface-particles";
+  points.frustumCulled = false;
+  points.renderOrder = 2;
+  return { points, uniforms };
+}
 
-    addRoseSurfaceDepth(rose, surfaceCount);
-    addRoseCore(rose, coreCount);
-    rosePetalBands.forEach(function (band, bandIndex) {
-      var bandCount = bandIndex === rosePetalBands.length - 1 ? remaining : Math.floor(petalPointCount * band.share);
-      var petalCount = band.petals + (bandIndex > 1 ? rose.petalShift : 0);
-      var pointsPerPetal = Math.floor(bandCount / petalCount);
-      var extra = bandCount % petalCount;
-      remaining -= bandCount;
-      for (var petal = 0; petal < petalCount; petal += 1) {
-        addRosePetal(rose, band, bandIndex, petal, petalCount, pointsPerPetal + (petal < extra ? 1 : 0));
-      }
+function initQixiRose(page) {
+  const canvas = page.querySelector("[data-qixi-canvas]");
+  const bloomButton = page.querySelector("[data-qixi-bloom]");
+  const shareButton = page.querySelector("[data-qixi-share]");
+  const status = page.querySelector("[data-qixi-status]");
+  if (!canvas || !status) return;
+
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const isLowPowerDevice = window.innerWidth < 700 || (navigator.hardwareConcurrency || 8) <= 4;
+  const particleCount = isLowPowerDevice ? 60000 : 112000;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 50);
+  camera.position.set(0, 0, 8.6);
+  const bouquetRoot = new THREE.Group();
+  bouquetRoot.rotation.set(-0.08, -0.24, 0.02);
+  scene.add(bouquetRoot);
+
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: !isLowPowerDevice,
+      powerPreference: "high-performance"
     });
+  } catch {
+    status.textContent = "当前浏览器无法显示3D粒子花束，请尝试更新浏览器。";
+    if (bloomButton) bloomButton.disabled = true;
+    return;
   }
 
-  function addStem(rose, count) {
-    var start = {
-      x: rose.x - rose.normal.x * rose.size * 0.17,
-      y: rose.y - rose.normal.y * rose.size * 0.17,
-      z: rose.z - rose.normal.z * rose.size * 0.17
-    };
-    var end = { x: rose.x * 0.025, y: -1.5, z: rose.z * 0.025 };
-    var steps = Math.max(4, Math.round(count / 2));
-    for (var step = 0; step < steps; step += 1) {
-      var progress = step / Math.max(1, steps - 1);
-      var inverse = 1 - progress;
-      var centerX = start.x * inverse + end.x * progress + Math.sin(progress * Math.PI) * rose.x * 0.055;
-      var centerY = start.y * inverse + end.y * progress - Math.sin(progress * Math.PI) * 0.035;
-      var centerZ = start.z * inverse + end.z * progress + Math.sin(progress * Math.PI) * rose.z * 0.055;
-      for (var side = 0; side < 2; side += 1) {
-        var angle = (side / 2) * Math.PI * 2 + step * 1.47 + random() * 0.4;
-        var radius = 0.008 + random() * 0.007;
-        var normal = normalizeVector(Math.cos(angle), 0.16, Math.sin(angle));
-        addParticle(
-          centerX + Math.cos(angle) * radius,
-          centerY + (random() - 0.5) * 0.012,
-          centerZ + Math.sin(angle) * radius,
-          random() > 0.72 ? 8 : 7,
-          0.78 + random() * 0.66,
-          random() * 0.12,
-          "stem",
-          normal,
-          0.82
-        );
-      }
-    }
-  }
+  renderer.setClearColor(0x000000, 0);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  function addLeaves(count) {
-    var leafCount = 12;
-    var pointsPerLeaf = Math.max(12, Math.round(count / leafCount));
-    for (var leaf = 0; leaf < leafCount; leaf += 1) {
-      var angle = (leaf / leafCount) * Math.PI * 2 + (leaf % 3) * 0.22;
-      var radial = { x: Math.cos(angle), y: 0, z: Math.sin(angle) };
-      var tangent = { x: -Math.sin(angle), y: 0, z: Math.cos(angle) };
-      var startY = -0.16 - (leaf % 4) * 0.16;
-      var length = 0.34 + (leaf % 3) * 0.055;
-      var rise = leaf % 2 === 0 ? 0.12 : -0.03;
-      for (var pointIndex = 0; pointIndex < pointsPerLeaf; pointIndex += 1) {
-        var progress = Math.sqrt(random());
-        var across = random() * 2 - 1;
-        var halfWidth = Math.sin(progress * Math.PI) * 0.105 * across;
-        var curve = Math.sin(progress * Math.PI) * 0.045;
-        var x = radial.x * (0.08 + length * progress + curve) + tangent.x * halfWidth;
-        var y = startY + rise * progress + Math.sin(progress * Math.PI) * 0.035 + (random() - 0.5) * 0.012;
-        var z = radial.z * (0.08 + length * progress + curve) + tangent.z * halfWidth;
-        var normal = normalizeVector(radial.x * 0.65 + tangent.x * across * 0.18, 0.72, radial.z * 0.65 + tangent.z * across * 0.18);
-        addParticle(x, y, z, random() > 0.58 ? 8 : 7, 0.78 + random() * 0.82, 0.08 + random() * 0.18, "leaf", normal, 0.86);
-      }
-    }
-  }
+  let particleSystem = null;
+  let ready = false;
+  let phase = "loading";
+  let animationElapsed = 0;
+  let animationDuration = 3200;
+  let isEntranceAnimation = false;
+  let animationRotationStart = bouquetRoot.rotation.y;
+  let frameRequest = 0;
+  let previousFrameTime = 0;
+  let activePointerId = null;
+  let pointerStartX = 0;
+  let pointerStartY = 0;
+  let rotationStartX = 0;
+  let rotationStartY = 0;
+  let didDrag = false;
+  let isInViewport = true;
+  let isDocumentVisible = !document.hidden;
 
-  function wrapperPoint(progress, angle, radiusOffset) {
-    var fold = 1 + Math.sin(angle * 12 + progress * 3.4) * 0.055;
-    var radius = (0.1 + Math.pow(progress, 0.82) * 1.23 + (radiusOffset || 0)) * fold;
-    return {
-      x: Math.cos(angle) * radius,
-      y: -1.62 + progress * 1.83,
-      z: Math.sin(angle) * radius * 0.82
-    };
-  }
-
-  function addWrappingCollar(count) {
-    var panelCount = 14;
-    var pointsPerPanel = Math.max(18, Math.round(count / panelCount));
-    for (var panel = 0; panel < panelCount; panel += 1) {
-      var panelAngle = (panel / panelCount) * Math.PI * 2 + (panel % 2) * 0.045;
-      var panelLift = ((panel % 4) - 1.5) * 0.025;
-      for (var pointIndex = 0; pointIndex < pointsPerPanel; pointIndex += 1) {
-        var progress = Math.sqrt(random());
-        var across = random() * 2 - 1;
-        var fanWidth = 0.045 + progress * 0.16;
-        var angle = panelAngle + across * fanWidth;
-        var radius = 0.3 + progress * (1.03 + (panel % 3) * 0.045);
-        var edge = Math.abs(across) > 0.76 || progress > 0.89;
-        var normal = normalizeVector(Math.cos(angle), 0.18, Math.sin(angle) / 0.82);
-        addParticle(
-          Math.cos(angle) * radius,
-          -0.72 + progress * (1.01 + panelLift) - Math.abs(across) * progress * 0.07,
-          Math.sin(angle) * radius * 0.82,
-          edge && panel % 3 === 0 ? 6 : edge ? 3 : panel % 3 === 0 ? 3 : 2,
-          edge ? 1.22 + random() * 0.88 : 0.76 + random() * 0.86,
-          0.08 + random() * 0.14,
-          "wrapper",
-          normal,
-          edge ? 0.95 : 0.77
-        );
-      }
-    }
-  }
-
-  function addWrappingParticles(count) {
-    for (var index = 0; index < count; index += 1) {
-      var progress = Math.pow(random(), 0.72);
-      var angle = random() * Math.PI * 2;
-      var point = wrapperPoint(progress, angle, (random() - 0.5) * 0.025);
-      var normal = normalizeVector(Math.cos(angle), -0.14, Math.sin(angle) / 0.82);
-      var colorRoll = random();
-      var color = colorRoll > 0.96 ? 6 : colorRoll > 0.78 ? 3 : colorRoll > 0.26 ? 2 : 1;
-      addParticle(point.x, point.y, point.z, color, 0.7 + random() * 0.82, 0.04 + random() * 0.18, "wrapper", normal, 0.56 + random() * 0.2);
-    }
-
-    var seamCount = 18;
-    var seamSteps = Math.max(16, Math.round(28 * quality));
-    for (var seam = 0; seam < seamCount; seam += 1) {
-      var seamAngle = (seam / seamCount) * Math.PI * 2 + (seam % 2) * 0.07;
-      for (var step = 0; step < seamSteps; step += 1) {
-        var seamProgress = step / Math.max(1, seamSteps - 1);
-        var seamPoint = wrapperPoint(seamProgress, seamAngle + Math.sin(seamProgress * Math.PI) * 0.025, 0.012);
-        addParticle(
-          seamPoint.x,
-          seamPoint.y,
-          seamPoint.z,
-          seam % 5 === 0 ? 6 : seam % 2 === 0 ? 3 : 2,
-          1.02 + random() * 0.76,
-          0.08 + random() * 0.12,
-          "wrapper",
-          normalizeVector(Math.cos(seamAngle), -0.14, Math.sin(seamAngle) / 0.82),
-          0.9
-        );
-      }
-    }
-  }
-
-  function rotateAroundY(x, z, angle) {
-    return {
-      x: x * Math.cos(angle) + z * Math.sin(angle),
-      z: -x * Math.sin(angle) + z * Math.cos(angle)
-    };
-  }
-
-  function addRibbon(count) {
-    var loopCount = Math.floor(count * 0.64);
-    for (var index = 0; index < loopCount; index += 1) {
-      var side = index % 2 === 0 ? -1 : 1;
-      var angle = random() * Math.PI * 2;
-      var localX = side * (0.13 + Math.cos(angle) * 0.25);
-      var localZ = Math.sin(angle * 2) * 0.12 * side;
-      var rotated = rotateAroundY(localX, localZ, 0.34);
-      var tubeAngle = random() * Math.PI * 2;
-      var tubeRadius = random() * 0.014;
-      addParticle(
-        rotated.x + Math.cos(tubeAngle) * tubeRadius,
-        -1.08 + Math.sin(angle) * 0.19 + Math.sin(tubeAngle) * tubeRadius,
-        rotated.z + Math.sin(tubeAngle) * tubeRadius,
-        6,
-        0.9 + random() * 0.88,
-        0.22 + random() * 0.16,
-        "ribbon",
-        normalizeVector(Math.cos(tubeAngle), Math.sin(tubeAngle), Math.sin(angle)),
-        0.9
-      );
-    }
-
-    var tailCount = Math.floor(count * 0.25);
-    for (var tail = 0; tail < tailCount; tail += 1) {
-      var tailSide = tail % 2 === 0 ? -1 : 1;
-      var progress = random();
-      var tailPoint = rotateAroundY(tailSide * (0.055 + progress * 0.18), tailSide * Math.sin(progress * Math.PI) * 0.08, 0.34);
-      addParticle(
-        tailPoint.x + (random() - 0.5) * 0.025,
-        -1.12 - progress * 0.48 + (random() - 0.5) * 0.02,
-        tailPoint.z + (random() - 0.5) * 0.025,
-        6,
-        0.88 + random() * 0.86,
-        0.24 + random() * 0.18,
-        "ribbon",
-        normalizeVector(tailSide, -0.4, tailSide * 0.4),
-        0.88
-      );
-    }
-
-    var knotCount = count - loopCount - tailCount;
-    for (var knot = 0; knot < knotCount; knot += 1) {
-      var theta = random() * Math.PI * 2;
-      var cosine = random() * 2 - 1;
-      var sine = Math.sqrt(1 - cosine * cosine);
-      var radius = 0.035 * Math.cbrt(random());
-      var knotNormal = normalizeVector(Math.cos(theta) * sine, cosine, Math.sin(theta) * sine);
-      addParticle(
-        knotNormal.x * radius,
-        -1.08 + knotNormal.y * radius,
-        knotNormal.z * radius,
-        6,
-        0.8 + random() * 0.7,
-        0.22 + random() * 0.15,
-        "ribbon",
-        knotNormal,
-        0.94
-      );
-    }
-  }
-
-  function addFillerClusters(count) {
-    var clusterCount = 28;
-    var pointsPerCluster = Math.max(4, Math.round(count / clusterCount));
-    for (var cluster = 0; cluster < clusterCount; cluster += 1) {
-      var polar = 0.34 + random() * 0.92;
-      var angle = (cluster / clusterCount) * Math.PI * 2 + (cluster % 4) * 0.17;
-      var normal = normalizeVector(Math.sin(polar) * Math.cos(angle), Math.cos(polar), Math.sin(polar) * Math.sin(angle));
-      var center = {
-        x: normal.x * 1.24,
-        y: 0.36 + normal.y * 0.88,
-        z: normal.z * 1.08
-      };
-      for (var pointIndex = 0; pointIndex < pointsPerCluster; pointIndex += 1) {
-        var spread = 0.035 + random() * 0.075;
-        var theta = random() * Math.PI * 2;
-        var cosine = random() * 2 - 1;
-        var sine = Math.sqrt(1 - cosine * cosine);
-        addParticle(
-          center.x + Math.cos(theta) * sine * spread,
-          center.y + cosine * spread,
-          center.z + Math.sin(theta) * sine * spread,
-          random() > 0.2 ? 6 : 5,
-          0.54 + random() * 0.78,
-          0.28 + random() * 0.16,
-          "filler",
-          normal,
-          0.86
-        );
-      }
-    }
-  }
-
-  function qualityForWidth() {
-    return width < 560 ? 0.56 : width < 940 ? 0.76 : 1;
-  }
-
-  function buildBouquet() {
-    particles = [];
-    random = createRandom(20260807);
-
-    roses.forEach(function (rose) {
-      addStem(rose, Math.round(20 * quality));
+  function revealPageCopy() {
+    page.classList.add("is-entering");
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => page.classList.add("is-entered"));
     });
-    addLeaves(Math.round(900 * quality));
-    addWrappingParticles(Math.round(1450 * quality));
-    addWrappingCollar(Math.round(620 * quality));
-    addRibbon(Math.round(420 * quality));
-    addFillerClusters(Math.round(320 * quality));
-    roses.forEach(function (rose) {
-      addRoseCalyx(rose, Math.round(18 * quality));
-      addRose(rose, Math.round(rose.count * quality));
-    });
+    window.setTimeout(() => page.classList.remove("is-entering", "is-entered"), 1700);
   }
 
-  function resizeCanvas() {
-    var bounds = root.getBoundingClientRect();
-    var nextWidth = Math.max(1, Math.round(bounds.width));
-    var nextHeight = Math.max(1, Math.round(bounds.height));
-    var nextRatio = Math.min(window.devicePixelRatio || 1, 1.7);
-    if (nextWidth === width && nextHeight === height && nextRatio === pixelRatio) return;
-    width = nextWidth;
-    height = nextHeight;
-    pixelRatio = nextRatio;
-    canvas.width = Math.round(width * pixelRatio);
-    canvas.height = Math.round(height * pixelRatio);
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    var nextQuality = qualityForWidth();
-    if (!particles.length || nextQuality !== quality) {
-      quality = nextQuality;
-      buildBouquet();
+  function canRender() {
+    return isInViewport && isDocumentVisible;
+  }
+
+  function renderScene() {
+    if (!canRender()) return;
+    renderer.render(scene, camera);
+  }
+
+  function requestFrame() {
+    if (frameRequest || !canRender()) return;
+    frameRequest = window.requestAnimationFrame(renderFrame);
+  }
+
+  function resizeRenderer() {
+    const width = Math.max(1, page.clientWidth || window.innerWidth);
+    const height = Math.max(1, page.clientHeight || window.innerHeight);
+    const ratioLimit = width < 700 ? 1.35 : 1.8;
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, ratioLimit);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+
+    if (width < 700) {
+      bouquetRoot.position.set(0, -0.8, 0);
+      bouquetRoot.scale.setScalar(clamp(width / 800, 0.4, 0.66));
+    } else if (width < 1000) {
+      bouquetRoot.position.set(0.92, -0.08, 0);
+      bouquetRoot.scale.setScalar(0.78);
+    } else {
+      bouquetRoot.position.set(1.25, 0.12, 0);
+      bouquetRoot.scale.setScalar(0.84);
     }
-    draw(performance.now());
+
+    if (particleSystem) particleSystem.uniforms.uPixelRatio.value = pixelRatio;
+    renderScene();
   }
 
-  function shadeColor(particle, light) {
-    if (particle.kind === "petal" || particle.kind === "wrapper") {
-      var offset = light > 0.72 ? 1 : light < 0.32 ? -1 : 0;
-      return clamp(particle.color + offset, 0, 5);
+  function finishBloom(isEntrance) {
+    phase = "idle";
+    if (particleSystem) {
+      particleSystem.uniforms.uProgress.value = 1;
+      particleSystem.points.visible = true;
     }
-    if (particle.color === 7 || particle.color === 8) return light > 0.58 ? 8 : 7;
-    return particle.color;
+    page.classList.remove("is-blooming");
+    if (bloomButton) bloomButton.disabled = false;
+    status.textContent = isEntrance ? "粉蓝星光已经聚成3D粒子花束。拖动看看它的每一面。" : "粉蓝星光已经重新聚成玫瑰。七夕快乐。";
+    renderScene();
   }
 
-  function queueParticles(time, cosY, sinY, cosX, sinX) {
-    var mobile = width < 700;
-    var scale = mobile ? Math.min(width * 0.36, height * 0.18) : Math.min(width * 0.2, height * 0.25);
-    var originX = mobile ? width * 0.5 : width * 0.72;
-    var originY = mobile ? height * 0.7 : height * 0.53;
-    var bloomElapsed = time - bloomStart;
-
-    for (var index = 0; index < particles.length; index += 1) {
-      var particle = particles[index];
-      var x = particle.x;
-      var y = particle.y;
-      var z = particle.z;
-      var entranceVisibility = 1;
-      var entranceScale = 1;
-      if (isEntering) {
-        var entryDelay = particle.entryDelay * entryDuration;
-        var entryProgress = clamp((time - entryStart - entryDelay) / Math.max(1, entryDuration - entryDelay), 0, 1);
-        var entryEased = easeOutQuint(entryProgress);
-        x = particle.ex + (particle.x - particle.ex) * entryEased;
-        y = particle.ey + (particle.y - particle.ey) * entryEased;
-        z = particle.ez + (particle.z - particle.ez) * entryEased;
-        entranceVisibility = clamp(entryProgress * 2.4, 0, 1);
-        entranceScale = 0.42 + entryEased * 0.58;
-        if (entranceVisibility <= 0.01) continue;
-      }
-      if (isBlooming) {
-        var burstDuration = 430;
-        if (bloomElapsed <= burstDuration) {
-          var burstProgress = easeOutCubic(clamp(bloomElapsed / burstDuration, 0, 1));
-          x += (particle.bx - particle.x) * burstProgress;
-          y += (particle.by - particle.y) * burstProgress;
-          z += (particle.bz - particle.z) * burstProgress;
-        } else {
-          var gatherProgress = clamp((bloomElapsed - burstDuration - particle.delay * 1000) / (bloomDuration - burstDuration - particle.delay * 1000), 0, 1);
-          var eased = easeOutQuart(gatherProgress);
-          x = particle.bx + (particle.x - particle.bx) * eased;
-          y = particle.by + (particle.y - particle.by) * eased;
-          z = particle.bz + (particle.z - particle.bz) * eased;
-        }
-      }
-
-      var viewX = x * cosY + z * sinY;
-      var viewZ = -x * sinY + z * cosY;
-      var viewY = y * cosX - viewZ * sinX;
-      var depth = y * sinX + viewZ * cosX;
-      var perspective = 7.2 / Math.max(2.5, 7.2 - depth);
-
-      var normalX = particle.nx * cosY + particle.nz * sinY;
-      var normalZ = -particle.nx * sinY + particle.nz * cosY;
-      var normalY = particle.ny * cosX - normalZ * sinX;
-      var normalDepth = particle.ny * sinX + normalZ * cosX;
-      var light = clamp((normalX * -0.24 + normalY * 0.34 + normalDepth * 0.91 + 1) * 0.5, 0, 1);
-      var depthAmount = clamp((depth + 2.25) / 4.5, 0, 1);
-      var twinkle = 0.92 + Math.sin(time * 0.0014 + particle.phase) * 0.08;
-      var alphaValue = particle.opacity * entranceVisibility * (0.34 + light * 0.66) * (0.38 + depthAmount * 0.62);
-      var alphaIndex = alphaValue > 0.68 ? 2 : alphaValue > 0.38 ? 1 : 0;
-      var depthIndex = clamp(Math.floor(depthAmount * depthBinCount), 0, depthBinCount - 1);
-      var color = shadeColor(particle, light);
-
-      particle.screenX = originX + viewX * scale * perspective;
-      particle.screenY = originY - viewY * scale * perspective;
-      particle.screenRadius = clamp(particle.size * perspective * twinkle * entranceScale * (0.74 + light * 0.38), 0.42, 2.52);
-      depthBuckets[depthIndex][color][alphaIndex].push(particle);
-    }
-  }
-
-  function drawDepthBuckets() {
-    context.globalCompositeOperation = "source-over";
-    for (var depth = 0; depth < depthBuckets.length; depth += 1) {
-      var depthFog = 0.28 + (depth / Math.max(1, depthBuckets.length - 1)) * 0.72;
-      for (var color = 0; color < palette.length; color += 1) {
-        for (var alpha = 0; alpha < alphaLevels.length; alpha += 1) {
-          var bucket = depthBuckets[depth][color][alpha];
-          if (!bucket.length) continue;
-          context.beginPath();
-          for (var index = 0; index < bucket.length; index += 1) {
-            var particle = bucket[index];
-            context.moveTo(particle.screenX + particle.screenRadius, particle.screenY);
-            context.arc(particle.screenX, particle.screenY, particle.screenRadius, 0, Math.PI * 2);
-          }
-          context.globalAlpha = alphaLevels[alpha] * paletteOpacity[color] * depthFog;
-          context.fillStyle = palette[color];
-          context.fill();
-        }
-      }
-    }
-  }
-
-  function draw(time) {
-    context.clearRect(0, 0, width, height);
-    var angleY = rotationY + hoverRotationY;
-    var angleX = rotationX + hoverRotationX;
-    var cosY = Math.cos(angleY);
-    var sinY = Math.sin(angleY);
-    var cosX = Math.cos(angleX);
-    var sinX = Math.sin(angleX);
-    clearDepthBuckets();
-    queueParticles(time, cosY, sinY, cosX, sinX);
-    context.save();
-    drawDepthBuckets();
-    context.restore();
-  }
-
-  function setEnteringState(active) {
-    isEntering = active;
-    root.classList.toggle("is-entering", active);
-    if (bloomButton) bloomButton.disabled = active || isBlooming;
-  }
-
-  function startEntrance() {
-    if (hasEntered || isEntering || reducedMotionQuery.matches) return;
-    entryStart = performance.now();
-    root.classList.remove("is-entered");
-    setEnteringState(true);
-    status.textContent = "星光正在折成一束玫瑰……";
-    window.requestAnimationFrame(function () {
-      window.requestAnimationFrame(function () {
-        if (!isEntering) return;
-        root.classList.add("is-entered");
-      });
-    });
-    requestFrame();
-  }
-
-  function completeEntrance() {
-    hasEntered = true;
-    setEnteringState(false);
-    root.classList.remove("is-entered");
-    status.textContent = "花已经抵达。拖动看看它的每一面。";
-  }
-
-  function setBloomingState(active) {
-    isBlooming = active;
-    if (bloomButton) bloomButton.disabled = active || isEntering;
-    root.classList.toggle("is-blooming", active);
-  }
-
-  function triggerBloom() {
-    if (isEntering || isBlooming) return;
+  function startBloom(isEntrance = false) {
+    if (!ready || phase === "animating") return;
     if (reducedMotionQuery.matches) {
       status.textContent = "花束已经为你盛开。";
       return;
     }
-    particles.forEach(function (particle) {
-      var angle = random() * Math.PI * 2;
-      var baseDistance = particle.kind === "stem" ? 0.5 : particle.kind === "wrapper" ? 0.72 : 1.1;
-      var distance = baseDistance + random() * 1.55;
-      particle.bx = particle.x + Math.cos(angle) * distance;
-      particle.by = particle.y + (random() - 0.42) * distance * 1.42;
-      particle.bz = particle.z + Math.sin(angle) * distance;
-    });
-    bloomStart = performance.now();
-    setBloomingState(true);
-    status.textContent = "星光正在聚成一束玫瑰……";
+
+    phase = "animating";
+    animationElapsed = 0;
+    animationDuration = isEntrance ? 3200 : 2800;
+    isEntranceAnimation = isEntrance;
+    animationRotationStart = bouquetRoot.rotation.y;
+    previousFrameTime = 0;
+    particleSystem.points.visible = true;
+    particleSystem.uniforms.uProgress.value = 0;
+    page.classList.add("is-blooming");
+    if (bloomButton) bloomButton.disabled = true;
+    status.textContent = isEntrance ? "星光正从银河落下，聚成一束玫瑰……" : "星光正在重新聚成玫瑰……";
     requestFrame();
-  }
-
-  function completeBloom() {
-    setBloomingState(false);
-    status.textContent = "花开好了。七夕快乐。";
-  }
-
-  function requestFrame() {
-    if (frameRequest || !isVisible || reducedMotionQuery.matches) return;
-    frameRequest = window.requestAnimationFrame(renderFrame);
   }
 
   function renderFrame(time) {
     frameRequest = 0;
-    if (!lastFrame) lastFrame = time;
-    var elapsed = Math.min(40, time - lastFrame);
-    var frameInterval = width < 700 ? 1000 / 30 : 1000 / 45;
-    if (time - lastFrame < frameInterval) {
-      requestFrame();
-      return;
+    if (!canRender()) return;
+    const elapsed = previousFrameTime ? Math.min(50, time - previousFrameTime) : 0;
+    previousFrameTime = time;
+
+    if (phase === "animating") {
+      animationElapsed += elapsed;
+      const progress = clamp(animationElapsed / animationDuration, 0, 1);
+      particleSystem.uniforms.uProgress.value = progress;
+      particleSystem.uniforms.uTime.value = time;
+      bouquetRoot.rotation.y = animationRotationStart + easeInOutCubic(progress) * 0.16;
+      renderScene();
+
+      if (progress >= 1) finishBloom(isEntranceAnimation);
+      else requestFrame();
     }
-    lastFrame = time;
-    if (pointerId === null) rotationY += elapsed * 0.0001;
-    hoverRotationY += (hoverTargetY - hoverRotationY) * 0.055;
-    hoverRotationX += (hoverTargetX - hoverRotationX) * 0.055;
-    draw(time);
-    if (isEntering && time - entryStart >= entryDuration) completeEntrance();
-    if (isBlooming && time - bloomStart >= bloomDuration) completeBloom();
-    requestFrame();
+  }
+
+  function showStaticBouquet() {
+    if (!ready) return;
+    phase = "idle";
+    particleSystem.uniforms.uProgress.value = 1;
+    particleSystem.points.visible = true;
+    page.classList.remove("is-blooming");
+    if (bloomButton) bloomButton.disabled = false;
+    status.textContent = "已按照你的动态效果偏好展示静态3D粒子花束。";
+    renderScene();
   }
 
   function handlePointerMove(event) {
-    var bounds = canvas.getBoundingClientRect();
-    if (pointerId === event.pointerId) {
-      var deltaX = event.clientX - pointerStartX;
-      var deltaY = event.clientY - pointerStartY;
-      if (Math.abs(deltaX) + Math.abs(deltaY) > 5) didDrag = true;
-      rotationY = rotationStartY + deltaX * 0.008;
-      rotationX = clamp(rotationStartX + deltaY * 0.0045, -0.62, 0.4);
-      hoverTargetY = 0;
-      hoverTargetX = 0;
-      draw(performance.now());
-      return;
-    }
-    hoverTargetY = ((event.clientX - bounds.left) / bounds.width - 0.5) * 0.1;
-    hoverTargetX = ((event.clientY - bounds.top) / bounds.height - 0.5) * -0.06;
+    if (activePointerId !== event.pointerId || !ready || phase === "animating") return;
+    const deltaX = event.clientX - pointerStartX;
+    const deltaY = event.clientY - pointerStartY;
+    if (Math.abs(deltaX) + Math.abs(deltaY) > 5) didDrag = true;
+    bouquetRoot.rotation.y = rotationStartY + deltaX * 0.008;
+    bouquetRoot.rotation.x = clamp(rotationStartX + deltaY * 0.0045, -0.56, 0.34);
+    if (particleSystem) particleSystem.uniforms.uTime.value = performance.now();
+    renderScene();
   }
 
-  canvas.addEventListener("pointerdown", function (event) {
-    if (isEntering || pointerId !== null) return;
-    pointerId = event.pointerId;
+  function releasePointer(event, replayOnTap) {
+    if (activePointerId !== event.pointerId) return;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    activePointerId = null;
+    page.classList.remove("is-dragging");
+    if (replayOnTap && !didDrag) startBloom(false);
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    if (!ready || phase === "animating" || activePointerId !== null) return;
+    activePointerId = event.pointerId;
     pointerStartX = event.clientX;
     pointerStartY = event.clientY;
-    rotationStartY = rotationY;
-    rotationStartX = rotationX;
+    rotationStartX = bouquetRoot.rotation.x;
+    rotationStartY = bouquetRoot.rotation.y;
     didDrag = false;
     canvas.setPointerCapture(event.pointerId);
-    root.classList.add("is-dragging");
+    page.classList.add("is-dragging");
   });
-
   canvas.addEventListener("pointermove", handlePointerMove);
-  canvas.addEventListener("pointerleave", function () {
-    if (pointerId !== null) return;
-    hoverTargetY = 0;
-    hoverTargetX = 0;
-  });
-  canvas.addEventListener("pointerup", function (event) {
-    if (pointerId !== event.pointerId) return;
-    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-    pointerId = null;
-    root.classList.remove("is-dragging");
-    if (!didDrag) triggerBloom();
-  });
-  canvas.addEventListener("pointercancel", function (event) {
-    if (pointerId !== event.pointerId) return;
-    pointerId = null;
-    root.classList.remove("is-dragging");
-  });
+  canvas.addEventListener("pointerup", (event) => releasePointer(event, true));
+  canvas.addEventListener("pointercancel", (event) => releasePointer(event, false));
 
-  if (bloomButton) bloomButton.addEventListener("click", triggerBloom);
+  if (bloomButton) bloomButton.addEventListener("click", () => startBloom(false));
   if (shareButton) {
-    shareButton.addEventListener("click", function () {
-      var shareData = {
-        title: "送你一束七夕粒子玫瑰",
+    shareButton.addEventListener("click", () => {
+      const shareData = {
+        title: "送你一束七夕粉蓝粒子玫瑰",
         text: "把银河折成一束不会凋谢的玫瑰，送给最特别的你。",
         url: window.location.href
       };
       if (navigator.share) {
         navigator.share(shareData).then(
-          function () {
+          () => {
             status.textContent = "这束花已经送出去了。";
           },
-          function () {}
+          () => {}
         );
         return;
       }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareData.url).then(
-          function () {
+          () => {
             status.textContent = "链接已复制，可以把这束花送给 TA 了。";
           },
-          function () {
+          () => {
             status.textContent = "复制当前页面地址，就可以把花送给 TA。";
           }
         );
@@ -1081,42 +579,82 @@
     });
   }
 
-  window.addEventListener("resize", resizeCanvas, { passive: true });
-  document.addEventListener("visibilitychange", function () {
-    isVisible = !document.hidden;
-    if (isVisible) requestFrame();
+  canvas.addEventListener("webglcontextlost", (event) => {
+    event.preventDefault();
+    if (frameRequest) window.cancelAnimationFrame(frameRequest);
+    frameRequest = 0;
+    status.textContent = "3D粒子花束渲染暂时中断，正在等待浏览器恢复。";
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    status.textContent = "3D粒子花束已经恢复。";
+    renderScene();
+  });
+
+  window.addEventListener("resize", resizeRenderer, { passive: true });
+  document.addEventListener("visibilitychange", () => {
+    isDocumentVisible = !document.hidden;
+    previousFrameTime = 0;
+    if (phase === "animating") requestFrame();
+    else renderScene();
   });
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(
-      function (entries) {
-        isVisible = entries[0] ? entries[0].isIntersecting : true;
-        if (isVisible) requestFrame();
+      (entries) => {
+        isInViewport = entries[0] ? entries[0].isIntersecting : true;
+        previousFrameTime = 0;
+        if (phase === "animating") requestFrame();
+        else renderScene();
       },
       { threshold: 0.01 }
-    ).observe(root);
+    ).observe(page);
   }
 
   function handleMotionPreference() {
-    if (frameRequest) {
-      window.cancelAnimationFrame(frameRequest);
-      frameRequest = 0;
-    }
-    if (reducedMotionQuery.matches) {
-      hasEntered = true;
-      setEnteringState(false);
-      root.classList.remove("is-entered");
-      setBloomingState(false);
-      status.textContent = "已按照你的动态效果偏好展示静态花束。";
-      draw(performance.now());
-    } else {
-      if (!hasEntered && !isEntering) startEntrance();
-      if (!isEntering && !isBlooming) status.textContent = "轻触花束，星光会重新聚拢。";
-      requestFrame();
+    if (reducedMotionQuery.matches) showStaticBouquet();
+    else if (ready && phase !== "animating") {
+      status.textContent = "轻触花束，星光会重新聚拢。";
+      renderScene();
     }
   }
 
   if (reducedMotionQuery.addEventListener) reducedMotionQuery.addEventListener("change", handleMotionPreference);
-  if (!reducedMotionQuery.matches) startEntrance();
-  resizeCanvas();
-  handleMotionPreference();
-})();
+  else reducedMotionQuery.addListener(handleMotionPreference);
+
+  revealPageCopy();
+  if (bloomButton) bloomButton.disabled = true;
+  status.textContent = "正在加载3D粒子玫瑰花束……";
+  resizeRenderer();
+
+  new GLTFLoader().load(
+    MODEL_URL,
+    (gltf) => {
+      try {
+        const surfaces = createBouquetSurfaces(gltf.scene);
+        particleSystem = createParticles(surfaces, particleCount, renderer.getPixelRatio());
+        for (const surface of surfaces) {
+          surface.mesh.geometry.dispose();
+          surface.mesh.material.dispose();
+        }
+        bouquetRoot.add(particleSystem.points);
+        ready = true;
+        phase = "idle";
+        page.classList.add("has-three-model");
+        resizeRenderer();
+        if (reducedMotionQuery.matches) showStaticBouquet();
+        else startBloom(true);
+      } catch (error) {
+        console.error("Unable to prepare the Qixi bouquet model.", error);
+        phase = "error";
+        status.textContent = "3D粒子花束暂时无法显示，请稍后重试。";
+        if (bloomButton) bloomButton.disabled = true;
+      }
+    },
+    undefined,
+    (error) => {
+      console.error("Unable to load the Qixi bouquet model.", error);
+      phase = "error";
+      status.textContent = "3D粒子花束资源加载失败，请稍后重试。";
+      if (bloomButton) bloomButton.disabled = true;
+    }
+  );
+}

@@ -10,6 +10,7 @@ const playerScript = readFileSync(path.join(root, "maccms-player", "static", "pl
 assert.match(playerHtml, /artplayer-5\.4\.0\.min\.js/);
 assert.match(playerHtml, /hls-1\.6\.16\.min\.js/);
 assert.match(playerHtml, /pingfang-player-1\.0\.0\.js/);
+assert.match(playerHtml, /pingfang-player-1\.0\.0\.js\?v=1\.1\.0/);
 assert.match(playerHtml, /pingfang-player-1\.0\.0\.css/);
 assert.doesNotMatch(playerHtml, /<script[^>]+src=["']https?:/i, "Player engines should be served locally");
 assert.doesNotMatch(playerHtml, /jquery|crypto-js|flv|danmuku|plugin-ads|api\.php/i, "Optional legacy features must stay out of the critical playback path");
@@ -22,18 +23,36 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
   const links = [];
   const lineSwitches = [];
   const autoLineSwitches = [];
+  const qoeReports = [];
   const playerHandlers = new Map();
   const timers = new Map();
+  const settings = new Map();
+  let monotonicTime = 1000;
   const fakeVideo = {
     currentTime: videoCurrentTime,
     duration: videoDuration,
     paused: false,
-    readyState: 4
+    readyState: 4,
+    videoWidth: 1280,
+    videoHeight: 720
   };
   const fakeArt = {
     hls: null,
     video: fakeVideo,
     notice: { show: "" },
+    setting: {
+      add(option) {
+        settings.set(option.name, option);
+        return this;
+      },
+      update(option) {
+        settings.set(option.name, { ...(settings.get(option.name) || {}), ...option });
+        return this;
+      },
+      find(name) {
+        return settings.get(name);
+      }
+    },
     on(event, handler) {
       const handlers = playerHandlers.get(event) || [];
       handlers.push(handler);
@@ -66,7 +85,7 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
   FakeArtplayer.FULLSCREEN_WEB_IN_BODY = true;
 
   class FakeHls {
-    static Events = { ERROR: "error" };
+    static Events = { ERROR: "error", MANIFEST_PARSED: "manifestParsed", LEVEL_SWITCHED: "levelSwitched" };
     static ErrorTypes = { MEDIA_ERROR: "mediaError", NETWORK_ERROR: "networkError" };
     static instances = [];
 
@@ -79,7 +98,23 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
       this.handlers = new Map();
       this.destroyed = false;
       this.recoveries = 0;
+      this.levels = [];
+      this.currentLevel = -1;
+      this.manualLevel = -1;
+      this.autoLevelEnabled = true;
+      this.bandwidthEstimate = 0;
+      this._nextLevel = -1;
       FakeHls.instances.push(this);
+    }
+
+    set nextLevel(level) {
+      this._nextLevel = level;
+      this.manualLevel = level;
+      this.autoLevelEnabled = level === -1;
+    }
+
+    get nextLevel() {
+      return this._nextLevel;
     }
 
     on(event, handler) {
@@ -150,6 +185,10 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
         },
         consumeAlternatePlaybackResume() {
           return resumeTime;
+        },
+        reportPlaybackQoe(payload) {
+          qoeReports.push(payload);
+          return payload;
         }
       },
       location: {
@@ -185,6 +224,11 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
     },
     Artplayer: FakeArtplayer,
     Hls: FakeHls,
+    performance: {
+      now() {
+        return monotonicTime;
+      }
+    },
     setTimeout(handler, delay) {
       const timer = nextTimer++;
       timers.set(timer, { handler, delay });
@@ -206,12 +250,17 @@ function createRuntime({ alternateAvailable = false, resumeTime = 0, videoCurren
     links,
     lineSwitches,
     autoLineSwitches,
+    qoeReports,
     timers,
+    settings,
     fakeArt,
     fakeVideo,
     buttons,
     FakeArtplayer,
-    FakeHls
+    FakeHls,
+    advanceTime(milliseconds) {
+      monotonicTime += milliseconds;
+    }
   };
 }
 
@@ -227,7 +276,7 @@ const api = runtime.context.PingfangPlayer;
 
 const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 assert.match(packageJson.scripts.test, /tests\/player-runtime\.test\.mjs/);
-assert.equal(api.version, "1.0.0");
+assert.equal(api.version, "1.1.0");
 assert.equal(
   api.sourceFromSearch("?url=https://cdn.example/video.m3u8?token=a+b&expires=2"),
   "https://cdn.example/video.m3u8?token=a+b&expires=2",
@@ -407,5 +456,61 @@ const nearEndRuntime = createRuntime({
 });
 nearEndRuntime.fakeArt.emit("video:canplay");
 assert.equal(nearEndRuntime.fakeVideo.currentTime, 0, "A resume point near the end should not replay the episode ending");
+
+const qualityRuntime = createRuntime();
+const qualityPlayM3u8 = qualityRuntime.FakeArtplayer.options.customType.m3u8;
+qualityPlayM3u8(video, "https://cdn.example/quality.m3u8", qualityRuntime.fakeArt);
+const qualityHls = qualityRuntime.FakeHls.instances[0];
+qualityHls.levels = [
+  { width: 1920, height: 1080, bitrate: 5_000_000 },
+  { width: 1280, height: 720, bitrate: 2_500_000 },
+  { width: 854, height: 480, bitrate: 1_000_000 }
+];
+qualityHls.bandwidthEstimate = 6_500_000;
+qualityHls.emit(qualityRuntime.FakeHls.Events.MANIFEST_PARSED, {});
+
+let qualitySetting = qualityRuntime.fakeArt.setting.find("pingfang-quality");
+assert.ok(qualitySetting, "HLS manifests should add an ArtPlayer quality setting");
+assert.deepEqual(
+  Array.from(qualitySetting.selector, (item) => item.html),
+  ["自动", "1080p", "720p", "480p"]
+);
+
+qualityHls.emit(qualityRuntime.FakeHls.Events.LEVEL_SWITCHED, { level: 1 });
+qualitySetting = qualityRuntime.fakeArt.setting.find("pingfang-quality");
+assert.equal(qualitySetting.tooltip, "自动（当前 720p）", "Automatic quality should show the actual active level");
+assert.equal(qualityRuntime.qoeReports.at(-1).bandwidthEstimate, 6_500_000);
+assert.equal(qualityRuntime.qoeReports.at(-1).currentHeight, 720);
+
+qualitySetting.onSelect(qualitySetting.selector.find((item) => item.level === 0));
+assert.equal(qualityHls.nextLevel, 0, "Manual quality should switch to the selected HLS level");
+qualityHls.emit(qualityRuntime.FakeHls.Events.LEVEL_SWITCHED, { level: 0 });
+assert.equal(qualityRuntime.fakeArt.setting.find("pingfang-quality").tooltip, "1080p");
+
+qualitySetting = qualityRuntime.fakeArt.setting.find("pingfang-quality");
+qualitySetting.onSelect(qualitySetting.selector.find((item) => item.level === -1));
+assert.equal(qualityHls.nextLevel, -1, "Selecting automatic quality should re-enable HLS adaptive bitrate");
+
+const qoeRuntime = createRuntime();
+qoeRuntime.advanceTime(640);
+qoeRuntime.fakeArt.emit("video:playing");
+assert.equal(qoeRuntime.qoeReports.at(-1).firstFrameMs, 640, "First-frame time should be reported from player bootstrap");
+
+qoeRuntime.fakeVideo.currentTime = 1;
+qoeRuntime.fakeArt.emit("video:timeupdate");
+qoeRuntime.fakeVideo.currentTime = 2.5;
+qoeRuntime.fakeArt.emit("video:timeupdate");
+qoeRuntime.fakeArt.emit("video:waiting");
+qoeRuntime.advanceTime(420);
+qoeRuntime.fakeArt.emit("video:playing");
+assert.equal(qoeRuntime.qoeReports.at(-1).bufferingCount, 1);
+assert.equal(qoeRuntime.qoeReports.at(-1).bufferingMs, 420);
+assert.equal(qoeRuntime.qoeReports.at(-1).playedMs, 1500);
+
+qoeRuntime.fakeArt.emit("video:error");
+const failedQoe = qoeRuntime.qoeReports.at(-1);
+assert.equal(failedQoe.status, "failed");
+assert.equal(failedQoe.errorType, "video_error");
+assert.equal("sourceUrl" in failedQoe, false, "QoE payloads must never include signed playback URLs");
 
 console.log("Player runtime checks passed.");

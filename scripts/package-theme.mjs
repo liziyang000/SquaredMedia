@@ -5,37 +5,32 @@ import path from "node:path";
 
 const root = process.cwd();
 const scope = process.env.DEPLOY_SCOPE || "all";
-if (!["all", "backend", "api"].includes(scope)) {
-  throw new Error("DEPLOY_SCOPE must be all, backend, or api");
+if (!["all", "backend", "api", "vodops"].includes(scope)) {
+  throw new Error("DEPLOY_SCOPE must be all, backend, api, or vodops");
 }
 const includeTheme = scope === "all";
-const includeDevice = scope !== "api";
+const includeDevice = scope === "all" || scope === "backend";
+const includeApi = scope === "all" || scope === "backend" || scope === "api";
+const includeVodops = scope === "all" || scope === "vodops";
 const themeName = "pingfangvideo";
-const addonName = "pingfangdevice";
-const apiAddonName = "pingfangapi";
+const addonNames = [];
+if (includeDevice) addonNames.push("pingfangdevice");
+if (includeApi) addonNames.push("pingfangapi");
+if (includeVodops) addonNames.push("vodops");
 const source = path.join(root, "template", themeName);
-const addonSource = path.join(root, "addons", addonName);
-const apiAddonSource = path.join(root, "addons", apiAddonName);
 const dist = path.join(root, "dist");
 const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
-const addonPackageRoot = path.join(dist, addonName);
-const addonArchive = path.join(dist, `${addonName}.tar.gz`);
-const apiAddonPackageRoot = path.join(dist, apiAddonName);
-const apiAddonArchive = path.join(dist, `${apiAddonName}.tar.gz`);
 const assetVersionInputs = {
   __PINGFANG_STYLE_VERSION__: "css/style.css",
   __PINGFANG_APP_VERSION__: "js/app.js",
   __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
   __PINGFANG_GAME_VERSION__: "games/init.js",
-  __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js"
+  __PINGFANG_BAMBOO_CICADA_VERSION__: "games/bamboo-cicada.js",
+  __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js",
+  __PINGFANG_QIXI_VERSION__: "js/qixi-particle-rose.js"
 };
 const excludedThemePackageFiles = new Set([
-  "js/hls.min.js",
-  "js/pingfang-player.js",
-  "js/react.production.min.js",
-  "js/react-dom.production.min.js",
-  "js/rank-react.js",
   "games/blockrain/jquery-1.11.1.min.js"
 ]);
 
@@ -106,23 +101,20 @@ if (includeTheme) {
     filter: shouldCopyThemePath
   });
 }
-if (includeDevice) {
-  cpSync(addonSource, addonPackageRoot, {
+for (const addonName of addonNames) {
+  cpSync(path.join(root, "addons", addonName), path.join(dist, addonName), {
     recursive: true,
     filter: shouldCopyAddonPath
   });
 }
-cpSync(apiAddonSource, apiAddonPackageRoot, {
-  recursive: true,
-  filter: shouldCopyAddonPath
-});
 if (includeTheme) {
   const versions = Object.fromEntries(Object.entries(assetVersionInputs).map(([placeholder, relativePath]) => [placeholder, assetVersion(relativePath)]));
   replaceAssetVersionPlaceholders(packageRoot, versions);
   normalizePackagePermissions(packageRoot);
 }
-if (includeDevice) normalizePackagePermissions(addonPackageRoot);
-normalizePackagePermissions(apiAddonPackageRoot);
+for (const addonName of addonNames) {
+  normalizePackagePermissions(path.join(dist, addonName));
+}
 if (includeTheme) {
   execFileSync("tar", ["--no-xattrs", "-czf", archive, "-C", dist, themeName], {
     env: {
@@ -131,8 +123,10 @@ if (includeTheme) {
     },
     stdio: "inherit"
   });
+  console.log(`Created ${archive} with per-file asset versions`);
 }
-if (includeDevice) {
+for (const addonName of addonNames) {
+  const addonArchive = path.join(dist, `${addonName}.tar.gz`);
   execFileSync("tar", ["--no-xattrs", "-czf", addonArchive, "-C", dist, addonName], {
     env: {
       ...process.env,
@@ -140,15 +134,5 @@ if (includeDevice) {
     },
     stdio: "inherit"
   });
+  console.log(`Created ${addonArchive}`);
 }
-execFileSync("tar", ["--no-xattrs", "-czf", apiAddonArchive, "-C", dist, apiAddonName], {
-  env: {
-    ...process.env,
-    COPYFILE_DISABLE: "1"
-  },
-  stdio: "inherit"
-});
-
-if (includeTheme) console.log(`Created ${archive} with per-file asset versions`);
-if (includeDevice) console.log(`Created ${addonArchive}`);
-console.log(`Created ${apiAddonArchive}`);

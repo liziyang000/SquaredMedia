@@ -3,6 +3,7 @@
 ._*
 .idea/
 .vscode/
+.obsidian/
 .worktrees/
 
 # Dependencies

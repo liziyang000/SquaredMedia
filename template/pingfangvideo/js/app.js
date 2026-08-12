@@ -13,6 +13,7 @@
     "blue-pink-purple": true,
     "poster-magazine": true,
     "dunhuang-caisson": true,
+    "digital-particles": true,
     "pixel-frog": true
   };
   var themeSwitcherDocumentReady = false;
@@ -22,6 +23,69 @@
   var backdropHideTimer = null;
   var drawerMotionTimer = null;
   var pageInertState = [];
+
+  function authCookie(name) {
+    if (window.MAC && window.MAC.Cookie && typeof window.MAC.Cookie.Get === "function") {
+      return window.MAC.Cookie.Get(name);
+    }
+
+    var prefix = encodeURIComponent(name) + "=";
+    var parts = document.cookie ? document.cookie.split(";") : [];
+    for (var index = 0; index < parts.length; index += 1) {
+      var part = parts[index].trim();
+      if (part.indexOf(prefix) === 0) return decodeURIComponent(part.slice(prefix.length));
+    }
+    return "";
+  }
+
+  function hasMemberSession() {
+    var userId = authCookie("user_id");
+    return userId !== undefined && userId !== null && String(userId) !== "" && String(userId) !== "0";
+  }
+
+  function loadAuthScripts() {
+    var markers = Array.prototype.slice.call(document.querySelectorAll("[data-auth-script]"));
+    return markers
+      .reduce(function (chain, marker) {
+        return chain.then(function () {
+          var source = marker.getAttribute("data-auth-script");
+          if (!source || marker.dataset.authScriptLoaded === "true") return undefined;
+
+          marker.dataset.authScriptLoaded = "true";
+          return new Promise(function (resolve, reject) {
+            var script = document.createElement("script");
+            script.src = source;
+            script.async = false;
+            script.addEventListener("load", resolve, { once: true });
+            script.addEventListener(
+              "error",
+              function () {
+                reject(new Error("Failed to load member game script: " + source));
+              },
+              { once: true }
+            );
+            document.body.appendChild(script);
+          });
+        });
+      }, Promise.resolve())
+      .catch(function (error) {
+        console.error(error);
+      });
+  }
+
+  function syncAuthState() {
+    var isMember = hasMemberSession();
+    document.querySelectorAll("[data-auth-member]").forEach(function (element) {
+      element.hidden = !isMember;
+    });
+    document.querySelectorAll("[data-auth-guest]").forEach(function (element) {
+      element.hidden = isMember;
+    });
+    document.documentElement.setAttribute("data-auth-state", isMember ? "member" : "guest");
+    if (isMember) loadAuthScripts();
+  }
+
+  syncAuthState();
 
   function setPageInert(isInert) {
     if (isInert) {
@@ -179,6 +243,7 @@
       var currentUrl = new URL(window.location.href);
       var route = String(currentUrl.searchParams.get("route") || "").toLowerCase();
       if (route === "home") return "home";
+      if (route === "qixi") return "qixi";
       if (
         {
           categories: true,
@@ -196,7 +261,14 @@
       ) {
         return "videos";
       }
-      if (route === "games" || route === "game-2048" || route === "game-blockrain" || route === "game-gomoku" || route === "game-drawguess") {
+      if (
+        route === "games" ||
+        route === "game-2048" ||
+        route === "game-blockrain" ||
+        route === "game-bamboo-cicada" ||
+        route === "game-gomoku" ||
+        route === "game-drawguess"
+      ) {
         return "games";
       }
       if (route) return "";
@@ -211,8 +283,11 @@
     if (currentPath.indexOf("/vod") !== -1 || /\/label\/(categories|videos|hot|history)(?:\/|$)/.test(currentPath)) {
       return "videos";
     }
-    if (/\/label\/(games|game-2048|game-blockrain|game-gomoku|game-drawguess)(?:\.html)?(?:\/|$)/.test(currentPath)) {
+    if (/\/label\/(games|game-2048|game-blockrain|game-bamboo-cicada|game-gomoku|game-drawguess)(?:\.html)?(?:\/|$)/.test(currentPath)) {
       return "games";
+    }
+    if (/\/label\/qixi(?:\.html)?(?:\/|$)/.test(currentPath)) {
+      return "qixi";
     }
 
     var homeLink = document.querySelector('.site-nav a[data-nav-section="home"], .mobile-drawer-links a[data-nav-section="home"]');
@@ -1198,6 +1273,9 @@
   var sourceQualityPreferenceMaxAge = 60 * 1000;
   var automaticLineSwitchKey = "pingfang_automatic_line_switch_v1";
   var automaticLineSwitchMaxAge = 30 * 60 * 1000;
+  var playbackQoePrefix = "pingfang_playback_qoe_v1_";
+  var playbackQoeMaxAge = 30 * 60 * 1000;
+  var pendingPlaybackSwitchKey = "pingfang_pending_playback_switch_v1";
 
   function normalizePlaybackUrl(value) {
     var raw = String(value || "").trim();
@@ -1244,6 +1322,220 @@
     return vodId && nid ? sourceQualityPreferencePrefix + vodId + "_" + nid : "";
   }
 
+  function playbackQoeKey(vodId, nid, sid) {
+    vodId = positiveIntegerString(vodId);
+    nid = positiveIntegerString(nid);
+    sid = positiveIntegerString(sid);
+    return vodId && nid && sid ? playbackQoePrefix + vodId + "_" + nid + "_" + sid : "";
+  }
+
+  function readPlaybackQoe(vodId, nid, sid) {
+    var key = playbackQoeKey(vodId, nid, sid);
+    if (!key) return null;
+
+    var record;
+    try {
+      record = JSON.parse(window.sessionStorage.getItem(key) || "null");
+    } catch (error) {
+      record = null;
+    }
+    if (
+      !record ||
+      record.version !== 1 ||
+      record.vodId !== positiveIntegerString(vodId) ||
+      record.nid !== positiveIntegerString(nid) ||
+      record.sid !== positiveIntegerString(sid) ||
+      Number(record.expiresAt) <= Date.now()
+    ) {
+      try {
+        window.sessionStorage.removeItem(key);
+      } catch (error) {}
+      return null;
+    }
+    return record;
+  }
+
+  function boundedPlaybackMetric(value, minimum, maximum, integer) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) return null;
+    number = Math.min(maximum, Math.max(minimum, number));
+    return integer ? Math.round(number) : Math.round(number * 10) / 10;
+  }
+
+  function playbackSessionId(value) {
+    return String(value || "")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .slice(0, 64);
+  }
+
+  function playbackErrorType(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "")
+      .slice(0, 64);
+  }
+
+  function writePlaybackQoe(record) {
+    var key = playbackQoeKey(record && record.vodId, record && record.nid, record && record.sid);
+    if (!key) return null;
+    try {
+      window.sessionStorage.setItem(key, JSON.stringify(record));
+    } catch (error) {}
+    return record;
+  }
+
+  function readPendingPlaybackSwitch() {
+    var record;
+    try {
+      record = JSON.parse(window.sessionStorage.getItem(pendingPlaybackSwitchKey) || "null");
+    } catch (error) {
+      record = null;
+    }
+    if (!record || record.version !== 1 || Number(record.expiresAt) <= Date.now()) {
+      try {
+        window.sessionStorage.removeItem(pendingPlaybackSwitchKey);
+      } catch (error) {}
+      return null;
+    }
+    return record;
+  }
+
+  function completePendingPlaybackSwitch(context, record) {
+    var pending = readPendingPlaybackSwitch();
+    if (!pending || pending.vodId !== context.vodId || pending.nid !== context.nid || pending.targetSid !== context.sid) return record;
+
+    record.switchSuccesses = Math.min(1000, Number(record.switchSuccesses || 0) + 1);
+    try {
+      window.sessionStorage.removeItem(pendingPlaybackSwitchKey);
+    } catch (error) {}
+    return record;
+  }
+
+  function reportPlaybackQoe(payload) {
+    var context = playbackQualityContext();
+    if (!context || !payload || typeof payload !== "object") return null;
+
+    var previous = readPlaybackQoe(context.vodId, context.nid, context.sid);
+    var sessionId = playbackSessionId(payload.sessionId);
+    var record = previous || {
+      version: 1,
+      vodId: context.vodId,
+      nid: context.nid,
+      sid: context.sid,
+      switchAttempts: 0,
+      switchSuccesses: 0
+    };
+    if (sessionId && record.sessionId && record.sessionId !== sessionId) {
+      var previousErrorType = record.errorType;
+      var previousFailureAt = Number(record.lastFailureAt || 0);
+      record = {
+        version: 1,
+        vodId: context.vodId,
+        nid: context.nid,
+        sid: context.sid,
+        switchAttempts: Number(record.switchAttempts || 0),
+        switchSuccesses: Number(record.switchSuccesses || 0)
+      };
+      if (previousErrorType) record.errorType = previousErrorType;
+      if (previousFailureAt > 0) record.lastFailureAt = previousFailureAt;
+    }
+    if (sessionId) record.sessionId = sessionId;
+
+    [
+      ["firstFrameMs", 0, 120000, true],
+      ["bufferingCount", 0, 1000, true],
+      ["bufferingMs", 0, 86400000, true],
+      ["playedMs", 0, 86400000, true],
+      ["bandwidthEstimate", 0, 100000000000, true],
+      ["currentLevel", -1, 1000, true],
+      ["currentWidth", 0, 16384, true],
+      ["currentHeight", 0, 16384, true]
+    ].forEach(function (definition) {
+      if (!Object.prototype.hasOwnProperty.call(payload, definition[0])) return;
+      var metric = boundedPlaybackMetric(payload[definition[0]], definition[1], definition[2], definition[3]);
+      if (metric !== null) record[definition[0]] = metric;
+    });
+
+    var status = String(payload.status || "");
+    if (/^(?:starting|playing|buffering|recovering|failed)$/.test(status)) record.status = status;
+    var errorType = playbackErrorType(payload.errorType);
+    var now = Date.now();
+    if (errorType) {
+      record.errorType = errorType;
+      record.errorAt = now;
+    }
+    if (record.status === "failed") record.lastFailureAt = now;
+    record.updatedAt = now;
+    record.expiresAt = record.updatedAt + playbackQoeMaxAge;
+    if (record.status === "playing" && Number(record.firstFrameMs) > 0) {
+      record = completePendingPlaybackSwitch(context, record);
+    }
+    return writePlaybackQoe(record);
+  }
+
+  function serverSourceQualityDifference(left, right) {
+    var leftRank = Number(left && left.quality_rank);
+    var rightRank = Number(right && right.quality_rank);
+    if (Number.isFinite(leftRank) && leftRank > 0 && Number.isFinite(rightRank) && rightRank > 0 && leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+    var speedDifference = Number((right && right.speed_kbps) || 0) - Number((left && left.speed_kbps) || 0);
+    if (speedDifference) return speedDifference;
+    return Number((left && left.latency_ms) || Number.MAX_SAFE_INTEGER) - Number((right && right.latency_ms) || Number.MAX_SAFE_INTEGER);
+  }
+
+  function comparePlaybackQoe(vodId, nid, leftSid, rightSid) {
+    var left = readPlaybackQoe(vodId, nid, leftSid);
+    var right = readPlaybackQoe(vodId, nid, rightSid);
+    if (!left && !right) return 0;
+
+    var leftPlayable = left && (left.status === "playing" || left.status === "buffering" || Number(left.firstFrameMs) > 0) ? 1 : 0;
+    var rightPlayable = right && (right.status === "playing" || right.status === "buffering" || Number(right.firstFrameMs) > 0) ? 1 : 0;
+    var leftFailed = left && (left.status === "failed" || (!leftPlayable && Number(left.lastFailureAt) > 0)) ? 1 : 0;
+    var rightFailed = right && (right.status === "failed" || (!rightPlayable && Number(right.lastFailureAt) > 0)) ? 1 : 0;
+    if (leftFailed !== rightFailed) return leftFailed - rightFailed;
+    if (leftPlayable !== rightPlayable) return rightPlayable - leftPlayable;
+
+    var leftAttempts = Number((left && left.switchAttempts) || 0);
+    var rightAttempts = Number((right && right.switchAttempts) || 0);
+    if (leftAttempts || rightAttempts) {
+      var leftSuccessRate = leftAttempts ? Number(left.switchSuccesses || 0) / leftAttempts : 0.5;
+      var rightSuccessRate = rightAttempts ? Number(right.switchSuccesses || 0) / rightAttempts : 0.5;
+      if (leftSuccessRate !== rightSuccessRate) return rightSuccessRate - leftSuccessRate;
+    }
+
+    if (leftPlayable && rightPlayable) {
+      var leftBufferingMs = Number(left.bufferingMs || 0);
+      var rightBufferingMs = Number(right.bufferingMs || 0);
+      var leftRebufferRatio = leftBufferingMs / Math.max(1, Number(left.playedMs || 0) + leftBufferingMs);
+      var rightRebufferRatio = rightBufferingMs / Math.max(1, Number(right.playedMs || 0) + rightBufferingMs);
+      if (leftRebufferRatio !== rightRebufferRatio) return leftRebufferRatio - rightRebufferRatio;
+
+      var leftFirstFrame = Number(left.firstFrameMs) > 0 ? Number(left.firstFrameMs) : Number.MAX_SAFE_INTEGER;
+      var rightFirstFrame = Number(right.firstFrameMs) > 0 ? Number(right.firstFrameMs) : Number.MAX_SAFE_INTEGER;
+      if (leftFirstFrame !== rightFirstFrame) return leftFirstFrame - rightFirstFrame;
+
+      var heightDifference = Number(right.currentHeight || 0) - Number(left.currentHeight || 0);
+      if (heightDifference) return heightDifference;
+      var bandwidthDifference = Number(right.bandwidthEstimate || 0) - Number(left.bandwidthEstimate || 0);
+      if (bandwidthDifference) return bandwidthDifference;
+    }
+    return 0;
+  }
+
+  function rankPlaybackSourcesByQoe(vodId, nid, sourceList) {
+    var sources = Array.isArray(sourceList)
+      ? sourceList.filter(function (source) {
+          return source && source.available && positiveIntegerString(source.sid);
+        })
+      : [];
+    sources.sort(function (left, right) {
+      var qoeDifference = comparePlaybackQoe(vodId, nid, left.sid, right.sid);
+      return qoeDifference || serverSourceQualityDifference(left, right);
+    });
+    return sources;
+  }
+
   function readSourceQualityPreference(vodId, nid) {
     var key = sourceQualityPreferenceKey(vodId, nid);
     if (!key) return null;
@@ -1267,22 +1559,7 @@
     var key = sourceQualityPreferenceKey(vodId, nid);
     if (!key) return null;
 
-    var sources =
-      payload && Array.isArray(payload.sources)
-        ? payload.sources.filter(function (source) {
-            return source && source.available && positiveIntegerString(source.sid);
-          })
-        : [];
-    sources.sort(function (left, right) {
-      var leftRank = Number(left.quality_rank);
-      var rightRank = Number(right.quality_rank);
-      if (Number.isFinite(leftRank) && leftRank > 0 && Number.isFinite(rightRank) && rightRank > 0 && leftRank !== rightRank) {
-        return leftRank - rightRank;
-      }
-      var speedDifference = Number(right.speed_kbps || 0) - Number(left.speed_kbps || 0);
-      if (speedDifference) return speedDifference;
-      return Number(left.latency_ms || Number.MAX_SAFE_INTEGER) - Number(right.latency_ms || Number.MAX_SAFE_INTEGER);
-    });
+    var sources = rankPlaybackSourcesByQoe(vodId, nid, payload && payload.sources);
 
     if (!sources.length) {
       try {
@@ -1294,8 +1571,7 @@
     var rankedSids = sources.map(function (source) {
       return positiveIntegerString(source.sid);
     });
-    var recommendedSid = positiveIntegerString(payload.recommended_sid);
-    if (rankedSids.indexOf(recommendedSid) === -1) recommendedSid = rankedSids[0];
+    var recommendedSid = rankedSids[0];
     var record = {
       version: 1,
       vodId: positiveIntegerString(vodId),
@@ -1358,8 +1634,8 @@
 
     var context = playbackQualityContext();
     var preference = context ? readSourceQualityPreference(context.vodId, context.nid) : null;
+    var rank = {};
     if (preference) {
-      var rank = {};
       preference.rankedSids.forEach(function (sid, index) {
         rank[String(sid)] = index;
       });
@@ -1368,12 +1644,14 @@
           return Object.prototype.hasOwnProperty.call(rank, item.sid);
         });
       }
-      links.sort(function (left, right) {
-        var leftRank = Object.prototype.hasOwnProperty.call(rank, left.sid) ? rank[left.sid] : Number.MAX_SAFE_INTEGER;
-        var rightRank = Object.prototype.hasOwnProperty.call(rank, right.sid) ? rank[right.sid] : Number.MAX_SAFE_INTEGER;
-        return leftRank === rightRank ? left.order - right.order : leftRank - rightRank;
-      });
     }
+    links.sort(function (left, right) {
+      var qoeDifference = context ? comparePlaybackQoe(context.vodId, context.nid, left.sid, right.sid) : 0;
+      if (qoeDifference) return qoeDifference;
+      var leftRank = Object.prototype.hasOwnProperty.call(rank, left.sid) ? rank[left.sid] : Number.MAX_SAFE_INTEGER;
+      var rightRank = Object.prototype.hasOwnProperty.call(rank, right.sid) ? rank[right.sid] : Number.MAX_SAFE_INTEGER;
+      return leftRank === rightRank ? left.order - right.order : leftRank - rightRank;
+    });
 
     return links.map(function (item) {
       return item.link;
@@ -1446,7 +1724,40 @@
     } catch (error) {}
   }
 
-  function navigateToPlaybackLine(candidate, currentTime) {
+  function markPlaybackLineSwitch(candidate, mode) {
+    var context = playbackQualityContext();
+    var sourceBox = candidate && candidate.closest ? candidate.closest(".episode-box") : null;
+    var targetSid = positiveIntegerString(sourceBox && sourceBox.getAttribute("data-source-quality-sid"));
+    if (!context || !targetSid || targetSid === context.sid) return;
+
+    var record = readPlaybackQoe(context.vodId, context.nid, targetSid) || {
+      version: 1,
+      vodId: context.vodId,
+      nid: context.nid,
+      sid: targetSid,
+      switchAttempts: 0,
+      switchSuccesses: 0
+    };
+    record.switchAttempts = Math.min(1000, Number(record.switchAttempts || 0) + 1);
+    record.updatedAt = Date.now();
+    record.expiresAt = record.updatedAt + playbackQoeMaxAge;
+    writePlaybackQoe(record);
+    try {
+      window.sessionStorage.setItem(
+        pendingPlaybackSwitchKey,
+        JSON.stringify({
+          version: 1,
+          vodId: context.vodId,
+          nid: context.nid,
+          targetSid: targetSid,
+          mode: mode === "automatic" ? "automatic" : "manual",
+          expiresAt: Date.now() + playbackQoeMaxAge
+        })
+      );
+    } catch (error) {}
+  }
+
+  function navigateToPlaybackLine(candidate, currentTime, mode) {
     var target = normalizePlaybackUrl(candidate.href);
     if (!target) return false;
 
@@ -1456,13 +1767,14 @@
       time = previous.time;
     }
     storeAlternatePlaybackResume(target, time);
+    markPlaybackLineSwitch(candidate, mode);
     window.location.href = target;
     return true;
   }
 
   function switchToAlternatePlaybackLine(currentTime) {
     var candidate = alternatePlaybackLinks()[0];
-    return candidate ? navigateToPlaybackLine(candidate, currentTime) : false;
+    return candidate ? navigateToPlaybackLine(candidate, currentTime, "manual") : false;
   }
 
   function readAutomaticLineSwitchState(context) {
@@ -1512,7 +1824,7 @@
     try {
       window.sessionStorage.setItem(automaticLineSwitchKey, JSON.stringify(state));
     } catch (error) {}
-    return navigateToPlaybackLine(candidate, currentTime);
+    return navigateToPlaybackLine(candidate, currentTime, "automatic");
   }
 
   function consumeAlternatePlaybackResume() {
@@ -2031,14 +2343,20 @@
     renderHomeContinueRecords(section, localRecords);
 
     if (!window.MAC || !window.MAC.Ulog || typeof window.MAC.Ulog.Get !== "function") return;
+    if (!window.MAC.Cookie || typeof window.MAC.Cookie.Get !== "function" || !window.MAC.Cookie.Get("user_id")) return;
     try {
-      window.MAC.Ulog.Get(4, 1, 12, function (response) {
+      var handleResponse = function (response) {
         if (!response || String(response.code) !== "1") return;
         var remoteRecords = Array.isArray(response.list) ? response.list : response.data && Array.isArray(response.data.list) ? response.data.list : [];
         if (remoteRecords.length) {
           renderHomeContinueRecords(section, remoteRecords.concat(localRecords));
         }
-      });
+      };
+      if (window.MAC.Ulog.Get.length >= 6) {
+        window.MAC.Ulog.Get(1, 0, 4, 1, 12, handleResponse);
+      } else {
+        window.MAC.Ulog.Get(4, 1, 12, handleResponse);
+      }
     } catch (error) {}
   }
 
@@ -2058,6 +2376,8 @@
   window.PingFangVideo.switchToAlternatePlaybackLine = switchToAlternatePlaybackLine;
   window.PingFangVideo.autoSwitchToAlternatePlaybackLine = autoSwitchToAlternatePlaybackLine;
   window.PingFangVideo.consumeAlternatePlaybackResume = consumeAlternatePlaybackResume;
+  window.PingFangVideo.reportPlaybackQoe = reportPlaybackQoe;
+  window.PingFangVideo.rankPlaybackSourcesByQoe = rankPlaybackSourcesByQoe;
   window.PingFangVideo.initDynamicVodFilters = initDynamicVodFilters;
   window.PingFangVideo.initSourceQuality = initSourceQuality;
   window.PingFangVideo.initThemeSwitchers = initThemeSwitchers;

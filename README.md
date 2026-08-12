@@ -223,6 +223,7 @@ It also builds the companion MacCMS addon archives:
 ```text
 dist/pingfangdevice.tar.gz
 dist/pingfangapi.tar.gz
+dist/vodops.tar.gz
 ```
 
 The same command builds the independently reviewed static player archive:
@@ -235,9 +236,9 @@ That archive has its own `pingfangplayer-player/` root and contains only the
 approved files under `static/player/`: the player HTML, versioned ArtPlayer and
 hls.js distributions, and the first-party player JavaScript and CSS. PHP,
 hidden files, and links are rejected by `npm run verify:player-release`. The
-`npm run deploy` installs the theme, addon, and multiplayer game service, while
-`npm run rollback` remains theme-only. Neither command installs or removes this
-player archive.
+`npm run deploy` installs the theme, addons, and multiplayer game service, while
+`npm run rollback` defaults to the theme and also supports an explicit VodOps
+scope. Neither command installs or removes this player archive.
 
 This player is the performance-first HLS profile: it keeps ArtPlayer controls,
 playback-rate selection, progress restore, native HLS fallback, bounded hls.js
@@ -264,6 +265,42 @@ instead. Logout and manual revoke actions require same-origin Ajax `POST`
 requests. `device_token_cookie` changes the actual cookie name; changing it on a
 running site signs current devices out and requires users to log in again.
 
+The `vodops` addon adds a native-admin video data center. Its quality module scans a
+fixed `vod_id` range in bounded chunks and records deterministic category,
+metadata, poster, playback-source, and exact-duplicate findings in addon-owned
+InnoDB tables. Scans never write the video table. After a scan is completed or
+stopped, an administrator can explicitly preview and repair one whitelisted
+parent-category, year, area, language, or poster field at a time. Each write
+stores the old value first, uses that value as an optimistic update guard,
+rechecks the same rule, and supports a guarded rollback. It never automatically
+repairs, deletes, merges, or optimizes videos. Results can be filtered and exported as a bounded CSV without exposing
+raw playback URLs. Scan creation is serialized through an addon-owned InnoDB
+mutex row; completed results remain until an administrator explicitly deletes
+that VodOps snapshot. The page retains direct access to the latest 50 scans,
+shows rows that disappeared inside the bounded source range, and leaves a
+server audit log when a result is deleted. Findings link to the native video
+editor and show safe structured evidence; running scans cannot be exported,
+and internal scan or export failures remain in server logs. A scan can stay
+page-driven or explicitly enable the CLI worker: after the admin page is closed,
+the server Cron continues bounded chunks without depending on visitor traffic.
+An expiring database lease and an external `flock` prevent overlapping workers;
+legacy `traffic` tasks are treated as worker tasks and abandoned leases recover
+automatically. Front-end responses no longer query VodOps task state.
+
+The same `vodops` archive now contains the former Douban addon as a second
+admin module. It keeps the complete local-video search, Douban ID matching,
+candidate review, direct and queued synchronization, retry/ignore controls,
+score calibration by category, database audit, CSV export, AI-assisted review,
+configuration, task statistics, and operation history. The existing
+`douban_config`, `douban_vod_meta`, `douban_task`, `douban_log`,
+`douban_review_candidate`, `douban_scan`, and `douban_scan_issue` tables keep
+their names, so an existing installation continues from its current data.
+The legacy `admin/douban/*` actions remain valid, but there is now only one
+native “视频数据中心” workbench. Its module tabs switch between quality repair
+and Douban metadata without opening a second page shell; the legacy Douban index
+redirects into that workbench. Douban sync preserves the current `vod_pic`;
+image replacement remains an explicit VodOps repair action.
+
 `npm run verify:release` checks the generated archive before upload: required
 MacCMS template files must exist, hidden dotfiles must be absent, and development
 directories such as `preview`, `server`, `docker`, `tests`, and `scripts` must
@@ -279,10 +316,10 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-For the `ping2.my` server, the non-secret deployment target is stored in
-`scripts/deploy-ping2.env`. This file distinguishes the SSH host `ping2.my`
-from the public site host `www.ping2video.xyz` and selects the dedicated local
-deployment identity:
+For the production server, the non-secret deployment target is stored in
+`scripts/deploy-ping2.env`. This file uses SSH target `144.34.184.95:814`,
+distinguishes it from the public site host `www.ping2video.xyz`, and selects the
+dedicated local deployment identity:
 
 ```bash
 source scripts/deploy-ping2.env
@@ -333,14 +370,15 @@ loopback request with the real Host/SNI after cache clearing. An optional
 `DEPLOY_SITE_MARKER` must also occur in the response, preventing a generic
 control-panel default page from being accepted as a successful deployment.
 This verification runs after remote files and database changes are applied. In
-the default scope, a failure restores the theme, both addons, both application
-controllers, and addon hook config. Backend failure restores both addons,
-controllers, and hook config without touching the theme; API-only failure
-restores only the API addon and controller. Additive database schema changes
-are intentionally retained. If automatic restoration or rollback cache clearing
-fails, the script exits with status `95` and preserves the remote snapshot,
-temporary root, and uploaded archives. SSH status `255` is also treated as an
-unknown remote state, so recovery archives are not deleted.
+the default scope, a failure restores the theme and the current scope's addon,
+application, hook, quick-menu, and Cron snapshots. Backend failure restores the
+device/API files without touching the theme; API-only failure restores only the
+API addon and controller; VodOps-only failure restores its migration snapshot
+and Cron. Additive database schema changes are intentionally retained. If
+automatic restoration or rollback cache clearing fails, the script exits with
+status `95` and preserves the remote snapshot, temporary root, and uploaded
+archives. SSH status `255` is also treated as an unknown remote state, so
+recovery archives are not deleted.
 
 The default full deployment installs the `pingfangdevice` and
 `pingfangapi` addons under the remote MacCMS `addons` directory, applies
@@ -354,7 +392,40 @@ controller is packaged in the addon's standard
 `application/index/controller/Pingfangdevice.php` payload and copied to the
 matching MacCMS application path during SSH deployment.
 
-After the theme and addon pass verification, deployment installs the versioned
+Deployment separately installs the integrated `vodops` archive, both native
+admin controllers and the `application/admin/view_new` quality page. It creates
+or verifies five `vodops_*` tables and the seven retained `douban_*` tables,
+captures the previous VodOps/Douban directories and application payloads in one
+`vodops.backup.*` migration snapshot, then retires the standalone `addons/douban`
+directory and obsolete public Douban bridge only after that snapshot succeeds.
+It then replaces legacy VodOps/Douban shortcuts with one “视频数据中心” entry without
+touching unrelated quick-menu entries. Both routes inherit MacCMS admin authentication and
+action permissions; without a separately granted route it is available to the
+super administrator. Finished audit results can be deleted explicitly from the
+page; this cleanup never writes to or deletes from `mac_vod`. Deployment also
+removes the obsolete `response_end` hook after the additive worker-column
+migration succeeds and installs one idempotent, single-instance Cron entry for
+`addons/vodops/bin/vodops-worker.php`. Existing VodOps config values are
+preserved. Set `VODOPS_INSTALL_CRON=0` only when the host cannot use user
+crontabs and the task will remain page-driven or be invoked by another scheduler.
+
+VodOps scans either all videos or a selected category. Selecting a parent freezes
+that category and its current descendants into the task, so later resume and
+export keep the original scope; leaf categories scan only themselves. The query
+uses resolved `type_id` values rather than the potentially inconsistent
+`type_id_1` field.
+
+VodOps settings can optionally create recurring scans every 1–720 hours for a
+configured category and batch size. The default interval is `0`, so deployment
+does not silently schedule new full-site scans; the Cron still continues worker
+tasks that an administrator starts explicitly.
+
+For a VodOps-only server release, load `scripts/deploy-ping2.env` and run
+`npm run deploy:vodops`. This scoped command keeps the full local release gates
+but uploads and installs only the VodOps archive; it does not replace the theme,
+the device addon, the game service, or the standalone player.
+
+After the theme and addons pass verification, deployment installs the versioned
 `pingfanggames-server` release under `/opt/pingfanggames`, preserves or creates
 the shared ticket secret, updates the addon and Nginx configuration, restarts
 the systemd service, and checks `/healthz`. Use `npm run deploy:games` when only
@@ -394,14 +465,16 @@ To roll back to a specific backup directory, pass its directory name:
 ROLLBACK_BACKUP=pingfangvideo.backup.20260627093000 npm run rollback
 ```
 
-Rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
+Theme rollback keeps the failed live directory as `pingfangvideo.failed.*`, restores
 the selected backup to `pingfangvideo`, and clears the same MacCMS cache
-directories unless `DEPLOY_CLEAR_CACHE=0` is set. This command intentionally
-rolls back only the theme. Addon code and its additive device-session schema are
-left in place so a theme rollback cannot discard login history or silently
-remove a security migration; deploy-created addon and application-controller
-backups remain on the server for an explicit manual addon rollback if one is
-required.
+directories unless `DEPLOY_CLEAR_CACHE=0` is set. Set
+`ROLLBACK_SCOPE=vodops` to restore a selected `vodops.backup.*` directory and
+its application payloads. A first merged release can therefore restore the
+previous standalone VodOps/Douban directories as well; later backups restore the
+previous integrated plugin.
+Neither rollback removes or rewinds database tables, so device history,
+quality snapshots, repair logs, Douban metadata, tasks, and audit history remain
+available for an explicit data-recovery decision.
 
 GitHub Actions installs the pinned npm workspace dependencies with `npm ci` and
 the Playwright Chromium runtime, then runs the same release gate on pushes and
@@ -412,8 +485,9 @@ pull requests: `npm test`, `npm run lint`, `npm run typecheck:web`,
 workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
 `dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, plus
 `dist/pingfangapi.tar.gz` as `pingfangapi-addon`,
+`dist/vodops.tar.gz` as `vodops-addon`,
 `dist/pingfangplayer-player.tar.gz` as `pingfangplayer-player` and
-`dist/pingfanggames-server.tar.gz` as `pingfanggames-server`, keeping all five
+`dist/pingfanggames-server.tar.gz` as `pingfanggames-server`, keeping all six
 release units separate.
 
 `npm run lint` checks theme browser JavaScript with ESLint, Next.js/React TypeScript with

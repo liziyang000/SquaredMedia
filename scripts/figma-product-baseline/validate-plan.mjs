@@ -207,7 +207,7 @@ for (const flow of plan.formalPrototype.prototypeFlows) {
 }
 check(plan.formalPrototype.playerEvidence.length === 2, "player evidence state count must be 2");
 check(unique(plan.formalPrototype.playerEvidence.map((item) => item.id)), "duplicate player evidence ids");
-check(plan.formalPrototype.codeCoverageAddendum.length === 16, "code coverage addendum count must be 16");
+check(plan.formalPrototype.codeCoverageAddendum.length === 13, "code coverage addendum count must be 13");
 check(unique(plan.formalPrototype.codeCoverageAddendum.map((item) => item.id)), "duplicate code coverage addendum ids");
 check(unique(plan.formalPrototype.codeCoverageAddendum.flatMap((item) => item.sourceFiles)), "code coverage addendum contains duplicate source files");
 check(

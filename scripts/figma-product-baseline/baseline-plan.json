@@ -13,7 +13,7 @@
   "sourceCoverage": {
     "trackedExtensions": [".html", ".css", ".js", ".mjs", ".php", ".json", ".ini", ".svg", ".webmanifest"],
     "excludedDirectories": ["node_modules", "vendor"],
-    "expectedTrackedFileCount": 150,
+    "expectedTrackedFileCount": 142,
     "policy": "Every tracked file under the current source roots must be mapped by an archetype, component, interaction, flow, setting surface, asset entry, machine output, player evidence, or explicit code-coverage addendum."
   },
   "figma": {
@@ -350,10 +350,10 @@
     {
       "id": "player",
       "families": ["player"],
-      "sourceSelectors": [".player-head", ".player-toolbar", ".player-shell", ".pf-player-controls", ".episode-grid"],
+      "sourceSelectors": [".player-head", ".player-toolbar", ".player-shell", ".episode-grid"],
       "desktop": "1440 reference: titled player page, 16:9 shell, inline toolbar, and eight-column episode grid.",
       "tablet": "768 reference: the 16:9 shell and standard controls remain; the episode grid reduces to five columns through the 1020px theme rule.",
-      "mobile": "390 reference: head/toolbar stack, episode grid uses three columns, toolbar label hides, and theme-player controls become 38px. Artplayer status padding reduces below 640px; preload/buffering prompts narrow below 560px.",
+      "mobile": "390 reference: head/toolbar stack, episode grid uses three columns, and the toolbar label hides. Artplayer status padding reduces below 640px; preload/buffering prompts narrow below 560px.",
       "visibility": "Toolbar descriptive text hides at 760px; short landscape at height 520px hides the player head and makes the shell edge-to-edge; prompt artwork compacts again below 300px height.",
       "navigation": "Episode, failover, retry, auto-next, and same-episode line-switch behavior remain tied to player data and playback recovery.",
       "cards": "Episode links 8 → 5 → 3; player remains 16:9 except short-landscape full-height mode."
@@ -819,13 +819,6 @@
         "sourceFiles": ["addons/pingfangdevice/view/index/index.html"]
       },
       {
-        "id": "C04",
-        "name": "Videolint addon admin view",
-        "classification": "optional-addon-admin",
-        "representation": "developer reference only; not promoted as a shipped public page",
-        "sourceFiles": ["addons/videolint/view/index/index.html"]
-      },
-      {
         "id": "C05",
         "name": "Content interaction partials",
         "classification": "partial",
@@ -880,10 +873,7 @@
         "classification": "vendored-game-runtime",
         "representation": "16 · Games implementation mapping; visual states remain A19 and the protected Production Prototype",
         "sourceFiles": [
-          "template/pingfangvideo/games/2048/js/animframe_polyfill.js",
           "template/pingfangvideo/games/2048/js/application.js",
-          "template/pingfangvideo/games/2048/js/bind_polyfill.js",
-          "template/pingfangvideo/games/2048/js/classlist_polyfill.js",
           "template/pingfangvideo/games/2048/js/game_manager.js",
           "template/pingfangvideo/games/2048/js/grid.js",
           "template/pingfangvideo/games/2048/js/html_actuator.js",
@@ -933,32 +923,6 @@
           "addons/pingfangdevice/service/GameAccessTicket.php",
           "addons/pingfangdevice/service/VodFilterOptions.php",
           "addons/pingfangdevice/service/VodSourceQuality.php"
-        ]
-      },
-      {
-        "id": "C14",
-        "name": "Videolint addon backend",
-        "classification": "optional-addon-backend",
-        "representation": "06 · Developer Reference only; the optional admin tool has no shipped public product route or separate visual frame",
-        "sourceFiles": [
-          "addons/videolint/Videolint.php",
-          "addons/videolint/config.php",
-          "addons/videolint/controller/Index.php",
-          "addons/videolint/info.ini",
-          "addons/videolint/service/QualityScanner.php"
-        ]
-      },
-      {
-        "id": "C15",
-        "name": "Retained but unshipped theme experiments",
-        "classification": "excluded-runtime",
-        "representation": "90 · Issues and 06 · Developer Reference only; not loaded by current production templates and not valid prototype evidence",
-        "sourceFiles": [
-          "template/pingfangvideo/js/hls.min.js",
-          "template/pingfangvideo/js/pingfang-player.js",
-          "template/pingfangvideo/js/rank-react.js",
-          "template/pingfangvideo/js/react-dom.production.min.js",
-          "template/pingfangvideo/js/react.production.min.js"
         ]
       },
       {

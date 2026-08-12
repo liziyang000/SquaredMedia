@@ -12,33 +12,12 @@ function path_for(string $route, array $params = []): string
     return '/index.php?' . $query;
 }
 
-function hot_search_terms(array $data): array
-{
-    if (!empty($data['hotSearch']) && is_array($data['hotSearch'])) {
-        return array_values(array_filter(array_map('strval', $data['hotSearch'])));
-    }
-
-    $videos = $data['videos'];
-    usort($videos, static fn (array $a, array $b): int => ((int) $b['hits']) <=> ((int) $a['hits']));
-
-    return array_map(static fn (array $video): string => (string) $video['title'], array_slice($videos, 0, 6));
-}
-
-function render_hot_search_panel(array $data, string $extraClass = ''): string
-{
-    $links = implode('', array_map(
-        static fn (string $term): string => '<a href="' . e(path_for('search', ['wd' => $term])) . '">' . e($term) . '</a>',
-        hot_search_terms($data),
-    ));
-
-    return '<div class="hot-search-panel' . e($extraClass) . '" aria-label="热搜榜"><span>热搜榜</span>' . $links . '</div>';
-}
-
 function render_layout(array $data, string $title, string $content): string
 {
     $nav = '<a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>';
     $nav .= '<a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>';
+    $nav .= '<a href="/preview/qixi.html" data-nav-section="qixi">七夕花束</a>';
     $drawerCategories = implode('', array_map(
         static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category])) . '">' . e($category) . '</a>',
         array_slice($data['categories'], 0, 12),
@@ -87,6 +66,10 @@ function render_layout(array $data, string $title, string $content): string
           <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
           <span>敦煌流光</span>
         </button>
+        <button class="theme-option" type="button" data-theme-option="digital-particles" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-digital" aria-hidden="true"></span>
+          <span>数码粒子</span>
+        </button>
         <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
           <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
           <span>像素蛙</span>
@@ -109,6 +92,7 @@ function render_layout(array $data, string $title, string $content): string
     <a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>
     <a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>
     <a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>
+    <a href="/preview/qixi.html" data-nav-section="qixi">七夕花束</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account"><span>账号</span><div class="mobile-drawer-user"><a class="mobile-drawer-login" href="' . e(path_for('login')) . '">登录</a></div></div>
   <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>
@@ -129,6 +113,10 @@ function render_layout(array $data, string $title, string $content): string
       <button class="theme-option" type="button" data-theme-option="dunhuang-caisson" aria-pressed="false">
         <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
         <span>敦煌流光</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="digital-particles" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-digital" aria-hidden="true"></span>
+        <span>数码粒子</span>
       </button>
       <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
         <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
@@ -168,16 +156,6 @@ function render_home_shelf_card(array $video, bool $featured = false): string
   <span class="home-shelf-body"><strong>' . e($video['title']) . '</strong><small>' . e($meta) . '</small></span>
   <span class="home-shelf-score">' . e($video['score']) . '</span>
 </a>';
-}
-
-function render_home_shelf(string $className, string $title, string $headExtra, array $videos, bool $featured = false): string
-{
-    $cards = implode('', array_map(
-        static fn (array $video): string => render_home_shelf_card($video, $featured),
-        $videos,
-    ));
-
-    return '<section class="wrap home-shelf ' . e($className) . '"><div class="home-shelf-head"><h2>' . e($title) . '</h2>' . $headExtra . '</div><div class="home-shelf-rail">' . $cards . '</div></section>';
 }
 
 function render_home_latest_panel(string $tabKey, array $videos, bool $isActive = false): string
@@ -350,6 +328,7 @@ function render_game_hub_preview(): string
 {
     $game2048Href = e(path_for('game-2048', ['member' => 1]));
     $blockrainHref = e(path_for('game-blockrain', ['member' => 1]));
+    $bambooCicadaHref = e(path_for('game-bamboo-cicada', ['member' => 1]));
     $gomokuHref = e(path_for('game-gomoku', ['member' => 1]));
     $drawguessHref = e(path_for('game-drawguess', ['member' => 1]));
 
@@ -366,6 +345,10 @@ function render_game_hub_preview(): string
     <article class="game-card game-card-blockrain">
       <div class="game-card-art game-card-art-blockrain" aria-hidden="true"><span class="block-shape block-shape-a"></span><span class="block-shape block-shape-b"></span><span class="block-shape block-shape-c"></span><span class="block-floor"></span></div>
       <div class="game-card-copy"><div class="game-card-meta"><span>经典消除</span><span>键盘 · 触控</span></div><h2>俄罗斯方块</h2><p>旋转、移动、快速下落，在节奏加快前完成整行消除。</p><div class="game-card-actions"><a class="primary-btn" href="' . $blockrainHref . '">开始游戏</a><a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">MIT · GitHub</a></div></div>
+    </article>
+    <article class="game-card game-card-bamboo-cicada">
+      <div class="game-card-art game-card-art-bamboo-cicada" aria-hidden="true"><span class="bamboo-card-orbit"></span><span class="bamboo-card-line"></span><span class="bamboo-card-handle"></span><span class="bamboo-card-toy"><i></i><b></b></span></div>
+      <div class="game-card-copy"><div class="game-card-meta"><span>传统声响玩具</span><span>拖动 · 体感节奏</span></div><h2>竹知了</h2><p>按住红色手柄绕圈甩动，找到最清亮的转速，让蝉鸣余音不断。</p><div class="game-card-actions"><a class="primary-btn" href="' . $bambooCicadaHref . '">摇响知了</a><span class="game-online-label"><i aria-hidden="true"></i>本地合成声音</span></div></div>
     </article>
     <article class="game-card game-card-gomoku">
       <div class="game-card-art game-card-art-gomoku" aria-hidden="true"><span class="gomoku-art-grid"></span><i class="gomoku-art-piece gomoku-art-piece-black"></i><i class="gomoku-art-piece gomoku-art-piece-white"></i><i class="gomoku-art-piece gomoku-art-piece-win"></i></div>
@@ -440,6 +423,35 @@ function render_game_blockrain_preview(): string
 <script src="/template/pingfangvideo/games/blockrain/jquery-1.11.1.min.js"></script>
 <script src="/template/pingfangvideo/games/blockrain/blockrain.jquery.min.js"></script>
 <script src="/template/pingfangvideo/games/init.js"></script>';
+}
+
+function render_game_bamboo_cicada_preview(): string
+{
+    return '<section class="wrap game-play-page game-play-page-bamboo-cicada" data-bamboo-cicada-game aria-labelledby="phpBambooCicadaTitle">
+  <header class="game-play-head"><div><span class="eyebrow">BAMBOO CICADA · THREE MOVEMENTS</span><h1 id="phpBambooCicadaTitle">竹知了</h1><p>先起鸣，再跟住收缩的共鸣环，最后应对竹风与反向指令。每完成一圈都会判定节拍。</p></div><a class="ghost-btn" href="' . e(path_for('games', ['member' => 1])) . '">返回游戏大厅</a></header>
+  <div class="game-stage-panel bamboo-cicada-stage">
+    <div class="bamboo-cicada-layout">
+      <div class="bamboo-cicada-arena" data-cicada-arena role="application" aria-label="竹知了游玩区域，按住红色手柄绕圈，跟随共鸣环控制速度与方向" tabindex="0">
+        <ol class="cicada-phase-rail" aria-label="本轮三阶段"><li data-cicada-phase="awaken" aria-current="step"><span>一</span><strong>起鸣</strong></li><li data-cicada-phase="resonance"><span>二</span><strong>共鸣</strong></li><li data-cicada-phase="challenge"><span>三</span><strong>应变</strong></li></ol>
+        <div class="cicada-event" data-cicada-event aria-live="polite" aria-atomic="true"><span data-cicada-event-icon aria-hidden="true">风</span><div><strong data-cicada-event-title>竹风将至</strong><small data-cicada-event-copy>稳住转速</small></div></div><span class="cicada-judgment" data-cicada-judgment aria-hidden="true">准备</span>
+        <span class="cicada-orbit cicada-orbit-outer" aria-hidden="true"></span><span class="cicada-orbit cicada-orbit-inner" aria-hidden="true"></span><span class="cicada-beat-ring" data-cicada-beat aria-hidden="true"></span><span class="cicada-resonance" data-cicada-resonance aria-hidden="true"><i></i><i></i><i></i></span><span class="cicada-particles" data-cicada-particles aria-hidden="true"></span>
+        <div class="bamboo-cicada-rig" data-cicada-rig aria-hidden="true"><span class="cicada-string"></span><span class="cicada-handle"><i></i></span><span class="cicada-toy" data-cicada-toy><i class="cicada-cap"></i><i class="cicada-eye cicada-eye-left"></i><i class="cicada-eye cicada-eye-right"></i><i class="cicada-body"></i><i class="cicada-wing cicada-wing-left"></i><i class="cicada-wing cicada-wing-right"></i></span></div>
+        <p class="cicada-drag-hint"><span>●</span> 按住红色手柄绕圈；共鸣环收紧时完成一圈</p>
+      </div>
+      <aside class="bamboo-cicada-console" aria-label="竹知了游戏状态">
+        <div class="cicada-scoreboard"><div><span>余音</span><strong data-cicada-score>0000</strong></div><div><span>最佳</span><strong data-cicada-best>0000</strong></div></div>
+        <div class="cicada-round-row"><div><span>当前乐章</span><strong data-cicada-stage>一 · 起鸣</strong></div><div><span>剩余</span><strong><span data-cicada-time>36.0</span>s</strong></div></div>
+        <div class="cicada-speed-panel"><div><span>共鸣转速</span><strong data-cicada-combo>连鸣 ×1</strong></div><div class="cicada-speed-track" aria-label="当前转速与目标区间"><span class="cicada-sweet-zone" data-cicada-target></span><i data-cicada-speed></i></div><div class="cicada-speed-labels"><span>轻</span><span data-cicada-direction>顺逆皆可</span><span>过急</span></div></div>
+        <div class="cicada-energy-panel"><div><span>鸣力</span><strong data-cicada-energy-label>25%</strong></div><div class="cicada-energy-track" aria-hidden="true"><i data-cicada-energy></i></div></div><div class="cicada-judgment-counts" aria-label="节拍判定统计"><span><i>准</i><strong data-cicada-perfect>0</strong></span><span><i>稳</i><strong data-cicada-good>0</strong></span><span><i>失</i><strong data-cicada-miss>0</strong></span></div>
+        <p class="cicada-feedback" data-cicada-status role="status" aria-live="polite">按下开始，先把竹知了稳稳甩响。</p>
+        <div class="cicada-actions"><button class="primary-btn" type="button" data-cicada-start>开始三乐章</button><button class="ghost-btn" type="button" data-cicada-sound aria-pressed="true">声音：开</button></div><p class="cicada-keyboard-tip">键盘：← / → 控制方向，空格沿当前方向加力。</p>
+      </aside>
+    </div>
+    <div class="cicada-result" data-cicada-result hidden role="dialog" aria-modal="true" aria-labelledby="phpCicadaResultTitle"><span class="eyebrow">本轮共鸣评级</span><strong class="cicada-result-grade" data-cicada-result-grade>A</strong><h2 id="phpCicadaResultTitle" data-cicada-result-title>余音绕梁</h2><p class="cicada-result-score"><span data-cicada-result-score>0</span> 分</p><dl class="cicada-result-metrics"><div><dt>力度</dt><dd><span data-cicada-result-power>0</span></dd></div><div><dt>稳定</dt><dd><span data-cicada-result-stability>0</span></dd></div><div><dt>节奏</dt><dd><span data-cicada-result-rhythm>0</span></dd></div><div><dt>反应</dt><dd><span data-cicada-result-response>0</span></dd></div></dl><button class="primary-btn" type="button" data-cicada-retry>再奏一轮</button></div>
+  </div>
+  <p class="game-control-tip"><span>电脑：拖动 / ← →</span><span>手机：按住红色手柄绕圈</span><span>声音与轻震动在首次操作后启动</span></p>
+</section>
+<script src="/template/pingfangvideo/games/bamboo-cicada.js"></script>';
 }
 
 function render_multiplayer_room_panel(string $prefix, bool $drawGame): string
@@ -605,6 +617,13 @@ function render_page(array $data, string $route, array $query): string
             ? render_game_blockrain_preview()
             : render_game_login_gate('phpGameBlockrainLoginTitle', '登录后才能开始游戏', '登录会员账号后即可进入俄罗斯方块，未登录状态不会加载游戏脚本。');
         return render_layout($data, '俄罗斯方块', $content);
+    }
+
+    if ($route === 'game-bamboo-cicada') {
+        $content = preview_member_enabled($query)
+            ? render_game_bamboo_cicada_preview()
+            : render_game_login_gate('phpBambooCicadaLoginTitle', '登录后才能摇响竹知了', '登录会员账号后即可游玩竹知了，未登录状态不会加载游戏脚本或声音模块。');
+        return render_layout($data, '竹知了', $content);
     }
 
     if ($route === 'game-gomoku') {

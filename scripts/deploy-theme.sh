@@ -12,6 +12,7 @@ deploy_tmp_dir=""
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_CLEAR_CACHE="${DEPLOY_CLEAR_CACHE:-1}"
+VODOPS_INSTALL_CRON="${VODOPS_INSTALL_CRON:-1}"
 DEPLOY_SITE_HOST="${DEPLOY_SITE_HOST:-}"
 DEPLOY_SITE_SCHEME="${DEPLOY_SITE_SCHEME:-https}"
 DEPLOY_SITE_MARKER="${DEPLOY_SITE_MARKER:-}"
@@ -20,21 +21,24 @@ DEPLOY_GATE_CACHE_ROOT="${DEPLOY_GATE_CACHE_ROOT:-$repo_root/.cache/deploy-gates
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"
 API_ADDON_NAME="pingfangapi"
+VODOPS_ADDON_NAME="vodops"
 API_BACKUP_ID=""
 ARCHIVE="dist/pingfangvideo.tar.gz"
 ADDON_ARCHIVE="dist/pingfangdevice.tar.gz"
 API_ADDON_ARCHIVE="dist/pingfangapi.tar.gz"
+VODOPS_ADDON_ARCHIVE="dist/vodops.tar.gz"
 ROLLBACK_FAILED_EXIT_STATUS=95
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 upload_nonce="$(date +%Y%m%d%H%M%S).$$.$RANDOM"
 REMOTE_TMP="${DEPLOY_REMOTE_TMP:-/tmp/${THEME_NAME}.${upload_nonce}.tar.gz}"
 REMOTE_ADDON_TMP="${DEPLOY_REMOTE_ADDON_TMP:-/tmp/${ADDON_NAME}.${upload_nonce}.tar.gz}"
 REMOTE_API_ADDON_TMP="${DEPLOY_REMOTE_API_ADDON_TMP:-/tmp/${API_ADDON_NAME}.${upload_nonce}.tar.gz}"
+REMOTE_VODOPS_ADDON_TMP="${DEPLOY_REMOTE_VODOPS_ADDON_TMP:-/tmp/${VODOPS_ADDON_NAME}.${upload_nonce}.tar.gz}"
 
 case "$DEPLOY_SCOPE" in
-  all|backend|api) ;;
+  all|backend|api|vodops) ;;
   *)
-    echo "DEPLOY_SCOPE must be all, backend, or api." >&2
+    echo "DEPLOY_SCOPE must be all, backend, api, or vodops." >&2
     exit 1
     ;;
 esac
@@ -62,11 +66,20 @@ validate_remote_archive_path() {
 if [[ "$DEPLOY_SCOPE" == "all" ]]; then
   validate_remote_archive_path "$REMOTE_TMP" "DEPLOY_REMOTE_TMP"
 fi
-if [[ "$DEPLOY_SCOPE" != "api" ]]; then
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "backend" ]]; then
   validate_remote_archive_path "$REMOTE_ADDON_TMP" "DEPLOY_REMOTE_ADDON_TMP"
 fi
-validate_remote_archive_path "$REMOTE_API_ADDON_TMP" "DEPLOY_REMOTE_API_ADDON_TMP"
+if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+  validate_remote_archive_path "$REMOTE_API_ADDON_TMP" "DEPLOY_REMOTE_API_ADDON_TMP"
+fi
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "vodops" ]]; then
+  validate_remote_archive_path "$REMOTE_VODOPS_ADDON_TMP" "DEPLOY_REMOTE_VODOPS_ADDON_TMP"
+fi
 
+if [[ "$VODOPS_INSTALL_CRON" != "0" && "$VODOPS_INSTALL_CRON" != "1" ]]; then
+  echo "VODOPS_INSTALL_CRON must be 0 or 1." >&2
+  exit 1
+fi
 if [[ -n "$DEPLOY_SITE_HOST" && ! "$DEPLOY_SITE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; then
   echo "DEPLOY_SITE_HOST must be a hostname without a scheme or path." >&2
   exit 1
@@ -198,15 +211,24 @@ remote_tmp_env=(
   "REMOTE_TMP=$(printf "%q" "$REMOTE_TMP")"
   "REMOTE_ADDON_TMP=$(printf "%q" "$REMOTE_ADDON_TMP")"
   "REMOTE_API_ADDON_TMP=$(printf "%q" "$REMOTE_API_ADDON_TMP")"
+  "REMOTE_VODOPS_ADDON_TMP=$(printf "%q" "$REMOTE_VODOPS_ADDON_TMP")"
 )
 "${ssh_command[@]}" "$REMOTE" "${remote_tmp_env[*]} bash -s" <<'REMOTE_TMP_PREFLIGHT'
 set -euo pipefail
-archives=("$REMOTE_API_ADDON_TMP")
-if [[ "$DEPLOY_SCOPE" == "all" ]]; then
-  archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
-  archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-fi
+case "$DEPLOY_SCOPE" in
+  all)
+    archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+    ;;
+  backend)
+    archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
+    ;;
+  api)
+    archives=("$REMOTE_API_ADDON_TMP")
+    ;;
+  vodops)
+    archives=("$REMOTE_VODOPS_ADDON_TMP")
+    ;;
+esac
 for archive in "${archives[@]}"; do
   if [[ -e "$archive" || -L "$archive" ]]; then
     echo "Remote upload target already exists: $archive" >&2
@@ -220,12 +242,20 @@ cleanup_remote_uploads() {
   local -a preserved_archives
   trap - EXIT
   set +e
-  preserved_archives=("$REMOTE_API_ADDON_TMP")
-  if [[ "$DEPLOY_SCOPE" == "all" ]]; then
-    preserved_archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-  elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
-    preserved_archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-  fi
+  case "$DEPLOY_SCOPE" in
+    all)
+      preserved_archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+    backend)
+      preserved_archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
+      ;;
+    api)
+      preserved_archives=("$REMOTE_API_ADDON_TMP")
+      ;;
+    vodops)
+      preserved_archives=("$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+  esac
   if [[ "$status" -eq "$ROLLBACK_FAILED_EXIT_STATUS" ]]; then
     echo "CRITICAL: remote automatic rollback failed; preserving uploaded release archives for manual recovery." >&2
     echo "CRITICAL: preserved remote archives: ${preserved_archives[*]}" >&2
@@ -238,12 +268,20 @@ cleanup_remote_uploads() {
   fi
   if ! "${ssh_command[@]}" "$REMOTE" "${remote_tmp_env[*]} bash -s" <<'REMOTE_UPLOAD_CLEANUP'
 set -euo pipefail
-archives=("$REMOTE_API_ADDON_TMP")
-if [[ "$DEPLOY_SCOPE" == "all" ]]; then
-  archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
-  archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-fi
+case "$DEPLOY_SCOPE" in
+  all)
+    archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+    ;;
+  backend)
+    archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
+    ;;
+  api)
+    archives=("$REMOTE_API_ADDON_TMP")
+    ;;
+  vodops)
+    archives=("$REMOTE_VODOPS_ADDON_TMP")
+    ;;
+esac
 for archive in "${archives[@]}"; do
   if [[ -f "$archive" && ! -L "$archive" ]]; then
     rm -f -- "$archive"
@@ -260,20 +298,28 @@ trap cleanup_remote_uploads EXIT
 if [[ "$DEPLOY_SCOPE" == "all" ]]; then
   "${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
 fi
-if [[ "$DEPLOY_SCOPE" != "api" ]]; then
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "backend" ]]; then
   "${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
 fi
-"${scp_command[@]}" "$API_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_API_ADDON_TMP}"
+if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+  "${scp_command[@]}" "$API_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_API_ADDON_TMP}"
+fi
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "vodops" ]]; then
+  "${scp_command[@]}" "$VODOPS_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_VODOPS_ADDON_TMP}"
+fi
 
 remote_env=(
   "DEPLOY_SCOPE=$(printf "%q" "$DEPLOY_SCOPE")"
   "DEPLOY_PATH=$(printf "%q" "$DEPLOY_PATH")"
   "REMOTE_TMP=$(printf "%q" "$REMOTE_TMP")"
   "REMOTE_ADDON_TMP=$(printf "%q" "$REMOTE_ADDON_TMP")"
+  "REMOTE_VODOPS_ADDON_TMP=$(printf "%q" "$REMOTE_VODOPS_ADDON_TMP")"
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
   "API_ADDON_NAME=$(printf "%q" "$API_ADDON_NAME")"
+  "VODOPS_ADDON_NAME=$(printf "%q" "$VODOPS_ADDON_NAME")"
   "REMOTE_API_ADDON_TMP=$(printf "%q" "$REMOTE_API_ADDON_TMP")"
+  "VODOPS_INSTALL_CRON=$(printf "%q" "$VODOPS_INSTALL_CRON")"
   "DEPLOY_CLEAR_CACHE=$(printf "%q" "$DEPLOY_CLEAR_CACHE")"
   "DEPLOY_SITE_HOST=$(printf "%q" "$DEPLOY_SITE_HOST")"
   "DEPLOY_SITE_SCHEME=$(printf "%q" "$DEPLOY_SITE_SCHEME")"
@@ -288,9 +334,9 @@ remote_env=(
 set -euo pipefail
 
 case "$DEPLOY_SCOPE" in
-  all|backend|api) ;;
+  all|backend|api|vodops) ;;
   *)
-    echo "Remote DEPLOY_SCOPE must be all, backend, or api." >&2
+    echo "Remote DEPLOY_SCOPE must be all, backend, api, or vodops." >&2
     exit 1
     ;;
 esac
@@ -301,6 +347,10 @@ api_addon_source=""
 rollback_root=""
 release_started=0
 release_committed=0
+vodops_auto_rollback_backup=""
+vodops_auto_rollback_root=""
+vodops_auto_rollback_addon=""
+vodops_auto_rollback_cron="0"
 API_WARMUP_TIMEOUT_SECONDS=10
 API_WARMUP_TOTAL_TIMEOUT_SECONDS=30
 API_WARMUP_MAX_ENDPOINTS=5
@@ -308,6 +358,182 @@ api_warmup_count=0
 api_warmed_count=0
 api_warmup_last_file=""
 api_warmup_started_seconds=0
+
+restore_vodops_deploy_snapshot() {
+  local backup_dir="$1" maccms_root="$2" addon_name="$3" restore_cron="${4:-1}"
+  local addons_dir state_dir stamp candidate legacy_candidate failed_addon failed_douban switch_failed restore_failed
+  local sources targets index source target
+
+  if [[ -z "$maccms_root" || "$maccms_root" != /* || ! "$addon_name" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    echo "VodOps automatic rollback target is invalid." >&2
+    return 1
+  fi
+  addons_dir="$maccms_root/addons"
+  state_dir="$backup_dir/.vodops-deploy-state"
+  if [[ "$backup_dir" != "$addons_dir/"* || ! -d "$state_dir" ]]; then
+    echo "VodOps automatic rollback snapshot is invalid: $backup_dir" >&2
+    return 1
+  fi
+
+  stamp="$(date +%Y%m%d%H%M%S).$$"
+  candidate=""
+  legacy_candidate=""
+  if [[ -f "$state_dir/vodops-addon-present" ]]; then
+    candidate="$addons_dir/.${addon_name}.auto-rollback.${stamp}"
+    if ! cp -a "$backup_dir" "$candidate" \
+      || ! rm -rf "$candidate/.vodops-deploy-state" \
+      || [[ ! -f "$candidate/info.ini" ]]; then
+      rm -rf "$candidate"
+      echo "VodOps automatic rollback could not prepare the previous addon." >&2
+      return 1
+    fi
+  fi
+  if [[ -d "$state_dir/addons/douban" ]]; then
+    legacy_candidate="$addons_dir/.douban.auto-rollback.${stamp}"
+    if ! cp -a "$state_dir/addons/douban" "$legacy_candidate" \
+      || [[ ! -f "$legacy_candidate/info.ini" ]]; then
+      if [[ -n "$candidate" ]]; then
+        rm -rf "$candidate"
+      fi
+      rm -rf "$legacy_candidate"
+      echo "VodOps automatic rollback could not prepare the previous Douban addon." >&2
+      return 1
+    fi
+  fi
+
+  failed_addon=""
+  if [[ -d "$addons_dir/$addon_name" ]]; then
+    failed_addon="$addons_dir/${addon_name}.failed.${stamp}"
+    if ! mv "$addons_dir/$addon_name" "$failed_addon"; then
+      if [[ -n "$candidate" ]]; then
+        rm -rf "$candidate"
+      fi
+      if [[ -n "$legacy_candidate" ]]; then
+        rm -rf "$legacy_candidate"
+      fi
+      echo "VodOps automatic rollback could not preserve the failed addon." >&2
+      return 1
+    fi
+  fi
+  failed_douban=""
+  if [[ -d "$addons_dir/douban" ]]; then
+    failed_douban="$addons_dir/douban.failed.${stamp}"
+    if ! mv "$addons_dir/douban" "$failed_douban"; then
+      if [[ -n "$failed_addon" && -d "$failed_addon" ]]; then
+        mv "$failed_addon" "$addons_dir/$addon_name" || true
+      fi
+      if [[ -n "$candidate" ]]; then
+        rm -rf "$candidate"
+      fi
+      if [[ -n "$legacy_candidate" ]]; then
+        rm -rf "$legacy_candidate"
+      fi
+      echo "VodOps automatic rollback could not preserve the failed Douban addon." >&2
+      return 1
+    fi
+  fi
+
+  switch_failed=0
+  if [[ -n "$candidate" ]] && ! mv "$candidate" "$addons_dir/$addon_name"; then
+    switch_failed=1
+  fi
+  if [[ "$switch_failed" == "0" && -n "$legacy_candidate" ]] && ! mv "$legacy_candidate" "$addons_dir/douban"; then
+    switch_failed=1
+  fi
+  if [[ "$switch_failed" != "0" ]]; then
+    rm -rf "$addons_dir/$addon_name" "$addons_dir/douban"
+    if [[ -n "$failed_addon" && -d "$failed_addon" ]]; then
+      mv "$failed_addon" "$addons_dir/$addon_name"
+    fi
+    if [[ -n "$failed_douban" && -d "$failed_douban" ]]; then
+      mv "$failed_douban" "$addons_dir/douban"
+    fi
+    echo "VodOps automatic addon rollback failed; restored the failed release directories." >&2
+    return 1
+  fi
+
+  sources=(
+    "$state_dir/application/admin/controller/Vodops.php"
+    "$state_dir/application/admin/controller/Douban.php"
+    "$state_dir/application/admin/view_new/vodops/index.html"
+    "$state_dir/application/index/controller/Douban.php"
+    "$state_dir/application/extra/quickmenu.php"
+    "$state_dir/application/extra/addons.php"
+  )
+  targets=(
+    "$maccms_root/application/admin/controller/Vodops.php"
+    "$maccms_root/application/admin/controller/Douban.php"
+    "$maccms_root/application/admin/view_new/vodops/index.html"
+    "$maccms_root/application/index/controller/Douban.php"
+    "$maccms_root/application/extra/quickmenu.php"
+    "$maccms_root/application/extra/addons.php"
+  )
+  restore_failed=0
+  for index in "${!sources[@]}"; do
+    source="${sources[$index]}"
+    target="${targets[$index]}"
+    mkdir -p "$(dirname "$target")" || restore_failed=1
+    if [[ -f "$source" ]]; then
+      cp -a "$source" "$target" || restore_failed=1
+    else
+      rm -f "$target" || restore_failed=1
+    fi
+  done
+  if [[ "$restore_cron" == "1" && -f "$state_dir/crontab" ]]; then
+    crontab "$state_dir/crontab" || restore_failed=1
+  fi
+  if [[ "$restore_failed" != "0" ]]; then
+    echo "VodOps automatic payload rollback was incomplete; inspect ${backup_dir}." >&2
+    return 1
+  fi
+
+  echo "Automatically restored VodOps files from $(basename "$backup_dir"); database changes were preserved." >&2
+}
+
+remote_deploy_exit() {
+  local status=$?
+  local archive
+  local -a archives
+
+  trap - EXIT
+  if [[ "$status" != "0" && -n "${vodops_auto_rollback_backup:-}" ]]; then
+    echo "VodOps deployment failed after replacement; starting automatic file rollback." >&2
+    if ! restore_vodops_deploy_snapshot \
+      "$vodops_auto_rollback_backup" \
+      "$vodops_auto_rollback_root" \
+      "$vodops_auto_rollback_addon" \
+      "$vodops_auto_rollback_cron"; then
+      echo "VodOps automatic rollback failed; use the preserved snapshot for manual recovery." >&2
+    elif declare -F clear_maccms_cache >/dev/null 2>&1; then
+      clear_maccms_cache || true
+    fi
+  fi
+  if [[ -n "${deploy_tmp_dir:-}" ]]; then
+    rm -rf -- "$deploy_tmp_dir" || true
+  fi
+  case "$DEPLOY_SCOPE" in
+    all)
+      archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+    backend)
+      archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
+      ;;
+    api)
+      archives=("$REMOTE_API_ADDON_TMP")
+      ;;
+    vodops)
+      archives=("$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+  esac
+  for archive in "${archives[@]}"; do
+    if [[ -f "$archive" && ! -L "$archive" ]]; then
+      rm -f -- "$archive" || true
+    fi
+  done
+  exit "$status"
+}
+
+trap remote_deploy_exit EXIT
 
 clear_maccms_cache() {
   local maccms_root cache_dir cleared
@@ -351,11 +577,11 @@ validate_api_warmup_response() {
         if ($policyValid) {
             exit(42);
         }
-        fwrite(STDERR, "Production API returned an invalid regional policy envelope.\n");
+        file_put_contents('php://stderr', "Production API returned an invalid regional policy envelope.\n");
         exit(1);
     }
     if ($status !== "200" || !is_array($payload) || (string)($payload["code"] ?? "") !== "1" || !is_array($payload["data"] ?? null)) {
-        fwrite(STDERR, "Production API response is not a valid success envelope.\n");
+        file_put_contents('php://stderr', "Production API response is not a valid success envelope.\n");
         exit(1);
     }
 
@@ -408,7 +634,7 @@ validate_api_warmup_response() {
         $message = $kind === "home_v2"
             ? "Production API response is not a valid home envelope.\n"
             : "Production API response is not a valid " . $kind . " envelope.\n";
-        fwrite(STDERR, $message);
+        file_put_contents('php://stderr', $message);
         exit(1);
     }
   '; then
@@ -553,7 +779,7 @@ warm_api_endpoints() {
 }
 
 verify_deployed_site() {
-  local port verify_url verify_file status bytes
+  local port verify_url verify_file status bytes attempt
 
   if [[ -z "$DEPLOY_SITE_HOST" ]]; then
     return
@@ -570,12 +796,18 @@ verify_deployed_site() {
   fi
   verify_url="${DEPLOY_SITE_SCHEME}://${DEPLOY_SITE_HOST}/"
   verify_file="$deploy_tmp_dir/site-verification.html"
-  if ! status="$(curl -k -sS -L --max-time 30 \
-    --resolve "${DEPLOY_SITE_HOST}:${port}:127.0.0.1" \
-    -o "$verify_file" -w '%{http_code}' "$verify_url")"; then
-    echo "Deployed site verification request failed for ${verify_url}" >&2
-    exit 1
-  fi
+  for attempt in 1 2; do
+    if status="$(curl -k -sS -L --max-time 60 \
+      --resolve "${DEPLOY_SITE_HOST}:${port}:127.0.0.1" \
+      -o "$verify_file" -w '%{http_code}' "$verify_url")"; then
+      break
+    fi
+    if [[ "$attempt" == "2" ]]; then
+      echo "Deployed site verification request failed for ${verify_url}" >&2
+      exit 1
+    fi
+    echo "Deployed site warm-up request failed; retrying ${verify_url}" >&2
+  done
 
   if [[ ! "$status" =~ ^[23][0-9][0-9]$ ]]; then
     echo "Deployed site verification failed for ${verify_url}: HTTP ${status}" >&2
@@ -588,7 +820,9 @@ verify_deployed_site() {
 
   bytes="$(wc -c < "$verify_file")"
   echo "Verified deployed site ${verify_url}: HTTP ${status}, ${bytes} bytes"
-  warm_api_endpoints "$port"
+  if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+    warm_api_endpoints "$port"
+  fi
 }
 
 merge_addon_config_values() {
@@ -606,7 +840,7 @@ $newPath = getenv('NEW_ADDON_CONFIG');
 $oldConfig = include $oldPath;
 $newConfig = include $newPath;
 if (!is_array($oldConfig) || !is_array($newConfig)) {
-    fwrite(STDERR, "Addon config merge requires two valid config arrays.\n");
+    file_put_contents('php://stderr', "Addon config merge requires two valid config arrays.\n");
     exit(1);
 }
 
@@ -631,7 +865,7 @@ $content = "<?php\n\nreturn " . var_export($newConfig, true) . ";\n";
 $tempPath = $newPath . '.tmp.' . getmypid();
 if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newPath)) {
     @unlink($tempPath);
-    fwrite(STDERR, "Failed to preserve saved addon configuration.\n");
+    file_put_contents('php://stderr', "Failed to preserve saved addon configuration.\n");
     exit(1);
 }
 PHP_ADDON_CONFIG
@@ -667,7 +901,7 @@ $newPath = getenv('NEW_ADDON_CONFIG');
 $existing = include $existingPath;
 $new = include $newPath;
 if (!is_array($existing) || !is_array($new)) {
-    fwrite(STDERR, "Addon config preservation failed: invalid config file.\n");
+    file_put_contents('php://stderr', "Addon config preservation failed: invalid config file.\n");
     exit(1);
 }
 $values = [];
@@ -686,7 +920,7 @@ $content = "<?php\n\nreturn " . var_export($new, true) . ";\n";
 $tempPath = $newPath . '.tmp.' . getmypid();
 if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newPath)) {
     @unlink($tempPath);
-    fwrite(STDERR, "Addon config preservation failed: unable to update config.\n");
+    file_put_contents('php://stderr', "Addon config preservation failed: unable to update config.\n");
     exit(1);
 }
 PHP_ADDON_CONFIG
@@ -726,17 +960,17 @@ if (!in_array($addon, $config['hooks']['app_begin'], true)) {
 $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
 $tempPath = $path . '.tmp.' . getmypid();
 if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
-    fwrite(STDERR, "Failed to back up addon hook config.\n");
+    file_put_contents('php://stderr', "Failed to back up addon hook config.\n");
     exit(1);
 }
 if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $path)) {
     @unlink($tempPath);
-    fwrite(STDERR, "Failed to update addon hook config.\n");
+    file_put_contents('php://stderr', "Failed to update addon hook config.\n");
     exit(1);
 }
 $verified = include $path;
 if (!in_array($addon, $verified['hooks']['app_begin'] ?? [], true)) {
-    fwrite(STDERR, "Addon app_begin hook verification failed.\n");
+    file_put_contents('php://stderr', "Addon app_begin hook verification failed.\n");
     exit(1);
 }
 PHP_CONFIG
@@ -748,7 +982,7 @@ $addon = getenv('ADDON_NAME');
 $dbFile = $root . '/application/database.php';
 $sqlFile = $root . '/addons/' . $addon . '/install.sql';
 if (!is_file($dbFile) || !is_file($sqlFile)) {
-    fwrite(STDERR, "MacCMS database config or addon install.sql is missing.\n");
+    file_put_contents('php://stderr', "MacCMS database config or addon install.sql is missing.\n");
     exit(1);
 }
 $db = include $dbFile;
@@ -767,7 +1001,7 @@ $pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
 $statement = '';
 foreach (preg_split('/\r?\n/', $sql) as $line) {
     $trimmed = trim($line);
-    if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
+    if ($trimmed === '' || strncmp($trimmed, '--', 2) === 0 || strncmp($trimmed, '/*', 2) === 0) {
         continue;
     }
     $statement .= $line . "\n";
@@ -798,7 +1032,7 @@ $check->execute(array_merge([$table], $required));
 $columns = $check->fetchAll(PDO::FETCH_COLUMN);
 sort($columns);
 if ($columns !== $required) {
-    fwrite(STDERR, "Device session schema verification failed.\n");
+    file_put_contents('php://stderr', "Device session schema verification failed.\n");
     exit(1);
 }
 PHP_SQL
@@ -894,7 +1128,7 @@ $addon = getenv('ADDON_NAME');
 $path = $root . '/application/extra/addons.php';
 $config = is_file($path) ? include $path : [];
 if (!is_array($config) || !in_array($addon, $config['hooks']['app_begin'] ?? [], true)) {
-    fwrite(STDERR, "Installed pingfangdevice app_begin hook is not enabled. Run the backend deployment first.\n");
+    file_put_contents('php://stderr', "Installed pingfangdevice app_begin hook is not enabled. Run the backend deployment first.\n");
     exit(1);
 }
 PHP_DEVICE_HOOK
@@ -905,7 +1139,7 @@ PHP_DEVICE_HOOK
 $root = rtrim(getenv('MACCMS_ROOT'), '/');
 $dbFile = $root . '/application/database.php';
 if (!is_file($dbFile)) {
-    fwrite(STDERR, "MacCMS database config is missing.\n");
+    file_put_contents('php://stderr', "MacCMS database config is missing.\n");
     exit(1);
 }
 $db = include $dbFile;
@@ -924,7 +1158,7 @@ $check->execute([$table, 'ulog_point', 'ulog_duration']);
 $columns = $check->fetchAll(PDO::FETCH_COLUMN);
 sort($columns);
 if ($columns !== ['ulog_duration', 'ulog_point']) {
-    fwrite(STDERR, "MacCMS ulog progress columns are required by pingfangapi.\n");
+    file_put_contents('php://stderr', "MacCMS ulog progress columns are required by pingfangapi.\n");
     exit(1);
 }
 
@@ -951,7 +1185,7 @@ if (getenv('DEPLOY_SCOPE') === 'api') {
     $columns = $check->fetchAll(PDO::FETCH_COLUMN);
     sort($columns);
     if ($columns !== $required) {
-        fwrite(STDERR, "Installed pingfangdevice database schema is not compatible with API-only deployment.\n");
+        file_put_contents('php://stderr', "Installed pingfangdevice database schema is not compatible with API-only deployment.\n");
         exit(1);
     }
 }
@@ -1070,6 +1304,511 @@ install_api_addon() {
   echo "Installed and verified ${API_ADDON_NAME} addon under ${addon_dir}"
 }
 
+install_vodops_worker_cron() {
+  local mode maccms_root marker current_file error_file next_file php_binary flock_binary cron_line count backup_file required_command
+
+  mode="${1:-install}"
+  if [[ "$VODOPS_INSTALL_CRON" == "0" ]]; then
+    if [[ "$mode" == "install" ]]; then
+      echo "Skipped VodOps Cron installation because VODOPS_INSTALL_CRON=0"
+    fi
+    return
+  fi
+  for required_command in crontab flock php; do
+    if ! command -v "$required_command" >/dev/null 2>&1; then
+      echo "${required_command} is required to install the VodOps worker Cron." >&2
+      exit 1
+    fi
+  done
+
+  maccms_root="$(dirname "$DEPLOY_PATH")"
+  if [[ "$maccms_root" == *$'\n'* || "$maccms_root" == *"'"* || "$maccms_root" == *"%"* ]]; then
+    echo "MacCMS root contains characters that cannot be safely written to Cron." >&2
+    exit 1
+  fi
+  marker="# vodops-worker:${maccms_root}"
+  current_file="$deploy_tmp_dir/vodops.crontab.current"
+  error_file="$deploy_tmp_dir/vodops.crontab.error"
+  next_file="$deploy_tmp_dir/vodops.crontab.next"
+  if ! crontab -l >"$current_file" 2>"$error_file"; then
+    if [[ -s "$error_file" ]] && ! grep -qi 'no crontab' "$error_file"; then
+      cat "$error_file" >&2
+      echo "Unable to read the existing crontab; refusing to replace it." >&2
+      exit 1
+    fi
+    : >"$current_file"
+  fi
+  if [[ "$mode" == "preflight" ]]; then
+    return
+  fi
+
+  mkdir -p "$maccms_root/runtime/log"
+  php_binary="$(command -v php)"
+  flock_binary="$(command -v flock)"
+  cron_line="* * * * * '${flock_binary}' -n '${maccms_root}/runtime/vodops-worker.lock' '${php_binary}' '${maccms_root}/addons/${VODOPS_ADDON_NAME}/bin/vodops-worker.php' --max-chunks=20 --max-seconds=50 >> '${maccms_root}/runtime/log/vodops-worker.log' 2>&1 ${marker}"
+  {
+    grep -Fv -- "$marker" "$current_file" || true
+    printf '%s\n' "$cron_line"
+  } >"$next_file"
+
+  if ! cmp -s "$current_file" "$next_file"; then
+    if [[ -s "$current_file" ]]; then
+      backup_file="$maccms_root/runtime/vodops.crontab.backup.$(date +%Y%m%d%H%M%S)"
+      cp -a "$current_file" "$backup_file"
+    fi
+    crontab "$next_file"
+  fi
+  count="$(crontab -l | grep -Fc -- "$marker" || true)"
+  if [[ "$count" != "1" ]]; then
+    echo "VodOps worker Cron verification failed." >&2
+    exit 1
+  fi
+  echo "Installed and verified single-instance VodOps worker Cron"
+}
+
+install_vodops_addon() {
+  local maccms_root addon_dir legacy_douban_dir backup backup_dir state_dir stamp tmp_dir
+  local controller_source controller_target controller_backup douban_controller_source douban_controller_target douban_controller_backup
+  local legacy_index_controller_target view_source view_target view_backup required_file
+
+  install_vodops_worker_cron preflight
+  maccms_root="$(dirname "$DEPLOY_PATH")"
+  addon_dir="$maccms_root/addons/$VODOPS_ADDON_NAME"
+  legacy_douban_dir="$maccms_root/addons/douban"
+  controller_target="$maccms_root/application/admin/controller/Vodops.php"
+  douban_controller_target="$maccms_root/application/admin/controller/Douban.php"
+  legacy_index_controller_target="$maccms_root/application/index/controller/Douban.php"
+  view_target="$maccms_root/application/admin/view_new/vodops/index.html"
+  backup=""
+  mkdir -p "$maccms_root/addons"
+
+  tmp_dir="$deploy_tmp_dir/vodops-addon"
+  mkdir -p "$tmp_dir"
+  tar -xzf "$REMOTE_VODOPS_ADDON_TMP" -C "$tmp_dir"
+  for required_file in \
+    "Vodops.php" \
+    "info.ini" \
+    "install.sql" \
+    "schema.php" \
+    "application/admin/controller/Douban.php" \
+    "application/admin/controller/Vodops.php" \
+    "application/admin/view_new/vodops/index.html" \
+    "backend/DoubanController.php" \
+    "bin/vodops-worker.php" \
+    "service/DoubanAiReviewer.php" \
+    "service/DoubanActionException.php" \
+    "service/DoubanData.php" \
+    "service/DoubanGateway.php" \
+    "service/DoubanMatcher.php" \
+    "service/VodPosterCandidate.php" \
+    "service/VodQualityAnalyzer.php" \
+    "service/VodQualityRepair.php" \
+    "service/VodQualityScanner.php" \
+    "view/index/index.html"
+  do
+    if [[ ! -f "$tmp_dir/$VODOPS_ADDON_NAME/$required_file" ]]; then
+      echo "Uploaded vodops archive is missing ${required_file}" >&2
+      exit 1
+    fi
+  done
+  while IFS= read -r -d '' php_file; do
+    php -l "$php_file" >/dev/null
+  done < <(find "$tmp_dir/$VODOPS_ADDON_NAME" -type f -name '*.php' -print0)
+
+  MACCMS_ROOT="$maccms_root" VODOPS_STAGED_ADDON="$tmp_dir/$VODOPS_ADDON_NAME" php <<'PHP_VODOPS_SCHEMA_PREFLIGHT'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$stagedAddon = rtrim(getenv('VODOPS_STAGED_ADDON'), '/');
+$dbFile = $root . '/application/database.php';
+$schemaFile = $stagedAddon . '/schema.php';
+if (!is_file($dbFile) || !is_file($schemaFile)) {
+    file_put_contents('php://stderr', "MacCMS database config or VodOps schema manifest is missing.\n");
+    exit(1);
+}
+$db = include $dbFile;
+$schema = include $schemaFile;
+if (!is_array($db) || !is_array($schema)) {
+    file_put_contents('php://stderr', "MacCMS database config or VodOps schema manifest is invalid.\n");
+    exit(1);
+}
+$prefix = isset($db['prefix']) ? $db['prefix'] : '';
+$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
+    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+    $db['hostname'] ?? '127.0.0.1',
+    $db['hostport'] ?? '3306',
+    $db['database'] ?? '',
+    $db['charset'] ?? 'utf8'
+);
+$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+]);
+$tableCheck = $pdo->prepare(
+    'SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+);
+$columnQuery = $pdo->prepare(
+    'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+);
+$incompatible = [];
+foreach ($schema as $table => $requiredColumns) {
+    $tableName = $prefix . $table;
+    $tableCheck->execute([$tableName]);
+    $engine = $tableCheck->fetchColumn();
+    if ($engine === false) {
+        continue;
+    }
+    if (strtolower((string)$engine) !== 'innodb') {
+        $incompatible[] = $tableName . ': ENGINE=' . (string)$engine . ', expected InnoDB';
+    }
+    $columnQuery->execute([$tableName]);
+    $actualColumns = array_map('strtolower', $columnQuery->fetchAll(PDO::FETCH_COLUMN));
+    $missing = array_values(array_diff($requiredColumns, $actualColumns));
+    if (!empty($missing)) {
+        $incompatible[] = $tableName . ': ' . implode(',', $missing);
+    }
+}
+if (!empty($incompatible)) {
+    file_put_contents(
+        'php://stderr',
+        "VodOps Douban schema preflight failed; no addon files were replaced. Incompatible legacy schema:\n- " .
+        implode("\n- ", $incompatible) .
+        "\nBack up and migrate the listed legacy tables before retrying.\n"
+    );
+    exit(1);
+}
+PHP_VODOPS_SCHEMA_PREFLIGHT
+
+  stamp="$(date +%Y%m%d%H%M%S)"
+  backup="${VODOPS_ADDON_NAME}.backup.${stamp}"
+  backup_dir="$maccms_root/addons/$backup"
+  if [[ -e "$backup_dir" ]]; then
+    echo "VodOps backup target already exists: $backup_dir" >&2
+    exit 1
+  fi
+  if [[ -d "$addon_dir" ]]; then
+    cp -a "$addon_dir" "$backup_dir"
+  else
+    mkdir -p "$backup_dir"
+  fi
+  state_dir="$backup_dir/.vodops-deploy-state"
+  mkdir -p \
+    "$state_dir/addons" \
+    "$state_dir/application/admin/controller" \
+    "$state_dir/application/admin/view_new/vodops" \
+    "$state_dir/application/index/controller" \
+    "$state_dir/application/extra"
+  if [[ -d "$addon_dir" ]]; then
+    touch "$state_dir/vodops-addon-present"
+  fi
+  if [[ -d "$legacy_douban_dir" ]]; then
+    cp -a "$legacy_douban_dir" "$state_dir/addons/douban"
+  fi
+  if [[ -f "$controller_target" ]]; then
+    cp -a "$controller_target" "$state_dir/application/admin/controller/Vodops.php"
+  fi
+  if [[ -f "$douban_controller_target" ]]; then
+    cp -a "$douban_controller_target" "$state_dir/application/admin/controller/Douban.php"
+  fi
+  if [[ -f "$view_target" ]]; then
+    cp -a "$view_target" "$state_dir/application/admin/view_new/vodops/index.html"
+  fi
+  if [[ -f "$legacy_index_controller_target" ]]; then
+    cp -a "$legacy_index_controller_target" "$state_dir/application/index/controller/Douban.php"
+  fi
+  if [[ -f "$maccms_root/application/extra/quickmenu.php" ]]; then
+    cp -a "$maccms_root/application/extra/quickmenu.php" "$state_dir/application/extra/quickmenu.php"
+  fi
+  if [[ -f "$maccms_root/application/extra/addons.php" ]]; then
+    cp -a "$maccms_root/application/extra/addons.php" "$state_dir/application/extra/addons.php"
+  fi
+  if [[ "$VODOPS_INSTALL_CRON" == "1" ]]; then
+    cp -a "$deploy_tmp_dir/vodops.crontab.current" "$state_dir/crontab"
+  fi
+
+  vodops_auto_rollback_backup="$backup_dir"
+  vodops_auto_rollback_root="$maccms_root"
+  vodops_auto_rollback_addon="$VODOPS_ADDON_NAME"
+  vodops_auto_rollback_cron="$VODOPS_INSTALL_CRON"
+
+  rm -rf "$addon_dir"
+  rm -rf "$legacy_douban_dir"
+  rm -f "$legacy_index_controller_target"
+  mv "$tmp_dir/$VODOPS_ADDON_NAME" "$addon_dir"
+
+  if [[ -n "$backup" && -f "$maccms_root/addons/$backup/config.php" ]]; then
+    EXISTING_ADDON_CONFIG="$maccms_root/addons/$backup/config.php" NEW_ADDON_CONFIG="$addon_dir/config.php" php <<'PHP_VODOPS_CONFIG'
+<?php
+$existingPath = getenv('EXISTING_ADDON_CONFIG');
+$newPath = getenv('NEW_ADDON_CONFIG');
+$existing = include $existingPath;
+$new = include $newPath;
+if (!is_array($existing) || !is_array($new)) {
+    file_put_contents('php://stderr', "Vodops config preservation failed: invalid config file.\n");
+    exit(1);
+}
+$values = [];
+foreach ($existing as $item) {
+    if (is_array($item) && isset($item['name'])) {
+        $values[(string) $item['name']] = $item['value'] ?? '';
+    }
+}
+foreach ($new as &$item) {
+    if (is_array($item) && isset($item['name']) && array_key_exists((string) $item['name'], $values)) {
+        $item['value'] = $values[(string) $item['name']];
+    }
+}
+unset($item);
+$content = "<?php\n\nreturn " . var_export($new, true) . ";\n";
+$tempPath = $newPath . '.tmp.' . getmypid();
+if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newPath)) {
+    @unlink($tempPath);
+    file_put_contents('php://stderr', "Vodops config preservation failed: unable to update config.\n");
+    exit(1);
+}
+PHP_VODOPS_CONFIG
+  fi
+
+  controller_source="$addon_dir/application/admin/controller/Vodops.php"
+  douban_controller_source="$addon_dir/application/admin/controller/Douban.php"
+  view_source="$addon_dir/application/admin/view_new/vodops/index.html"
+  mkdir -p "$(dirname "$controller_target")" "$(dirname "$view_target")"
+  if [[ -f "$controller_target" ]]; then
+    controller_backup="${controller_target}.backup.${stamp}"
+    cp -a "$controller_target" "$controller_backup"
+  fi
+  if [[ -f "$douban_controller_target" ]]; then
+    douban_controller_backup="${douban_controller_target}.backup.${stamp}"
+    cp -a "$douban_controller_target" "$douban_controller_backup"
+  fi
+  if [[ -f "$view_target" ]]; then
+    view_backup="${view_target}.backup.${stamp}"
+    cp -a "$view_target" "$view_backup"
+  fi
+  cp -a "$controller_source" "$controller_target"
+  cp -a "$douban_controller_source" "$douban_controller_target"
+  cp -a "$view_source" "$view_target"
+
+  MACCMS_ROOT="$maccms_root" php <<'PHP_VODOPS_MENU'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$path = $root . '/application/extra/quickmenu.php';
+$menu = is_file($path) ? include $path : [];
+if (!is_array($menu)) {
+    file_put_contents('php://stderr', "Vodops quick menu config is not an array.\n");
+    exit(1);
+}
+$entry = '视频数据中心,vodops/index';
+$singleWorkbenchRoutes = [
+    'vodops/index',
+    'admin/vodops/index',
+    'douban/index',
+    'admin/douban/index',
+];
+$menu = array_values(array_filter($menu, static function ($item) use ($singleWorkbenchRoutes) {
+    if (!is_string($item)) {
+        return true;
+    }
+    $parts = explode(',', $item, 2);
+    $route = strtolower(trim((string) ($parts[1] ?? '')));
+    $route = explode('?', $route, 2)[0];
+    return !in_array($route, $singleWorkbenchRoutes, true);
+}));
+$menu[] = $entry;
+$content = "<?php\nreturn " . var_export(array_values($menu), true) . ";\n";
+$tempPath = $path . '.tmp.' . getmypid();
+if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
+    file_put_contents('php://stderr', "Failed to back up quick menu config.\n");
+    exit(1);
+}
+if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $path)) {
+    @unlink($tempPath);
+    file_put_contents('php://stderr', "Failed to update quick menu config.\n");
+    exit(1);
+}
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate($path, true);
+}
+$verified = include $path;
+if (!is_array($verified) || count(array_keys($verified, $entry, true)) !== 1) {
+    file_put_contents('php://stderr', "Vodops quick menu verification failed.\n");
+    exit(1);
+}
+foreach ($verified as $item) {
+    if (!is_string($item) || $item === $entry) {
+        continue;
+    }
+    $parts = explode(',', $item, 2);
+    $route = strtolower(trim((string) ($parts[1] ?? '')));
+    $route = explode('?', $route, 2)[0];
+    if (in_array($route, $singleWorkbenchRoutes, true)) {
+        file_put_contents('php://stderr', "Legacy Vodops or Douban quick menu entry remains.\n");
+        exit(1);
+    }
+}
+PHP_VODOPS_MENU
+
+  MACCMS_ROOT="$maccms_root" VODOPS_ADDON_NAME="$VODOPS_ADDON_NAME" php <<'PHP_VODOPS_SQL'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$addon = getenv('VODOPS_ADDON_NAME');
+$dbFile = $root . '/application/database.php';
+$sqlFile = $root . '/addons/' . $addon . '/install.sql';
+if (!is_file($dbFile) || !is_file($sqlFile)) {
+    file_put_contents('php://stderr', "MacCMS database config or vodops install.sql is missing.\n");
+    exit(1);
+}
+$db = include $dbFile;
+$prefix = isset($db['prefix']) ? $db['prefix'] : '';
+$sql = str_replace('__PREFIX__', $prefix, file_get_contents($sqlFile));
+$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
+    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
+    $db['hostname'] ?? '127.0.0.1',
+    $db['hostport'] ?? '3306',
+    $db['database'] ?? '',
+    $db['charset'] ?? 'utf8'
+);
+$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+]);
+$statement = '';
+foreach (preg_split('/\r?\n/', $sql) as $line) {
+    $trimmed = trim($line);
+    if ($trimmed === '' || strncmp($trimmed, '--', 2) === 0 || strncmp($trimmed, '/*', 2) === 0) {
+        continue;
+    }
+    $statement .= $line . "\n";
+    if (substr($trimmed, -1) === ';') {
+        $pdo->exec($statement);
+        $statement = '';
+    }
+}
+$check = $pdo->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+foreach ([
+    'vodops_lock',
+    'vodops_scan',
+    'vodops_issue',
+    'vodops_fingerprint',
+    'vodops_repair_log',
+    'douban_config',
+    'douban_vod_meta',
+    'douban_task',
+    'douban_log',
+    'douban_review_candidate',
+    'douban_scan',
+    'douban_scan_issue',
+] as $table) {
+    $check->execute([$prefix . $table]);
+    if (strtolower((string)$check->fetchColumn()) !== 'innodb') {
+        file_put_contents('php://stderr', "Vodops schema verification failed for {$table}.\n");
+        exit(1);
+    }
+}
+$columnCheck = $pdo->prepare('SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+$schema = include $root . '/addons/' . $addon . '/schema.php';
+foreach ($schema as $table => $requiredColumns) {
+    foreach ($requiredColumns as $column) {
+        $columnCheck->execute([$prefix . $table, $column]);
+        if ((int)$columnCheck->fetchColumn() !== 1) {
+            file_put_contents('php://stderr', "Vodops retained schema verification failed: {$table}.{$column}.\n");
+            exit(1);
+        }
+    }
+}
+$columnCheck->execute([$prefix . 'vodops_scan', 'scope_json']);
+if ((int)$columnCheck->fetchColumn() !== 1) {
+    file_put_contents('php://stderr', "Vodops scope column verification failed.\n");
+    exit(1);
+}
+foreach (['execution_mode', 'lease_until', 'next_run_at'] as $column) {
+    $columnCheck->execute([$prefix . 'vodops_scan', $column]);
+    if ((int)$columnCheck->fetchColumn() !== 1) {
+        file_put_contents('php://stderr', "Vodops worker column verification failed: {$column}.\n");
+        exit(1);
+    }
+}
+$lockTable = $prefix . 'vodops_lock';
+if (!preg_match('/^[A-Za-z0-9_]+$/', $lockTable)) {
+    file_put_contents('php://stderr', "Vodops lock table name is invalid.\n");
+    exit(1);
+}
+$lockCheck = $pdo->prepare("SELECT COUNT(*) FROM `{$lockTable}` WHERE `lock_name` = ?");
+foreach (['scan_start', 'douban_enqueue'] as $lockName) {
+    $lockCheck->execute([$lockName]);
+    if ((int)$lockCheck->fetchColumn() !== 1) {
+        file_put_contents('php://stderr', "Vodops mutex row verification failed: {$lockName}.\n");
+        exit(1);
+    }
+}
+PHP_VODOPS_SQL
+
+  MACCMS_ROOT="$maccms_root" VODOPS_ADDON_NAME="$VODOPS_ADDON_NAME" php <<'PHP_VODOPS_HOOK'
+<?php
+$root = rtrim(getenv('MACCMS_ROOT'), '/');
+$addon = getenv('VODOPS_ADDON_NAME');
+$path = $root . '/application/extra/addons.php';
+$config = is_file($path) ? include $path : [];
+if (!is_array($config)) {
+    file_put_contents('php://stderr', "Vodops addon hook config is not an array.\n");
+    exit(1);
+}
+$config += ['autoload' => false, 'hooks' => [], 'route' => []];
+if (!is_array($config['hooks'])) {
+    $config['hooks'] = [];
+}
+if (isset($config['hooks']['response_end']) && !is_array($config['hooks']['response_end'])) {
+    file_put_contents('php://stderr', "Vodops response_end hook config is invalid.\n");
+    exit(1);
+}
+if (isset($config['hooks']['response_end'])) {
+    $config['hooks']['response_end'] = array_values(array_filter(
+        $config['hooks']['response_end'],
+        static function ($hook) use ($addon) {
+            return $hook !== $addon;
+        }
+    ));
+}
+$content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
+$tempPath = $path . '.tmp.' . getmypid();
+if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
+    file_put_contents('php://stderr', "Failed to back up Vodops addon hook config.\n");
+    exit(1);
+}
+if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $path)) {
+    @unlink($tempPath);
+    file_put_contents('php://stderr', "Failed to update Vodops addon hook config.\n");
+    exit(1);
+}
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate($path, true);
+}
+$verified = include $path;
+if (in_array($addon, $verified['hooks']['response_end'] ?? [], true)) {
+    file_put_contents('php://stderr', "Vodops response_end hook removal failed.\n");
+    exit(1);
+}
+PHP_VODOPS_HOOK
+
+  php -l "$controller_target" >/dev/null
+  php -l "$douban_controller_target" >/dev/null
+  php -l "$addon_dir/bin/vodops-worker.php" >/dev/null
+  php -l "$addon_dir/backend/DoubanController.php" >/dev/null
+  php -l "$addon_dir/service/DoubanData.php" >/dev/null
+  php -l "$addon_dir/service/VodQualityScanner.php" >/dev/null
+  grep -Fq 'X-CSRF-Token' "$view_target"
+  grep -Fq "workspace eq 'douban'" "$view_target"
+  grep -Fq 'addons/vodops/view/index/index' "$view_target"
+  grep -Fq "redirect(url('vodops/index'" "$addon_dir/backend/DoubanController.php"
+  grep -Fq 'X-CSRF-Token' "$addon_dir/view/index/index.html"
+  grep -Fq '同步不会修改现有图片' "$addon_dir/view/index/index.html"
+  if grep -Eqi '<!doctype|<html|<body|豆瓣匹配工作台' "$addon_dir/view/index/index.html" \
+    || grep -Eq "fetch\\(['\"]index/index|view_path" "$addon_dir/backend/DoubanController.php"; then
+    echo "Vodops single-workbench verification failed." >&2
+    return 1
+  fi
+  install_vodops_worker_cron
+
+  echo "Installed and verified ${VODOPS_ADDON_NAME} addon under ${addon_dir}"
+}
+
 if [[ ! -d "$DEPLOY_PATH" ]]; then
   echo "Remote template directory does not exist: $DEPLOY_PATH" >&2
   exit 1
@@ -1176,12 +1915,33 @@ cleanup_deploy_files() {
   local -a archives
   trap - EXIT
   set +e
-  archives=("$REMOTE_API_ADDON_TMP")
-  if [[ "$DEPLOY_SCOPE" == "all" ]]; then
-    archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
-  elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
-    archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
+  if [[ "$status" != "0" && -n "${vodops_auto_rollback_backup:-}" ]]; then
+    echo "VodOps deployment failed after replacement; starting automatic file rollback." >&2
+    if ! restore_vodops_deploy_snapshot \
+      "$vodops_auto_rollback_backup" \
+      "$vodops_auto_rollback_root" \
+      "$vodops_auto_rollback_addon" \
+      "$vodops_auto_rollback_cron"; then
+      rollback_status=1
+      echo "VodOps automatic rollback failed; use the preserved snapshot for manual recovery." >&2
+    elif [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
+      clear_maccms_cache || true
+    fi
   fi
+  case "$DEPLOY_SCOPE" in
+    all)
+      archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+    backend)
+      archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
+      ;;
+    api)
+      archives=("$REMOTE_API_ADDON_TMP")
+      ;;
+    vodops)
+      archives=("$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+  esac
   if [[ "$release_started" == "1" && "$release_committed" != "1" ]]; then
     if [[ ! -d "$rollback_root" ]]; then
       echo "Automatic rollback snapshot is missing or invalid: $rollback_root" >&2
@@ -1211,25 +1971,31 @@ cleanup_deploy_files() {
 }
 trap cleanup_deploy_files EXIT
 
-preflight_release
-snapshot_release
-persist_api_rollback_backup
-release_started=1
-if [[ "$DEPLOY_SCOPE" != "api" ]]; then
-  install_device_addon
-fi
-install_api_addon
 
-if [[ "$DEPLOY_SCOPE" == "all" ]]; then
-  cd "$DEPLOY_PATH"
-
-  if [[ -d "$THEME_NAME" ]]; then
-    backup="pingfangvideo.backup.$(date +%Y%m%d%H%M%S)"
-    cp -a "$THEME_NAME" "$backup"
+if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
+  install_vodops_addon
+else
+  preflight_release
+  snapshot_release
+  persist_api_rollback_backup
+  release_started=1
+  if [[ "$DEPLOY_SCOPE" != "api" ]]; then
+    install_device_addon
   fi
+  install_api_addon
+  if [[ "$DEPLOY_SCOPE" == "all" ]]; then
+    install_vodops_addon
 
-  rm -rf "$THEME_NAME"
-  mv "$theme_source" "$THEME_NAME"
+    cd "$DEPLOY_PATH"
+
+    if [[ -d "$THEME_NAME" ]]; then
+      backup="pingfangvideo.backup.$(date +%Y%m%d%H%M%S)"
+      cp -a "$THEME_NAME" "$backup"
+    fi
+
+    rm -rf "$THEME_NAME"
+    mv "$theme_source" "$THEME_NAME"
+  fi
 fi
 
 if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
@@ -1237,15 +2003,21 @@ if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]]; then
 fi
 
 verify_deployed_site
+vodops_auto_rollback_backup=""
+vodops_auto_rollback_root=""
+vodops_auto_rollback_addon=""
+vodops_auto_rollback_cron="0"
 release_committed=1
 REMOTE_SCRIPT
 trap - EXIT
 
 if [[ "$DEPLOY_SCOPE" == "api" ]]; then
-  echo "Deployed ${API_ADDON_NAME} to ${REMOTE} without changing the theme or ${ADDON_NAME}"
+  echo "Deployed ${API_ADDON_NAME} to ${REMOTE} without changing the theme, ${ADDON_NAME}, or ${VODOPS_ADDON_NAME}"
   echo "API_ROLLBACK_BACKUP=${API_BACKUP_ID} npm run rollback:api"
 elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
-  echo "Deployed ${ADDON_NAME} and ${API_ADDON_NAME} to ${REMOTE} without changing the theme"
+  echo "Deployed ${ADDON_NAME} and ${API_ADDON_NAME} to ${REMOTE} without changing the theme or ${VODOPS_ADDON_NAME}"
+elif [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
+  echo "Deployed ${VODOPS_ADDON_NAME} to ${REMOTE}:$(dirname "$DEPLOY_PATH")/addons/${VODOPS_ADDON_NAME}"
 else
-  echo "Deployed ${THEME_NAME}, ${ADDON_NAME}, and ${API_ADDON_NAME} to ${REMOTE}"
+  echo "Deployed ${THEME_NAME}, ${ADDON_NAME}, ${API_ADDON_NAME}, and ${VODOPS_ADDON_NAME} to ${REMOTE}"
 fi

@@ -1,8 +1,9 @@
 # Douban Rating Integration Implementation Plan
 
-> **历史状态（2026-07-17）：** 这是旧版实施计划。当前仓库没有本文所述的
-> `addons/douban/**`、Douban 桥接控制器或网关，发布链路也未包含这些文件。
-> 请以 `addons/**` 和 `docs/addons.md` 为当前事实源；本文不能证明功能已实现或已部署。
+> **历史状态（2026-07-17）：** 这是首次落地时的实施计划。当前控制器源码已迁入
+> 标准 `application/` 载荷，默认数据源改为插件内置 `internal` 网关，不再部署
+> 根目录 `extend/douban.php`。下方旧路径和提交步骤只用于追溯，请以代码和
+> `docs/addons.md` 为当前事实源。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -18,7 +19,7 @@
 
 **Files:**
 - Create: `addons/douban/bridge/Douban.php`
-- Create: `addons/douban/bridge/douban.php`
+- Create: `addons/douban/bridge/DoubanEndpoint.php`
 - Modify: `scripts/deploy-theme.sh`
 - Modify: `scripts/verify-release.mjs`
 - Modify: `tests/template.test.mjs`
@@ -50,7 +51,7 @@ Run:
 ```bash
 npm test
 php -l addons/douban/bridge/Douban.php
-php -l addons/douban/bridge/douban.php
+php -l addons/douban/bridge/DoubanEndpoint.php
 bash -n scripts/deploy-theme.sh
 ```
 
@@ -60,7 +61,7 @@ Expected: all commands exit 0.
 
 **Files:**
 - Create: `addons/douban/service/DoubanGateway.php`
-- Modify: `addons/douban/bridge/douban.php`
+- Modify: `addons/douban/bridge/DoubanEndpoint.php`
 - Modify: `tests/template.test.mjs`
 
 - [ ] **Step 1: Write failing normalization assertions**
@@ -91,7 +92,7 @@ public static function normalizeSubject(array $data): array;
 public static function normalizeCandidates(array $rows): array;
 ```
 
-Subject output includes `vod_name`, `vod_pic`, `vod_year`, `vod_area`, `vod_lang`, `vod_class`, `vod_director`, `vod_actor`, `vod_content`, `vod_douban_score`, `vod_score`, `vod_score_num`, and `vod_total`.
+Subject output includes `vod_name`, `vod_pic`, `vod_year`, `vod_area`, `vod_lang`, `vod_class`, `vod_director`, `vod_actor`, `vod_content`, `vod_douban_score`, `vod_score`, `rating_count`, and `vod_total`. `rating_count` remains gateway metadata and must not overwrite MacCMS local rating aggregates.
 
 - [ ] **Step 4: Verify syntax and live response**
 
@@ -99,7 +100,7 @@ Run:
 
 ```bash
 php -l addons/douban/service/DoubanGateway.php
-php -l addons/douban/bridge/douban.php
+php -l addons/douban/bridge/DoubanEndpoint.php
 php -r 'require "addons/douban/service/DoubanGateway.php"; print_r(addons\douban\service\DoubanGateway::normalizeSubject(["id"=>"1295644","title"=>"这个杀手不太冷","rating"=>["value"=>9.4,"count"=>2562776]]));'
 ```
 

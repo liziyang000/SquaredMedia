@@ -282,14 +282,14 @@ foreach ($config as &$item) {
 }
 unset($item);
 if (!$secretFound || !$pathFound) {
-    fwrite(STDERR, "Required game settings are missing from pingfangdevice config.\n");
+    file_put_contents('php://stderr', "Required game settings are missing from pingfangdevice config.\n");
     exit(1);
 }
 $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
 $tempPath = $path . '.tmp.' . getmypid();
 if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $path)) {
     @unlink($tempPath);
-    fwrite(STDERR, "Unable to update pingfangdevice game config.\n");
+    file_put_contents('php://stderr', "Unable to update pingfangdevice game config.\n");
     exit(1);
 }
 PHP_CONFIG

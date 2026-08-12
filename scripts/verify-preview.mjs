@@ -7,7 +7,7 @@ const routes = [
   ["route=comics", ["漫画入口维护中", "module-fallback"]],
   ["route=articles", ["文章入口维护中", "module-fallback"]],
   ["route=games", ["game-login-gate", "登录后开启游戏大厅"]],
-  ["route=games&member=1", ["game-hub", "2048", "俄罗斯方块", "五子棋", "你画我猜"]],
+  ["route=games&member=1", ["game-hub", "2048", "俄罗斯方块", "竹知了", "五子棋", "你画我猜"]],
   ["route=game-2048", ["game-login-gate", "登录后才能开始游戏"]],
   ["route=game-2048&member=1", ["data-game-authenticated", "game-2048", "games/2048/js/application.js"]],
   ["route=game-blockrain", ["game-login-gate", "登录后才能开始游戏"]],
@@ -19,6 +19,19 @@ const routes = [
       "data-blockrain-next",
       'data-blockrain-action="drop"',
       "games/blockrain/blockrain.jquery.min.js",
+    ],
+  ],
+  ["route=game-bamboo-cicada", ["game-login-gate", "登录后才能摇响竹知了"]],
+  [
+    "route=game-bamboo-cicada&member=1",
+    [
+      "data-bamboo-cicada-game",
+      "data-cicada-arena",
+      "data-cicada-score",
+      "data-cicada-phase",
+      "data-cicada-energy",
+      "data-cicada-result-rhythm",
+      "games/bamboo-cicada.js",
     ],
   ],
   ["route=game-gomoku", ["game-login-gate", "登录后才能联机对弈"]],
@@ -89,6 +102,10 @@ for (const [query, expected] of routes) {
 
   if (query === "route=game-blockrain") {
     assert.doesNotMatch(html, /games\/blockrain\//, "guest blockrain page should not load game scripts");
+  }
+
+  if (query === "route=game-bamboo-cicada") {
+    assert.doesNotMatch(html, /games\/bamboo-cicada\.js/, "guest bamboo cicada page should not load the game script");
   }
 
   if (query === "route=game-gomoku" || query === "route=game-drawguess") {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -8,13 +8,16 @@ const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const addonRoot = path.join(root, "addons", "pingfangdevice");
 const apiAddonRoot = path.join(root, "addons", "pingfangapi");
+const vodopsAddonRoot = path.join(root, "addons", "vodops");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
 const appVersionPlaceholder = "__PINGFANG_APP_VERSION__";
 const promptVersionPlaceholder = "__PINGFANG_PROMPT_VERSION__";
 const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
+const bambooCicadaVersionPlaceholder = "__PINGFANG_BAMBOO_CICADA_VERSION__";
 const multiplayerVersionPlaceholder = "__PINGFANG_MULTIPLAYER_VERSION__";
+const qixiVersionPlaceholder = "__PINGFANG_QIXI_VERSION__";
 
 const requiredFiles = [
   "info.ini",
@@ -57,16 +60,15 @@ const requiredFiles = [
   "games/blockrain/LICENSE.txt",
   "games/blockrain/blockrain.jquery.min.js",
   "games/blockrain/jquery-1.11.1.min.js",
+  "games/bamboo-cicada.js",
   "games/README.md",
   "games/init.js",
   "js/gsap.min.js",
   "js/canvas-confetti.min.js",
   "js/CANVAS-CONFETTI-ISC.txt",
-  "js/react.production.min.js",
-  "js/react-dom.production.min.js",
-  "js/rank-react.js",
   "js/app.js",
   "js/multiplayer-games.js",
+  "js/qixi-particle-rose.js",
   "player/preload.html",
   "player/buffering.html",
   "player/prompt.css",
@@ -93,11 +95,13 @@ const requiredFiles = [
   "html/label/comics.html",
   "html/label/game-2048.html",
   "html/label/game-blockrain.html",
+  "html/label/game-bamboo-cicada.html",
   "html/label/game-drawguess.html",
   "html/label/game-gomoku.html",
   "html/label/games.html",
   "html/label/history.html",
   "html/label/hot.html",
+  "html/label/qixi.html",
   "html/label/videos.html",
   "html/pingfangdevice/index.html",
   "html/topic/index.html",
@@ -153,9 +157,7 @@ const requiredFiles = [
   "html/user/login.html",
   "html/user/plays.html",
   "html/user/reg.html",
-  "html/user/findpass.html",
-  "js/hls.min.js",
-  "js/pingfang-player.js"
+  "html/user/findpass.html"
 ];
 
 const requiredRootFiles = [
@@ -196,6 +198,24 @@ const requiredRootFiles = [
   "ops/systemd/squaredmedia-next.service",
   "preview/data.json",
   "scripts/deploy-next-web.sh",
+  "addons/vodops/Vodops.php",
+  "addons/vodops/application/admin/controller/Douban.php",
+  "addons/vodops/application/admin/controller/Vodops.php",
+  "addons/vodops/application/admin/view_new/vodops/index.html",
+  "addons/vodops/backend/DoubanController.php",
+  "addons/vodops/bin/vodops-worker.php",
+  "addons/vodops/config.php",
+  "addons/vodops/info.ini",
+  "addons/vodops/install.sql",
+  "addons/vodops/service/DoubanAiReviewer.php",
+  "addons/vodops/service/DoubanData.php",
+  "addons/vodops/service/DoubanGateway.php",
+  "addons/vodops/service/DoubanMatcher.php",
+  "addons/vodops/service/VodQualityAnalyzer.php",
+  "addons/vodops/service/VodQualityRepair.php",
+  "addons/vodops/service/VodQualityScanner.php",
+  "addons/vodops/view/index/index.html",
+  "preview/qixi.html",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
   "scripts/deploy-theme.sh",
@@ -228,6 +248,7 @@ assert.ok(
   !existsSync(path.join(addonRoot, "bridge/Pingfangdevice.php")),
   "The frontend compatibility controller should use the standard addon application payload"
 );
+assert.ok(!existsSync(path.join(root, "addons", "douban")), "Douban should be absorbed into the single vodops addon");
 
 for (const file of requiredFiles) {
   assert.ok(existsSync(path.join(themeRoot, file)), `${file} should exist`);
@@ -321,6 +342,7 @@ assert.match(include, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}
 assert.match(include, /window\.localStorage\.getItem\("pingfang_theme"\)/);
 assert.match(include, /theme === "poster-magazine"/);
 assert.match(include, /theme === "dunhuang-caisson"/);
+assert.match(include, /theme === "digital-particles"/);
 assert.match(include, /theme === "pixel-frog"/);
 assert.match(include, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260626"/);
@@ -357,24 +379,27 @@ assert.match(head, /data-theme-option="default" aria-pressed="true"[\s\S]*?<span
 assert.match(head, /data-theme-option="blue-pink-purple" aria-pressed="false"[\s\S]*?<span>极光夜幕<\/span>/);
 assert.match(head, /data-theme-option="poster-magazine" aria-pressed="false"[\s\S]*?<span>海报画廊<\/span>/);
 assert.match(head, /data-theme-option="dunhuang-caisson" aria-pressed="false"[\s\S]*?<span>敦煌流光<\/span>/);
+assert.match(head, /data-theme-option="digital-particles" aria-pressed="false"[\s\S]*?<span>数码粒子<\/span>/);
 assert.match(head, /data-theme-option="pixel-frog" aria-pressed="false"[\s\S]*?<span>像素蛙<\/span>/);
 assert.match(head, /class="mobile-drawer-section mobile-theme-section"/);
 assert.match(head, /data-theme-switcher-mobile/);
 const desktopNavLinks = head.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(desktopNavLinks), ["首页", "视频", "游戏"]);
+assert.deepEqual(extractAnchorTexts(desktopNavLinks), ["首页", "视频", "游戏", "七夕花束"]);
 assert.match(desktopNavLinks, /<a href="\{\$maccms\.path\}" data-nav-section="home">首页<\/a>/);
 assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/categories'\)\}" data-nav-section="videos">视频<\/a>/);
 assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/games'\)\}" data-nav-section="games">游戏<\/a>/);
+assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/qixi'\)\}" data-nav-section="qixi">七夕花束<\/a>/);
 assert.doesNotMatch(desktopNavLinks, /nav-video-menu/);
 assert.doesNotMatch(desktopNavLinks, /nav-video-panel/);
 assert.doesNotMatch(desktopNavLinks, />漫画<\/a>|>文章<\/a>/);
 assert.doesNotMatch(desktopNavLinks, />分类<\/a>/);
 assert.doesNotMatch(desktopNavLinks, />收藏<\/a>/);
 const mobileDrawerLinks = head.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(mobileDrawerLinks), ["首页", "视频", "游戏"]);
+assert.deepEqual(extractAnchorTexts(mobileDrawerLinks), ["首页", "视频", "游戏", "七夕花束"]);
 assert.match(mobileDrawerLinks, /data-nav-section="home">首页<\/a>/);
 assert.match(mobileDrawerLinks, /data-nav-section="videos">视频<\/a>/);
 assert.match(mobileDrawerLinks, /data-nav-section="games">游戏<\/a>/);
+assert.match(mobileDrawerLinks, /data-nav-section="qixi">七夕花束<\/a>/);
 assert.doesNotMatch(mobileDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(head, /aria-controls="mobileDrawer"/);
 assert.match(head, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
@@ -402,7 +427,9 @@ assert.match(head, /href="\{:mac_url_type\(\$type\)\}">\{\$type\.type_name\}<\/a
 assert.match(head, /mac_url\('user\/plays'\)/);
 assert.match(head, /mac_url\('user\/favs'\)/);
 assert.match(head, /class="user-menu"/);
-assert.match(head, /\$user\.user_id/);
+assert.doesNotMatch(head, /\$user\.user_id/);
+assert.equal((head.match(/data-auth-member/g) || []).length, 3);
+assert.equal((head.match(/data-auth-guest/g) || []).length, 2);
 assert.match(head, /mac_url\('user\/login'\)/);
 assert.match(head, /mac_url\('user\/index'\)/);
 assert.match(head, /url\('pingfangdevice\/index'\)/);
@@ -410,9 +437,9 @@ assert.match(head, /url\('pingfangdevice\/logout'\)/);
 assert.equal((head.match(/data-logout-link/g) || []).length, 2);
 assert.equal((head.match(/data-logout-redirect="\{:mac_url\('user\/login'\)\}"/g) || []).length, 2);
 assert.match(head, /data-avatar-random/);
-assert.match(head, /data-avatar-name="\{\$user\.user_name\|mac_default='用户'\}"/);
+assert.match(head, /data-avatar-name="用户"/);
 assert.match(head, /class="user-avatar-letter"/);
-assert.match(head, /\{if condition="\$user\.user_name neq ''"\}\{\$user\.user_name\|mac_substring=1\}\{else\/\}用\{\/if\}/);
+assert.match(head, /class="user-avatar-letter">用<\/span>/);
 assert.doesNotMatch(head, /user\.user_portrait/);
 assert.match(head, /class="user-dropdown"/);
 assert.match(head, />收藏</);
@@ -510,65 +537,149 @@ assert.match(comicsPage, /漫画入口维护中/);
 assert.match(comicsPage, /mac_url\('vod\/show'\)/);
 assert.match(comicsPage, /\{include file="public\/foot" \/\}/);
 
+const qixiPage = readThemeFile("html/label/qixi.html");
+assert.match(qixiPage, /seo_title="七夕粒子玫瑰"/);
+assert.match(qixiPage, /document\.documentElement\.classList\.add\("qixi-immersive"\)/);
+assert.match(qixiPage, /class="qixi-rose-page" data-qixi-rose/);
+assert.match(qixiPage, /data-qixi-canvas/);
+assert.match(qixiPage, /data-qixi-bloom/);
+assert.match(qixiPage, /data-qixi-share/);
+assert.match(qixiPage, /折成一束玫瑰|不会凋谢/);
+assert.match(qixiPage, new RegExp(`js/qixi-particle-rose\\.js\\?v=${qixiVersionPlaceholder}`));
+assert.match(qixiPage, /\{include file="public\/foot" \/\}/);
+
+const qixiScript = readThemeFile("js/qixi-particle-rose.js");
+assert.match(qixiScript, /createRoseDome/);
+assert.match(qixiScript, /ringCounts = \[1, 7, 13, 20\]/);
+assert.match(qixiScript, /createRoseBasis/);
+assert.match(qixiScript, /transformRosePoint/);
+assert.match(qixiScript, /addRoseCalyx/);
+assert.match(qixiScript, /roseSurfacePoint/);
+assert.match(qixiScript, /petalEnvelope/);
+assert.match(qixiScript, /petalSurfacePoint/);
+assert.match(qixiScript, /rosePetalBands/);
+assert.match(qixiScript, /roseRimShare/);
+assert.match(qixiScript, /openness:/);
+assert.match(qixiScript, /petalWidth:/);
+assert.match(qixiScript, /irregularity:/);
+assert.match(qixiScript, /petalShift:/);
+assert.doesNotMatch(qixiScript, /addPetalLayer|petalLayers = \[/);
+assert.match(qixiScript, /addWrappingParticles/);
+assert.match(qixiScript, /addWrappingCollar/);
+assert.match(qixiScript, /depthBuckets/);
+assert.match(qixiScript, /shadeColor/);
+assert.match(qixiScript, /entryDuration = 2800/);
+assert.match(qixiScript, /startEntrance/);
+assert.match(qixiScript, /completeEntrance/);
+assert.match(qixiScript, /entryDelay/);
+assert.match(qixiScript, /is-entering/);
+assert.match(qixiScript, /is-entered/);
+assert.match(qixiScript, /easeOutQuint/);
+assert.doesNotMatch(qixiScript, /createWrappingPanels|drawWrapping|drawRoseBases/);
+assert.doesNotMatch(qixiScript, /globalCompositeOperation = "lighter"/);
+assert.match(qixiScript, /requestAnimationFrame/);
+assert.match(qixiScript, /pointerdown/);
+assert.match(qixiScript, /IntersectionObserver/);
+assert.match(qixiScript, /prefers-reduced-motion/);
+assert.match(qixiScript, /navigator\.share/);
+assert.doesNotMatch(qixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
+
 const gamesPage = readThemeFile("html/label/games.html");
 assert.match(gamesPage, /seo_title="游戏大厅"/);
-assert.match(gamesPage, /\{if condition="\$user\.user_id gt 0"\}/);
+assert.doesNotMatch(gamesPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(gamesPage, /class="[^"]*\bgame-hub\b[^>]*data-auth-member hidden/);
+assert.match(gamesPage, /class="[^"]*\bgame-access-page\b[^>]*data-auth-guest hidden/);
 assert.match(gamesPage, /class="[^"]*\bgame-hub\b/);
 assert.match(gamesPage, /class="game-grid"/);
 assert.match(gamesPage, /mac_url\('label\/game-2048'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-blockrain'\)/);
+assert.match(gamesPage, /mac_url\('label\/game-bamboo-cicada'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-gomoku'\)/);
 assert.match(gamesPage, /mac_url\('label\/game-drawguess'\)/);
 assert.match(gamesPage, />2048</);
 assert.match(gamesPage, />俄罗斯方块</);
+assert.match(gamesPage, />竹知了</);
 assert.match(gamesPage, />五子棋</);
 assert.match(gamesPage, />你画我猜</);
-assert.match(gamesPage, /\{else\/\}[\s\S]*class="game-login-gate"/);
+assert.match(gamesPage, /class="game-login-gate"/);
 assert.match(gamesPage, /登录后开启游戏大厅/);
 assert.match(gamesPage, /mac_url\('user\/login'\)/);
 assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
 
 const game2048Page = readThemeFile("html/label/game-2048.html");
-const game2048AuthBranch = game2048Page.slice(game2048Page.indexOf('{if condition="$user.user_id gt 0"}'), game2048Page.indexOf("{else/}"));
 assert.match(game2048Page, /seo_title="2048"/);
-assert.match(game2048AuthBranch, /data-game-authenticated/);
-assert.match(game2048AuthBranch, /class="game-2048"/);
-assert.match(game2048AuthBranch, /\{\$maccms\.path_tpl\}games\/2048\/js\/game_manager\.js/);
-assert.match(game2048AuthBranch, /\{\$maccms\.path_tpl\}games\/2048\/js\/application\.js/);
-assert.match(game2048Page, /\{else\/\}[\s\S]*登录后才能开始游戏/);
+assert.doesNotMatch(game2048Page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(game2048Page, /data-game-authenticated[^>]*data-auth-member hidden/);
+assert.match(game2048Page, /class="game-2048"/);
+assert.match(game2048Page, /data-auth-script="\{\$maccms\.path_tpl\}games\/2048\/js\/game_manager\.js"/);
+assert.match(game2048Page, /data-auth-script="\{\$maccms\.path_tpl\}games\/2048\/js\/application\.js"/);
+assert.doesNotMatch(game2048Page, /<script[^>]+games\/2048/);
+assert.match(game2048Page, /data-auth-guest hidden[\s\S]*登录后才能开始游戏/);
 assert.match(game2048Page, /mac_url\('user\/login'\)/);
 assert.match(game2048Page, /\{include file="public\/foot" \/\}/);
 
 const gameBlockrainPage = readThemeFile("html/label/game-blockrain.html");
-const gameBlockrainAuthBranch = gameBlockrainPage.slice(gameBlockrainPage.indexOf('{if condition="$user.user_id gt 0"}'), gameBlockrainPage.indexOf("{else/}"));
 assert.match(gameBlockrainPage, /seo_title="俄罗斯方块"/);
-assert.match(gameBlockrainAuthBranch, /data-game-authenticated/);
-assert.match(gameBlockrainAuthBranch, /data-blockrain-game/);
-assert.match(gameBlockrainAuthBranch, /class="blockrain-shell"/);
-assert.match(gameBlockrainAuthBranch, /data-blockrain-next/);
-assert.equal((gameBlockrainAuthBranch.match(/data-blockrain-action=/g) || []).length, 5);
-assert.match(gameBlockrainAuthBranch, /data-blockrain-action="drop"/);
-assert.match(gameBlockrainAuthBranch, /\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js/);
-assert.match(gameBlockrainAuthBranch, new RegExp(`\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}`));
-assert.doesNotMatch(gameBlockrainAuthBranch, /jquery-1\.11\.1\.min\.js/);
-assert.match(gameBlockrainPage, /\{else\/\}[\s\S]*登录后才能开始游戏/);
+assert.doesNotMatch(gameBlockrainPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(gameBlockrainPage, /data-game-authenticated[^>]*data-auth-member hidden/);
+assert.match(gameBlockrainPage, /data-blockrain-game/);
+assert.match(gameBlockrainPage, /class="blockrain-shell"/);
+assert.match(gameBlockrainPage, /data-blockrain-next/);
+assert.equal((gameBlockrainPage.match(/data-blockrain-action=/g) || []).length, 5);
+assert.match(gameBlockrainPage, /data-blockrain-action="drop"/);
+assert.match(gameBlockrainPage, /data-auth-script="\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js"/);
+assert.match(gameBlockrainPage, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}"`));
+assert.doesNotMatch(gameBlockrainPage, /jquery-1\.11\.1\.min\.js/);
+assert.doesNotMatch(gameBlockrainPage, /<script[^>]+games\/(?:blockrain|init)/);
+assert.match(gameBlockrainPage, /data-auth-guest hidden[\s\S]*登录后才能开始游戏/);
 assert.match(gameBlockrainPage, /mac_url\('user\/login'\)/);
 assert.match(gameBlockrainPage, /\{include file="public\/foot" \/\}/);
+
+const bambooCicadaPage = readThemeFile("html/label/game-bamboo-cicada.html");
+assert.match(bambooCicadaPage, /seo_title="竹知了"/);
+assert.doesNotMatch(bambooCicadaPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+assert.match(bambooCicadaPage, /data-bamboo-cicada-game[^>]*data-auth-member hidden/);
+assert.match(bambooCicadaPage, /data-cicada-arena/);
+assert.match(bambooCicadaPage, /data-cicada-score/);
+assert.match(bambooCicadaPage, /data-cicada-sound/);
+assert.equal((bambooCicadaPage.match(/data-cicada-phase=/g) || []).length, 3);
+assert.match(bambooCicadaPage, /data-cicada-target/);
+assert.match(bambooCicadaPage, /data-cicada-energy/);
+assert.match(bambooCicadaPage, /data-cicada-event/);
+assert.match(bambooCicadaPage, /data-cicada-result-rhythm/);
+assert.match(
+  bambooCicadaPage,
+  new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/bamboo-cicada\\.js\\?v=${bambooCicadaVersionPlaceholder}"`),
+);
+assert.doesNotMatch(bambooCicadaPage, /<script[^>]+games\/bamboo-cicada\.js/);
+assert.match(bambooCicadaPage, /data-auth-guest hidden[\s\S]*登录后才能摇响竹知了/);
+assert.match(bambooCicadaPage, /mac_url\('user\/login'\)/);
+assert.match(bambooCicadaPage, /\{include file="public\/foot" \/\}/);
+
+const bambooCicadaJs = readThemeFile("games/bamboo-cicada.js");
+assert.match(bambooCicadaJs, /PointerEvent|pointerdown/);
+assert.match(bambooCicadaJs, /requestAnimationFrame/);
+assert.match(bambooCicadaJs, /AudioContext|webkitAudioContext/);
+assert.match(bambooCicadaJs, /localStorage/);
+assert.match(bambooCicadaJs, /prefers-reduced-motion/);
+assert.match(bambooCicadaJs, /reverse-warning/);
+assert.match(bambooCicadaJs, /judgeRevolution/);
+assert.match(bambooCicadaJs, /IntersectionObserver/);
+assert.doesNotMatch(bambooCicadaJs, /https?:\/\//);
 
 for (const [file, game, marker, loginText] of [
   ["html/label/game-gomoku.html", "gomoku", "data-gomoku-board", "登录后才能联机对弈"],
   ["html/label/game-drawguess.html", "drawguess", "data-draw-canvas", "登录后才能加入画室"]
 ]) {
   const page = readThemeFile(file);
-  const authBranch = page.slice(page.indexOf('{if condition="$user.user_id gt 0"}'), page.indexOf("{else/}"));
-  const guestBranch = page.slice(page.indexOf("{else/}"));
-  assert.match(authBranch, /data-multiplayer-game/);
-  assert.match(authBranch, new RegExp(`data-game-type="${game}"`));
-  assert.match(authBranch, new RegExp(marker));
-  assert.match(authBranch, /data-game-ticket-endpoint="\{:url\('pingfangdevice\/gameTicket'\)\}"/);
-  assert.match(authBranch, new RegExp(`\\{\\$maccms\\.path_tpl\\}js/multiplayer-games\\.js\\?v=${multiplayerVersionPlaceholder}`));
-  assert.match(guestBranch, new RegExp(loginText));
-  assert.doesNotMatch(guestBranch, /data-game-ticket-endpoint|js\/multiplayer-games\.js/);
+  assert.doesNotMatch(page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
+  assert.match(page, /data-multiplayer-game[^>]*data-auth-member hidden/);
+  assert.match(page, new RegExp(`data-game-type="${game}"`));
+  assert.match(page, new RegExp(marker));
+  assert.match(page, /data-game-ticket-endpoint="\{:url\('pingfangdevice\/gameTicket'\)\}"/);
+  assert.match(page, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}js/multiplayer-games\\.js\\?v=${multiplayerVersionPlaceholder}"`));
+  assert.doesNotMatch(page, /<script[^>]+js\/multiplayer-games\.js/);
+  assert.match(page, new RegExp(`data-auth-guest hidden[\\s\\S]*${loginText}`));
   assert.match(page, /mac_url\('user\/login'\)/);
   assert.match(page, /\{include file="public\/foot" \/\}/);
 }
@@ -843,7 +954,7 @@ assert.match(
 assert.doesNotMatch(index, /is-rank-extra/);
 assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
 assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
-assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='8\.0'\}"/);
+assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='0\.0'\}"/);
 assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
 assert.match(
   index,
@@ -1331,11 +1442,13 @@ assert.match(diggPartial, /vod_down/);
 const scorePartial = readThemeFile("html/public/score.html");
 assert.match(scorePartial, /score-panel/);
 assert.match(scorePartial, /vod_score/);
-assert.match(scorePartial, /vod_score_num/);
+assert.match(scorePartial, /豆瓣评分/);
+assert.doesNotMatch(scorePartial, /vod_score_num/);
 
 const starPartial = readThemeFile("html/public/star.html");
 assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
+assert.match(starPartial, /豆瓣/);
 
 const style = readThemeFile("css/style.css");
 assert.match(style, /\.multiplayer-page \[hidden\]\s*\{\s*display: none !important;/);
@@ -1386,6 +1499,11 @@ const posterShelfRailRule = extractCssRule(style, 'html[data-theme="poster-magaz
 const posterShelfCardRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-card');
 const posterShelfFirstCardRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-card:first-child');
 const posterShelfPosterRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-poster');
+const auroraLoginPanelRule = extractCssRule(style, 'html[data-theme="blue-pink-purple"] .login-panel');
+const posterLoginPanelRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .login-panel');
+const digitalRootRule = extractCssRule(style, 'html[data-theme="digital-particles"]');
+const digitalLoginPanelRule = extractCssRule(style, 'html[data-theme="digital-particles"] .login-panel');
+const digitalBodyParticlesRule = extractCssRule(style, 'html[data-theme="digital-particles"] body::after');
 const playerShellRule = [...style.matchAll(/(?:^|\n)\.player-shell\s*\{[^}]*\}/g)].map((match) => match[0]).find((rule) => /aspect-ratio/.test(rule)) || "";
 const playerMediaRule = style.match(/\.player-shell #MacPlayer,[\s\S]*?\.player-shell object\s*\{[^}]*\}/)?.[0] || "";
 const playerMacRule = extractCssRule(style, ".player-shell #MacPlayer");
@@ -1425,7 +1543,6 @@ const bannerContentRule = style.match(/\.banner-content\s*\{[\s\S]*?\}/)?.[0] ||
 const bannerCopyRule = style.match(/\.banner-copy\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerTitleRule = style.match(/\.banner-copy strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerExcerptRule = style.match(/\.banner-copy small\s*\{[\s\S]*?\}/)?.[0] || "";
-const heroCarouselStatsRule = style.match(/\.hero-carousel \.hero-stats\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerControlsRule = style.match(/\.banner-controls\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerControlsBeforeRule = style.match(/\.banner-controls::before\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotRule = style.match(/\.banner-dot\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1434,7 +1551,6 @@ const bannerDotActiveRule = style.match(/\.banner-dot\.is-active\s*\{[\s\S]*?\}/
 const bannerDotActiveAfterRule = style.match(/\.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const dunhuangBannerDotActiveRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const dunhuangBannerDotActiveAfterRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
-const hotSearchTermRule = style.match(/\.hot-search-panel a\s*\{[\s\S]*?\}/)?.[0] || "";
 const pageHeadingRule = style.match(/\.hero-copy h1,[\s\S]*?\.player-head h1\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankListTitleRule = style.match(/\.rank-item strong,[\s\S]*?\.list-item strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardTitleRule = style.match(/\.vod-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1484,6 +1600,7 @@ assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
 assert.match(appScript, /"dunhuang-caisson": true/);
+assert.match(appScript, /"digital-particles": true/);
 assert.match(appScript, /"pixel-frog": true/);
 assert.match(appScript, /theme-transitioning/);
 assert.match(appScript, /document\.documentElement\.setAttribute\("data-theme", theme\)/);
@@ -1503,11 +1620,28 @@ assert.match(style, /\.theme-option/);
 assert.match(style, /\.theme-option-swatch/);
 assert.match(style, /\.theme-option-swatch-poster/);
 assert.match(style, /\.theme-option-swatch-dunhuang/);
+assert.match(style, /\.theme-option-swatch-digital/);
 assert.match(style, /\.theme-option-swatch-pixel/);
 assert.match(style, /\.theme-option\.is-active/);
 assert.match(style, /html\[data-theme="poster-magazine"\]/);
 assert.match(style, /html\[data-theme="dunhuang-caisson"\]/);
+assert.match(style, /html\[data-theme="digital-particles"\]/);
 assert.match(style, /html\[data-theme="pixel-frog"\]/);
+assert.match(style, /@keyframes digital-particles-depth/);
+assert.match(style, /@media \(prefers-reduced-motion: reduce\)[\s\S]*digital-particles/);
+assert.match(auroraLoginPanelRule, /border-radius: 28px/);
+assert.match(auroraLoginPanelRule, /--login-edge-paint:/);
+assert.match(posterLoginPanelRule, /border-radius: 8px/);
+assert.match(posterLoginPanelRule, /animation: login-panel-arrive/);
+assert.match(digitalRootRule, /--radius: 6px/);
+assert.match(digitalRootRule, /--radius-sm: 4px/);
+assert.match(digitalLoginPanelRule, /border-radius: 6px/);
+assert.match(digitalLoginPanelRule, /animation: login-panel-arrive/);
+assert.match(digitalBodyParticlesRule, /animation: digital-particles-depth/);
+assert.match(style, /html\[data-theme="blue-pink-purple"\] \.login-submit\s*\{/);
+assert.match(style, /html\[data-theme="poster-magazine"\] \.login-submit\s*\{/);
+assert.match(style, /html\[data-theme="digital-particles"\] \.login-submit\s*\{/);
+assert.match(style, /@media \(max-width: 760px\)[\s\S]*html\[data-theme="digital-particles"\] body::after/);
 assert.match(style, /images\/dunhuang\/emblem\.svg/);
 assert.match(style, /images\/dunhuang\/caisson-frame\.svg/);
 assert.match(style, /images\/dunhuang\/caisson-frame-mobile\.svg/);
@@ -1646,7 +1780,7 @@ assert.doesNotMatch(style, /\.filter-panel a\s*\{[^}]*scroll-snap-align/);
 assert.doesNotMatch(style, /\.filter-panel[\s\S]{0,80}overflow-x: auto/);
 assert.match(style, /\.filter-panel div:not\(\.filter-options\)/);
 assert.match(style, /\.letter-options a\s*\{[\s\S]*?min-width: 44px/);
-assert.match(style, /\.hero-stats/);
+assert.doesNotMatch(style, /\.hero-stats|\.stat-card/);
 assert.match(style, /\.hero-carousel/);
 assert.match(style, /\.hero \.wrap\s*\{[\s\S]*width: var\(--wrap\)/);
 assert.doesNotMatch(style, /width: min\(1500px, calc\(100vw - 48px\)\)/);
@@ -1831,7 +1965,6 @@ assert.doesNotMatch(bannerExcerptRule, /-webkit-line-clamp/);
 assert.doesNotMatch(bannerExcerptRule, /display: -webkit-box/);
 assert.doesNotMatch(bannerExcerptRule, /overflow: hidden/);
 assert.match(pageHeadingRule, /overflow-wrap: anywhere/);
-assert.equal(heroCarouselStatsRule, "");
 assert.match(bannerControlsRule, /position: absolute/);
 assert.match(bannerControlsRule, /left: 50%/);
 assert.match(bannerControlsRule, /bottom: 22px/);
@@ -1861,7 +1994,7 @@ assert.match(dunhuangBannerDotActiveAfterRule, /width: 30px/);
 assert.match(dunhuangBannerDotActiveAfterRule, /background: var\(--dunhuang-gold\)/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
-for (const chipRule of [hotSearchTermRule, posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
+for (const chipRule of [posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
   assert.match(chipRule, /white-space: normal/);
   assert.match(chipRule, /overflow-wrap: anywhere/);
   assert.doesNotMatch(chipRule, /text-overflow: ellipsis/);
@@ -1911,10 +2044,7 @@ assert.doesNotMatch(playerShellRule, /min-height: 500px/);
 assert.doesNotMatch(playerMacChildrenRule, /min-height: 500px/);
 assert.match(mobilePlayerToolbarButtonRule, /flex: 1 1 0/);
 assert.match(mobilePlayerToolbarButtonRule, /min-width: 0/);
-assert.match(style, /\.pf-player\s*\{/);
-assert.match(style, /\.pf-player-controls\s*\{/);
-assert.match(style, /\.pf-player-progress\s*\{/);
-assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.pf-player-controls/);
+assert.doesNotMatch(style, /\.pf-player/);
 assert.match(style, /\.download-list/);
 assert.match(style, /\.download-list a[\s\S]*transition: border-color/);
 assert.match(style, /\.copyright-box/);
@@ -1987,6 +2117,7 @@ assert.doesNotMatch(siteHeaderRule, /overflow: clip/);
 assert.doesNotMatch(style, /\.brand-logo[\s\S]{0,160}box-shadow/);
 assert.match(style, /\.user-menu/);
 assert.match(style, /\.user-avatar/);
+assert.match(style, /\[data-auth-member\]\[hidden\],\n\[data-auth-guest\]\[hidden\][\s\S]*display: none !important/);
 assert.match(style, /\.user-avatar[\s\S]*color: #fff/);
 assert.match(style, /--avatar-bg/);
 assert.match(style, /\.user-avatar-letter/);
@@ -2234,6 +2365,14 @@ assert.match(style, /\.multiplayer-layout/);
 assert.match(style, /\.gomoku-board/);
 assert.match(style, /\.drawguess-canvas-frame/);
 assert.match(style, /\.interaction-panel/);
+assert.match(style, /\.qixi-rose-page/);
+assert.match(style, /\.qixi-rose-canvas/);
+assert.match(style, /\.qixi-bloom-button/);
+assert.match(style, /html\.qixi-immersive \.site-header/);
+assert.match(style, /html\.qixi-immersive \.qixi-rose-page[\s\S]*min-height: max\(720px, 100svh\)/);
+assert.match(style, /\.qixi-rose-page\.is-entering \.qixi-rose-kicker/);
+assert.match(style, /\.qixi-rose-page\.is-entering\.is-entered \.qixi-rose-copy/);
+assert.match(style, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.qixi-rose-page\.is-entering/);
 assert.match(style, /\.star-meter/);
 assert.doesNotMatch(style, /border(?:-color)?: [^;]*rgba\(40, 199, 167/);
 
@@ -2248,6 +2387,7 @@ const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"),
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
 assert.match(packageScript, /pingfangapi/);
+assert.match(packageScript, /vodops/);
 assert.match(packageScript, /dist/);
 assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
@@ -2259,9 +2399,11 @@ assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
 assert.match(packageScript, /__PINGFANG_APP_VERSION__/);
 assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
 assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
+assert.match(packageScript, /__PINGFANG_BAMBOO_CICADA_VERSION__/);
 assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
+assert.match(packageScript, /__PINGFANG_QIXI_VERSION__/);
 assert.match(packageScript, /excludedThemePackageFiles/);
-assert.match(packageScript, /"js\/rank-react\.js"/);
+assert.doesNotMatch(packageScript, /rank-react|pingfang-player|react\.production|hls\.min/);
 assert.match(packageScript, /"player\/prompt\.css"/);
 assert.match(packageScript, /replaceAssetVersionPlaceholders/);
 assert.match(packageScript, /normalizePackagePermissions/);
@@ -2304,6 +2446,17 @@ for (const releaseTest of [
   "deploy-rollback.test.mjs"
 ]) {
   assert.match(packageJson.scripts.test, new RegExp(releaseTest.replaceAll(".", "\\.")));
+}
+assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh");
+for (const testFile of [
+  "douban-gateway.test.php",
+  "douban-matcher.test.php",
+  "douban-ai-reviewer.test.php",
+  "douban-data.test.php",
+  "douban-controller.test.php",
+  "douban-worker.test.php",
+]) {
+  assert.match(packageJson.scripts.test, new RegExp(testFile.replace(".", "\\.")));
 }
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 assert.equal(packageJson.scripts["deploy:web"], "bash scripts/deploy-next-web.sh");
@@ -2477,10 +2630,14 @@ assert.match(nextRollbackScript, /nginx -t/);
 assert.doesNotMatch(nextRollbackScript, /DEPLOY_PASSWORD=/);
 
 const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
-assert.match(ping2DeployEnv, /export DEPLOY_HOST=ping2\.my/);
+assert.match(ping2DeployEnv, /export DEPLOY_HOST=144\.34\.184\.95/);
 assert.match(ping2DeployEnv, /export DEPLOY_USER=root/);
 assert.match(ping2DeployEnv, /export DEPLOY_PATH=\/www\/wwwroot\/squaredMedia\/template/);
-assert.match(ping2DeployEnv, /export DEPLOY_PORT=22/);
+assert.match(ping2DeployEnv, /export DEPLOY_PORT=814/);
+assert.match(
+  ping2DeployEnv,
+  /export DEPLOY_GAME_ALLOWED_ORIGINS=https:\/\/www\.ping2video\.xyz,https:\/\/ping2video\.xyz/,
+);
 assert.match(ping2DeployEnv, /pingfangvideo_deploy_ed25519/);
 assert.match(ping2DeployEnv, /export DEPLOY_SITE_HOST=www\.ping2video\.xyz/);
 assert.match(ping2DeployEnv, /export DEPLOY_SITE_SCHEME=https/);
@@ -2514,7 +2671,7 @@ assert.match(deployScript, /DEPLOY_SITE_HOST/);
 assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
 assert.match(deployScript, /DEPLOY_SITE_MARKER/);
 assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
-assert.match(deployScript, /DEPLOY_SCOPE must be all, backend, or api/);
+assert.match(deployScript, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
 assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
 assert.match(deployScript, /Verified deployed site/);
 assert.match(deployScript, /index\.php\/pingfangapi\/index\?\$\{query\}/);
@@ -2554,6 +2711,8 @@ for (let index = 1; index < warmupSequence.length; index += 1) {
     `API warmup endpoint ${warmupSequence[index]} must keep its bounded order`
   );
 }
+assert.match(deployScript, /for attempt in 1 2/);
+assert.match(deployScript, /Deployed site warm-up request failed; retrying/);
 assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
@@ -2591,18 +2750,59 @@ const remoteUploadCleanup = deployScript.match(/<<'REMOTE_UPLOAD_CLEANUP'\n([\s\
 assert.ok(remoteUploadCleanup, "Interrupted uploads should have a remote cleanup script");
 const remoteUploadCleanupSyntax = spawnSync("bash", ["-n"], { input: remoteUploadCleanup[1], encoding: "utf8" });
 assert.equal(remoteUploadCleanupSyntax.status, 0, remoteUploadCleanupSyntax.stderr || "Remote upload cleanup must be valid Bash");
-const remoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/);
-assert.ok(remoteDeployScript, "Remote deploy script should exist");
-const remoteDeploySyntax = spawnSync("bash", ["-n"], { input: remoteDeployScript[1], encoding: "utf8" });
+const apiRemoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/);
+assert.ok(apiRemoteDeployScript, "Remote deploy script should exist");
+const remoteDeploySyntax = spawnSync("bash", ["-n"], { input: apiRemoteDeployScript[1], encoding: "utf8" });
 assert.equal(remoteDeploySyntax.status, 0, remoteDeploySyntax.stderr || "Remote deploy script must be valid Bash");
+assert.match(deployScript, /VODOPS_ADDON_NAME="vodops"/);
+assert.match(deployScript, /dist\/vodops\.tar\.gz/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
+assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]/);
+assert.match(deployScript, /application\/admin\/controller\/Vodops\.php/);
+assert.match(deployScript, /application\/admin\/controller\/Douban\.php/);
+assert.match(deployScript, /application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(deployScript, /legacy_douban_dir="\$maccms_root\/addons\/douban"/);
+assert.match(deployScript, /\.vodops-deploy-state/);
+assert.match(deployScript, /cp -a "\$legacy_douban_dir" "\$state_dir\/addons\/douban"/);
+assert.match(deployScript, /rm -rf "\$legacy_douban_dir"/);
+assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
+assert.match(deployScript, /rm -f "\$legacy_index_controller_target"/);
+assert.match(deployScript, /application\/extra\/quickmenu\.php/);
+assert.match(deployScript, /\$singleWorkbenchRoutes[\s\S]*?vodops\/index[\s\S]*?admin\/vodops\/index[\s\S]*?douban\/index[\s\S]*?admin\/douban\/index/);
+assert.match(deployScript, /count\(array_keys\(\$verified, \$entry, true\)\) !== 1/);
+assert.match(deployScript, /workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/index\/index[\s\S]*?Vodops single-workbench verification failed/);
+assert.match(deployScript, /vodops_lock/);
+assert.match(deployScript, /vodops_scan/);
+assert.match(deployScript, /vodops_issue/);
+assert.match(deployScript, /vodops_fingerprint/);
+assert.match(deployScript, /vodops_repair_log/);
+assert.match(deployScript, /douban_vod_meta/);
+assert.match(deployScript, /douban_task/);
+assert.match(deployScript, /douban_log/);
+assert.match(deployScript, /douban_review_candidate/);
+assert.match(deployScript, /douban_scan_issue/);
+assert.match(deployScript, /response_end/);
+assert.match(deployScript, /array_filter/);
+assert.match(deployScript, /Vodops response_end hook removal failed/);
+assert.match(deployScript, /bin\/vodops-worker\.php/);
+assert.match(deployScript, /crontab -l/);
+assert.match(deployScript, /flock/);
+assert.match(deployScript, /install_vodops_worker_cron preflight/);
+assert.match(deployScript, /execution_mode/);
+assert.match(deployScript, /lease_until/);
+assert.match(deployScript, /next_run_at/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
 assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);
 assert.match(deployScript, /application\/extra\/addons\.php/);
 assert.match(deployScript, /install\.sql/);
 assert.match(deployScript, /php -l "\$php_file"/);
+assert.doesNotMatch(deployScript, /str_starts_with/);
 assert.match(deployScript, /Addon app_begin hook verification failed/);
 assert.match(deployScript, /COLUMN_NAME IN \(/);
+assert.match(deployScript, /opcache_invalidate\(\$path, true\)/);
+assert.doesNotMatch(deployScript, /fwrite\(STDERR/);
+assert.match(deployScript, /COLUMN_NAME = \?/);
 assert.match(deployScript, /Device session schema verification failed/);
 assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
 assert.match(deployScript, /maccms_root="\$\(dirname "\$DEPLOY_PATH"\)"/);
@@ -2612,6 +2812,79 @@ assert.match(deployScript, /view\/_cache/);
 assert.match(deployScript, /find "\$cache_dir" -mindepth 1/);
 assert.match(deployScript, /existing.*config/i);
 assert.doesNotMatch(deployScript, /DEPLOY_PASSWORD=/);
+
+const remoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/)?.[1] || "";
+const autoRollbackFunction =
+  remoteDeployScript.match(/restore_vodops_deploy_snapshot\(\) \{\n[\s\S]*?\n\}/)?.[0] || "";
+assert.ok(autoRollbackFunction, "VodOps deployment should expose an automatic file rollback function");
+const autoRollbackFixture = mkdtempSync(path.join(tmpdir(), "vodops-auto-rollback-test-"));
+try {
+  const siteRoot = path.join(autoRollbackFixture, "site");
+  const addonsRoot = path.join(siteRoot, "addons");
+  const backupRoot = path.join(addonsRoot, "vodops.backup.20260811120000");
+  const stateRoot = path.join(backupRoot, ".vodops-deploy-state");
+  const adminControllerRoot = path.join(siteRoot, "application", "admin", "controller");
+  const adminViewRoot = path.join(siteRoot, "application", "admin", "view_new", "vodops");
+  const indexControllerRoot = path.join(siteRoot, "application", "index", "controller");
+  const extraRoot = path.join(siteRoot, "application", "extra");
+  const cronCapture = path.join(autoRollbackFixture, "restored.crontab");
+  for (const directory of [
+    path.join(addonsRoot, "vodops"),
+    path.join(addonsRoot, "douban"),
+    path.join(stateRoot, "addons", "douban"),
+    path.join(stateRoot, "application", "admin", "controller"),
+    path.join(stateRoot, "application", "admin", "view_new", "vodops"),
+    path.join(stateRoot, "application", "index", "controller"),
+    path.join(stateRoot, "application", "extra"),
+    adminControllerRoot,
+    adminViewRoot,
+    indexControllerRoot,
+    extraRoot,
+  ]) {
+    mkdirSync(directory, { recursive: true });
+  }
+  writeFileSync(path.join(backupRoot, "info.ini"), "name = vodops\nold addon\n");
+  writeFileSync(path.join(backupRoot, "old-vodops.txt"), "old vodops\n");
+  writeFileSync(path.join(stateRoot, "vodops-addon-present"), "");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "info.ini"), "name = douban\n");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "old-douban.txt"), "old douban\n");
+  writeFileSync(path.join(stateRoot, "application", "admin", "controller", "Vodops.php"), "old vodops controller\n");
+  writeFileSync(path.join(stateRoot, "application", "admin", "controller", "Douban.php"), "old douban controller\n");
+  writeFileSync(path.join(stateRoot, "application", "admin", "view_new", "vodops", "index.html"), "old view\n");
+  writeFileSync(path.join(stateRoot, "application", "index", "controller", "Douban.php"), "old public bridge\n");
+  writeFileSync(path.join(stateRoot, "application", "extra", "quickmenu.php"), "old quickmenu\n");
+  writeFileSync(path.join(stateRoot, "application", "extra", "addons.php"), "old hooks\n");
+  writeFileSync(path.join(stateRoot, "crontab"), "old cron\n");
+  writeFileSync(path.join(addonsRoot, "vodops", "new-vodops.txt"), "new vodops\n");
+  writeFileSync(path.join(addonsRoot, "douban", "new-douban.txt"), "new douban\n");
+  writeFileSync(path.join(adminControllerRoot, "Vodops.php"), "new vodops controller\n");
+  writeFileSync(path.join(adminControllerRoot, "Douban.php"), "new douban controller\n");
+  writeFileSync(path.join(adminViewRoot, "index.html"), "new view\n");
+  writeFileSync(path.join(indexControllerRoot, "Douban.php"), "new public bridge\n");
+  writeFileSync(path.join(extraRoot, "quickmenu.php"), "new quickmenu\n");
+  writeFileSync(path.join(extraRoot, "addons.php"), "new hooks\n");
+
+  const autoRollbackResult = spawnSync("bash", [], {
+    encoding: "utf8",
+    input: `set -euo pipefail\n${autoRollbackFunction}\ncrontab() { cp "$1" ${JSON.stringify(cronCapture)}; }\nrestore_vodops_deploy_snapshot ${JSON.stringify(backupRoot)} ${JSON.stringify(siteRoot)} vodops 1\n`,
+  });
+  assert.equal(autoRollbackResult.status, 0, autoRollbackResult.stderr || autoRollbackResult.stdout);
+  assert.ok(existsSync(path.join(addonsRoot, "vodops", "old-vodops.txt")));
+  assert.ok(existsSync(path.join(addonsRoot, "douban", "old-douban.txt")));
+  assert.equal(readFileSync(path.join(adminControllerRoot, "Vodops.php"), "utf8"), "old vodops controller\n");
+  assert.equal(readFileSync(path.join(adminControllerRoot, "Douban.php"), "utf8"), "old douban controller\n");
+  assert.equal(readFileSync(path.join(adminViewRoot, "index.html"), "utf8"), "old view\n");
+  assert.equal(readFileSync(path.join(indexControllerRoot, "Douban.php"), "utf8"), "old public bridge\n");
+  assert.equal(readFileSync(path.join(extraRoot, "quickmenu.php"), "utf8"), "old quickmenu\n");
+  assert.equal(readFileSync(path.join(extraRoot, "addons.php"), "utf8"), "old hooks\n");
+  assert.equal(readFileSync(cronCapture, "utf8"), "old cron\n");
+  const failedVodops = readdirSync(addonsRoot).find((name) => name.startsWith("vodops.failed."));
+  const failedDouban = readdirSync(addonsRoot).find((name) => name.startsWith("douban.failed."));
+  assert.ok(failedVodops && existsSync(path.join(addonsRoot, failedVodops, "new-vodops.txt")));
+  assert.ok(failedDouban && existsSync(path.join(addonsRoot, failedDouban, "new-douban.txt")));
+} finally {
+  rmSync(autoRollbackFixture, { recursive: true, force: true });
+}
 
 const gameDeployScript = readFileSync(path.join(root, "scripts/deploy-game-server.sh"), "utf8");
 const gameDeployMode = statSync(path.join(root, "scripts/deploy-game-server.sh")).mode & 0o777;
@@ -2628,6 +2901,7 @@ assert.match(gameDeployScript, /healthz/);
 assert.match(gameDeployScript, /nginx -t/);
 assert.match(gameDeployScript, /\/etc\/init\.d\/nginx reload/);
 assert.match(gameDeployScript, /pingfangdevice\/config\.php/);
+assert.doesNotMatch(gameDeployScript, /fwrite\(STDERR/);
 assert.doesNotMatch(gameDeployScript, /source "\$service_env"/);
 assert.doesNotMatch(gameDeployScript, /DEPLOY_PASSWORD=/);
 
@@ -2734,7 +3008,7 @@ try {
     }
   });
   assert.notEqual(invalidDeployScope.status, 0);
-  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, or api/);
+  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
 
   writeFileSync(deployHarnessLog, "");
   const apiOnlyDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
@@ -2889,6 +3163,20 @@ const invalidRemoteArchivePath = spawnSync("bash", ["scripts/deploy-theme.sh"], 
 assert.notEqual(invalidRemoteArchivePath.status, 0);
 assert.match(invalidRemoteArchivePath.stderr, /DEPLOY_REMOTE_API_ADDON_TMP must be a single \.tar\.gz file directly under \/tmp/);
 
+const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SCOPE: "theme-only",
+  }
+});
+assert.notEqual(invalidDeployScope.status, 0);
+assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
+
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
 assert.match(rollbackScript, /set -euo pipefail/);
@@ -2897,6 +3185,16 @@ assert.match(rollbackScript, /\$\{DEPLOY_USER/);
 assert.match(rollbackScript, /\$\{DEPLOY_PORT/);
 assert.match(rollbackScript, /\$\{DEPLOY_PATH/);
 assert.match(rollbackScript, /ROLLBACK_BACKUP/);
+assert.match(rollbackScript, /ROLLBACK_SCOPE/);
+assert.match(rollbackScript, /ROLLBACK_SCOPE must be theme or vodops/);
+assert.match(rollbackScript, /rollback_vodops/);
+assert.match(rollbackScript, /vodops\.backup/);
+assert.match(rollbackScript, /application\/admin\/controller\/Douban\.php/);
+assert.match(rollbackScript, /vodops-rollback-payload/);
+assert.match(rollbackScript, /\.vodops-deploy-state/);
+assert.match(rollbackScript, /state_dir\/addons\/douban/);
+assert.match(rollbackScript, /legacy_index_controller_target/);
+assert.match(rollbackScript, /restore_optional_file/);
 assert.match(rollbackScript, /SSHPASS/);
 assert.match(rollbackScript, /DEPLOY_IDENTITY_FILE/);
 assert.match(rollbackScript, /IdentitiesOnly=yes/);
@@ -2907,8 +3205,82 @@ assert.match(rollbackScript, /DEPLOY_CLEAR_CACHE/);
 assert.match(rollbackScript, /runtime\/cache/);
 assert.doesNotMatch(rollbackScript, /DEPLOY_PASSWORD=/);
 
+const remoteRollbackScript = rollbackScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/)?.[1] || "";
+assert.ok(remoteRollbackScript, "rollback script should expose a remote payload");
+const rollbackFixture = mkdtempSync(path.join(tmpdir(), "vodops-rollback-test-"));
+try {
+  const siteRoot = path.join(rollbackFixture, "site");
+  const backupRoot = path.join(siteRoot, "addons", "vodops.backup.20260810120000");
+  const stateRoot = path.join(backupRoot, ".vodops-deploy-state");
+  const adminControllerRoot = path.join(siteRoot, "application", "admin", "controller");
+  const adminViewRoot = path.join(siteRoot, "application", "admin", "view_new", "vodops");
+  const indexControllerRoot = path.join(siteRoot, "application", "index", "controller");
+  for (const directory of [
+    path.join(siteRoot, "template"),
+    path.join(siteRoot, "addons", "vodops"),
+    path.join(siteRoot, "addons", "douban"),
+    path.join(siteRoot, "runtime"),
+    path.join(stateRoot, "addons", "douban", "application", "admin", "controller"),
+    path.join(stateRoot, "application", "admin", "controller"),
+    path.join(stateRoot, "application", "admin", "view_new", "vodops"),
+    path.join(stateRoot, "application", "index", "controller"),
+    adminControllerRoot,
+    adminViewRoot,
+    indexControllerRoot,
+  ]) {
+    mkdirSync(directory, { recursive: true });
+  }
+
+  writeFileSync(path.join(backupRoot, "info.ini"), "name = vodops\ntitle = legacy vodops\n");
+  writeFileSync(path.join(backupRoot, "legacy-vodops.txt"), "legacy vodops\n");
+  writeFileSync(path.join(stateRoot, "vodops-addon-present"), "");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "info.ini"), "name = douban\n");
+  writeFileSync(path.join(stateRoot, "addons", "douban", "legacy-douban.txt"), "legacy douban\n");
+  writeFileSync(
+    path.join(stateRoot, "addons", "douban", "application", "admin", "controller", "Douban.php"),
+    "<?php\nnamespace app\\admin\\controller;\nclass Douban {}\n",
+  );
+  writeFileSync(
+    path.join(stateRoot, "application", "admin", "controller", "Vodops.php"),
+    "<?php\nnamespace app\\admin\\controller;\nclass Vodops {}\n",
+  );
+  writeFileSync(
+    path.join(stateRoot, "application", "admin", "controller", "Douban.php"),
+    "<?php\nnamespace app\\admin\\controller;\nclass Douban {}\n",
+  );
+  writeFileSync(path.join(stateRoot, "application", "admin", "view_new", "vodops", "index.html"), "X-CSRF-Token legacy\n");
+  writeFileSync(path.join(siteRoot, "addons", "vodops", "current-vodops.txt"), "current\n");
+  writeFileSync(path.join(siteRoot, "addons", "douban", "current-douban.txt"), "current\n");
+  writeFileSync(path.join(adminControllerRoot, "Vodops.php"), "<?php\nclass CurrentVodops {}\n");
+  writeFileSync(path.join(adminControllerRoot, "Douban.php"), "<?php\nclass CurrentDouban {}\n");
+  writeFileSync(path.join(adminViewRoot, "index.html"), "X-CSRF-Token current\n");
+  writeFileSync(path.join(indexControllerRoot, "Douban.php"), "<?php\nclass ObsoletePublicDouban {}\n");
+
+  const rollbackResult = spawnSync("bash", [], {
+    encoding: "utf8",
+    input: remoteRollbackScript,
+    env: {
+      ...process.env,
+      DEPLOY_PATH: path.join(siteRoot, "template"),
+      THEME_NAME: "pingfangvideo",
+      DEPLOY_CLEAR_CACHE: "0",
+      ROLLBACK_SCOPE: "vodops",
+      ROLLBACK_BACKUP: "vodops.backup.20260810120000",
+      VODOPS_ADDON_NAME: "vodops",
+    },
+  });
+  assert.equal(rollbackResult.status, 0, rollbackResult.stderr || rollbackResult.stdout);
+  assert.ok(existsSync(path.join(siteRoot, "addons", "vodops", "legacy-vodops.txt")));
+  assert.ok(existsSync(path.join(siteRoot, "addons", "douban", "legacy-douban.txt")));
+  assert.doesNotMatch(readFileSync(path.join(adminControllerRoot, "Vodops.php"), "utf8"), /CurrentVodops/);
+  assert.doesNotMatch(readFileSync(path.join(adminControllerRoot, "Douban.php"), "utf8"), /CurrentDouban/);
+  assert.ok(!existsSync(path.join(indexControllerRoot, "Douban.php")), "an absent pre-merge public bridge should stay absent");
+} finally {
+  rmSync(rollbackFixture, { recursive: true, force: true });
+}
+
 const ciWorkflow = readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
-assert.match(ciWorkflow, /name: Theme, Addon, Player, and Games CI/);
+assert.match(ciWorkflow, /name: Theme, Addons, Player, and Games CI/);
 assert.match(ciWorkflow, /pull_request:/);
 assert.match(ciWorkflow, /actions\/checkout@v4/);
 assert.match(ciWorkflow, /actions\/setup-node@v4/);
@@ -2926,6 +3298,7 @@ assert.match(ciWorkflow, /npm run verify:release/);
 assert.match(ciWorkflow, /actions\/upload-artifact@v4/);
 assert.match(ciWorkflow, /name: pingfangvideo-theme[\s\S]*path: dist\/pingfangvideo\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangdevice-addon[\s\S]*path: dist\/pingfangdevice\.tar\.gz/);
+assert.match(ciWorkflow, /name: vodops-addon[\s\S]*path: dist\/vodops\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangplayer-player[\s\S]*path: dist\/pingfangplayer-player\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfanggames-server[\s\S]*path: dist\/pingfanggames-server\.tar\.gz/);
 assert.match(ciWorkflow, /name: pingfangapi-addon[\s\S]*path: dist\/pingfangapi\.tar\.gz/);
@@ -2944,6 +3317,60 @@ assert.match(deviceAddonConfig, /game_websocket_path/);
 
 const deviceAddonHook = readAddonFile("Pingfangdevice.php");
 assert.match(deviceAddonHook, /namespace addons\\pingfangdevice/);
+
+const vodopsController = readFileSync(path.join(vodopsAddonRoot, "application/admin/controller/Vodops.php"), "utf8");
+assert.match(vodopsController, /class Vodops extends Base/);
+assert.match(vodopsController, /admin\/view_new/);
+const vodopsHook = readFileSync(path.join(vodopsAddonRoot, "Vodops.php"), "utf8");
+assert.doesNotMatch(vodopsHook, /responseEnd|runTrafficChunk/);
+const vodopsView = readFileSync(path.join(vodopsAddonRoot, "application/admin/view_new/vodops/index.html"), "utf8");
+assert.match(vodopsView, /X-CSRF-Token/);
+assert.match(vodopsView, /不会自动修复、删除、合并或优化/);
+assert.match(vodopsView, /id="vodopsScopeTypeId"/);
+assert.match(vodopsView, /id="vodopsWorkerMode"/);
+assert.match(vodopsView, /worker_mode/);
+assert.match(vodopsView, /scope_label/);
+assert.match(vodopsView, /runner_state_label/);
+assert.match(vodopsView, /确认修改并复检/);
+assert.match(vodopsView, /vodops\/rollbackRepair/);
+assert.match(vodopsView, /workspace/);
+assert.match(vodopsView, /addons\/vodops\/view\/index\/index/);
+const doubanBridge = readFileSync(path.join(vodopsAddonRoot, "application/admin/controller/Douban.php"), "utf8");
+assert.match(doubanBridge, /addons\\vodops\\backend\\DoubanController/);
+assert.doesNotMatch(doubanBridge, /->route\(/);
+const doubanBackend = readFileSync(path.join(vodopsAddonRoot, "backend/DoubanController.php"), "utf8");
+assert.match(doubanBackend, /namespace addons\\vodops\\backend/);
+assert.match(doubanBackend, /class DoubanController extends Base/);
+assert.match(doubanBackend, /public function startAudit\(\)/);
+assert.match(doubanBackend, /public function calibrateByType\(\)/);
+assert.match(doubanBackend, /redirect\(url\('vodops\/index'/);
+assert.doesNotMatch(doubanBackend, /fetch\(['"]index\/index/);
+assert.doesNotMatch(doubanBackend, /view_path/);
+const doubanData = readFileSync(path.join(vodopsAddonRoot, "service/DoubanData.php"), "utf8");
+assert.match(doubanData, /namespace addons\\vodops\\service/);
+assert.match(doubanData, /MATCH_DOUBAN_ID/);
+assert.match(doubanData, /SYNC_DOUBAN/);
+assert.match(doubanData, /CALIBRATE_SCORE/);
+assert.match(doubanData, /conditionalVodUpdate/);
+const doubanView = readFileSync(path.join(vodopsAddonRoot, "view/index/index.html"), "utf8");
+assert.match(doubanView, /豆瓣匹配与同步/);
+assert.doesNotMatch(doubanView, /<!doctype|<html|<body|豆瓣匹配工作台/i);
+assert.doesNotMatch(doubanView, /url\('douban\/index'/);
+assert.match(doubanView, /X-CSRF-Token/);
+assert.match(doubanView, /\.douban-workspace \.system-box/);
+assert.match(doubanView, /@keyframes douban-status-pulse/);
+const integratedSql = readFileSync(path.join(vodopsAddonRoot, "install.sql"), "utf8");
+for (const table of ["douban_config", "douban_vod_meta", "douban_task", "douban_log", "douban_review_candidate", "douban_scan", "douban_scan_issue"]) {
+  assert.match(integratedSql, new RegExp("CREATE TABLE IF NOT EXISTS `__PREFIX__" + table + "`"));
+}
+const vodopsWorker = readFileSync(path.join(vodopsAddonRoot, "bin/vodops-worker.php"), "utf8");
+assert.match(vodopsWorker, /App::initCommon/);
+assert.match(vodopsWorker, /ensureScheduledScan/);
+assert.match(vodopsWorker, /runWorker/);
+const vodopsConfig = readFileSync(path.join(vodopsAddonRoot, "config.php"), "utf8");
+assert.match(vodopsConfig, /scheduled_scan_hours/);
+assert.match(vodopsConfig, /scheduled_scope_type_id/);
+assert.match(vodopsConfig, /scheduled_batch_size/);
 assert.match(deviceAddonHook, /extends Addons/);
 assert.match(deviceAddonHook, /public function appBegin/);
 assert.match(deviceAddonHook, /DeviceSession::syncActiveCookie/);
@@ -3156,6 +3583,7 @@ assert.match(templateLinter, /Template lint passed/);
 const compatVerifier = readFileSync(path.join(root, "scripts/verify-compat.mjs"), "utf8");
 assert.match(compatVerifier, /requiredThemeDirs/);
 assert.match(compatVerifier, /html\/label\/comics\.html/);
+assert.match(compatVerifier, /html\/label\/qixi\.html/);
 assert.match(compatVerifier, /html\/comment\/index\.html/);
 assert.match(compatVerifier, /html\/comment\/ajax\.html/);
 assert.match(compatVerifier, /html\/rss\/rss\.html/);
@@ -3194,6 +3622,7 @@ assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangapi\.tar\.gz/);
 assert.match(releaseVerifier, /API addon archive must contain only regular files and directories/);
 assert.match(releaseVerifier, /must contain valid PHP/);
+assert.match(releaseVerifier, /vodops\.tar\.gz/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -3208,18 +3637,30 @@ assert.match(releaseVerifier, /assertSafeAssetReference/);
 assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholders/);
 assert.match(releaseVerifier, /assetVersionPattern/);
+assert.match(releaseVerifier, /html\/label\/qixi\.html/);
+assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
+assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /requiredApiAddonEntries/);
+assert.match(releaseVerifier, /requiredVodopsEntries/);
+assert.match(releaseVerifier, /vodops\/application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(releaseVerifier, /vodops\/application\/admin\/controller\/Douban\.php/);
+assert.match(releaseVerifier, /vodops\/service\/DoubanData\.php/);
+assert.match(releaseVerifier, /Douban must be packaged inside vodops/);
+assert.match(releaseVerifier, /scope_json/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);
 assert.match(releaseVerifier, /excludedEntries/);
-assert.match(releaseVerifier, /pingfangvideo\/js\/react\.production\.min\.js/);
-assert.match(releaseVerifier, /pingfangvideo\/js\/hls\.min\.js/);
+assert.doesNotMatch(releaseVerifier, /react\.production|pingfang-player|rank-react|pingfangvideo\/js\/hls\.min/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
-assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 4);
+assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 5);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
+const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");
+assert.match(qixiPreview, /class="qixi-rose-page" data-qixi-rose/);
+assert.match(qixiPreview, /template\/pingfangvideo\/css\/style\.css/);
+assert.match(qixiPreview, /template\/pingfangvideo\/js\/qixi-particle-rose\.js/);
 assert.doesNotMatch(preview, /\bskip-link\b/);
 assert.doesNotMatch(preview, /class="site-footer"/);
 assert.doesNotMatch(preview, /让每一次打开/);
@@ -3273,6 +3714,7 @@ assert.equal((preview.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
+assert.equal((preview.match(/data-theme-option="digital-particles"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(preview, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
 assert.match(
@@ -3285,8 +3727,9 @@ assert.match(preview, /class="mobile-drawer-login" href="\?route=login" data-rou
 assert.match(preview, /<form class="mobile-drawer-search" role="search">/);
 assert.match(preview, /id="previewMobileSearch" type="search" name="wd"/);
 const previewStaticDrawerLinks = preview.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(previewStaticDrawerLinks), ["首页", "视频", "游戏"]);
+assert.deepEqual(extractAnchorTexts(previewStaticDrawerLinks), ["首页", "视频", "游戏", "七夕花束"]);
 assert.match(previewStaticDrawerLinks, /data-route="games" data-nav-section="games">游戏<\/a>/);
+assert.match(previewStaticDrawerLinks, /href="qixi\.html" data-nav-section="qixi">七夕花束<\/a>/);
 assert.doesNotMatch(previewStaticDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(preview, /id="mobileDrawerCats"/);
 assert.match(preview, /function renderMobileDrawerCategories/);
@@ -3315,8 +3758,7 @@ assert.match(preview, /data-carousel-autoplay-toggle/);
 assert.doesNotMatch(preview, /liquid-lens/);
 assert.doesNotMatch(preview, /hero-stats/);
 assert.doesNotMatch(preview, /片库内容/);
-assert.match(preview, /hot-search-panel/);
-assert.match(preview, /热搜榜/);
+assert.doesNotMatch(preview, /hot-search-panel|热搜榜/);
 assert.match(preview, /data-rank-react-root/);
 assert.doesNotMatch(preview, /data-rank-visible-count/);
 assert.match(preview, /data-rank-react-list/);
@@ -3329,7 +3771,7 @@ assert.doesNotMatch(preview, /shuffleVideos/);
 assert.doesNotMatch(preview, /is-rank-extra/);
 assert.match(preview, /class="rank-refresh" href="\$\{url\("category", \{ sort: "hot" \}\)\}">查看更多<\/a>/);
 assert.doesNotMatch(preview, /换一换/);
-assert.match(preview, /PingFangRankReact\?\.mountAll\?\.\(app\)/);
+assert.doesNotMatch(preview, /PingFangRankReact/);
 assert.doesNotMatch(preview, /id="hotSearchPanel"/);
 assert.doesNotMatch(preview, /renderHeaderHotSearch/);
 assert.match(preview, /url\("category", \{ sort: "hot" \}\)/);
@@ -3411,10 +3853,11 @@ assert.doesNotMatch(preview, /function renderVideoNavCategories/);
 assert.doesNotMatch(preview, /nav-video-panel/);
 assert.doesNotMatch(preview, /nav-video-trigger/);
 const previewRenderNavFunction = preview.match(/function renderNav\(\) \{[\s\S]*?\n\}/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(previewRenderNavFunction), ["首页", "视频", "游戏"]);
+assert.deepEqual(extractAnchorTexts(previewRenderNavFunction), ["首页", "视频", "游戏", "七夕花束"]);
 assert.match(previewRenderNavFunction, /href="\$\{url\("home"\)\}" data-route="home" data-nav-section="home">首页/);
 assert.match(previewRenderNavFunction, /href="\$\{url\("categories"\)\}" data-route="categories" data-nav-section="videos">视频/);
 assert.match(previewRenderNavFunction, /href="\$\{url\("games"\)\}" data-route="games" data-nav-section="games">游戏/);
+assert.match(previewRenderNavFunction, /href="qixi\.html" data-nav-section="qixi">七夕花束/);
 assert.doesNotMatch(previewRenderNavFunction, /data-route="comics"|data-route="articles"/);
 assert.doesNotMatch(previewRenderNavFunction, /data-route="categories">分类/);
 assert.match(preview, /<a href="\?route=categories" data-route="categories" data-nav-section="videos">视频<\/a>/);
@@ -3492,9 +3935,7 @@ assert.match(phpRender, /login-icon-eye/);
 assert.match(phpRender, /login-icon-refresh/);
 assert.doesNotMatch(phpRender, /hero-stats/);
 assert.doesNotMatch(phpRender, /片库内容/);
-assert.match(phpRender, /hot-search-panel/);
-assert.match(phpRender, /热搜榜/);
-assert.doesNotMatch(phpRender, /render_hot_search_panel\(\$data\)[\s\S]{0,120}<a class="history-link"/);
+assert.doesNotMatch(phpRender, /hot-search-panel|热搜榜|render_hot_search_panel/);
 assert.match(phpRender, /path_for\('categories'\)/);
 assert.match(phpRender, /path_for\('videos'\)/);
 assert.match(phpRender, /\$route === 'videos'/);
@@ -3506,6 +3947,7 @@ assert.match(phpRender, /preview_member_enabled/);
 assert.match(phpRender, /render_game_login_gate/);
 assert.match(phpRender, /\$route === 'game-2048'/);
 assert.match(phpRender, /\$route === 'game-blockrain'/);
+assert.match(phpRender, /\$route === 'game-bamboo-cicada'/);
 assert.match(phpRender, /data-game-authenticated/);
 assert.match(phpRender, /漫画入口/);
 assert.match(phpRender, /文章入口/);
@@ -3514,18 +3956,20 @@ assert.doesNotMatch(phpRender, /class="nav-video-menu"/);
 assert.doesNotMatch(phpRender, /class="nav-video-trigger"/);
 assert.doesNotMatch(phpRender, /class="nav-video-panel"/);
 const phpNavSnippet = phpRender.match(/\$nav = [\s\S]*?\$drawerCategories = implode/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(phpNavSnippet), ["首页", "视频", "游戏"]);
+assert.deepEqual(extractAnchorTexts(phpNavSnippet), ["首页", "视频", "游戏", "七夕花束"]);
 assert.match(phpNavSnippet, /path_for\('categories'\)[\s\S]*>视频<\/a>/);
 assert.match(phpNavSnippet, /path_for\('games'\)[\s\S]*data-nav-section="games">游戏<\/a>/);
+assert.match(phpNavSnippet, /href="\/preview\/qixi\.html" data-nav-section="qixi">七夕花束<\/a>/);
 assert.match(phpNavSnippet, /data-nav-section="home"/);
 assert.match(phpNavSnippet, /data-nav-section="videos"/);
 assert.doesNotMatch(phpNavSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.doesNotMatch(phpNavSnippet, />分类<\/a>/);
 const phpMobileDrawerLinksSnippet = phpRender.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(phpMobileDrawerLinksSnippet), ["首页", "视频", "游戏"]);
+assert.deepEqual(extractAnchorTexts(phpMobileDrawerLinksSnippet), ["首页", "视频", "游戏", "七夕花束"]);
 assert.match(phpMobileDrawerLinksSnippet, /path_for\('categories'\)[\s\S]*>视频<\/a>/);
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, /path_for\('videos'\)[\s\S]*>视频<\/a>/);
 assert.match(phpMobileDrawerLinksSnippet, /path_for\('games'\)[\s\S]*>游戏<\/a>/);
+assert.match(phpMobileDrawerLinksSnippet, /href="\/preview\/qixi\.html" data-nav-section="qixi">七夕花束<\/a>/);
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.match(phpRender, /class="theme-switcher" data-theme-switcher/);
 assert.match(phpRender, /class="brand-logo"[^>]*width="58"[^>]*height="58"[^>]*decoding="async"/);
@@ -3538,6 +3982,7 @@ assert.equal((phpRender.match(/data-theme-option="default"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
+assert.equal((phpRender.match(/data-theme-option="digital-particles"/g) || []).length, 2);
 assert.equal((phpRender.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
@@ -3652,28 +4097,6 @@ assert.match(phpRender, /gbook_content/);
 assert.doesNotMatch(phpRender, /array_slice\(\$data\['categories'\], 0, 6\)/);
 
 const appJs = readThemeFile("js/app.js");
-const rankReact = readThemeFile("js/rank-react.js");
-const pingfangPlayer = readThemeFile("js/pingfang-player.js");
-assert.match(rankReact, /window\.React/);
-assert.match(rankReact, /window\.ReactDOM/);
-assert.match(rankReact, /ReactDOM\.createRoot/);
-assert.match(rankReact, /data-rank-react-root/);
-assert.match(rankReact, /data-rank-item/);
-assert.match(rankReact, /href: props\.moreUrl \|\| "#"/);
-assert.match(rankReact, /"查看更多"/);
-assert.doesNotMatch(rankReact, /data-rank-refresh/);
-assert.doesNotMatch(rankReact, /data-rank-visible-count/);
-assert.doesNotMatch(rankReact, /shuffleItems/);
-assert.doesNotMatch(rankReact, /rotateItems/);
-assert.doesNotMatch(rankReact, /setOffset/);
-assert.doesNotMatch(rankReact, /换一换/);
-assert.match(rankReact, /PingFangRankReact/);
-assert.doesNotMatch(rankReact, /unpkg|jsdelivr|localhost|127\.0\.0\.1/);
-assert.match(pingfangPlayer, /window\.player_data/);
-assert.match(pingfangPlayer, /\.m3u8/);
-assert.match(pingfangPlayer, /\.mp4/);
-assert.match(pingfangPlayer, /restoreOriginalPlayer/);
-assert.match(pingfangPlayer, /localStorage/);
 assert.match(appJs, /document\.querySelector\("\.mobile-drawer"\)/);
 assert.match(appJs, /document\.querySelector\("\.mobile-drawer-backdrop"\)/);
 assert.match(appJs, /mobile-nav-open/);
@@ -3694,8 +4117,17 @@ assert.match(appJs, /function currentNavSection\(\)/);
 assert.match(appJs, /data-nav-section/);
 assert.match(appJs, /game-2048/);
 assert.match(appJs, /game-blockrain/);
+assert.match(appJs, /game-bamboo-cicada/);
+assert.match(appJs, /if \(route === "qixi"\) return "qixi"/);
+assert.match(appJs, /\\\/label\\\/qixi/);
 assert.doesNotMatch(appJs, /var fallback = links\[0\]/);
 assert.match(appJs, /window\.PingFangVideo\.markCurrentNav = markCurrentNav/);
+assert.match(appJs, /function hasMemberSession\(\)/);
+assert.match(appJs, /MAC\.Cookie\.Get\("user_id"\)/);
+assert.match(appJs, /document\.querySelectorAll\("\[data-auth-member\]"\)/);
+assert.match(appJs, /document\.querySelectorAll\("\[data-auth-guest\]"\)/);
+assert.match(appJs, /document\.querySelectorAll\("\[data-auth-script\]"\)/);
+assert.match(appJs, /script\.async = false/);
 assert.match(appJs, /initLoginForms/);
 assert.match(appJs, /data-login-form/);
 assert.match(appJs, /function initLoginControls/);
@@ -3776,7 +4208,11 @@ assert.match(appJs, /\[data-home-empty-state\], \[data-empty-state\]/);
 assert.match(appJs, /function syncActiveSelectionSemantics\(root\)/);
 assert.match(appJs, /window\.PingFangVideo\.syncActiveSelectionSemantics = syncActiveSelectionSemantics/);
 assert.match(appJs, /function initHomeContinueWatching/);
-assert.match(appJs, /MAC\.Ulog\.Get\(4, 1, 12/);
+assert.match(appJs, /MAC\.Cookie\.Get\("user_id"\)/);
+assert.match(appJs, /MAC\.Ulog\.Get\.length >= 6/);
+assert.match(appJs, /MAC\.Ulog\.Get\(1, 0, 4, 1, 12, handleResponse\)/);
+assert.match(appJs, /MAC\.Ulog\.Get\(4, 1, 12, handleResponse\)/);
+assert.doesNotMatch(appJs, /MAC\.Ulog\.Get\(4, 1, 12, function/);
 assert.match(appJs, /function initAutoNextPlayback/);
 assert.match(appJs, /\[data-next-play-url\]/);
 assert.match(appJs, /MacPlayer\.PlayLinkNext/);
@@ -3842,7 +4278,13 @@ assert.match(appJs, /source\.max_width/);
 assert.match(appJs, /清单声明/);
 assert.match(appJs, /分辨率未知/);
 assert.match(appJs, /function storeSourceQualityPreference/);
-assert.match(appJs, /payload\.recommended_sid/);
+assert.match(appJs, /function reportPlaybackQoe/);
+assert.match(appJs, /function rankPlaybackSourcesByQoe/);
+assert.match(appJs, /function comparePlaybackQoe/);
+assert.match(appJs, /pingfang_playback_qoe_v1_/);
+assert.match(appJs, /pending_playback_switch_v1/);
+assert.match(appJs, /window\.PingFangVideo\.reportPlaybackQoe = reportPlaybackQoe/);
+assert.match(appJs, /window\.PingFangVideo\.rankPlaybackSourcesByQoe = rankPlaybackSourcesByQoe/);
 assert.match(appJs, /episode\.addEventListener\("change"/);
 assert.match(appJs, /runSourceQuality\(false\)/);
 assert.match(appJs, /function autoSwitchToAlternatePlaybackLine/);

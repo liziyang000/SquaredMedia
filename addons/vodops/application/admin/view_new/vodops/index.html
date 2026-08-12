@@ -1,6 +1,8 @@
 {include file="../../../application/admin/view_new/public/head" /}
 <style>
   .vodops-page { padding: 18px; color: #1f2937; }
+  .vodops-page [hidden], .vodops-repair-layer [hidden] { display: none !important; }
+  body.vodops-repair-open { overflow: hidden; }
   .vodops-header, .vodops-actions, .vodops-filters, .vodops-meta, .vodops-pager { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .vodops-header { justify-content: space-between; margin-bottom: 14px; }
   .vodops-workspace-header { margin-bottom: 14px; }
@@ -44,6 +46,18 @@
   .vodops-repair-current, .vodops-repair-diff { margin: 0; padding: 10px; border-radius: 6px; background: #f8fafc; white-space: pre-wrap; word-break: break-word; }
   .vodops-repair-diff { border: 1px solid #e4e7ec; background: #fff; }
   .vodops-repair-message { min-height: 22px; margin-top: 12px; }
+  .vodops-candidate-providers { display: grid; gap: 7px; margin-top: 10px; padding: 10px; border: 1px solid #e4e7ec; border-radius: 7px; background: #f8fafc; }
+  .vodops-candidate-provider-list { display: flex; gap: 8px 14px; flex-wrap: wrap; }
+  .vodops-candidate-provider { display: inline-flex; align-items: center; gap: 6px; }
+  .vodops-candidate-provider input { margin: 0; }
+  .vodops-candidate-list { display: grid; gap: 9px; margin-top: 10px; }
+  .vodops-candidate { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; padding: 9px; border: 1px solid #d0d5dd; border-radius: 7px; background: #fff; cursor: pointer; }
+  .vodops-candidate.has-preview { grid-template-columns: auto 72px minmax(0, 1fr); }
+  .vodops-candidate:hover, .vodops-candidate.is-selected { border-color: #2563eb; background: #eff6ff; }
+  .vodops-candidate input { margin: 0; }
+  .vodops-candidate img { width: 72px; height: 102px; border-radius: 5px; background: #f2f4f7; object-fit: cover; }
+  .vodops-candidate strong, .vodops-candidate span { display: block; overflow-wrap: anywhere; }
+  .vodops-candidate-meta { margin-top: 4px; color: #667085; font-size: 12px; }
   @media (max-width: 720px) {
     .vodops-page { padding: 12px; }
     .vodops-header { align-items: flex-start; }
@@ -94,7 +108,7 @@
   </header>
 
   <section class="vodops-panel vodops-note">
-    父分类会包含扫描开始时的全部后代分类，范围会随任务固化；“全部分类”还会发现无效分类 ID。启用“后台 Worker”后，已配置的服务器 Cron 会独立认领批次，页面关闭、站点零访问也能继续，进程异常留下的租约会自动恢复；未配置 Cron 时仍可回到本页手动继续。扫描不会写入 <code>mac_vod</code>；任务完成或结束后，可对父分类、年份、地区、语言和海报异常逐条预览、确认、复检及条件回滚。它不会自动修复、删除、合并或优化视频，播放与重复候选仍须使用原生编辑页人工处理。
+    父分类会包含扫描开始时的全部后代分类，范围会随任务固化；“全部分类”还会发现无效分类 ID。启用“后台 Worker”后，已配置的服务器 Cron 会独立认领批次，页面关闭、站点零访问也能继续，进程异常留下的租约会自动恢复；未配置 Cron 时仍可回到本页手动继续。扫描不会写入 <code>mac_vod</code>；任务完成或结束后，可对父分类、年份、地区、语言和海报异常逐条预览、确认、复检及条件回滚。年份、地区、语言与海报可从豆瓣及管理员明确勾选的采集源搜索候选，候选不会自动选中或写入。它不会自动修复、删除、合并或优化视频，播放与重复候选仍须使用原生编辑页人工处理。
   </section>
 
   <section class="vodops-panel">
@@ -277,6 +291,19 @@
         <span class="vodops-repair-label">当前值</span>
         <pre id="vodopsRepairCurrent" class="vodops-repair-current"></pre>
       </div>
+      <div id="vodopsPosterCandidates" class="vodops-repair-block" data-role="external-candidates" hidden>
+        <div class="vodops-actions" style="justify-content:space-between">
+          <span id="vodopsCandidateTitle" class="vodops-repair-label" style="margin-bottom:0">豆瓣与采集源候选</span>
+          <button id="vodopsCandidateReload" class="vodops-button" type="button">重新搜索</button>
+        </div>
+        <div id="vodopsCandidateProviders" class="vodops-candidate-providers" hidden>
+          <span class="vodops-repair-label" style="margin-bottom:0">采集来源（自动选择可信来源）</span>
+          <div id="vodopsCandidateProviderOptions" class="vodops-candidate-provider-list"></div>
+          <span class="vodops-muted">首次搜索会在插件设置的可信名单内按已有播放组推断；无法匹配时使用该默认名单。敏感采集源不会自动选择。你仍可进入手工模式调整或全部取消，单次最多 8 个，再点击“重新搜索”；来源内容仍需人工审核。</span>
+        </div>
+        <div id="vodopsCandidateStatus" class="vodops-muted" style="margin-top:7px" aria-live="polite"></div>
+        <div id="vodopsCandidateList" class="vodops-candidate-list" role="radiogroup" aria-label="外部数据候选"></div>
+      </div>
       <div class="vodops-repair-block">
         <label class="vodops-repair-label" for="vodopsRepairValue">修改为</label>
         <input id="vodopsRepairValue" class="vodops-input" style="width:100%" type="text" maxlength="255" list="vodopsRepairOptions" autocomplete="off">
@@ -311,7 +338,9 @@
     var loopStopped = false;
     var csrfMeta = document.querySelector('meta[name="mac-admin-csrf"]');
     var csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
+    var vodopsPage = document.querySelector(".vodops-page");
     var repairLayer = document.getElementById("vodopsRepairLayer");
+    var repairDrawer = repairLayer ? repairLayer.querySelector(".vodops-repair-drawer") : null;
     var repairClose = document.getElementById("vodopsRepairClose");
     var repairLoading = document.getElementById("vodopsRepairLoading");
     var repairForm = document.getElementById("vodopsRepairForm");
@@ -326,17 +355,35 @@
     var repairRecheck = document.getElementById("vodopsRepairRecheck");
     var repairRollback = document.getElementById("vodopsRepairRollback");
     var repairMessage = document.getElementById("vodopsRepairMessage");
+    var candidateRegion = document.getElementById("vodopsPosterCandidates");
+    var candidateTitle = document.getElementById("vodopsCandidateTitle");
+    var candidateReload = document.getElementById("vodopsCandidateReload");
+    var candidateProviders = document.getElementById("vodopsCandidateProviders");
+    var candidateProviderOptions = document.getElementById("vodopsCandidateProviderOptions");
+    var candidateStatus = document.getElementById("vodopsCandidateStatus");
+    var candidateList = document.getElementById("vodopsCandidateList");
     var activeRepair = null;
+    var selectedCandidate = null;
+    var manualRepairValue = "";
+    var repairBusy = false;
+    var repairRequestSequence = 0;
+    var candidateRequestSequence = 0;
+    var providerSelectionInitialized = false;
+    var repairRequestController = null;
+    var candidateRequestController = null;
+    var repairReturnFocus = null;
 
-    function post(url, data) {
+    function post(url, data, signal) {
       var headers = { "X-Requested-With": "XMLHttpRequest" };
       if (csrfToken) headers["X-CSRF-Token"] = csrfToken;
-      return fetch(url, {
+      var options = {
         method: "POST",
         credentials: "same-origin",
         headers: headers,
         body: data
-      }).then(function (response) {
+      };
+      if (signal) options.signal = signal;
+      return fetch(url, options).then(function (response) {
         return response.json().then(function (body) {
           if (!response.ok || !body || body.code !== 1) {
             throw new Error((body && body.msg) || "操作失败");
@@ -346,6 +393,22 @@
       });
     }
 
+    function abortRequest(controller) {
+      if (controller && typeof controller.abort === "function") controller.abort();
+    }
+
+    function createRequestController() {
+      return typeof window.AbortController === "function" ? new window.AbortController() : null;
+    }
+
+    function repairFocusableElements() {
+      if (!repairDrawer) return [];
+      return Array.prototype.filter.call(
+        repairDrawer.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'),
+        function (element) { return !element.hidden && element.getClientRects().length > 0; }
+      );
+    }
+
     function setBusy(busy) {
       document.querySelectorAll('[data-vodops-action="continue"], #vodopsStart').forEach(function (button) {
         button.disabled = busy;
@@ -353,9 +416,25 @@
     }
 
     function setRepairBusy(busy) {
-      [repairApply, repairRecheck, repairRollback, repairClose].forEach(function (button) {
+      repairBusy = busy;
+      [repairApply, repairRecheck, repairRollback, repairClose, candidateReload].forEach(function (button) {
         if (button) button.disabled = busy;
       });
+      if (candidateProviderOptions) {
+        candidateProviderOptions.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+          input.disabled = busy;
+        });
+      }
+    }
+
+    function setCandidateBusy(busy) {
+      var disabled = busy || repairBusy;
+      if (candidateReload) candidateReload.disabled = disabled;
+      if (candidateProviderOptions) {
+        candidateProviderOptions.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+          input.disabled = disabled;
+        });
+      }
     }
 
     function updateRepairDiff() {
@@ -365,14 +444,239 @@
       repairDiff.textContent = "当前：" + current + "\n修改：" + next;
     }
 
+    function setRepairSourceValue(value) {
+      if (!repairSource) return false;
+      var matched = false;
+      Array.prototype.forEach.call(repairSource.options, function (option) {
+        if (option.value === value) matched = true;
+      });
+      if (matched) repairSource.value = value;
+      return matched;
+    }
+
+    function clearCandidateSelection(resetSource) {
+      var restoreManualValue = !!selectedCandidate && repairValue && repairValue.value === selectedCandidate.value;
+      selectedCandidate = null;
+      if (candidateList) {
+        candidateList.querySelectorAll('input[type="radio"]').forEach(function (input) {
+          input.checked = false;
+          if (input.closest(".vodops-candidate")) input.closest(".vodops-candidate").classList.remove("is-selected");
+        });
+      }
+      if (restoreManualValue && repairValue) repairValue.value = manualRepairValue;
+      if (resetSource) setRepairSourceValue("manual");
+    }
+
+    function resetCandidates() {
+      candidateRequestSequence += 1;
+      abortRequest(candidateRequestController);
+      candidateRequestController = null;
+      providerSelectionInitialized = false;
+      clearCandidateSelection(false);
+      setCandidateBusy(false);
+      if (candidateRegion) candidateRegion.hidden = true;
+      if (candidateProviders) candidateProviders.hidden = true;
+      if (candidateProviderOptions) candidateProviderOptions.innerHTML = "";
+      if (candidateStatus) candidateStatus.textContent = "";
+      if (candidateList) candidateList.innerHTML = "";
+    }
+
+    function selectedProviderIds() {
+      if (!candidateProviderOptions) return [];
+      return Array.prototype.map.call(
+        candidateProviderOptions.querySelectorAll('input[type="checkbox"]:checked'),
+        function (input) { return Number(input.value); }
+      ).filter(function (providerId) { return providerId > 0; });
+    }
+
+    function renderCandidateProviders(result) {
+      if (!candidateProviderOptions || !candidateProviders) return;
+      var options = Array.isArray(result.provider_options) ? result.provider_options : [];
+      var acceptedIds = (Array.isArray(result.provider_ids) ? result.provider_ids : []).map(Number);
+      candidateProviderOptions.innerHTML = "";
+      options.forEach(function (provider) {
+        var providerId = Number(provider.provider_id || 0);
+        if (providerId <= 0) return;
+        var label = document.createElement("label");
+        label.className = "vodops-candidate-provider";
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.name = "vodopsCandidateProvider";
+        checkbox.value = String(providerId);
+        checkbox.checked = acceptedIds.indexOf(providerId) !== -1;
+        checkbox.addEventListener("change", function () {
+          if (checkbox.checked && selectedProviderIds().length > 8) {
+            checkbox.checked = false;
+            if (candidateStatus) candidateStatus.textContent = "单次最多选择 8 个采集源，请取消其他来源后再试。";
+            return;
+          }
+          clearCandidateSelection(true);
+          updateRepairDiff();
+          if (candidateList) candidateList.innerHTML = "";
+          if (candidateStatus) candidateStatus.textContent = "来源选择已变更，请点击“重新搜索”获取对应候选。";
+        });
+        var name = document.createElement("span");
+        name.textContent = provider.provider_name || ("采集来源 #" + providerId);
+        label.appendChild(checkbox);
+        label.appendChild(name);
+        candidateProviderOptions.appendChild(label);
+      });
+      providerSelectionInitialized = true;
+      candidateProviders.hidden = options.length === 0;
+    }
+
+    function renderCandidates(result, issueId, requestId) {
+      if (!activeRepair || Number(activeRepair.issue_id) !== Number(issueId) || requestId !== candidateRequestSequence) return;
+      if (Number(result.issue_id) !== Number(issueId) || (result.field_name && result.field_name !== activeRepair.field_name)) {
+        throw new Error("候选响应与当前异常不一致");
+      }
+      if (typeof result.context_token !== "string" || !/^[a-f0-9]{64}$/i.test(result.context_token)) {
+        throw new Error("候选上下文无效，请重新搜索");
+      }
+      setCandidateBusy(false);
+      renderCandidateProviders(result);
+      var candidates = Array.isArray(result.candidates) ? result.candidates : [];
+      var candidateKind = result.candidate_kind || (result.field_name === "vod_pic" ? "poster" : "scalar");
+      var checked = Number(result.providers_checked || 0);
+      var total = Number(result.providers_total || 0);
+      var failed = Number(result.providers_failed || 0);
+      var selectionModes = {
+        play_group: "播放组推断",
+        default: "默认可信",
+        manual: "手工模式"
+      };
+      var selectionMode = selectionModes[result.provider_selection_mode] || "手工模式";
+      var doubanSummary = Number(result.douban_failed || 0) > 0 ? "；豆瓣查询暂不可用" : "；豆瓣已查询";
+      var providerSummary = "；来源模式：" + selectionMode + doubanSummary + (total > 0 ? "；已选采集源检查 " + checked + "/" + total + (failed ? "，失败 " + failed : "") : "；当前未启用采集源");
+      if (candidateStatus) {
+        candidateStatus.textContent = candidates.length
+          ? "找到 " + candidates.length + (candidateKind === "poster" ? " 张海报候选" : " 项候选") + providerSummary + "。系统不会自动选择，请人工核验后再确认修改。"
+          : "未找到可用候选" + providerSummary + "。仍可手工填写；也可勾选可信采集源后重新搜索。";
+      }
+      if (!candidateList) return;
+      candidateList.innerHTML = "";
+      candidates.forEach(function (candidate, index) {
+        var candidateValue = String(candidate.value || candidate.pic_url || "");
+        if (!candidateValue) return;
+        var label = document.createElement("label");
+        label.className = "vodops-candidate";
+
+        var radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "vodopsCandidate";
+        radio.value = String(index);
+        radio.setAttribute("aria-label", "选择来自" + (candidate.provider_name || "外部来源") + "的候选值 " + candidateValue);
+
+        var body = document.createElement("span");
+        var primary = document.createElement("strong");
+        primary.textContent = candidateKind === "poster"
+          ? (candidate.provider_name || (candidate.source === "douban" ? "豆瓣" : "采集来源"))
+          : candidateValue;
+        var source = document.createElement("span");
+        source.className = "vodops-candidate-meta";
+        source.textContent = candidateKind === "poster"
+          ? candidateValue
+          : (candidate.provider_name || (candidate.source === "douban" ? "豆瓣" : "采集来源"));
+        var match = document.createElement("span");
+        match.className = "vodops-candidate-meta";
+        match.textContent = candidate.match_label || "需要人工核验";
+        var detail = document.createElement("span");
+        detail.className = "vodops-candidate-meta";
+        detail.textContent = (candidate.title || "未提供标题") + (candidate.year ? " · " + candidate.year : " · 年份未知");
+        body.appendChild(primary);
+        body.appendChild(source);
+        body.appendChild(match);
+        body.appendChild(detail);
+
+        radio.addEventListener("change", function () {
+          if (!radio.checked || !activeRepair || Number(activeRepair.issue_id) !== Number(issueId)) return;
+          candidateList.querySelectorAll(".vodops-candidate").forEach(function (item) {
+            item.classList.remove("is-selected");
+          });
+          label.classList.add("is-selected");
+          selectedCandidate = {
+            issue_id: issueId,
+            value: candidateValue,
+            source: candidate.source,
+            source_label: candidate.provider_name || "外部来源",
+            context_token: result.context_token || ""
+          };
+          if (repairValue) repairValue.value = candidateValue;
+          if (!setRepairSourceValue(candidate.source)) setRepairSourceValue("manual");
+          updateRepairDiff();
+        });
+
+        label.appendChild(radio);
+        var previewUrl = candidate.preview_url || candidate.pic_url || candidateValue;
+        if (candidateKind === "poster" && previewUrl) {
+          label.classList.add("has-preview");
+          var preview = document.createElement("img");
+          preview.alt = "";
+          preview.loading = "lazy";
+          preview.referrerPolicy = "no-referrer";
+          preview.addEventListener("error", function () { preview.hidden = true; });
+          preview.src = previewUrl;
+          label.appendChild(preview);
+        }
+        label.appendChild(body);
+        candidateList.appendChild(label);
+      });
+    }
+
+    function loadCandidates() {
+      if (!activeRepair || !(activeRepair.external_candidates_supported || activeRepair.poster_candidates_supported) || !activeRepair.issue_present) return;
+      var issueId = Number(activeRepair.issue_id);
+      var providerIds = selectedProviderIds();
+      var selectionInitialized = providerSelectionInitialized;
+      var requestId = ++candidateRequestSequence;
+      abortRequest(candidateRequestController);
+      candidateRequestController = createRequestController();
+      var requestController = candidateRequestController;
+      clearCandidateSelection(true);
+      updateRepairDiff();
+      if (candidateRegion) candidateRegion.hidden = false;
+      if (candidateList) candidateList.innerHTML = "";
+      if (candidateStatus) candidateStatus.textContent = selectionInitialized
+        ? "正在从豆瓣和手工选择的采集源搜索候选…"
+        : "正在从豆瓣搜索，并按播放组或默认可信设置选择采集源…";
+      setCandidateBusy(true);
+      var data = new FormData();
+      data.append("issue_id", String(issueId));
+      data.append("provider_selection_initialized", selectionInitialized ? "1" : "0");
+      providerIds.forEach(function (providerId) {
+        data.append("provider_ids[]", String(providerId));
+      });
+      post("{:url('vodops/posterCandidates')}", data, requestController ? requestController.signal : null).then(function (result) {
+        if (candidateRequestController === requestController) candidateRequestController = null;
+        renderCandidates(result, issueId, requestId);
+      }).catch(function (error) {
+        if (error && error.name === "AbortError") return;
+        if (!activeRepair || Number(activeRepair.issue_id) !== issueId || requestId !== candidateRequestSequence) return;
+        if (candidateRequestController === requestController) candidateRequestController = null;
+        setCandidateBusy(false);
+        if (candidateStatus) candidateStatus.textContent = (error.message || "搜索外部候选失败") + "；仍可手工填写。";
+      });
+    }
+
     function closeRepair() {
-      if (!repairLayer) return;
+      if (!repairLayer || repairBusy) return;
+      repairRequestSequence += 1;
+      abortRequest(repairRequestController);
+      repairRequestController = null;
+      resetCandidates();
       repairLayer.classList.remove("is-open");
       repairLayer.setAttribute("aria-hidden", "true");
+      if (vodopsPage) vodopsPage.removeAttribute("inert");
+      document.body.classList.remove("vodops-repair-open");
       activeRepair = null;
+      if (repairReturnFocus && typeof repairReturnFocus.focus === "function" && document.documentElement.contains(repairReturnFocus)) {
+        repairReturnFocus.focus();
+      }
+      repairReturnFocus = null;
     }
 
     function renderRepair(info) {
+      resetCandidates();
       activeRepair = info;
       if (repairLoading) repairLoading.hidden = true;
       if (repairForm) repairForm.hidden = false;
@@ -380,8 +684,10 @@
       if (repairCurrent) repairCurrent.textContent = info.current_value || "（空）";
       if (repairValue) {
         repairValue.value = info.suggested_value || "";
+        manualRepairValue = repairValue.value;
         repairValue.readOnly = !info.input_required;
         repairValue.disabled = !info.supported;
+        repairValue.maxLength = info.field_name === "vod_year" ? 4 : (info.field_name === "vod_area" ? 20 : (info.field_name === "vod_lang" ? 10 : 255));
       }
       if (repairOptions) {
         repairOptions.innerHTML = "";
@@ -400,6 +706,7 @@
           repairSource.appendChild(option);
         });
         repairSource.disabled = !info.input_required;
+        if (info.input_required) setRepairSourceValue("manual");
       }
       if (repairInstructions) repairInstructions.textContent = info.instructions || "";
       if (repairApply) repairApply.hidden = !info.supported || !info.issue_present;
@@ -413,10 +720,30 @@
         repairMessage.className = "vodops-repair-message vodops-muted";
       }
       updateRepairDiff();
+      if ((info.external_candidates_supported || info.poster_candidates_supported) && info.issue_present) {
+        if (candidateRegion) candidateRegion.hidden = false;
+        var candidateLabels = { vod_year: "年份", vod_area: "地区", vod_lang: "语言", vod_pic: "海报" };
+        var candidateLabel = candidateLabels[info.field_name] || "字段";
+        if (candidateTitle) candidateTitle.textContent = "豆瓣与采集源" + candidateLabel + "候选";
+        if (candidateList) candidateList.setAttribute("aria-label", candidateLabel + "候选");
+        loadCandidates();
+      }
+      if (repairValue && !repairValue.disabled && !repairValue.readOnly) repairValue.focus();
+      else if (repairClose) repairClose.focus();
     }
 
     function openRepair(issueId) {
-      if (!repairLayer) return;
+      if (!repairLayer || repairBusy) return;
+      var requestedIssueId = Number(issueId);
+      var requestId = ++repairRequestSequence;
+      abortRequest(repairRequestController);
+      repairRequestController = createRequestController();
+      var requestController = repairRequestController;
+      resetCandidates();
+      activeRepair = null;
+      repairReturnFocus = document.activeElement;
+      if (vodopsPage) vodopsPage.setAttribute("inert", "");
+      document.body.classList.add("vodops-repair-open");
       repairLayer.classList.add("is-open");
       repairLayer.setAttribute("aria-hidden", "false");
       if (repairLoading) {
@@ -424,9 +751,18 @@
         repairLoading.textContent = "正在读取最新数据…";
       }
       if (repairForm) repairForm.hidden = true;
+      if (repairClose) repairClose.focus();
       var data = new FormData();
-      data.append("issue_id", String(issueId));
-      post("{:url('vodops/repairInfo')}", data).then(renderRepair).catch(function (error) {
+      data.append("issue_id", String(requestedIssueId));
+      post("{:url('vodops/repairInfo')}", data, requestController ? requestController.signal : null).then(function (info) {
+        if (repairRequestController === requestController) repairRequestController = null;
+        if (requestId !== repairRequestSequence || !repairLayer.classList.contains("is-open")) return;
+        if (Number(info.issue_id) !== requestedIssueId) throw new Error("修复信息与当前异常不一致");
+        renderRepair(info);
+      }).catch(function (error) {
+        if (error && error.name === "AbortError") return;
+        if (requestId !== repairRequestSequence || !repairLayer.classList.contains("is-open")) return;
+        if (repairRequestController === requestController) repairRequestController = null;
         if (repairLoading) repairLoading.textContent = error.message || "加载修复信息失败";
       });
     }
@@ -543,24 +879,60 @@
       }
     });
 
-    if (repairValue) repairValue.addEventListener("input", updateRepairDiff);
+    if (repairValue) repairValue.addEventListener("input", function () {
+      manualRepairValue = repairValue.value;
+      clearCandidateSelection(true);
+      updateRepairDiff();
+    });
+    if (repairSource) repairSource.addEventListener("change", function () {
+      if (selectedCandidate && repairSource.value !== selectedCandidate.source) {
+        clearCandidateSelection(false);
+        updateRepairDiff();
+      }
+    });
+    if (candidateReload) candidateReload.addEventListener("click", loadCandidates);
     if (repairClose) repairClose.addEventListener("click", closeRepair);
     if (repairLayer) repairLayer.addEventListener("click", function (event) {
       if (event.target === repairLayer) closeRepair();
     });
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && repairLayer && repairLayer.classList.contains("is-open")) closeRepair();
+      if (!repairLayer || !repairLayer.classList.contains("is-open")) return;
+      if (event.key === "Escape") {
+        closeRepair();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      var focusable = repairFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !repairDrawer.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !repairDrawer.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
     });
 
     if (repairApply) repairApply.addEventListener("click", function () {
       if (!activeRepair) return;
       var nextValue = repairValue ? repairValue.value : "";
-      if (!window.confirm("确认将“" + activeRepair.field_name + "”从“" + (activeRepair.current_value || "空") + "”修改为“" + (nextValue || "空") + "”？\n系统会先记录原值，再执行条件更新和即时复检。")) return;
+      var candidateSource = selectedCandidate && selectedCandidate.issue_id === Number(activeRepair.issue_id) && selectedCandidate.value === nextValue
+        ? "\n候选来源：" + selectedCandidate.source_label
+        : "";
+      if (!window.confirm("确认将“" + activeRepair.field_name + "”从“" + (activeRepair.current_value || "空") + "”修改为“" + (nextValue || "空") + "”？" + candidateSource + "\n系统会先记录原值，再执行条件更新和即时复检。")) return;
       setRepairBusy(true);
       var data = new FormData();
       data.append("issue_id", String(activeRepair.issue_id));
       data.append("new_value", nextValue);
       data.append("source", repairSource ? repairSource.value : "manual");
+      if (selectedCandidate && selectedCandidate.issue_id === Number(activeRepair.issue_id) && selectedCandidate.value === nextValue && selectedCandidate.context_token) {
+        data.append("candidate_context", selectedCandidate.context_token);
+      }
       post("{:url('vodops/applyRepair')}", data).then(function (result) {
         if (repairMessage) repairMessage.textContent = result.status_label || "修改已完成";
         window.setTimeout(function () { window.location.reload(); }, 350);

@@ -303,7 +303,7 @@ verify_deployed_site() {
   verify_url="${DEPLOY_SITE_SCHEME}://${DEPLOY_SITE_HOST}/"
   verify_file="$deploy_tmp_dir/site-verification.html"
   for attempt in 1 2; do
-    if status="$(curl -k -sS -L --max-time 30 \
+    if status="$(curl -k -sS -L --max-time 60 \
       --resolve "${DEPLOY_SITE_HOST}:${port}:127.0.0.1" \
       -o "$verify_file" -w '%{http_code}' "$verify_url")"; then
       break
@@ -588,6 +588,7 @@ install_vodops_addon() {
     "service/DoubanData.php" \
     "service/DoubanGateway.php" \
     "service/DoubanMatcher.php" \
+    "service/VodPosterCandidate.php" \
     "service/VodQualityAnalyzer.php" \
     "service/VodQualityRepair.php" \
     "service/VodQualityScanner.php" \

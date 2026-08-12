@@ -1,9 +1,169 @@
 <?php
 
+namespace think {
+    class Db
+    {
+        public static $tables = [];
+        public static $columns = [];
+
+        public static function name($name)
+        {
+            return new DoubanDataQuery((string) $name);
+        }
+
+        public static function query($sql, $bind = [])
+        {
+            if (strpos((string) $sql, 'information_schema.COLUMNS') !== false) {
+                $table = (string) ($bind[0] ?? '');
+                $column = (string) ($bind[1] ?? '');
+                return in_array($column, self::$columns[$table] ?? [], true)
+                    ? [['COLUMN_NAME' => $column]]
+                    : [];
+            }
+
+            return [];
+        }
+
+        public static function execute($sql, $bind = [])
+        {
+            return 1;
+        }
+
+        public static function startTrans()
+        {
+        }
+
+        public static function commit()
+        {
+        }
+
+        public static function rollback()
+        {
+        }
+    }
+
+    class DoubanDataQuery
+    {
+        private $table;
+        private $where = [];
+
+        public function __construct(string $table)
+        {
+            $this->table = $table;
+        }
+
+        public function getTable()
+        {
+            return $this->table;
+        }
+
+        public function where($field, $operator = null, $value = null)
+        {
+            $this->where[] = func_num_args() === 2
+                ? [(string) $field, '=', $operator]
+                : [(string) $field, (string) $operator, $value];
+
+            return $this;
+        }
+
+        public function field($fields)
+        {
+            return $this;
+        }
+
+        public function lock($lock)
+        {
+            return $this;
+        }
+
+        public function select()
+        {
+            return $this->rows();
+        }
+
+        public function find()
+        {
+            $rows = $this->rows();
+
+            return $rows[0] ?? null;
+        }
+
+        public function update(array $data)
+        {
+            $updated = 0;
+            foreach (Db::$tables[$this->table] ?? [] as $index => $row) {
+                if (!$this->matches($row)) {
+                    continue;
+                }
+                Db::$tables[$this->table][$index] = array_merge($row, $data);
+                $updated++;
+            }
+
+            return $updated;
+        }
+
+        private function rows()
+        {
+            return array_values(array_filter(Db::$tables[$this->table] ?? [], function ($row) {
+                return $this->matches($row);
+            }));
+        }
+
+        private function matches(array $row)
+        {
+            foreach ($this->where as [$field, $operator, $expected]) {
+                $actual = $row[$field] ?? null;
+                if ($operator === '=' && (string) $actual !== (string) $expected) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+}
+
+namespace addons\vodops\service {
+    class DoubanGateway
+    {
+        public static $subjectCalls = [];
+        public static $subjectResponses = [];
+        public static $searchCalls = [];
+        public static $searchResponses = [];
+
+        public static function subject(string $doubanId): array
+        {
+            self::$subjectCalls[] = $doubanId;
+            $response = self::$subjectResponses[$doubanId] ?? [];
+            if ($response instanceof \Throwable) {
+                throw $response;
+            }
+
+            return $response;
+        }
+
+        public static function search(string $query, int $limit = 5): array
+        {
+            self::$searchCalls[] = [$query, $limit];
+            $response = self::$searchResponses[$query] ?? [];
+            if ($response instanceof \Throwable) {
+                throw $response;
+            }
+
+            return $response;
+        }
+    }
+}
+
+namespace {
+
 require __DIR__ . '/../addons/vodops/service/DoubanActionException.php';
+require __DIR__ . '/../addons/vodops/service/DoubanMatcher.php';
 require __DIR__ . '/../addons/vodops/service/DoubanData.php';
 
 use addons\vodops\service\DoubanData;
+use addons\vodops\service\DoubanGateway;
+use think\Db;
 
 $defaults = DoubanData::configDefaults();
 if (($defaults['douban_endpoint'] ?? '') !== 'internal') {
@@ -521,4 +681,193 @@ if (count($preparedTasks['task_rows'] ?? []) !== 2
     exit(1);
 }
 
+Db::$columns = [
+    'vod' => ['vod_douban_id'],
+];
+Db::$tables = [
+    'douban_config' => [
+        ['config_key' => 'request_per_minute', 'config_value' => '300'],
+        ['config_key' => 'candidate_topn', 'config_value' => '5'],
+        ['config_key' => 'rate_limit_next_at', 'config_value' => '0', 'updated_at' => 0],
+    ],
+    'vod' => [
+        ['vod_id' => 501, 'vod_name' => '绑定影片', 'vod_year' => '2024', 'vod_douban_id' => 0],
+        ['vod_id' => 502, 'vod_name' => '精确标题影片', 'vod_year' => '2023', 'vod_douban_id' => 0],
+        ['vod_id' => 503, 'vod_name' => '', 'vod_year' => '', 'vod_douban_id' => 0],
+        ['vod_id' => 504, 'vod_name' => '无可用字段', 'vod_year' => '', 'vod_douban_id' => '1290004'],
+        ['vod_id' => 505, 'vod_name' => '接口错误', 'vod_year' => '', 'vod_douban_id' => 0],
+    ],
+    'douban_vod_meta' => [
+        ['vod_id' => 501, 'douban_id' => '1290001'],
+        ['vod_id' => 502, 'douban_id' => ''],
+        ['vod_id' => 503, 'douban_id' => ''],
+        ['vod_id' => 504, 'douban_id' => ''],
+        ['vod_id' => 505, 'douban_id' => ''],
+    ],
+    'douban_log' => [],
+];
+DoubanGateway::$subjectResponses = [
+    '1290001' => [
+        'id' => '1290001',
+        'score' => '8.8',
+        'title' => '绑定影片',
+        'year' => '2024',
+        'pic' => 'https://img.example/bound.jpg',
+        'area' => ['中国大陆', '中国香港'],
+        'language' => '汉语普通话',
+    ],
+    '1290004' => [
+        'id' => '1290004',
+        'score' => '7.0',
+    ],
+];
+DoubanGateway::$searchResponses = [
+    '精确标题影片' => [
+        [
+            'douban_id' => '1290002',
+            'title' => '精确标题影片',
+            'year' => '2023',
+            'pic' => 'https://img.example/search.jpg',
+            'country' => '中国大陆',
+            'lang' => '汉语普通话',
+        ],
+        [
+            'douban_id' => '1290003',
+            'title' => '精确标题影片续集',
+            'year' => '2023',
+            'pic' => 'https://img.example/partial.jpg',
+        ],
+    ],
+    '接口错误' => new RuntimeException('搜索接口暂时不可用'),
+];
+
+$vodBeforeCandidates = Db::$tables['vod'];
+$metaBeforeCandidates = Db::$tables['douban_vod_meta'];
+$boundCandidates = DoubanData::repairCandidates(501);
+if (count($boundCandidates) !== 1
+    || ($boundCandidates[0]['match_status'] ?? '') !== 'douban_id'
+    || ($boundCandidates[0]['match_score'] ?? 0) !== 100
+    || ($boundCandidates[0]['values'] ?? []) !== [
+        'vod_pic' => 'https://img.example/bound.jpg',
+        'vod_year' => '2024',
+        'vod_area' => '中国大陆/中国香港',
+        'vod_lang' => '汉语普通话',
+    ]) {
+    fwrite(STDERR, "A bound Douban ID should return read-only picture, year, area, and language candidates\n");
+    exit(1);
+}
+if (DoubanGateway::$subjectCalls !== ['1290001'] || DoubanGateway::$searchCalls !== []) {
+    fwrite(STDERR, "A bound Douban ID should fetch that subject without running title search\n");
+    exit(1);
+}
+if (Db::$tables['vod'] !== $vodBeforeCandidates || Db::$tables['douban_vod_meta'] !== $metaBeforeCandidates || Db::$tables['douban_log'] !== []) {
+    fwrite(STDERR, "Candidate lookup must not synchronize or mutate video and Douban metadata\n");
+    exit(1);
+}
+
+$posterCandidate = DoubanData::posterCandidate(501);
+if (($posterCandidate['pic_url'] ?? '') !== 'https://img.example/bound.jpg'
+    || ($posterCandidate['provider_name'] ?? '') !== '豆瓣'
+    || ($posterCandidate['match_status'] ?? '') !== 'douban_id') {
+    fwrite(STDERR, "posterCandidate should remain compatible with the generic repair candidate result\n");
+    exit(1);
+}
+if (Db::$tables['vod'] !== $vodBeforeCandidates || Db::$tables['douban_vod_meta'] !== $metaBeforeCandidates || Db::$tables['douban_log'] !== []) {
+    fwrite(STDERR, "The compatible poster candidate lookup must remain read-only\n");
+    exit(1);
+}
+
+DoubanGateway::$subjectCalls = [];
+DoubanGateway::$searchCalls = [];
+$searchCandidates = DoubanData::repairCandidates(502);
+if (count($searchCandidates) !== 1
+    || ($searchCandidates[0]['match_status'] ?? '') !== 'douban_search'
+    || ($searchCandidates[0]['match_score'] ?? 0) !== 99
+    || ($searchCandidates[0]['title'] ?? '') !== '精确标题影片'
+    || ($searchCandidates[0]['values']['vod_pic'] ?? '') !== 'https://img.example/search.jpg'
+    || ($searchCandidates[0]['values']['vod_year'] ?? '') !== '2023'
+    || ($searchCandidates[0]['values']['vod_area'] ?? '') !== '中国大陆'
+    || ($searchCandidates[0]['values']['vod_lang'] ?? '') !== '汉语普通话') {
+    fwrite(STDERR, "An unbound video should expose exact-title search results as review candidates\n");
+    exit(1);
+}
+if (DoubanGateway::$searchCalls !== [['精确标题影片', 5]] || DoubanGateway::$subjectCalls !== []) {
+    fwrite(STDERR, "Unbound candidate lookup should search once without fetching or synchronizing a subject\n");
+    exit(1);
+}
+if (Db::$tables['vod'] !== $vodBeforeCandidates || Db::$tables['douban_vod_meta'] !== $metaBeforeCandidates || Db::$tables['douban_log'] !== []) {
+    fwrite(STDERR, "Title candidate lookup must not mutate video, metadata, or synchronization logs\n");
+    exit(1);
+}
+
+$searchCallsBeforeEmptyTitle = DoubanGateway::$searchCalls;
+if (DoubanData::repairCandidates(503) !== [] || DoubanGateway::$searchCalls !== $searchCallsBeforeEmptyTitle) {
+    fwrite(STDERR, "A video without a title should return no candidates without calling Douban search\n");
+    exit(1);
+}
+if (DoubanData::repairCandidates(504) !== []) {
+    fwrite(STDERR, "A valid Douban response without repairable fields should return no candidates\n");
+    exit(1);
+}
+
+foreach (Db::$tables['douban_config'] as $index => $row) {
+    if (($row['config_key'] ?? '') === 'rate_limit_next_at') {
+        Db::$tables['douban_config'][$index]['config_value'] = sprintf('%.6F', microtime(true) + 30);
+    }
+}
+$searchCallsBeforeRateQueue = DoubanGateway::$searchCalls;
+$rateQueueRejected = false;
+try {
+    DoubanData::repairCandidates(502);
+} catch (RuntimeException $e) {
+    $rateQueueRejected = strpos($e->getMessage(), '排队较长') !== false;
+}
+if (!$rateQueueRejected || DoubanGateway::$searchCalls !== $searchCallsBeforeRateQueue) {
+    fwrite(STDERR, "Interactive candidate lookup must not wait behind a long shared Douban rate-limit queue\n");
+    exit(1);
+}
+foreach (Db::$tables['douban_config'] as $index => $row) {
+    if (($row['config_key'] ?? '') === 'rate_limit_next_at') {
+        Db::$tables['douban_config'][$index]['config_value'] = '0';
+    }
+}
+
+$invalidCandidateVodRejected = false;
+try {
+    DoubanData::repairCandidates(0);
+} catch (InvalidArgumentException $e) {
+    $invalidCandidateVodRejected = $e->getMessage() === 'vod_id missing';
+}
+if (!$invalidCandidateVodRejected) {
+    fwrite(STDERR, "Candidate lookup should reject an invalid video ID\n");
+    exit(1);
+}
+
+$missingCandidateVodRejected = false;
+try {
+    DoubanData::repairCandidates(999);
+} catch (RuntimeException $e) {
+    $missingCandidateVodRejected = $e->getMessage() === '影片不存在';
+}
+if (!$missingCandidateVodRejected) {
+    fwrite(STDERR, "Candidate lookup should reject a missing video\n");
+    exit(1);
+}
+
+$candidateSearchErrorPreserved = false;
+try {
+    DoubanData::repairCandidates(505);
+} catch (RuntimeException $e) {
+    $candidateSearchErrorPreserved = $e->getMessage() === '搜索接口暂时不可用';
+}
+if (!$candidateSearchErrorPreserved) {
+    fwrite(STDERR, "Candidate lookup should preserve a search-provider failure for the caller to isolate\n");
+    exit(1);
+}
+if (Db::$tables['vod'] !== $vodBeforeCandidates || Db::$tables['douban_vod_meta'] !== $metaBeforeCandidates || Db::$tables['douban_log'] !== []) {
+    fwrite(STDERR, "Failed candidate lookup must not mutate video or metadata state\n");
+    exit(1);
+}
+
 echo "Douban data tests passed\n";
+}

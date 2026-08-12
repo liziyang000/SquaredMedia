@@ -238,6 +238,22 @@ namespace {
         '不能为空',
         'Metadata repairs must not replace one scanner blank sentinel with another.'
     );
+    vodops_repair_expect_error(
+        static function () use ($areaVod, $typeMap) {
+            VodQualityRepair::previewUpdate('area_missing', str_repeat('地', 21), $areaVod, $typeMap);
+        },
+        '20',
+        'Area repairs must respect the production database field limit.'
+    );
+    $langVod = $baseVod;
+    $langVod['vod_lang'] = '';
+    vodops_repair_expect_error(
+        static function () use ($langVod, $typeMap) {
+            VodQualityRepair::previewUpdate('lang_missing', str_repeat('语', 11), $langVod, $typeMap);
+        },
+        '10',
+        'Language repairs must respect the production database field limit.'
+    );
 
     $posterVod = $baseVod;
     $posterVod['vod_pic'] = '/upload/vod/missing.jpg';
@@ -298,10 +314,66 @@ namespace {
                 'detail_json' => '[]',
                 'created_at' => time(),
             ],
+            [
+                'issue_id' => 3,
+                'run_id' => 12,
+                'vod_id' => 102,
+                'vod_name' => '年份异常影片',
+                'type_id' => 11,
+                'issue_type' => 'year_invalid',
+                'field_name' => 'vod_year',
+                'current_value' => '2026年',
+                'message' => '视频年份必须为四位数字。',
+                'detail_json' => '[]',
+                'created_at' => time(),
+            ],
+            [
+                'issue_id' => 4,
+                'run_id' => 12,
+                'vod_id' => 103,
+                'vod_name' => '地区影片',
+                'type_id' => 11,
+                'issue_type' => 'area_missing',
+                'field_name' => 'vod_area',
+                'current_value' => '',
+                'message' => '视频地区为空。',
+                'detail_json' => '[]',
+                'created_at' => time(),
+            ],
+            [
+                'issue_id' => 5,
+                'run_id' => 12,
+                'vod_id' => 104,
+                'vod_name' => '语言影片',
+                'type_id' => 11,
+                'issue_type' => 'lang_missing',
+                'field_name' => 'vod_lang',
+                'current_value' => '',
+                'message' => '视频语言为空。',
+                'detail_json' => '[]',
+                'created_at' => time(),
+            ],
+            [
+                'issue_id' => 6,
+                'run_id' => 12,
+                'vod_id' => 105,
+                'vod_name' => '海报缺失影片',
+                'type_id' => 11,
+                'issue_type' => 'poster_missing',
+                'field_name' => 'vod_pic',
+                'current_value' => '',
+                'message' => '视频海报为空。',
+                'detail_json' => '[]',
+                'created_at' => time(),
+            ],
         ],
         'vod' => [
             array_merge($baseVod, ['vod_year' => '0']),
             array_merge($baseVod, ['vod_id' => 101, 'vod_name' => '海报影片', 'vod_pic' => 'upload/vod/restored.jpg']),
+            array_merge($baseVod, ['vod_id' => 102, 'vod_name' => '年份异常影片', 'vod_year' => '2026年']),
+            array_merge($baseVod, ['vod_id' => 103, 'vod_name' => '地区影片', 'vod_area' => '']),
+            array_merge($baseVod, ['vod_id' => 104, 'vod_name' => '语言影片', 'vod_lang' => '']),
+            array_merge($baseVod, ['vod_id' => 105, 'vod_name' => '海报缺失影片', 'vod_pic' => '']),
         ],
         'type' => array_values($typeMap),
         'vodops_repair_log' => [],
@@ -332,6 +404,132 @@ namespace {
         'The old-value condition must stop a repair that races with another editor.'
     );
     vodops_repair_assert_same('2025', \think\Db::$tables['vod'][0]['vod_year'], 'A conflict must preserve the newer external edit.');
+
+    \think\Db::$tables['vod'][0]['vod_year'] = '0';
+    $candidateFields = [
+        1 => ['year_missing', 'vod_year'],
+        2 => ['poster_file_missing', 'vod_pic'],
+        3 => ['year_invalid', 'vod_year'],
+        4 => ['area_missing', 'vod_area'],
+        5 => ['lang_missing', 'vod_lang'],
+        6 => ['poster_missing', 'vod_pic'],
+    ];
+    foreach ($candidateFields as $issueId => [$issueType, $fieldName]) {
+        $candidate = VodQualityRepair::candidateContext($issueId, ['site_root' => $siteRoot, 'remote_upload' => false]);
+        vodops_repair_assert_same($issueType, $candidate['issue_type'] ?? null, 'Every supported external candidate issue should expose its exact issue type.');
+        vodops_repair_assert_same($fieldName, $candidate['field_name'] ?? null, 'Every supported external candidate issue should expose only its writable target field.');
+        vodops_repair_assert_same(64, strlen((string) ($candidate['context_token'] ?? '')), 'Every external candidate issue should receive a stale-data context token.');
+    }
+
+    $yearContext = VodQualityRepair::candidateContext(1, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    vodops_repair_assert_same('year_missing', $yearContext['issue_type'] ?? null, 'External candidate context should identify the scalar issue type.');
+    vodops_repair_assert_same('vod_year', $yearContext['field_name'] ?? null, 'External year candidates should stay scoped to vod_year.');
+    \think\Db::$tables['vod'][0]['vod_name'] = '已被其他管理员修改';
+    vodops_repair_expect_error(
+        static function () use ($siteRoot, $yearContext) {
+            VodQualityRepair::apply(
+                1,
+                '2024',
+                'collector',
+                7,
+                ['site_root' => $siteRoot, 'remote_upload' => false],
+                (string) $yearContext['context_token']
+            );
+        },
+        '重新搜索候选',
+        'A scalar external candidate must expire when its title or target value changes.'
+    );
+    \think\Db::$tables['vod'][0]['vod_name'] = '测试影片';
+
+    $areaContext = VodQualityRepair::candidateContext(4, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    \think\Db::$tables['vod'][3]['vod_year'] = '2025';
+    vodops_repair_expect_error(
+        static function () use ($siteRoot, $areaContext) {
+            VodQualityRepair::apply(
+                4,
+                '美国',
+                'collector',
+                7,
+                ['site_root' => $siteRoot, 'remote_upload' => false],
+                (string) $areaContext['context_token']
+            );
+        },
+        '重新搜索候选',
+        'An external candidate must expire when the release year used for matching changes.'
+    );
+    \think\Db::$tables['vod'][3]['vod_year'] = '2026';
+
+    $langContext = VodQualityRepair::candidateContext(5, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    \think\Db::$tables['vod'][4]['vod_lang'] = '英语';
+    vodops_repair_expect_error(
+        static function () use ($siteRoot, $langContext) {
+            VodQualityRepair::apply(
+                5,
+                '国语',
+                'collector',
+                7,
+                ['site_root' => $siteRoot, 'remote_upload' => false],
+                (string) $langContext['context_token']
+            );
+        },
+        '重新搜索候选',
+        'An external candidate must expire when its current target field changes.'
+    );
+    \think\Db::$tables['vod'][4]['vod_lang'] = '';
+
+    $yearContext = VodQualityRepair::candidateContext(1, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    $yearRepair = VodQualityRepair::apply(
+        1,
+        '2024',
+        'collector',
+        7,
+        ['site_root' => $siteRoot, 'remote_upload' => false],
+        (string) $yearContext['context_token']
+    );
+    vodops_repair_assert_same('2024', \think\Db::$tables['vod'][0]['vod_year'], 'Selecting a year candidate should still update only vod_year.');
+    $yearLog = end(\think\Db::$tables['vodops_repair_log']);
+    $yearGuards = json_decode((string) ($yearLog['guard_json'] ?? ''), true);
+    vodops_repair_assert_same(['vod_name' => '测试影片'], $yearGuards, 'A year candidate should guard the title used for matching.');
+    VodQualityRepair::rollback(intval($yearRepair['repair_id'] ?? 0), 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    vodops_repair_assert_same('0', \think\Db::$tables['vod'][0]['vod_year'], 'Scalar candidate rollback should restore the exact prior value.');
+
+    $posterContext = VodQualityRepair::posterCandidateContext(2, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    vodops_repair_assert_same(64, strlen((string) ($posterContext['context_token'] ?? '')), 'Poster searches should receive a stable context token.');
+    \think\Db::$tables['vod'][1]['vod_year'] = '2025';
+    vodops_repair_expect_error(
+        static function () use ($siteRoot, $posterContext) {
+            VodQualityRepair::apply(
+                2,
+                'https://img.example.com/candidate.jpg',
+                'collector',
+                7,
+                ['site_root' => $siteRoot, 'remote_upload' => false],
+                (string) $posterContext['context_token']
+            );
+        },
+        '重新搜索候选',
+        'A poster candidate must expire when the video title, year, or current poster changes.'
+    );
+    \think\Db::$tables['vod'][1]['vod_year'] = '2026';
+    $posterContext = VodQualityRepair::posterCandidateContext(2, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    $posterRepair = VodQualityRepair::apply(
+        2,
+        'https://img.example.com/candidate.jpg',
+        'collector',
+        7,
+        ['site_root' => $siteRoot, 'remote_upload' => false],
+        (string) $posterContext['context_token']
+    );
+    vodops_repair_assert_same('https://img.example.com/candidate.jpg', \think\Db::$tables['vod'][1]['vod_pic'], 'Selecting a verified candidate should still change only vod_pic.');
+    $posterLog = end(\think\Db::$tables['vodops_repair_log']);
+    $posterGuards = json_decode((string) ($posterLog['guard_json'] ?? ''), true);
+    vodops_repair_assert_same(
+        ['vod_name' => '海报影片', 'vod_year' => '2026'],
+        $posterGuards,
+        'A selected candidate must guard the matching title and year through the source update.'
+    );
+    VodQualityRepair::rollback(intval($posterRepair['repair_id'] ?? 0), 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    vodops_repair_assert_same('upload/vod/restored.jpg', \think\Db::$tables['vod'][1]['vod_pic'], 'Candidate rollback should restore the exact prior poster path.');
 
     file_put_contents($siteRoot . '/upload/vod/restored.jpg', 'poster');
     $rechecked = VodQualityRepair::recheck(2, 7, ['site_root' => $siteRoot, 'remote_upload' => false]);

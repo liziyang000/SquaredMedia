@@ -3,6 +3,7 @@
 namespace app\admin\controller;
 
 use addons\vodops\service\DoubanData;
+use addons\vodops\service\VodPosterCandidate;
 use addons\vodops\service\VodQualityActionException;
 use addons\vodops\service\VodQualityExportException;
 use addons\vodops\service\VodQualityRepair;
@@ -186,6 +187,34 @@ class Vodops extends Base
         }
     }
 
+    public function posterCandidates()
+    {
+        if (($error = $this->guardAjaxPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            $providerIds = $this->providerIds(input('provider_ids/a', []));
+            $selectionInitialized = $this->providerSelectionInitialized(input('provider_selection_initialized', false));
+            return json([
+                'code' => 1,
+                'msg' => '外部候选已加载',
+                'data' => VodPosterCandidate::search(
+                    intval(input('issue_id/d', 0)),
+                    $providerIds,
+                    null,
+                    null,
+                    null,
+                    ['provider_selection_initialized' => $selectionInitialized]
+                ),
+            ]);
+        } catch (VodQualityRepairException $e) {
+            return json(['code' => 1003, 'msg' => $e->getMessage()], 409);
+        } catch (\Throwable $e) {
+            return $this->errorJson('搜索外部候选', $e);
+        }
+    }
+
     public function applyRepair()
     {
         if (($error = $this->guardAjaxPost()) !== null) {
@@ -200,7 +229,9 @@ class Vodops extends Base
                     intval(input('issue_id/d', 0)),
                     (string) input('new_value/s', ''),
                     (string) input('source/s', ''),
-                    $this->adminId()
+                    $this->adminId(),
+                    [],
+                    (string) input('candidate_context/s', '')
                 ),
             ]);
         } catch (VodQualityRepairException $e) {
@@ -351,6 +382,41 @@ class Vodops extends Base
             return mb_substr($query, 0, 80, 'UTF-8');
         }
         return substr($query, 0, 240);
+    }
+
+    private function providerIds($values)
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($values as $value) {
+            if (!is_int($value) && !is_string($value)) {
+                continue;
+            }
+            $value = (string) $value;
+            if (!preg_match('/^[1-9][0-9]{0,9}$/D', $value)) {
+                continue;
+            }
+            $id = intval($value);
+            if ($id < 1 || $id > 2147483647 || isset($ids[$id])) {
+                continue;
+            }
+            $ids[$id] = $id;
+            if (count($ids) >= 8) {
+                break;
+            }
+        }
+        return array_values($ids);
+    }
+
+    private function providerSelectionInitialized($value)
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        return $value === 1 || $value === '1';
     }
 
     private function errorJson($action, \Throwable $error)

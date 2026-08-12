@@ -26,6 +26,15 @@ class VodQualityRepair
         'poster_file_missing' => '更换或复检海报',
     ];
 
+    private const EXTERNAL_CANDIDATE_ISSUES = [
+        'year_missing' => 'vod_year',
+        'year_invalid' => 'vod_year',
+        'area_missing' => 'vod_area',
+        'lang_missing' => 'vod_lang',
+        'poster_missing' => 'vod_pic',
+        'poster_file_missing' => 'vod_pic',
+    ];
+
     private const SOURCES = [
         'manual' => '人工核验',
         'douban' => '豆瓣资料',
@@ -72,10 +81,10 @@ class VodQualityRepair
                 $updates = ['vod_year' => $value];
                 break;
             case 'area_missing':
-                $updates = ['vod_area' => self::metadataValue($newValue, '地区')];
+                $updates = ['vod_area' => self::metadataValue($newValue, '地区', 20)];
                 break;
             case 'lang_missing':
-                $updates = ['vod_lang' => self::metadataValue($newValue, '语言')];
+                $updates = ['vod_lang' => self::metadataValue($newValue, '语言', 10)];
                 break;
             case 'poster_missing':
             case 'poster_file_missing':
@@ -143,10 +152,53 @@ class VodQualityRepair
             'instructions' => self::instructions($issueType),
             'value_options' => self::valueOptions($issueType),
             'source_options' => self::SOURCES,
+            'external_candidates_supported' => $supported && isset(self::EXTERNAL_CANDIDATE_ISSUES[$issueType]),
+            'candidate_title' => (VodQualityAnalyzer::issueTypes()[$issueType] ?? '数据') . '候选',
+            'poster_candidates_supported' => $supported
+                && in_array($issueType, ['poster_missing', 'poster_file_missing'], true),
             'can_rollback' => !empty($latestMutation)
                 && ($latestMutation['action'] ?? '') === 'update'
                 && ($latestMutation['result_status'] ?? '') === 'fixed',
             'repair_id' => intval($latestMutation['repair_id'] ?? 0),
+        ];
+    }
+
+    public static function posterCandidateContext($issueId, array $context = [])
+    {
+        $candidate = self::candidateContext($issueId, $context);
+        $issueType = (string) ($candidate['issue_type'] ?? '');
+        if (!in_array($issueType, ['poster_missing', 'poster_file_missing'], true)) {
+            throw new VodQualityRepairException('仅海报异常支持搜索外部候选。');
+        }
+        return $candidate;
+    }
+
+    public static function candidateContext($issueId, array $context = [])
+    {
+        $record = self::loadIssueRecord($issueId, true, $context);
+        $issueType = (string) ($record['issue']['issue_type'] ?? '');
+        if (!isset(self::EXTERNAL_CANDIDATE_ISSUES[$issueType])) {
+            throw new VodQualityRepairException('该异常不支持搜索外部候选。');
+        }
+        if (!self::hasIssue($issueType, $record['vod'], $record['type_map'], $record['context'])) {
+            throw new VodQualityRepairException('当前数据已变化，该异常已不存在，请先复检。');
+        }
+
+        $vod = $record['vod'];
+        return [
+            'issue_id' => intval($record['issue']['issue_id'] ?? 0),
+            'issue_type' => $issueType,
+            'field_name' => self::EXTERNAL_CANDIDATE_ISSUES[$issueType],
+            'vod' => [
+                'vod_id' => intval($vod['vod_id'] ?? 0),
+                'vod_name' => (string) ($vod['vod_name'] ?? ''),
+                'vod_year' => (string) ($vod['vod_year'] ?? ''),
+                'vod_area' => (string) ($vod['vod_area'] ?? ''),
+                'vod_lang' => (string) ($vod['vod_lang'] ?? ''),
+                'vod_pic' => (string) ($vod['vod_pic'] ?? ''),
+                'vod_play_from' => (string) ($vod['vod_play_from'] ?? ''),
+            ],
+            'context_token' => self::candidateContextToken($issueType, $vod),
         ];
     }
 
@@ -180,14 +232,26 @@ class VodQualityRepair
         return $issues;
     }
 
-    public static function apply($issueId, $newValue, $source, $adminId, array $context = [])
+    public static function apply($issueId, $newValue, $source, $adminId, array $context = [], $candidateContext = '')
     {
         self::assertAdmin($adminId);
         $record = self::loadIssueRecord($issueId, true, $context);
         $issue = $record['issue'];
         $vod = $record['vod'];
         $issueType = (string) ($issue['issue_type'] ?? '');
+        $candidateContext = trim((string) $candidateContext);
+        if ($candidateContext !== '') {
+            if (!isset(self::EXTERNAL_CANDIDATE_ISSUES[$issueType])) {
+                throw new VodQualityRepairException('候选上下文不能用于该异常。');
+            }
+            if (!hash_equals(self::candidateContextToken($issueType, $vod), $candidateContext)) {
+                throw new VodQualityRepairException('候选生成后视频数据已变化，请重新搜索候选。');
+            }
+        }
         $preview = self::previewUpdate($issueType, $newValue, $vod, $record['type_map'], $record['context']);
+        if ($candidateContext !== '') {
+            $preview['guards'] = array_merge($preview['guards'], self::candidateGuards($issueType, $vod));
+        }
         $source = $issueType === 'type_parent_mismatch' ? 'category_tree' : self::normalizeSource($source);
 
         $repairId = self::createAudit($issue, 'update', $preview['before'], $preview['after'], $preview['guards'], $source, $adminId, 0);
@@ -439,19 +503,51 @@ class VodQualityRepair
     private static function assertGuardFields($issueType, array $fields)
     {
         $expected = $issueType === 'type_parent_mismatch' ? ['type_id'] : [];
-        if ($fields !== $expected) {
+        $candidateGuard = isset(self::EXTERNAL_CANDIDATE_ISSUES[$issueType])
+            && $fields === array_keys(self::candidateGuards($issueType, []));
+        if ($fields !== $expected && !$candidateGuard) {
             throw new VodQualityRepairException('修复记录依赖字段不完整，已停止操作。');
         }
     }
 
-    private static function metadataValue($value, $label)
+    private static function candidateContextToken($issueType, array $vod)
+    {
+        $field = self::EXTERNAL_CANDIDATE_ISSUES[$issueType] ?? '';
+        $snapshot = [
+            'vod_id' => intval($vod['vod_id'] ?? 0),
+            'issue_type' => (string) $issueType,
+            'field_name' => $field,
+            'vod_name' => (string) ($vod['vod_name'] ?? ''),
+            'vod_year' => (string) ($vod['vod_year'] ?? ''),
+        ];
+        if ($field !== '' && $field !== 'vod_year') {
+            $snapshot[$field] = (string) ($vod[$field] ?? '');
+        }
+        return hash('sha256', self::jsonEncode($snapshot));
+    }
+
+    private static function candidateGuards($issueType, array $vod)
+    {
+        if (in_array($issueType, ['year_missing', 'year_invalid'], true)) {
+            return ['vod_name' => (string) ($vod['vod_name'] ?? '')];
+        }
+        if (isset(self::EXTERNAL_CANDIDATE_ISSUES[$issueType])) {
+            return [
+                'vod_name' => (string) ($vod['vod_name'] ?? ''),
+                'vod_year' => (string) ($vod['vod_year'] ?? ''),
+            ];
+        }
+        return [];
+    }
+
+    private static function metadataValue($value, $label, $limit)
     {
         $value = self::singleLine($value);
         if ($value === '' || $value === '0') {
             throw new VodQualityRepairException($label . '不能为空或为 0。');
         }
-        if (self::length($value) > 255) {
-            throw new VodQualityRepairException($label . '长度不能超过 255 个字符。');
+        if (self::length($value) > intval($limit)) {
+            throw new VodQualityRepairException($label . '长度不能超过 ' . intval($limit) . ' 个字符。');
         }
         return $value;
     }

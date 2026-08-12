@@ -161,6 +161,7 @@ const requiredVodopsEntries = [
   "vodops/service/DoubanData.php",
   "vodops/service/DoubanGateway.php",
   "vodops/service/DoubanMatcher.php",
+  "vodops/service/VodPosterCandidate.php",
   "vodops/service/VodQualityAnalyzer.php",
   "vodops/service/VodQualityRepair.php",
   "vodops/service/VodQualityScanner.php",

@@ -70,12 +70,12 @@ namespace addons\vodops\service {
             return ['issue_id' => $issueId, 'supported' => true];
         }
 
-        public static function apply($issueId, $newValue, $source, $adminId)
+        public static function apply($issueId, $newValue, $source, $adminId, array $context = [], $candidateContext = '')
         {
             if (self::$actionError instanceof \Throwable) {
                 throw self::$actionError;
             }
-            self::$calls[] = ['apply', $issueId, $newValue, $source, $adminId];
+            self::$calls[] = ['apply', $issueId, $newValue, $source, $adminId, $candidateContext];
             return ['repair_id' => 31, 'result_status' => 'fixed'];
         }
 
@@ -89,6 +89,40 @@ namespace addons\vodops\service {
         {
             self::$calls[] = ['rollback', $repairId, $adminId];
             return ['repair_id' => 33, 'result_status' => 'open'];
+        }
+    }
+
+    class VodPosterCandidate
+    {
+        public static $calls = [];
+        public static $actionError = null;
+
+        public static function search(
+            $issueId,
+            array $providerIds = [],
+            ?callable $providerFetcher = null,
+            ?callable $imageProbe = null,
+            ?callable $doubanFetcher = null,
+            array $context = []
+        )
+        {
+            if (self::$actionError instanceof \Throwable) {
+                throw self::$actionError;
+            }
+            self::$calls[] = [
+                'search',
+                $issueId,
+                $providerIds,
+                $context['provider_selection_initialized'] ?? null,
+            ];
+            return [
+                'issue_id' => $issueId,
+                'context_token' => str_repeat('a', 64),
+                'providers_total' => 2,
+                'providers_checked' => 2,
+                'providers_failed' => 0,
+                'candidates' => [],
+            ];
         }
     }
 
@@ -394,11 +428,80 @@ namespace {
     vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'A repair drawer should load a fresh issue snapshot through Ajax POST.');
     vodops_controller_assert_same([['info', 21]], \addons\vodops\service\VodQualityRepair::$calls, 'Repair info must stay scoped to the requested issue.');
 
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $vodopsInput = ['issue_id' => 21, 'provider_ids' => [22, 23]];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'External repair candidates should load through the protected native admin endpoint.');
+    vodops_controller_assert_same([['search', 21, [22, 23], false]], \addons\vodops\service\VodPosterCandidate::$calls, 'The initial candidate search must remain uninitialized while passing only sanitized source IDs.');
+
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $vodopsInput = [
+        'issue_id' => 21,
+        'provider_ids' => [],
+        'provider_selection_initialized' => true,
+    ];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'An explicitly empty source selection should remain a valid candidate search.');
+    vodops_controller_assert_same([['search', 21, [], true]], \addons\vodops\service\VodPosterCandidate::$calls, 'The controller must preserve an initialized empty selection so manual all-unselected mode is effective.');
+
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $vodopsInput = [
+        'issue_id' => 21,
+        'provider_selection_initialized' => 'not-a-boolean',
+    ];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'Malformed source-selection state should fall back safely.');
+    vodops_controller_assert_same([['search', 21, [], false]], \addons\vodops\service\VodPosterCandidate::$calls, 'Only a boolean source-selection state may reach the candidate service.');
+
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $vodopsInput = [
+        'issue_id' => 21,
+        'provider_ids' => [22, '23', '023', '23x', -1, 0, 23, 24.0, true, [], '2147483648'],
+    ];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'A candidate search should ignore malformed source identifiers without failing the whole review.');
+    vodops_controller_assert_same([['search', 21, [22, 23], false]], \addons\vodops\service\VodPosterCandidate::$calls, 'Source identifiers must be canonical positive integers, deduplicated, and bounded to the database ID range.');
+
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $vodopsInput = ['issue_id' => 21, 'provider_ids' => range(1, 10)];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'A bounded source selection should remain a valid candidate search.');
+    vodops_controller_assert_same([['search', 21, range(1, 8), false]], \addons\vodops\service\VodPosterCandidate::$calls, 'A request may never fan out to more than eight selected collection sources.');
+
+    $vodopsRequest->post = false;
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(405, $response['status'] ?? null, 'Candidate searches must reject non-POST requests.');
+    vodops_controller_assert_same([], \addons\vodops\service\VodPosterCandidate::$calls, 'Rejected GET candidate searches must not contact external sources.');
+    $vodopsRequest->post = true;
+
+    $vodopsRequest->ajax = false;
+    \addons\vodops\service\VodPosterCandidate::$calls = [];
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(405, $response['status'] ?? null, 'Poster searches must reject non-Ajax requests.');
+    vodops_controller_assert_same([], \addons\vodops\service\VodPosterCandidate::$calls, 'Rejected poster searches must not contact external sources.');
+    $vodopsRequest->ajax = true;
+
+    \addons\vodops\service\VodPosterCandidate::$actionError = new \addons\vodops\service\VodQualityRepairException('该异常不支持搜索外部候选。');
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(409, $response['status'] ?? null, 'Expected external candidate validation failures should be actionable.');
+    vodops_controller_assert_same('该异常不支持搜索外部候选。', $response['data']['msg'] ?? null, 'Safe candidate validation messages should remain visible.');
+    \addons\vodops\service\VodPosterCandidate::$actionError = null;
+
+    \addons\vodops\service\VodPosterCandidate::$actionError = new \RuntimeException('sensitive provider failure');
+    $response = $controller->posterCandidates();
+    vodops_controller_assert_same(500, $response['status'] ?? null, 'Unexpected candidate provider failures should use a generic server error.');
+    vodops_controller_assert_same('搜索外部候选失败，请查看服务端日志。', $response['data']['msg'] ?? null, 'Unexpected candidate failures must not expose provider details.');
+    if (strpos((string) ($response['data']['msg'] ?? ''), 'sensitive provider failure') !== false) {
+        vodops_controller_fail('Candidate failures must remain server-log only.');
+    }
+    \addons\vodops\service\VodPosterCandidate::$actionError = null;
+
     \addons\vodops\service\VodQualityRepair::$calls = [];
-    $vodopsInput = ['issue_id' => 21, 'new_value' => '2024', 'source' => 'manual'];
+    $vodopsInput = ['issue_id' => 21, 'new_value' => '2024', 'source' => 'manual', 'candidate_context' => str_repeat('b', 64)];
     $response = $controller->applyRepair();
     vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'A reviewed repair should reach the repair service.');
-    vodops_controller_assert_same([['apply', 21, '2024', 'manual', 7]], \addons\vodops\service\VodQualityRepair::$calls, 'Repair writes must record the issue, reviewed value, source, and acting admin.');
+    vodops_controller_assert_same([['apply', 21, '2024', 'manual', 7, str_repeat('b', 64)]], \addons\vodops\service\VodQualityRepair::$calls, 'Repair writes must record the issue, reviewed value, source, acting admin, and selected candidate context.');
 
     \addons\vodops\service\VodQualityRepair::$calls = [];
     $vodopsInput = ['issue_id' => 21];

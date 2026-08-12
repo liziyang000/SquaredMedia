@@ -2,6 +2,33 @@
 
 return [
     [
+        'name' => 'candidate_follow_play_group',
+        'title' => '候选来源跟随已有播放组',
+        'type' => 'radio',
+        'content' => [
+            '1' => '开启',
+            '0' => '关闭',
+        ],
+        'value' => '1',
+        'rule' => 'required',
+        'msg' => '',
+        'tip' => '首次搜索候选时优先根据视频已有播放组推断可信采集源；这是辅助匹配，最终仍需人工审核。',
+        'ok' => '',
+        'extend' => '',
+    ],
+    [
+        'name' => 'candidate_default_providers',
+        'title' => '候选默认可信采集源',
+        'type' => 'string',
+        'content' => [],
+        'value' => '量子资源,iKun资源,虎牙资源,爱奇艺资源,魔都资源,樱花资源,无尽资源,红牛资源',
+        'rule' => '',
+        'msg' => '',
+        'tip' => '按 MacCMS 自定义资源中的来源名称填写，使用逗号分隔，最多启用前 8 个。该名单同时限定播放组可自动匹配的可信来源；留空则不自动启用采集源。敏感源不会被自动选择。',
+        'ok' => '',
+        'extend' => '',
+    ],
+    [
         'name' => 'scheduled_scan_hours',
         'title' => '定时扫描间隔（小时）',
         'type' => 'string',

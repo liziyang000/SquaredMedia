@@ -19,6 +19,7 @@ class DoubanData
     private const STATS_CACHE_KEY = 'douban_dashboard_stats_v1';
     private const STATS_CACHE_SECONDS = 60;
     private const RATE_LIMIT_STATE_KEY = 'rate_limit_next_at';
+    private const REPAIR_CANDIDATE_MAX_RATE_WAIT_SECONDS = 1;
     private const AUDIT_START_LOCK_KEY = 'audit_start_lock';
     private const MANUAL_RETRY_AT = 2147483647;
     private const AUDIT_LOCK_SECONDS = 120;
@@ -1085,6 +1086,117 @@ class DoubanData
         self::forgetStatsCache();
 
         return $result;
+    }
+
+    public static function posterCandidate(int $vodId)
+    {
+        foreach (self::repairCandidates($vodId) as $candidate) {
+            $values = is_array($candidate['values'] ?? null) ? $candidate['values'] : [];
+            $pic = (string) ($values['vod_pic'] ?? '');
+            if ($pic === '') {
+                continue;
+            }
+            return [
+                'pic_url' => $pic,
+                'source' => 'douban',
+                'provider_id' => 0,
+                'provider_name' => '豆瓣',
+                'title' => (string) ($candidate['title'] ?? ''),
+                'year' => (string) ($candidate['year'] ?? ''),
+                'match_status' => (string) ($candidate['match_status'] ?? ''),
+                'match_label' => (string) ($candidate['match_label'] ?? ''),
+                'match_score' => (int) ($candidate['match_score'] ?? 0),
+            ];
+        }
+
+        return [];
+    }
+
+    public static function repairCandidates(int $vodId)
+    {
+        if ($vodId < 1) {
+            throw new \InvalidArgumentException('vod_id missing');
+        }
+        $fields = 'vod_id,vod_name,vod_year';
+        if (self::columnExists(self::VOD_TABLE, 'vod_douban_id')) {
+            $fields .= ',vod_douban_id';
+        }
+        $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->field($fields)->find();
+        if (empty($vod)) {
+            throw new DoubanActionException('影片不存在');
+        }
+        try {
+            $meta = Db::name(self::META_TABLE)->where('vod_id', $vodId)->find();
+        } catch (\Throwable $e) {
+            $meta = [];
+        }
+        $doubanId = self::resolveDoubanId(is_array($meta) ? $meta : [], (array) $vod);
+        $config = self::config();
+        if ($doubanId !== '') {
+            $data = self::fetchDoubanData($doubanId, $config, self::REPAIR_CANDIDATE_MAX_RATE_WAIT_SECONDS);
+            $candidate = self::repairCandidateFromData(
+                $data,
+                'douban_id',
+                '已绑定豆瓣 ID ' . $doubanId,
+                100
+            );
+            return empty($candidate) ? [] : [$candidate];
+        }
+
+        $query = trim((string) ($vod['vod_name'] ?? ''));
+        if ($query === '') {
+            return [];
+        }
+        $ranked = DoubanMatcher::rank(
+            (array) $vod,
+            self::fetchDoubanCandidates($query, $config, self::REPAIR_CANDIDATE_MAX_RATE_WAIT_SECONDS),
+            101
+        );
+        $candidates = [];
+        foreach ((array) ($ranked['candidates'] ?? []) as $row) {
+            if (!is_array($row) || (int) ($row['score_detail']['title'] ?? 0) !== 75) {
+                continue;
+            }
+            $score = max(0, min(99, (int) ($row['score_total'] ?? 0)));
+            $candidate = self::repairCandidateFromData(
+                $row,
+                'douban_search',
+                '片名一致的豆瓣搜索候选',
+                $score
+            );
+            if (!empty($candidate)) {
+                $candidates[] = $candidate;
+            }
+        }
+
+        return $candidates;
+    }
+
+    private static function repairCandidateFromData(array $data, string $matchStatus, string $matchLabel, int $matchScore)
+    {
+        $values = array_filter([
+            'vod_pic' => self::extractValue($data, ['vod_pic', 'pic', 'cover', 'cover_url']),
+            'vod_year' => self::extractValue($data, ['vod_year', 'year']),
+            'vod_area' => self::extractValue($data, ['vod_area', 'area', 'country', 'region']),
+            'vod_lang' => self::extractValue($data, ['vod_lang', 'lang', 'language']),
+        ], static function ($value) {
+            return trim((string) $value) !== '';
+        });
+        if (empty($values)) {
+            return [];
+        }
+
+        return [
+            'source' => 'douban',
+            'provider_id' => 0,
+            'provider_name' => '豆瓣',
+            'title' => self::extractValue($data, ['vod_name', 'title', 'name']),
+            'year' => self::extractValue($data, ['vod_year', 'year']),
+            'values' => $values,
+            'match_status' => $matchStatus,
+            'match_label' => $matchLabel,
+            'match_score' => max(0, min(100, $matchScore)),
+        ];
     }
 
     public static function syncVod(int $vodId, int $operatorId = 0)
@@ -2437,13 +2549,13 @@ class DoubanData
         );
     }
 
-    private static function fetchDoubanData(string $doubanId, array $config)
+    private static function fetchDoubanData(string $doubanId, array $config, $maxRateWaitSeconds = null)
     {
         $endpoint = trim((string) ($config['douban_endpoint'] ?? ''));
         if ($endpoint === '') {
             throw new DoubanActionException('未配置豆瓣数据接口');
         }
-        self::throttleRequests($config);
+        self::throttleRequests($config, $maxRateWaitSeconds);
         if (self::isInternalEndpoint($endpoint)) {
             $data = DoubanGateway::subject($doubanId);
         } else {
@@ -2453,13 +2565,13 @@ class DoubanData
         return self::validateDoubanData($data, $doubanId);
     }
 
-    private static function fetchDoubanCandidates(string $query, array $config)
+    private static function fetchDoubanCandidates(string $query, array $config, $maxRateWaitSeconds = null)
     {
         $endpoint = trim((string) ($config['douban_endpoint'] ?? ''));
         if ($endpoint === '') {
             throw new DoubanActionException('未配置豆瓣数据接口');
         }
-        self::throttleRequests($config);
+        self::throttleRequests($config, $maxRateWaitSeconds);
         if (self::isInternalEndpoint($endpoint)) {
             return DoubanGateway::search($query, (int) ($config['candidate_topn'] ?? 5));
         }
@@ -2615,18 +2727,21 @@ class DoubanData
         return $endpoint === 'internal' || $endpoint === '/extend/douban.php';
     }
 
-    private static function throttleRequests(array $config)
+    private static function throttleRequests(array $config, $maxWaitSeconds = null)
     {
         $requestsPerMinute = max(1, min(300, (int) ($config['request_per_minute'] ?? 30)));
         $interval = 60 / $requestsPerMinute;
-        $reservedAt = self::reserveRequestSlot($interval);
+        $reservedAt = self::reserveRequestSlot($interval, $maxWaitSeconds);
+        if ($reservedAt === null) {
+            throw new DoubanActionException('豆瓣请求排队较长，请稍后重新搜索候选');
+        }
         $delay = $reservedAt - microtime(true);
         if ($delay > 0) {
             usleep((int) ($delay * 1000000));
         }
     }
 
-    private static function reserveRequestSlot(float $interval)
+    private static function reserveRequestSlot(float $interval, $maxWaitSeconds = null)
     {
         $now = microtime(true);
         $transactionStarted = false;
@@ -2641,6 +2756,14 @@ class DoubanData
                 throw new DoubanActionException('限流状态不存在');
             }
             $reservation = self::requestReservation($now, (float) ($row['config_value'] ?? 0), $interval);
+            if (self::reservationExceedsWait($reservation, $now, $maxWaitSeconds)) {
+                try {
+                    Db::rollback();
+                } catch (\Throwable $ignored) {
+                }
+                $transactionStarted = false;
+                return null;
+            }
             $updated = Db::name(self::CONFIG_TABLE)
                 ->where('config_key', self::RATE_LIMIT_STATE_KEY)
                 ->update([
@@ -2662,10 +2785,19 @@ class DoubanData
                 }
             }
             $reservation = self::requestReservation($now, self::$nextLocalRequestAt, $interval);
+            if (self::reservationExceedsWait($reservation, $now, $maxWaitSeconds)) {
+                return null;
+            }
             self::$nextLocalRequestAt = $reservation['next_available_at'];
 
             return $reservation['reserved_at'];
         }
+    }
+
+    private static function reservationExceedsWait(array $reservation, float $now, $maxWaitSeconds)
+    {
+        return $maxWaitSeconds !== null
+            && (float) ($reservation['reserved_at'] ?? $now) - $now > max(0, (float) $maxWaitSeconds);
     }
 
     private static function ensureRateLimitState()

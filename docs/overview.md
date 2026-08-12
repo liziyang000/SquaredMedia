@@ -101,7 +101,7 @@ npm run verify:release
 - `docs/overview.md` 和模块说明描述当前仓库事实，目录或交付流程变化时应同步更新。
 - `docs/maccms-theme-development-spec.md` 是主题修改的仓库内规范。
 - `docs/maccms-vod-*.md` 是数据维护操作手册。
-- `docs/superpowers/` 保存带日期的设计、实施计划和交接记录，主要用于追溯决策；其中的待办、路径和预期结果不自动代表当前实现。
+- `docs/superpowers/` 保存仍有追溯价值的带日期设计，以及未进入当前实现的历史计划；其中的路径和预期结果不自动代表当前实现。
 - `docs/vod-poster-provider-matches-20260716.md` 是特定日期的生产数据审计快照，可能随持续采集或人工修复失效。
 
 ## 已知边界

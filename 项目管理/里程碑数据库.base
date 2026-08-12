@@ -1,0 +1,216 @@
+filters:
+  and:
+    - file.inFolder("项目管理/里程碑")
+    - file.ext == "md"
+    - type == "milestone"
+formulas:
+  schedule: if(status == "已完成", "✅ 已完成", if(status == "已取消", "⛔ 已取消", if(target_date == null, "— 未设日期", if(target_date < today(), "⚠️ 已逾期", if(target_date <= today() + "30d", "⏳ 30 天内", "正常")))))
+  days_remaining: if(target_date == null, null, ((target_date - today()) / 86400000).round())
+properties:
+  file.name:
+    displayName: 里程碑
+  note.status:
+    displayName: 状态
+  note.project:
+    displayName: 项目
+  note.owner:
+    displayName: 负责人
+  note.target_date:
+    displayName: 目标日期
+  note.completed_date:
+    displayName: 完成日期
+  note.success_criteria:
+    displayName: 成功标准
+  note.blocked:
+    displayName: 阻塞
+  note.updated:
+    displayName: 最近更新
+  formula.schedule:
+    displayName: 排期状态
+  formula.days_remaining:
+    displayName: 剩余天数
+views:
+  - type: table
+    name: 里程碑总览
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - project
+      - owner
+      - formula.schedule
+      - target_date
+      - success_criteria
+      - blocked
+      - updated
+    sort:
+      - property: target_date
+        direction: ASC
+      - property: updated
+        direction: DESC
+    columnSize:
+      file.name: 280
+      note.status: 90
+      note.project: 180
+      note.owner: 100
+      formula.schedule: 110
+      note.target_date: 110
+      note.success_criteria: 360
+      note.blocked: 70
+      note.updated: 110
+  - type: table
+    name: 未来 30 天
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - target_date != null
+        - target_date >= today()
+        - target_date <= today() + "30d"
+    order:
+      - file.name
+      - project
+      - formula.days_remaining
+      - target_date
+      - owner
+      - success_criteria
+    sort:
+      - property: target_date
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.project: 180
+      formula.days_remaining: 90
+      note.target_date: 110
+      note.owner: 100
+      note.success_criteria: 380
+  - type: table
+    name: 未设日期
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - target_date == null
+    order:
+      - file.name
+      - status
+      - project
+      - owner
+      - success_criteria
+      - blocked
+      - updated
+    sort:
+      - property: updated
+        direction: ASC
+    columnSize:
+      file.name: 300
+      note.status: 90
+      note.project: 180
+      note.owner: 100
+      note.success_criteria: 400
+      note.blocked: 70
+      note.updated: 110
+  - type: table
+    name: 已逾期
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - target_date != null
+        - target_date < today()
+    order:
+      - file.name
+      - project
+      - formula.days_remaining
+      - target_date
+      - owner
+      - blocked
+    sort:
+      - property: target_date
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.project: 180
+      formula.days_remaining: 90
+      note.target_date: 110
+      note.owner: 100
+      note.blocked: 70
+  - type: table
+    name: 阻塞里程碑
+    filters:
+      and:
+        - blocked == true
+        - status != "已完成"
+        - status != "已取消"
+    order:
+      - file.name
+      - project
+      - owner
+      - target_date
+      - success_criteria
+      - updated
+    sort:
+      - property: target_date
+        direction: ASC
+      - property: updated
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.project: 180
+      note.owner: 100
+      note.target_date: 110
+      note.success_criteria: 400
+      note.updated: 110
+  - type: table
+    name: 已完成
+    filters:
+      and:
+        - status == "已完成"
+    order:
+      - file.name
+      - project
+      - owner
+      - target_date
+      - completed_date
+      - updated
+    sort:
+      - property: completed_date
+        direction: DESC
+      - property: updated
+        direction: DESC
+    columnSize:
+      file.name: 300
+      note.project: 180
+      note.owner: 100
+      note.target_date: 110
+      note.completed_date: 110
+      note.updated: 110
+  - type: table
+    name: 当前项目
+    filters:
+      and:
+        - project == this
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - owner
+      - formula.schedule
+      - target_date
+      - success_criteria
+      - blocked
+    sort:
+      - property: target_date
+        direction: ASC
+    columnSize:
+      file.name: 300
+      note.status: 90
+      note.owner: 100
+      formula.schedule: 110
+      note.target_date: 110
+      note.success_criteria: 380
+      note.blocked: 70

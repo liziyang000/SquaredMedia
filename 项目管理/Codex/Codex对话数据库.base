@@ -1,0 +1,130 @@
+filters:
+  and:
+    - file.inFolder("项目管理/Codex/对话")
+    - file.ext == "md"
+    - type == "codex_conversation"
+properties:
+  file.name:
+    displayName: Codex 任务
+  note.date:
+    displayName: 日期
+  note.status:
+    displayName: 状态
+  note.category:
+    displayName: 分类
+  note.branch:
+    displayName: 分支快照
+  note.turns:
+    displayName: 对话轮次
+  note.changed_files:
+    displayName: 变更文件
+  note.has_local_changes:
+    displayName: 本地修改
+  note.thread_id:
+    displayName: 任务 ID
+views:
+  - type: table
+    name: 最近对话
+    order:
+      - file.name
+      - date
+      - category
+      - status
+      - turns
+      - changed_files
+      - branch
+    sort:
+      - property: date
+        direction: DESC
+      - property: file.name
+        direction: ASC
+    columnSize:
+      file.name: 320
+      note.date: 110
+      note.category: 120
+      note.status: 90
+      note.turns: 90
+      note.changed_files: 90
+      note.branch: 220
+  - type: table
+    name: 有本地修改
+    filters:
+      and:
+        - has_local_changes == true
+    order:
+      - file.name
+      - date
+      - category
+      - changed_files
+      - branch
+    sort:
+      - property: date
+        direction: DESC
+      - property: changed_files
+        direction: DESC
+    columnSize:
+      file.name: 320
+      note.date: 110
+      note.category: 120
+      note.changed_files: 90
+      note.branch: 220
+  - type: table
+    name: 无本地修改
+    filters:
+      and:
+        - has_local_changes == false
+    order:
+      - file.name
+      - date
+      - category
+      - status
+      - branch
+    sort:
+      - property: date
+        direction: DESC
+    columnSize:
+      file.name: 320
+      note.date: 110
+      note.category: 120
+      note.status: 90
+      note.branch: 220
+  - type: table
+    name: 进行中
+    filters:
+      and:
+        - status == "进行中"
+    order:
+      - file.name
+      - date
+      - category
+      - turns
+      - changed_files
+    sort:
+      - property: date
+        direction: DESC
+    columnSize:
+      file.name: 320
+      note.date: 110
+      note.category: 120
+      note.turns: 90
+      note.changed_files: 90
+  - type: table
+    name: 按分类
+    groupBy:
+      property: category
+      direction: ASC
+    order:
+      - file.name
+      - date
+      - status
+      - changed_files
+      - branch
+    sort:
+      - property: date
+        direction: DESC
+    columnSize:
+      file.name: 320
+      note.date: 110
+      note.status: 90
+      note.changed_files: 90
+      note.branch: 220

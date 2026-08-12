@@ -180,7 +180,5 @@ npm run verify:release
 ## 历史文档状态
 
 - `docs/superpowers/specs/2026-06-27-cinematic-premium-theme-design.md`：早期视觉基线，部分首页结构已被后续迭代替代。
-- `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md` 与对应 plan：其中的全站卡片 hover 方案未启用，指针液态光斑也已移除；当前只保留首页入场、一次性区块渐入和轮播，仍应以 `app.js` 为准。
-- `docs/superpowers/specs/2026-06-29-home-mobile-polish-design.md` 与对应 plan：依赖的 `.hero-stats`、`.quick-types` 等首页结构已不存在。
-- `docs/superpowers/specs/2026-07-01-pingfang-player-design.md`、对应 plan 和 handoff：记录的是已移除实验原型的历史决策，不代表当前源码仍保留该原型。
-- `docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md` 与对应 plan：核心主题切换和 scoped 布局已实现；仍应以当前 CSS、模板和测试为准。
+- `docs/superpowers/specs/2026-06-27-gsap-motion-optimization-design.md`：其中的全站卡片 hover 方案未启用，指针液态光斑也已移除；当前只保留首页入场、一次性区块渐入和轮播，仍应以 `app.js` 为准。
+- `docs/superpowers/specs/2026-07-07-poster-magazine-theme-design.md`：核心主题切换和 scoped 布局已实现；仍应以当前 CSS、模板和测试为准。

@@ -1,0 +1,326 @@
+filters:
+  and:
+    - file.inFolder("项目管理/任务")
+    - file.ext == "md"
+    - type == "task"
+formulas:
+  schedule: if(status == "已完成", "✅ 已完成", if(status == "已取消", "⛔ 已取消", if(due_date == null, "— 未设日期", if(due_date < today(), "⚠️ 已逾期", if(due_date == today(), "🔥 今天", if(due_date <= today() + "7d", "⏳ 7 天内", "正常"))))))
+  days_remaining: if(due_date == null, null, ((due_date - today()) / 86400000).round())
+  priority_rank: if(priority == "P0", 0, if(priority == "P1", 1, if(priority == "P2", 2, if(priority == "P3", 3, 9))))
+  attention_rank: if(blocked, 0, if(due_date != null && due_date < today(), 1, if(due_date == today(), 2, if(priority == "P0", 3, if(priority == "P1", 4, 9)))))
+properties:
+  file.name:
+    displayName: 任务
+  note.status:
+    displayName: 状态
+  note.priority:
+    displayName: 优先级
+  note.project:
+    displayName: 项目
+  note.milestone:
+    displayName: 里程碑
+  note.owner:
+    displayName: 负责人
+  note.due_date:
+    displayName: 截止日期
+  note.completed_date:
+    displayName: 完成日期
+  note.blocked:
+    displayName: 阻塞
+  note.updated:
+    displayName: 最近更新
+  formula.schedule:
+    displayName: 排期状态
+  formula.days_remaining:
+    displayName: 剩余天数
+  formula.priority_rank:
+    displayName: 优先顺序
+  formula.attention_rank:
+    displayName: 聚焦顺序
+views:
+  - type: table
+    name: 行动焦点
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - or:
+            - blocked == true
+            - due_date != null && due_date <= today()
+            - priority == "P0"
+            - priority == "P1"
+    order:
+      - file.name
+      - formula.schedule
+      - priority
+      - project
+      - due_date
+      - owner
+      - blocked
+    sort:
+      - property: formula.attention_rank
+        direction: ASC
+      - property: due_date
+        direction: ASC
+    columnSize:
+      file.name: 280
+      formula.schedule: 105
+      note.priority: 80
+      note.project: 180
+      note.due_date: 110
+      note.owner: 100
+      note.blocked: 70
+  - type: table
+    name: 待办总览
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - priority
+      - project
+      - milestone
+      - owner
+      - formula.schedule
+      - due_date
+      - blocked
+      - updated
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: due_date
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.status: 90
+      note.priority: 80
+      note.project: 180
+      note.milestone: 180
+      note.owner: 100
+      formula.schedule: 105
+      note.due_date: 110
+      note.blocked: 70
+      note.updated: 110
+  - type: table
+    name: 收件箱
+    filters:
+      and:
+        - project == null
+        - status != "已完成"
+        - status != "已取消"
+    order:
+      - file.name
+      - priority
+      - owner
+      - formula.schedule
+      - due_date
+      - updated
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: updated
+        direction: ASC
+    columnSize:
+      file.name: 300
+      note.priority: 80
+      note.owner: 100
+      formula.schedule: 105
+      note.due_date: 110
+      note.updated: 110
+  - type: table
+    name: 今天
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - due_date == today()
+    order:
+      - file.name
+      - priority
+      - project
+      - owner
+      - blocked
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+    columnSize:
+      file.name: 300
+      note.priority: 80
+      note.project: 180
+      note.owner: 100
+      note.blocked: 70
+  - type: table
+    name: 未来 7 天
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - due_date != null
+        - due_date > today()
+        - due_date <= today() + "7d"
+    order:
+      - file.name
+      - priority
+      - project
+      - formula.days_remaining
+      - due_date
+      - owner
+    sort:
+      - property: due_date
+        direction: ASC
+      - property: formula.priority_rank
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.priority: 80
+      note.project: 180
+      formula.days_remaining: 90
+      note.due_date: 110
+      note.owner: 100
+  - type: table
+    name: 已逾期
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - due_date != null
+        - due_date < today()
+    order:
+      - file.name
+      - priority
+      - project
+      - formula.days_remaining
+      - due_date
+      - owner
+      - blocked
+    sort:
+      - property: due_date
+        direction: ASC
+      - property: formula.priority_rank
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.priority: 80
+      note.project: 180
+      formula.days_remaining: 90
+      note.due_date: 110
+      note.owner: 100
+      note.blocked: 70
+  - type: table
+    name: 阻塞任务
+    filters:
+      and:
+        - blocked == true
+        - status != "已完成"
+        - status != "已取消"
+    order:
+      - file.name
+      - priority
+      - project
+      - milestone
+      - owner
+      - due_date
+      - updated
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: due_date
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.priority: 80
+      note.project: 180
+      note.milestone: 180
+      note.owner: 100
+      note.due_date: 110
+      note.updated: 110
+  - type: table
+    name: 等待中
+    filters:
+      and:
+        - status == "等待"
+    order:
+      - file.name
+      - priority
+      - project
+      - milestone
+      - owner
+      - formula.schedule
+      - due_date
+      - blocked
+      - updated
+    sort:
+      - property: due_date
+        direction: ASC
+      - property: formula.priority_rank
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.priority: 80
+      note.project: 180
+      note.milestone: 180
+      note.owner: 100
+      formula.schedule: 105
+      note.due_date: 110
+      note.blocked: 70
+      note.updated: 110
+  - type: table
+    name: 已完成
+    filters:
+      and:
+        - status == "已完成"
+    order:
+      - file.name
+      - project
+      - milestone
+      - owner
+      - completed_date
+      - updated
+    sort:
+      - property: completed_date
+        direction: DESC
+      - property: updated
+        direction: DESC
+    columnSize:
+      file.name: 300
+      note.project: 180
+      note.milestone: 180
+      note.owner: 100
+      note.completed_date: 110
+      note.updated: 110
+  - type: table
+    name: 当前项目
+    filters:
+      and:
+        - project == this
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - priority
+      - milestone
+      - owner
+      - formula.schedule
+      - due_date
+      - blocked
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: due_date
+        direction: ASC
+    columnSize:
+      file.name: 300
+      note.status: 90
+      note.priority: 80
+      note.milestone: 180
+      note.owner: 100
+      formula.schedule: 105
+      note.due_date: 110
+      note.blocked: 70

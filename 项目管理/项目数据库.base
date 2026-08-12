@@ -1,0 +1,263 @@
+filters:
+  and:
+    - file.inFolder("项目管理/项目")
+    - file.ext == "md"
+    - type == "project"
+formulas:
+  schedule: if(status == "已完成", "✅ 已完成", if(status == "已取消", "⛔ 已取消", if(target_date == null, "— 未设日期", if(target_date < today(), "⚠️ 已逾期", if(target_date <= today() + "7d", "⏳ 7 天内", "正常")))))
+  days_remaining: if(target_date == null, null, ((target_date - today()) / 86400000).round())
+  priority_rank: if(priority == "P0", 0, if(priority == "P1", 1, if(priority == "P2", 2, if(priority == "P3", 3, 9))))
+properties:
+  file.name:
+    displayName: 项目
+  note.status:
+    displayName: 状态
+  note.priority:
+    displayName: 优先级
+  note.area:
+    displayName: 领域
+  note.owner:
+    displayName: 负责人
+  note.start_date:
+    displayName: 开始日期
+  note.target_date:
+    displayName: 截止日期
+  note.progress:
+    displayName: 进度（%）
+  note.next_action:
+    displayName: 下一步行动
+  note.blocked:
+    displayName: 阻塞
+  note.updated:
+    displayName: 最近复盘
+  formula.schedule:
+    displayName: 排期状态
+  formula.days_remaining:
+    displayName: 剩余天数
+  formula.priority_rank:
+    displayName: 优先顺序
+views:
+  - type: cards
+    name: 项目卡片
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+    order:
+      - file.name
+      - status
+      - priority
+      - progress
+      - next_action
+      - target_date
+      - owner
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: target_date
+        direction: ASC
+  - type: table
+    name: 项目总览
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - priority
+      - area
+      - owner
+      - formula.schedule
+      - target_date
+      - progress
+      - next_action
+      - blocked
+      - updated
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: target_date
+        direction: ASC
+    columnSize:
+      file.name: 260
+      note.status: 90
+      note.priority: 80
+      note.area: 140
+      note.owner: 100
+      formula.schedule: 105
+      note.target_date: 110
+      note.progress: 90
+      note.next_action: 320
+      note.blocked: 70
+      note.updated: 110
+  - type: table
+    name: 进行中
+    filters:
+      and:
+        - status == "进行中"
+    order:
+      - file.name
+      - priority
+      - owner
+      - formula.schedule
+      - target_date
+      - progress
+      - next_action
+      - blocked
+      - updated
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: target_date
+        direction: ASC
+    columnSize:
+      file.name: 260
+      note.priority: 80
+      note.owner: 100
+      formula.schedule: 105
+      note.target_date: 110
+      note.progress: 90
+      note.next_action: 340
+      note.blocked: 70
+      note.updated: 110
+  - type: table
+    name: 待补信息
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - or:
+            - priority == null
+            - owner == null
+            - target_date == null
+            - progress == null
+    order:
+      - file.name
+      - priority
+      - owner
+      - target_date
+      - progress
+      - next_action
+      - updated
+    sort:
+      - property: updated
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.priority: 80
+      note.owner: 100
+      note.target_date: 110
+      note.progress: 90
+      note.next_action: 360
+      note.updated: 110
+  - type: table
+    name: 近期截止
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - target_date != null
+        - target_date >= today()
+        - target_date <= today() + "14d"
+    order:
+      - file.name
+      - status
+      - priority
+      - formula.days_remaining
+      - target_date
+      - next_action
+      - owner
+    sort:
+      - property: target_date
+        direction: ASC
+      - property: formula.priority_rank
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.status: 90
+      note.priority: 80
+      formula.days_remaining: 90
+      note.target_date: 110
+      note.next_action: 360
+      note.owner: 100
+  - type: table
+    name: 已逾期
+    filters:
+      and:
+        - status != "已完成"
+        - status != "已取消"
+        - target_date != null
+        - target_date < today()
+    order:
+      - file.name
+      - status
+      - priority
+      - formula.days_remaining
+      - target_date
+      - next_action
+      - owner
+    sort:
+      - property: target_date
+        direction: ASC
+      - property: formula.priority_rank
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.status: 90
+      note.priority: 80
+      formula.days_remaining: 90
+      note.target_date: 110
+      note.next_action: 360
+      note.owner: 100
+  - type: table
+    name: 阻塞项目
+    filters:
+      and:
+        - blocked == true
+        - status != "已完成"
+        - status != "已取消"
+    order:
+      - file.name
+      - status
+      - priority
+      - owner
+      - next_action
+      - target_date
+      - updated
+    sort:
+      - property: formula.priority_rank
+        direction: ASC
+      - property: target_date
+        direction: ASC
+    columnSize:
+      file.name: 280
+      note.status: 90
+      note.priority: 80
+      note.owner: 100
+      note.next_action: 360
+      note.target_date: 110
+      note.updated: 110
+  - type: table
+    name: 已完成
+    filters:
+      and:
+        - status == "已完成"
+    order:
+      - file.name
+      - area
+      - owner
+      - target_date
+      - progress
+      - updated
+    sort:
+      - property: updated
+        direction: DESC
+      - property: target_date
+        direction: DESC
+    columnSize:
+      file.name: 300
+      note.area: 140
+      note.owner: 100
+      note.target_date: 110
+      note.progress: 90
+      note.updated: 110

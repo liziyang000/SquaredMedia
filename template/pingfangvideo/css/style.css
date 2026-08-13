@@ -2901,6 +2901,11 @@ textarea:focus-visible,
   padding-bottom: 2px;
 }
 
+.filter-row[data-filter-kind] .filter-options {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
 .filter-panel strong {
   flex: 0 0 54px;
   line-height: 36px;

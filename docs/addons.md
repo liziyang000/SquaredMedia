@@ -34,7 +34,7 @@
 - `controller/Index.php`：MacCMS 原生插件路由控制器，使用 `addon_url(...)` 和插件自带视图。
 - `controller/DeviceActions.php`：两个控制器共用的登录、退出、撤销、筛选、线路检测和联机票据动作。
 - `service/DeviceSession.php`：会话注册、校验、续用、撤销、过期、设备上限和展示数据清洗。
-- `service/VodFilterOptions.php`：视频筛选项查询、栏目继承、输入归一化与缓存。
+- `service/VodFilterOptions.php`：基于 `vod_area`、`vod_year`、`vod_lang` 字段索引生成全站实际筛选项，清洗错列/组合脏值、合并可筛选别名，并缓存结果；后台扩展配置只决定常用项顺序，不再限制候选范围。
 - `service/VodSourceQuality.php`：按视频/集数解析播放组、执行有界媒体抽样、计算速度并缓存结果。
 - `service/GameAccessTicket.php`：校验会员与游戏类型，签发短期 HMAC 票据并约束同源 WebSocket 路径。
 - `view/index/index.html`：插件路由下的设备管理页；主题桥接入口渲染的是主题内同名模板。
@@ -57,7 +57,7 @@
 - 会话创建使用事务和用户行锁；Cookie 写入失败会撤销刚创建的记录。同步过程异常时按失效登录处理。
 - 展示给模板的设备标签、IP 和 User-Agent 会转义，Token 摘要和登录校验摘要不会传给视图。
 - 当前动作未实现独立 CSRF Token；Ajax 请求头是请求形态约束，不应代替站点的同源、Cookie 和反跨站请求策略。
-- `filters` 只要求 Ajax，不要求登录；它只查询 `vod_status = 1` 的视频，并对输入长度、栏目和返回数量做限制。
+- `filters` 只要求 Ajax，不要求登录；它只读取 `vod_area`、`vod_year`、`vod_lang` 的去重值，不返回影片明细，并对输入长度、原始值长度、年份范围、别名数量和返回数量做限制。
 - `sourceQuality` 要求 POST + Ajax，但不要求登录；它只接受 `vod_id`、`nid`，只读取 `vod_status = 1` 的记录，最多检测前 12 个播放组，并在约 24 秒总预算后停止启动新线路。
 - `gameTicket` 要求 POST + Ajax 和有效设备会话，只接受 `gomoku` 或 `drawguess`。票据含用户 ID、纯文本昵称、游戏、当前标签页随机 ID、签发/到期时间和随机 ID，不包含 Cookie、密码、邮箱或播放数据；标签页 ID 只用于区分同一账号打开的多个玩家连接，独立服务还会校验 Origin 并拒绝重复使用的票据。
 - 线路检测只允许无账号信息的 HTTP(S) 公网地址。每次请求重新解析并固定公网 IPv4，拒绝私网/保留地址，手动校验最多 2 次跳转，开启 TLS 证书校验，禁用环境代理，并把响应样本限制在 256 KiB 以内。
@@ -81,9 +81,10 @@
 
 - `tests/device-session.test.php`：用内存数据库/模型替身覆盖原生登录接管、Token 重绑、撤销与过期、Cookie 名、设备上限、事务回滚和展示数据脱敏。
 - `tests/device-controller.test.php`：通过共享 `DeviceActions` 覆盖兼容入口的登录参数归一化、POST/Ajax 约束、线路检测与联机票据权限，以及登录/退出异常处理。
+- `tests/vod-filter-options.test.php`：覆盖数据库实际候选、早期年份、配置非白名单、跨栏目完整性、错列/组合脏值过滤，以及地区和语言别名合并。
 - `tests/game-access-ticket.test.php`：覆盖短票据签名、时效、游戏范围、游客拒绝和同源连接路径。
 - `tests/vod-source-quality.test.php`：覆盖指定集数跨源映射、HLS/直链多样本中位速度、健康线路排序和唯一推荐、过期分片容错、主清单分辨率排序与回退、异常/未知分辨率、样本不足、超时、伪媒体内容、失败/缺集/解析型地址状态、私网拒绝和响应地址脱敏。
-- 仓库的 `npm test` 会执行以上 PHP 测试。当前没有 `VodFilterOptions` 的专门行为测试。
+- 仓库的 `npm test` 会执行以上 PHP 测试。
 
 ## `vodops` 统一视频数据中心
 

@@ -1932,7 +1932,7 @@
         lang: panel.getAttribute("data-current-lang") || "",
         class: panel.getAttribute("data-current-class") || "",
         letter: panel.getAttribute("data-current-letter") || "",
-        limit: "80"
+        limit: "1000"
       };
       Object.keys(params).forEach(function (key) {
         if (params[key] !== "") {
@@ -1946,17 +1946,53 @@
   }
 
   function normalizeFilterOptions(list) {
-    var values = {};
+    var values = [];
+    var seen = {};
     if (!Array.isArray(list)) return values;
 
     list.forEach(function (item) {
       var value = typeof item === "string" ? item : item && item.value;
       value = String(value || "").trim();
-      if (value) {
-        values[value] = true;
-      }
+      if (!value || seen[value]) return;
+      seen[value] = true;
+      values.push({
+        value: value,
+        label: String((item && item.label) || value).trim() || value,
+        query: String((item && item.query) || value).trim() || value,
+        total: typeof item === "object" && item ? Number(item.total) || 0 : 0
+      });
     });
     return values;
+  }
+
+  function dynamicFilterHref(row, value) {
+    var placeholder = "__PINGFANG_FILTER_VALUE__";
+    var template = row.getAttribute("data-filter-href-template") || "";
+    if (!template || template.indexOf(placeholder) === -1) return "";
+    return template.split(placeholder).join(encodeURIComponent(value));
+  }
+
+  function filterOptionIsActive(option, currentValue) {
+    if (!currentValue) return false;
+    if (currentValue === option.value || currentValue === option.query) return true;
+    return option.query.split(",").some(function (alias) {
+      return alias.trim() === currentValue;
+    });
+  }
+
+  function createDynamicFilterLink(row, option, isActive) {
+    var href = dynamicFilterHref(row, option.query);
+    if (!href) return null;
+
+    var link = document.createElement("a");
+    link.setAttribute("data-filter-value", option.value);
+    link.setAttribute("href", href);
+    link.textContent = option.label;
+    if (isActive) {
+      link.classList.add("is-active");
+      link.setAttribute("aria-current", "page");
+    }
+    return link;
   }
 
   function applyDynamicVodFilters(panel, filters) {
@@ -1964,11 +2000,45 @@
 
     panel.querySelectorAll("[data-filter-kind]").forEach(function (row) {
       var kind = row.getAttribute("data-filter-kind");
-      var values = normalizeFilterOptions(filters[kind]);
-      if (!Object.keys(values).length) return;
+      if (!Object.prototype.hasOwnProperty.call(filters, kind)) return;
+
+      var options = normalizeFilterOptions(filters[kind]);
+      var values = {};
+      var links = {};
+      var container = row.querySelector(".filter-options");
+      var currentValue = panel.getAttribute("data-current-" + kind) || "";
+      if (!container) return;
 
       row.querySelectorAll("[data-filter-value]").forEach(function (link) {
         var value = String(link.getAttribute("data-filter-value") || "").trim();
+        if (value && !links[value]) links[value] = link;
+      });
+
+      options.forEach(function (option) {
+        var value = option.value;
+        var link = links[value];
+        var isActive = filterOptionIsActive(option, currentValue);
+        values[value] = true;
+        if (!link) {
+          link = createDynamicFilterLink(row, option, isActive);
+          if (!link) return;
+          links[value] = link;
+        } else {
+          link.setAttribute("href", dynamicFilterHref(row, option.query));
+          link.textContent = option.label;
+        }
+        link.setAttribute("data-filter-value", value);
+        link.classList.toggle("is-active", isActive);
+        if (isActive) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+        link.hidden = false;
+        link.classList.remove("is-unavailable");
+        link.setAttribute("data-filter-total", String(option.total));
+        container.appendChild(link);
+      });
+
+      Object.keys(links).forEach(function (value) {
+        var link = links[value];
         var isActive = link.classList.contains("is-active") || link.getAttribute("aria-current") === "page";
         var isAvailable = !!values[value];
         link.hidden = !isAvailable && !isActive;

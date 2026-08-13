@@ -1149,6 +1149,10 @@ assert.match(typePage, /data-filter-type-id="\{\$obj\.type_id\}"/);
 assert.match(typePage, /data-current-area="\{\$param\.area\}"/);
 assert.match(typePage, /data-current-year="\{\$param\.year\}"/);
 assert.match(typePage, /data-current-lang="\{\$param\.lang\}"/);
+assert.match(typePage, /data-filter-kind="area" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(typePage, /data-filter-kind="year" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(typePage, /data-filter-kind="lang" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(typePage, /__PINGFANG_FILTER_VALUE__/);
 assert.match(typePage, /class="channel-search"/);
 assert.match(typePage, /class="filter-row filter-search-row"/);
 assert.match(typePage, /action="\{:mac_url\('vod\/search'\)\}"/);
@@ -1166,9 +1170,9 @@ assert.match(typePage, /mac_url_type\(\$obj,\['area'=>\$param\['area'\][\s\S]*'b
 assert.doesNotMatch(typePage, /<strong>子类<\/strong>/);
 assert.equal((typePage.match(/<strong>类型<\/strong>/g) || []).length, 1);
 assert.match(typePage, /<div class="filter-row">\s*<strong>类型<\/strong>/);
-assert.doesNotMatch(typePage, /<div class="filter-row" data-filter-kind="area">\s*<strong>类型<\/strong>/);
+assert.doesNotMatch(typePage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>类型<\/strong>/);
 assert.match(typePage, /<strong>地区<\/strong>/);
-assert.match(typePage, /<div class="filter-row" data-filter-kind="area">\s*<strong>地区<\/strong>/);
+assert.match(typePage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>地区<\/strong>/);
 assert.match(typePage, /data-filter-kind="area"/);
 assert.match(typePage, /<strong>年份<\/strong>/);
 assert.match(typePage, /data-filter-kind="year"/);
@@ -1227,6 +1231,10 @@ assert.match(showPage, /data-filter-type-id="\{\$obj\.type_id\}"/);
 assert.match(showPage, /data-current-area="\{\$param\.area\}"/);
 assert.match(showPage, /data-current-year="\{\$param\.year\}"/);
 assert.match(showPage, /data-current-lang="\{\$param\.lang\}"/);
+assert.match(showPage, /data-filter-kind="area" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(showPage, /data-filter-kind="year" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(showPage, /data-filter-kind="lang" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(showPage, /__PINGFANG_FILTER_VALUE__/);
 assert.match(showPage, /class="channel-search"/);
 assert.match(showPage, /class="filter-row filter-search-row"/);
 assert.match(showPage, /action="\{:mac_url\('vod\/search'\)\}"/);
@@ -1245,9 +1253,9 @@ assert.match(showPage, /mac_url_type\(\$obj,\['area'=>\$param\['area'\][\s\S]*'b
 assert.doesNotMatch(showPage, /<strong>子类<\/strong>/);
 assert.equal((showPage.match(/<strong>类型<\/strong>/g) || []).length, 1);
 assert.match(showPage, /<div class="filter-row">\s*<strong>类型<\/strong>/);
-assert.doesNotMatch(showPage, /<div class="filter-row" data-filter-kind="area">\s*<strong>类型<\/strong>/);
+assert.doesNotMatch(showPage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>类型<\/strong>/);
 assert.match(showPage, /<strong>地区<\/strong>/);
-assert.match(showPage, /<div class="filter-row" data-filter-kind="area">\s*<strong>地区<\/strong>/);
+assert.match(showPage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>地区<\/strong>/);
 assert.match(showPage, /data-filter-kind="area"/);
 assert.match(showPage, /<strong>年份<\/strong>/);
 assert.match(showPage, /data-filter-kind="year"/);
@@ -1395,6 +1403,7 @@ const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)]
 const pageStarsRule = extractCssRule(style, "body::before");
 const headerSearchInputFocusRule = extractCssRule(style, ".header-search input:focus-visible");
 const filterOptionsRule = extractCssRule(style, ".filter-options");
+const dynamicFilterOptionsRule = extractCssRule(style, '.filter-row[data-filter-kind] .filter-options');
 const sharedGlassSurfaceRule = style.match(/\.filter-panel,\n\.episode-box,\n\.detail-panel,\n\.system-box,\n\.device-panel,\n\.favorite-toolbar,\n\.record-toolbar,\n\.comment-layout \.system-box\s*\{[^}]*\}/)?.[0] || "";
 const auroraCinemaRule = style.match(/html\[data-theme="blue-pink-purple"\],\nhtml\[data-theme="aurora-glass"\]\s*\{[^}]*\}/)?.[0] || "";
 const posterRootRule = extractCssRule(style, 'html[data-theme="poster-magazine"]');
@@ -1670,6 +1679,8 @@ assert.match(style, /\.filter-panel a\.is-active/);
 assert.match(filterOptionsRule, /flex-wrap: wrap/);
 assert.match(filterOptionsRule, /overflow-x: visible/);
 assert.doesNotMatch(filterOptionsRule, /overflow-x: auto|scrollbar-width|scroll-snap|overscroll-behavior|-webkit-overflow-scrolling/);
+assert.match(dynamicFilterOptionsRule, /max-height:/);
+assert.match(dynamicFilterOptionsRule, /overflow-y: auto/);
 assert.doesNotMatch(style, /\.filter-options::-webkit-scrollbar/);
 assert.doesNotMatch(style, /\.filter-options\s*\{[^}]*margin-right:\s*-\d+px/);
 assert.doesNotMatch(style, /\.filter-panel a\s*\{[^}]*scroll-snap-align/);
@@ -2834,30 +2845,26 @@ const vodFilterOptionsService = readAddonFile("service/VodFilterOptions.php");
 assert.match(vodFilterOptionsService, /class VodFilterOptions/);
 assert.match(vodFilterOptionsService, /const VOD_TABLE = 'vod'/);
 assert.match(vodFilterOptionsService, /public static function filters\(array \$input\)/);
-assert.match(vodFilterOptionsService, /const CACHE_VERSION = 'v4'/);
-assert.match(vodFilterOptionsService, /\$params\['type_ids'\] = self::typeScope\(\$params\['type_id'\]\)/);
+assert.match(vodFilterOptionsService, /const CACHE_VERSION = 'v6'/);
+assert.match(vodFilterOptionsService, /const MAX_OPTIONS = 1000/);
 assert.match(vodFilterOptionsService, /responseParams/);
 assert.match(vodFilterOptionsService, /'area' => 'vod_area'/);
 assert.match(vodFilterOptionsService, /'year' => 'vod_year'/);
 assert.match(vodFilterOptionsService, /'lang' => 'vod_lang'/);
 assert.match(vodFilterOptionsService, /Db::name\(self::VOD_TABLE\)/);
-assert.match(vodFilterOptionsService, /where\('vod_status', 1\)/);
-assert.match(vodFilterOptionsService, /withoutDimension/);
-assert.match(vodFilterOptionsService, /typeScope/);
-assert.match(vodFilterOptionsService, /dimensionCandidates/);
-assert.match(vodFilterOptionsService, /globalExtendValue/);
-assert.doesNotMatch(vodFilterOptionsService, /optionExists/);
-assert.match(vodFilterOptionsService, /\$maccms\['app'\]\['vod_extend_' \. \$dimension\]/);
-assert.match(vodFilterOptionsService, /where\(\$field, 'in', array_values\(\$values\)\)/);
-assert.match(vodFilterOptionsService, /field\(\$field \. ' as value, count\(\*\) as total'\)/);
-assert.match(vodFilterOptionsService, /allowed_classes' => false/);
+assert.match(vodFilterOptionsService, /distinct\(true\)/);
+assert.match(vodFilterOptionsService, /configuredPriority/);
+assert.match(vodFilterOptionsService, /namedOptions/);
+assert.match(vodFilterOptionsService, /labelsForRawValue/);
+assert.match(vodFilterOptionsService, /aliasQuery/);
+assert.match(vodFilterOptionsService, /vod_extend_/);
+assert.match(vodFilterOptionsService, /field\(\$field \. ' as value'\)/);
+assert.doesNotMatch(vodFilterOptionsService, /where\('vod_status', 1\)|count\(\*\) as total|typeScope|withoutDimension/);
 assert.match(vodFilterOptionsService, /isValidYearValue/);
 assert.match(vodFilterOptionsService, /preg_match\('\/\^\[0-9\]\{4\}\$\/'/);
-assert.match(vodFilterOptionsService, /max\(\$params\['limit'\] \* 4, 120\)/);
-assert.match(vodFilterOptionsService, /count\(\$options\) >= \$params\['limit'\]/);
+assert.match(vodFilterOptionsService, /array_slice\(\$options, 0, \$limit\)/);
 assert.doesNotMatch(vodFilterOptionsService, /where\(\$field, 'regexp'/);
 assert.match(vodFilterOptionsService, /date\('Y'\)/);
-assert.match(vodFilterOptionsService, /group\(\$field\)/);
 
 const deviceAddonSql = readAddonFile("install.sql");
 assert.match(deviceAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);
@@ -3565,6 +3572,36 @@ assert.match(appJs, /data-dynamic-vod-filters/);
 assert.match(appJs, /data-filter-endpoint/);
 assert.match(appJs, /data-filter-kind/);
 assert.match(appJs, /data-filter-value/);
+assert.match(appJs, /function dynamicFilterHref/);
+assert.match(appJs, /function createDynamicFilterLink/);
+assert.match(appJs, /function filterOptionIsActive/);
+assert.match(appJs, /option\.query/);
+assert.match(appJs, /option\.label/);
+assert.match(appJs, /__PINGFANG_FILTER_VALUE__/);
+assert.match(appJs, /limit: "1000"/);
+const dynamicFilterHelperStart = appJs.indexOf("  function normalizeFilterOptions");
+const dynamicFilterHelperEnd = appJs.indexOf("  function applyDynamicVodFilters", dynamicFilterHelperStart);
+assert.ok(dynamicFilterHelperStart >= 0 && dynamicFilterHelperEnd > dynamicFilterHelperStart);
+const dynamicFilterHelpers = new Function(
+  `${appJs.slice(dynamicFilterHelperStart, dynamicFilterHelperEnd)}\nreturn { normalizeFilterOptions, dynamicFilterHref, filterOptionIsActive };`
+)();
+const normalizedDynamicOptions = dynamicFilterHelpers.normalizeFilterOptions([
+  { value: "美国", label: "美国", query: "美国,USA" },
+  { value: "美国", label: "重复项", query: "USA" }
+]);
+assert.deepEqual(normalizedDynamicOptions, [{ value: "美国", label: "美国", query: "美国,USA", total: 0 }]);
+assert.equal(dynamicFilterHelpers.filterOptionIsActive(normalizedDynamicOptions[0], "USA"), true);
+assert.equal(dynamicFilterHelpers.filterOptionIsActive(normalizedDynamicOptions[0], "美国,USA"), true);
+assert.equal(dynamicFilterHelpers.filterOptionIsActive(normalizedDynamicOptions[0], "英国"), false);
+const dynamicFilterRow = {
+  getAttribute(name) {
+    return name === "data-filter-href-template" ? "/vod/show/area/__PINGFANG_FILTER_VALUE__" : "";
+  }
+};
+assert.equal(
+  dynamicFilterHelpers.dynamicFilterHref(dynamicFilterRow, "美国,USA"),
+  `/vod/show/area/${encodeURIComponent("美国,USA")}`
+);
 assert.match(appJs, /pingfangFilterReady/);
 assert.match(appJs, /X-Requested-With/);
 assert.match(appJs, /function initSourceQuality/);

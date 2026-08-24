@@ -1,15 +1,17 @@
 # 主题与本地预览
 
-本文说明 `pingfangvideo` MacCMS V10 主题及两套本地预览工具的当前边界。当前代码是实现事实源；`docs/superpowers/**` 主要保存历史设计和实施计划，不能替代本说明、`docs/maccms-theme-development-spec.md` 或 [MacCMS 官方主题文档](https://www.maccms.la/theme)。
+本文说明 `pingfangvideo` MacCMS V10 主题及本地静态、专项与 PHP 预览链的当前边界。当前代码是实现事实源；`docs/superpowers/**` 主要保存历史设计和实施计划，不能替代本说明、`docs/maccms-theme-development-spec.md` 或 [MacCMS 官方主题文档](https://www.maccms.la/theme)。
 
 ## 模块职责与边界
 
 | 路径 | 职责 | 是否进入生产主题包 |
 | --- | --- | --- |
-| `template/pingfangvideo/**` | MacCMS 生产主题、共享前端资源和播放器提示页 | 是 |
+| `template/pingfangvideo/**` | MacCMS 生产主题、共享前端资源、内置游戏、七夕粒子页和播放器提示页 | 是 |
 | `maccms-player/**` | 独立的 HLS 性能版播放器源码 | 否；单独生成播放器归档 |
 | `preview/index.html` | 浏览器端路由与渲染的静态交互预览 | 否 |
-| `preview/data.json` | 两套本地预览共用的样例数据 | 否 |
+| `preview/qixi.html` | 直接加载生产 CSS 与七夕粒子脚本的专项静态预览 | 否 |
+| `preview/data.json` | 通用静态预览与 PHP 预览共用的样例数据 | 否 |
+| `preview/game-ticket.json` | 静态预览中的联机游戏失败桩，不签发真实票据 | 否 |
 | `server/**` | PHP 8.4 后端渲染预览，不是 MacCMS 模板引擎 | 否 |
 | `docker/**`、`docker-compose.yml` | PHP 8.4 + Apache 的预览运行环境 | 否 |
 
@@ -25,10 +27,10 @@
 - `html/vod/`：视频分类、筛选、搜索、详情、播放、试看、下载、版权、密码和剧情页面。
 - `html/user/`、`comment/`、`gbook/`、`book/`：用户和反馈相关页面。
 - `html/art/`、`topic/`、`actor/`、`role/`、`plot/`、`website/`：标准模块的页面或兜底页面。
-- `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、站点地图和订阅输出。
+- `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、七夕粒子页、站点地图和订阅输出。
 - `css/style.css`：全站样式、语义 token、六套主题和响应式规则；像素主题标题和控件使用本地 Fusion Pixel Font 12px 比例简体中文字形，字体及其 OFL-1.1 许可证位于 `css/fonts/`。
-- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；像素主题切换时复用本地 `canvas-confetti` 1.9.4 浏览器构建生成一次性方形边缘粒子，ISC 许可证随文件保留；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间。
-- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证，以及一方实现的竹知了三阶段节奏玩法；竹知了包含指针/键盘操作、动态共鸣区、竹风与反向事件、分项评级和 Web Audio 合成声音，不提供可匿名打开的独立 `index.html`。五子棋和你画我猜也是一方实现，浏览器协议位于 `js/multiplayer-games.js`。所有游玩页都由 `html/label/game-*.html` 按 `$user.user_id` 服务端分支加载脚本。
+- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；像素主题切换时复用本地 `canvas-confetti` 1.9.4 浏览器构建生成一次性方形边缘粒子，ISC 许可证随文件保留；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间；`js/qixi-particle-rose.js` 负责七夕 Canvas 点云花束及重播、分享和拖动交互。
+- `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证，以及一方实现的竹知了三阶段节奏玩法；竹知了包含指针/键盘操作、动态共鸣区、竹风与反向事件、分项评级和 Web Audio 合成声音，不提供可匿名打开的独立 `index.html`。五子棋和你画我猜也是一方实现，浏览器协议位于 `js/multiplayer-games.js`。游戏模板同时保留会员、游客与延迟脚本标记，`app.js` 读取 `user_id` Cookie 后切换可见区块并按需加载脚本；真实联机票据仍由服务端接口校验登录态后签发。
 - `images/`：站点、品牌及敦煌/像素主题 SVG；生产模板通过 `{$maccms.path_tpl}` 或主题 CSS 相对路径引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
@@ -97,6 +99,8 @@ HTTP GET /preview/index.html
 
 静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只模拟会员视觉。2048、俄罗斯方块和竹知了可本地操作，联机页面因没有真实 MacCMS 登录票据会显示未连接，不能把该参数当作联机鉴权。
 
+七夕专项预览是独立链路：`preview/qixi.html` 直接加载生产 `style.css` 和 `qixi-particle-rose.js`，不经过 `preview/index.html` 的路由渲染，也不经过 PHP `render_page()`。`preview/game-ticket.json` 只为静态游戏预览返回固定失败结果，不代表生产票据接口。
+
 ### PHP 预览链
 
 ```text
@@ -116,7 +120,7 @@ PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。�
 - 播放相关修改不得移除 `{$player_data}`、`{$player_js}` 或原生回退链。
 - 改动共享 CSS/JS 标记时，要同时检查生产模板、静态预览和 PHP renderer，但不要把预览标记直接复制到生产模板。
 - `preview/data.json` 使用远程图片和演示视频，离线或受限网络下媒体加载失败不代表生产主题故障。
-- `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__`、`__PINGFANG_PROMPT_VERSION__`、`__PINGFANG_GAME_VERSION__` 和 `__PINGFANG_MULTIPLAYER_VERSION__` 由打包流程按文件内容处理，不应在源码中手工替换为一次性版本号。
+- `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__`、`__PINGFANG_PROMPT_VERSION__`、`__PINGFANG_GAME_VERSION__`、`__PINGFANG_MULTIPLAYER_VERSION__` 和 `__PINGFANG_QIXI_VERSION__` 由打包流程按文件内容处理，不应在源码中手工替换为一次性版本号。
 
 ## 本地使用与验证
 
@@ -130,6 +134,7 @@ php -S 127.0.0.1:8099 -t .
 
 ```text
 http://127.0.0.1:8099/preview/index.html?route=home
+http://127.0.0.1:8099/preview/qixi.html
 ```
 
 游戏权限与玩法可分别访问：
@@ -142,7 +147,7 @@ http://127.0.0.1:8099/preview/index.html?route=game-gomoku&member=1
 http://127.0.0.1:8099/preview/index.html?route=game-drawguess&member=1
 ```
 
-第一条验证未登录拦截，其余地址只用于检查会员分支视觉。生产环境仍以 MacCMS 注入的 `$user.user_id` 为准，游戏大厅和具体游玩页在未登录分支都不会输出游戏脚本。联机行为需同时运行 `services/game-server`、配置同源代理，并由已登录 MacCMS 页面取得短票据。
+第一条验证未登录拦截，其余地址只用于检查会员视觉。生产主题由 `app.js` 根据 `user_id` Cookie 切换游戏区块并按需加载脚本；这只是前端展示门槛，不能替代服务端票据接口的登录校验。联机行为需同时运行 `services/game-server`、配置同源代理，并由已登录 MacCMS 页面取得短票据。
 
 PHP 渲染回归使用仓库脚本：
 
@@ -175,6 +180,7 @@ npm run verify:release
 - `preview/index.html` 通过绝对路径 `/preview/data.json` 取数，直接双击文件会解析到错误的文件系统根路径，并可能受浏览器模块/CORS 限制。
 - Docker 通过 `PINGFANG_PREVIEW_DATA` 指向 `/var/www/html/preview/data.json`；宿主机 PHP CLI 未设置该变量时，`load_data()` 默认读取仓库根目录的 `preview/data.json`。
 - `npm run verify:preview` 验证宿主机 PHP CLI 渲染链；修改 Compose 或容器路径时仍应额外执行 `docker compose config` 并访问容器入口。
+- `npm run verify:preview` 不执行 `preview/qixi.html` 的 Canvas 动画；七夕视觉、拖动、重播、分享和 reduced-motion 行为仍需浏览器验收。
 - 主题内未加载、未发布的实验播放器和 React 榜单脚本已移除；独立的 `maccms-player/` 只进入自己的播放器归档，仍需明确发布授权和线上播放验收才能启用。
 
 ## 历史文档状态

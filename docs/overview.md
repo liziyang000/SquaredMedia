@@ -1,10 +1,12 @@
 # SquaredMedia 项目总览
 
-最后核验：2026-08-10
+最后核验：2026-08-13
+
+源码基线：`master` @ `da28810`（核验时与 `origin/master` 同步）
 
 ## 项目定位
 
-本仓库维护一套 MacCMS V10 视频站主题，以及与主题交付直接相关的插件、预览、验证、发布和数据维护工具。
+本仓库维护一套 MacCMS V10 视频站主题，以及与主题交付直接相关的插件、预览、验证、发布和数据维护工具。当前 `master` 的生产前端仍是 MacCMS 模板，不包含独立的 React/Next.js 应用；其他分支或 worktree 中尚未合入的实现不属于本文范围。
 
 仓库名称是 `SquaredMedia`，但当前代码中的生产运行时标识仍是：
 
@@ -34,6 +36,7 @@ SquaredMedia/
 ├── template/pingfangvideo/       # 可部署的 MacCMS 主题源码
 ├── maccms-player/                # 独立 HLS 性能版播放器源码
 ├── tests/                        # Node.js 与 PHP 回归测试
+├── 项目管理/                    # Obsidian 项目、任务、里程碑与 Codex 历史档案
 ├── docker-compose.yml            # 本地 PHP 预览容器编排
 ├── package.json                  # 项目命令入口
 └── README.md                     # 安装、发布与部署使用说明
@@ -45,15 +48,16 @@ SquaredMedia/
 
 | 模块 | 主要职责 | 是否进入当前发布流程 | 详细说明 |
 | --- | --- | --- | --- |
-| `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
+| `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片、内置游戏、播放器提示页和七夕 Canvas 粒子页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
 | `maccms-player/` | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包并由完整部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
-| `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
+| `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染；另提供独立七夕静态预览，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
 | `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态筛选、线路检测和联机游戏短票据 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `addons/vodops/` | 通用质量扫描、CSV、显式单条修复；完整吸收豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检、AI 复核和日志，并兼容原 `douban_*` 数据及 `admin/douban/*` 路由 | 是，作为一个插件独立打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
 | `docs/` | 保存当前规范、模块上下文、操作手册和历史设计记录 | 不进入生产包 | 本文与各模块文档 |
+| `项目管理/` | 原生 Obsidian Bases 项目管理、任务/里程碑记录和 Codex 对话快照 | 不进入生产包 | [项目管理说明](../项目管理/README.md) |
 
 ## 核心工作流
 
@@ -62,7 +66,8 @@ SquaredMedia/
 1. 以 `template/pingfangvideo/` 为生产事实源。
 2. 修改模板前遵循 [MacCMS 主题开发规范](maccms-theme-development-spec.md)，并阅读对应的 MacCMS 官方主题文档。
 3. `preview/` 和 `server/` 只用于本地验证；禁止把本地路径、Docker、localhost 或 npm 命令写入生产主题。
-4. 页面、标签或路由变化应同步更新测试和兼容性校验。
+4. 七夕页面由 `html/label/qixi.html` 与 `js/qixi-particle-rose.js` 组成，可通过 `preview/qixi.html` 独立验收；它不经过通用静态路由或 PHP renderer。
+5. 页面、标签或路由变化应同步更新测试和兼容性校验。
 
 ### 验证与发布
 
@@ -83,7 +88,9 @@ npm run package
 npm run verify:release
 ```
 
-当前打包脚本生成主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务五个归档。`npm run deploy` 安装主题、两个插件并更新联机游戏进程，不安装独立播放器。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
+当前打包脚本生成主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务五个归档。`npm run deploy` 安装主题、两个插件并更新联机游戏进程，不安装独立播放器；`npm run deploy:vodops` 只发布视频数据中心。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
+
+GitHub Actions 只执行验证、打包并上传这五个发布单元，不连接生产服务器，也不修改数据库。
 
 ### 数据维护
 
@@ -103,11 +110,14 @@ npm run verify:release
 - `docs/maccms-vod-*.md` 是数据维护操作手册。
 - `docs/superpowers/` 保存仍有追溯价值的带日期设计，以及未进入当前实现的历史计划；其中的路径和预期结果不自动代表当前实现。
 - `docs/vod-poster-provider-matches-20260716.md` 是特定日期的生产数据审计快照，可能随持续采集或人工修复失效。
+- `项目管理/` 保存 Obsidian 项目记录和带时间点的 Codex 历史快照；理解当前实现时仍应以源码、测试和本目录中的现行文档为准。
 
 ## 已知边界
 
 - 本仓库不是完整的 MacCMS 应用，不包含 MacCMS 核心、生产数据库或服务器运行时配置。
 - 本地模拟数据只能验证页面结构和交互流程，不能证明真实模板标签、登录态、插件钩子或生产数据已经正确运行。
+- `preview/qixi.html` 直接加载生产 CSS 与七夕粒子脚本；`npm run verify:preview` 不执行该 Canvas 动画，视觉与交互仍需浏览器验收。
 - Docker 通过 `PINGFANG_PREVIEW_DATA` 显式指向容器内挂载的样例数据；自动路由验证仍以 `npm run verify:preview` 为准，浏览器静态预览需通过 HTTP 服务访问 `/preview/index.html`。
 - `ops/security/gptbot-ip-rules.json` 是独立规则数据文件，仓库内没有自动应用它的脚本；使用前需要在目标防火墙或面板中再次核对格式、来源和有效期。
+- `scripts/figma-product-baseline/` 是手工运行的历史设计基线工具，不在 `package.json` 或 CI 发布链中；其中固定的提交和审批短语不代表当前 `master`。
 - NOTE：仓库没有为未跟踪的 `output/` 目录定义稳定用途；长期资料应放入职责明确的 `docs/`，可再生成的结果应放入被忽略的生成目录。

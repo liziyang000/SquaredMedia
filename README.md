@@ -165,6 +165,10 @@ not be included.
 
 Deploy the verified package to a MacCMS server over SSH:
 
+For the operator-run checklist, preflight, post-deployment verification, and
+component-specific rollback boundaries, see
+[`docs/manual-theme-addon-deployment.md`](docs/manual-theme-addon-deployment.md).
+
 ```bash
 DEPLOY_HOST=example.com \
 DEPLOY_USER=root \

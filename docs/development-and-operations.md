@@ -23,7 +23,7 @@
 | `npm run dev:web` | 启动 `apps/web` 的 Next.js 开发服务器 | 写入已忽略的 `apps/web/.next/` |
 | `npm run lint` | 检查主题 JavaScript/CSS、React TypeScript/Oxc 和 Prettier 格式 | 否 |
 | `npm run format` | 用 Prettier 格式化主题脚本、React 工程与配置文件 | 是，直接修改被覆盖的源码与配置 |
-| `npm test` | 运行模板、React/API、播放器、联机房间/WebSocket、设备会话与控制器 PHP 测试及海报修复单元测试 | 否；测试只写入临时或忽略目录 |
+| `npm test` | 运行模板、React/API、播放器、联机房间/WebSocket、设备会话与控制器、海报修复、VodOps 质量模块及豆瓣模块测试 | 否；测试只写入临时或忽略目录 |
 | `npm run typecheck:web` | 生成 App Router 类型并用严格 TypeScript 配置检查 Next.js 工程 | 写入已忽略的 `.next/types/` |
 | `npm run build:web` | 生成 standalone Next.js `.next` 产物，并验证无全页 CSR bailout 的 Session-first 静态壳 | 是，重建已忽略的 `apps/web/.next/` |
 | `npm run verify:web-prerender` | 只读检查现有 Next 产物中的静态壳和 prerender manifest | 只读 `apps/web/.next/` |
@@ -36,14 +36,15 @@
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
-| `npm run package` | 默认重建五个归档；`DEPLOY_SCOPE=backend/api` 只缩小 MacCMS 主题/addon 子集，根脚本仍会追加播放器和游戏包 | 是，先重建当前 MacCMS scope，再加入独立产物 |
+| `npm run package` | 默认重建主题、`pingfangdevice`、`pingfangapi`、`vodops`、独立播放器和联机游戏服务六个归档 | 是，先重建 MacCMS 产物，再加入独立产物 |
 | `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物 | 是，仅替换播放器目录和归档 |
 | `npm run package:games` | 只重建自包含的联机游戏服务包 | 是，仅替换游戏服务目录和归档 |
-| `npm run verify:release` | 检查当前 MacCMS scope，并始终继续检查独立播放器和游戏归档 | 只读 `dist/` |
+| `npm run verify:release` | 解包检查六个归档的结构、生产边界、资源版本和依赖版本 | 只读 `dist/` |
 | `npm run verify:player-release` | 单独检查播放器归档的严格白名单、文件一致性与链接边界 | 只读 `dist/` |
 | `npm run verify:game-server-release` | 检查游戏服务源码、部署样例、固定 `ws` 版本和敏感文件边界 | 只读 `dist/` |
 | `npm run start:games` | 启动本机联机游戏服务；必须先设置签名密钥和允许的 Origin | 否 |
 | `npm run audit:legacy-access` | 对本地 Nginx access log 做旧入口访问审计，不输出原始请求或访问者信息 | 否 |
+| `npm run deploy:vodops` | 只发布并验证合并后的 VodOps 数据中心 | 写入远端插件、后台载荷、调度与缓存 |
 | `npm run deploy:games` | 单独验证、打包并部署联机游戏服务，复用现有签名密钥 | 写入远端服务、插件配置和 Nginx 配置 |
 
 提交主题相关修改前，至少执行：
@@ -100,7 +101,7 @@ npm run verify:release
 
 ## 打包与 `dist/`
 
-`scripts/package-theme.mjs` 每次运行都会先递归删除整个 `dist/`。默认生成主题和两个插件；`DEPLOY_SCOPE=backend` 只生成两个插件，`DEPLOY_SCOPE=api` 只生成 API。根级 `npm run package` 随后无条件追加独立播放器与游戏服务，因此三个 scope 的最终归档数分别是 5、4、3：
+`scripts/package-theme.mjs` 每次运行都会先递归删除整个 `dist/`。默认生成主题和三个插件；根级 `npm run package` 随后追加独立播放器与游戏服务，共生成六个归档。部署脚本使用 `backend`、`api` 或 `vodops` scope 时只上传和替换对应的 MacCMS 发布单元，不能据此把播放器或游戏服务视为同一回滚事务：
 
 ```text
 dist/
@@ -110,6 +111,8 @@ dist/
 ├── pingfangdevice.tar.gz
 ├── pingfangapi/
 ├── pingfangapi.tar.gz
+├── vodops/
+├── vodops.tar.gz
 ├── pingfangplayer-player/
 ├── pingfangplayer-player.tar.gz
 ├── pingfanggames-server/
@@ -118,15 +121,15 @@ dist/
 
 打包过程有以下固定行为：
 
-- `pingfangvideo` 来自 `template/pingfangvideo/`，两个插件包分别来自 `addons/pingfangdevice/` 和 `addons/pingfangapi/`。
-- 两个插件的 `application/` 都保留 MacCMS 标准插件应用载荷结构；SSH 部署会把兼容控制器复制到对应 CMS 应用目录。
+- `pingfangvideo` 来自 `template/pingfangvideo/`，三个插件分别来自 `addons/pingfangdevice/`、`addons/pingfangapi/` 和 `addons/vodops/`。
+- 三个插件的 `application/` 都保留 MacCMS 标准应用载荷结构；SSH 部署会复制设备/API 兼容控制器，以及 `vodops` 内的 VodOps/Douban 两个后台控制器和 `view_new` 统一工作台，豆瓣模块片段随插件目录发布。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
-- 主题、设备/API 插件和独立播放器打包只接受受控普通文件/目录，并拒绝或排除链接等异常条目；API 发布校验还会拒绝额外顶层路径并逐个执行 PHP 语法检查。游戏服务打包当前只过滤点文件并复制整个固定 `ws` 包，验证器尚未做同等级的精确白名单、tar 链接类型和路径穿越检查。
-- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器和联机游戏脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
+- 主题、插件和独立播放器打包只接受受控普通文件/目录，并拒绝或排除链接等异常条目；API 与 VodOps 发布校验还会拒绝额外顶层路径并执行 PHP 语法或结构检查。游戏服务打包当前只过滤点文件并复制整个固定 `ws` 包，验证器尚未做同等级的精确白名单、tar 链接类型和路径穿越检查。
+- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器、竹知了交互、联机游戏脚本和七夕粒子脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
 - `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
-- 当前自动化打包主题、`pingfangdevice`、`pingfangapi`、独立播放器和联机游戏服务，不会打包其他 `addons/` 子目录；`npm run deploy` 会部署主题、两个生产插件与游戏服务，但不会安装独立播放器。`npm run rollback` 仍只回滚主题，不删除插件、播放器或游戏服务。
+- 当前自动化不会包含其他 `addons/` 子目录，也不会生成独立 `douban.tar.gz`。`npm run deploy` 会部署主题、三个生产插件与游戏服务，但不会安装独立播放器。`npm run rollback` 默认回滚主题，也可用 `ROLLBACK_SCOPE=vodops` 回滚合并插件代码和应用载荷；两种模式都不删除数据库数据。
 
 根目录 `dist/` 已被 `.gitignore` 忽略，是可重复生成的主题/插件发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
@@ -245,26 +248,38 @@ source scripts/deploy-ping2.env
 DEPLOY_SCOPE=api npm run deploy
 ```
 
-`DEPLOY_SCOPE` 只接受 `all`、`backend` 或 `api`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题，适合首次建立生产 API 依赖基线。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会核对服务器已安装的设备服务和 hook 文件摘要、`app_begin` 登记及完整设备会话表结构，不兼容时直接失败并要求先执行一次 `backend` 部署。发布脚本会对包含未提交文件的当前工作区计算内容指纹，并额外纳入三个实际发布源中会进入归档的 Git ignored 文件：该指纹首次发布仍执行完整门禁并写入 `.cache/deploy-gates/v1/`；相同指纹的后续 API-only 发布只运行生产 API、控制器和设备会话测试，并只打包、验证 API 归档。任一发布输入、测试、门禁脚本或工具链变化都会使成功章失效并恢复完整门禁。
+`DEPLOY_SCOPE` 只接受 `all`、`backend`、`api` 或 `vodops`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题，适合首次建立生产 API 依赖基线。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会核对服务器已安装的设备服务和 hook 文件摘要、`app_begin` 登记及完整设备会话表结构，不兼容时直接失败并要求先执行一次 `backend` 部署。VodOps-only 的边界见下文专节。发布脚本会对包含未提交文件的当前工作区计算内容指纹，并额外纳入实际发布源中会进入归档的 Git ignored 文件：该指纹首次发布仍执行完整门禁并写入 `.cache/deploy-gates/v1/`；相同指纹的后续 API-only 发布只运行生产 API、控制器和设备会话测试，并只打包、验证 API 归档。任一发布输入、测试、门禁脚本或工具链变化都会使成功章失效并恢复完整门禁。
 
 API-only 在替换文件前为旧插件目录和旧应用控制器生成同一个成对备份 ID；发布
 成功后终端会输出对应的
 `API_ROLLBACK_BACKUP=<id> npm run rollback:api`，应随发布记录保存。
 
+### VodOps-only 发布
+
+只发布合并后的视频数据中心时使用专用范围，不要执行上面的全量命令：
+
+```bash
+source scripts/deploy-ping2.env
+npm run deploy:vodops
+```
+
+`deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装一个 `vodops`：先只读检查现有七张 `douban_*` 表的 InnoDB 引擎和必要字段，兼容后才把 VodOps/豆瓣目录、应用载荷、快捷菜单、Hook 配置和 crontab 写入同一个 `vodops.backup.*` 迁移快照；随后停用独立 `addons/douban` 和旧公开豆瓣桥接，保留旧 VodOps 配置值，增量创建并校验五张 `vodops_*` 和七张兼容保留的 `douban_*` 表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，归并旧快捷菜单、移除旧版 `response_end` hook，安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。文件替换后发生错误时会自动恢复快照内的文件和 Cron、保留失败版本并保持非零退出；数据库增量不做反向删除。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器，也不会删除旧豆瓣数据；旧表引擎或字段不兼容时会在替换任何插件文件前停止并列出缺口。
+
 默认全量发布顺序如下：
 
 1. `deploy-theme.sh` 的本地 full gate 执行 `npm test`、Lint、模板检查、兼容验证、预览验证、打包和归档验证；它不会自行执行 `npm ci`、React typecheck、E2E 或 `build:web`。需要完整 React 门禁时，应先按本文“开发验证”命令或 CI 完成这些步骤。
-2. 重建 `dist/`，验证主题、两个插件、播放器和联机游戏服务五个发布归档。
-3. 上传主题、`pingfangdevice` 与 `pingfangapi` 归档到远端受控临时路径；播放器归档不上传，游戏服务由后续独立阶段处理。
-4. 在修改任何线上文件前解压并检查必需文件、全部插件 PHP 语法、数据库连接及 API 所需的 `ulog_point`、`ulog_duration` 两列。
-5. 安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
-6. 把旧设备插件配置中仍存在的同名设置值合并到新配置，避免发布清空设备限制或联机签名密钥。
-7. 安装并验证 `pingfangapi`：备份旧插件和应用控制器，复制标准 `application/` 载荷；该插件不登记 hook，也不执行 SQL。
+2. 重建 `dist/`，验证主题、三个插件、播放器和联机游戏服务六个发布归档。
+3. 上传主题、`pingfangdevice`、`pingfangapi` 与 `vodops` 归档到远端受控临时路径；播放器归档不上传，游戏服务由后续独立阶段处理。
+4. 先安装并验证 `pingfangdevice`：备份旧插件，替换插件目录和 `application/` 载荷中的兼容控制器，补登记 `app_begin` hook，执行 `install.sql`，检查 PHP 语法和 `login_check_hash` 字段。
+5. 把旧插件配置中仍存在的同名设置值合并到新配置，避免主题发布清空设备限制或联机签名密钥。
+6. 安装并验证 `pingfangapi`：备份旧插件和应用控制器，复制标准 `application/` 载荷；该插件不登记 hook，也不执行 SQL。
+7. 安装并验证合并后的 `vodops`：先只读核对旧 `douban_*` 必要字段，再用同一时间戳快照旧 VodOps/豆瓣目录和应用载荷，停用独立豆瓣目录及旧公开桥接，保留已有配置，创建或复用五张 `vodops_*` 与七张 `douban_*` 表，幂等补齐分类范围与 Worker 字段并实际查询验证扫描锁、豆瓣入队锁，移除旧 `response_end` hook，安装由 `flock` 防重入的每分钟 Cron，并把旧 VodOps/豆瓣菜单归并为一个“视频数据中心”入口。
 8. 备份现有主题为 `pingfangvideo.backup.<时间戳>`，替换主题目录并默认清理 `runtime/cache`、`runtime/temp`、后台和前台视图缓存。
-9. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记。
-10. 同一次回环验证会串行执行最多 5 个 API 请求：`home_v2&compact=1`、`navigation`、与前端一致的 `scope=library` 目录第一页与 facets、分类统计，以及首页首个可见频道第一页。单个请求最长 10 秒，全部 API 网络请求共享 30 秒预算；任一性能超时、错误 DTO 或请求预算耗尽都会停止后续请求并触发当前 scope 的文件快照恢复。服务器启用地区访问限制且本机回环被策略拒绝时，只接受 HTTP 403、`code=403`、`msg=当前地区不可访问` 的精确 JSON 策略响应，并明确记录“未预热”。未配置 `DEPLOY_SITE_HOST` 时不会执行真实 API smoke，不能据此宣称服务器 API 已验收。
-11. MacCMS 阶段成功后上传联机服务包，原子切换 `/opt/pingfanggames/current`，复用已有密钥或首次生成密钥，并同步插件配置、systemd 与 Nginx。
-12. 校验 Nginx 配置、重启并启用游戏服务、检查 `/healthz`，再按服务器实际管理方式无中断重载 Nginx。
+9. 配置了 `DEPLOY_SITE_HOST` 时，从服务器本机把真实 Host/SNI 解析到 `127.0.0.1`，检查 HTTP 状态和可选响应标记；同一次回环验证还会检查 API 的关键只读 action，任一超时、错误 DTO 或请求预算耗尽都会停止后续请求并触发当前 scope 的文件快照恢复。
+10. MacCMS 阶段成功后上传联机服务包，原子切换 `/opt/pingfanggames/current`，复用已有密钥或首次生成密钥，并同步插件配置、systemd 与 Nginx。
+11. 校验 Nginx 配置、重启并启用游戏服务、检查 `/healthz`，再按服务器实际管理方式无中断重载 Nginx。
+
+VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`。若服务器由 systemd timer、面板计划任务或其他调度器接管，可在发布时设置 `VODOPS_INSTALL_CRON=0`，再按每分钟一次调用 `php <站点根>/addons/vodops/bin/vodops-worker.php --max-chunks=20 --max-seconds=50`；否则勾选“后台 Worker”的任务在页面关闭后不会前进。Worker 空闲时不输出，活动记录写入 `runtime/log/vodops-worker.log`，需要纳入现有日志轮转。
 
 需要保留缓存时可设置 `DEPLOY_CLEAR_CACHE=0`，但只能用于明确的维护场景。站点回环验证能识别 PHP/Nginx 错误页、错误虚拟主机和缓存重建失败，但不会检查浏览器登录流程、外部 DNS/CDN 可达性，因此脚本成功仍不等于完整线上验收。
 
@@ -275,6 +290,8 @@ API-only 在替换文件前为旧插件目录和旧应用控制器生成同一�
 - 当前 React 和插件管理入口使用 `home_v2&compact=1`；兼容 `home` 仅供旧发布包和回滚，仍须返回 JSON envelope 且列表没有原始播放 URL。`home_v2` 的轮播/年度榜不超过 5 条、最新/每频道不超过 6 条，卡片无剧集和播放字段，`navigation` 只返回站点名与可见频道；`content&page=1&page_size=24` 返回真实总数和当前页且卡片 `episodes` 为空，第二页 ID 与第一页不重复，重复请求和翻页不会再次执行相同的全表总数统计，`detail&vod_id=<id>` 可独立读取完整剧集；`session` 能签发 CSRF，真实账号登录、收藏、历史和设备撤销均按当前用户隔离。
 - `playback` action 只返回同源 `pingfangapi/stream` 描述符；React 直接使用 Artplayer/HLS，`stream` 会重新执行 MacCMS 播放权限并仅对 `ps=0` 直连媒体返回 302。原 `pingfangapi/player` 保留作原生模板与回滚，React 不得重新嵌入 iframe。
 - 使用真实后台配置验收登录验证码、评论审核与黑名单、留言/报错、顶踩和评分；确认注册、注册验证码和找回 action 返回 404，新旧注册/找回页面路径族返回 410。
+- 超级管理员可从快捷菜单打开 `vodops`，分别验证仅页面驱动和“后台 Worker”任务，执行一批扫描、继续或结束任务，并导出当前筛选 CSV；Worker 验收应关闭后台页且不制造任何前台访问，等待下一次 Cron 后刷新任务，确认进度或心跳前进，并检查 `crontab -l` 中当前站点标记恰好一条。确认已结束任务为支持类型显示修复侧边栏，播放和重复候选仍只显示原生编辑入口；未取得单独的数据写入授权时，只检查预览，不点击确认修改或回滚，并确认部署过程没有写入视频主表。
+- 在同一工作台切换到“豆瓣匹配与同步”，确认没有打开第二套页面壳层，旧 `admin/douban/index` 跳转到该模块，其余 `admin/douban/*` 动作仍受管理员登录保护，现有配置、元数据、任务、候选、日志和体检历史能够读取；发布验收只做查询和预览，不执行真实同步、评分校准、图片回滚或批量任务。
 - MacCMS 缓存目录仍可由 Web 进程写入。
 - 远端实际主题和插件文件来自本次归档，并记录本次生成的备份目录名。
 
@@ -349,11 +366,13 @@ location 没有关闭、采样或条件过滤 access log；导出后文件不再
 - `DEPLOY_PATH` 必须是绝对路径并以 `/template` 结尾；远端还会解析真实路径并要求同级 MacCMS `application/database.php` 存在，避免把固定插件目录派生到根目录或无关站点。
 - 当前 scope 使用的远端上传目标只允许是 `/tmp` 下的单个 `.tar.gz` 文件；上传前拒绝已存在文件或符号链接，退出清理也只删除本次 scope 使用且已验证的普通文件，不递归删除调用方提供的目录。
 - 回环请求使用 `curl -k`，只用于绕过服务器本机访问虚拟主机时的证书信任问题；它不修改证书配置，也不能代替从公网检查 TLS、DNS 和 CDN。
-- 全量模式会替换远端主题和两个插件目录、修改 `application/extra/addons.php` 并执行数据库 DDL；`backend` 执行相同的后端更新但不修改主题；API-only 只替换 API 插件和控制器。三种模式运行前都必须再次核对主机、账号和 `DEPLOY_PATH`。
-- 全量模式通过预检后会保存主题、两个插件目录、两个应用控制器和 hook 配置的文件系统快照；`backend` 保存同一组后端文件但不保存或恢复主题；API-only 只保存 API 插件和控制器。安装或回环验证以非零状态退出时会自动恢复当前 scope 的快照并清缓存。恢复任一路径、缓存清理或快照完整性检查失败时会以状态 `95` 明确报错，并保留远端临时根、快照和本次上传归档；SSH 返回 `255` 时远端状态未知，也不会再次连接删除这些归档。
-- `pingfangdevice/install.sql` 只执行幂等的新增表/列操作，文件系统恢复不会删除这些加法式数据库结构；`SIGKILL`、主机掉电或恢复本身失败也无法由 shell trap 兜底，仍需检查终端输出和部署生成的备份。
-- `npm run rollback` 仍是一次成功发布后的显式主题回滚，不会主动回退插件或删除数据库结构。
-- 游戏服务部署是 MacCMS 文件事务之后的独立阶段，会单独备份服务环境、systemd、Nginx 和设备插件配置；该阶段失败时自动恢复上一个游戏服务版本，但不会回滚此前已经成功提交的主题与两个插件。
+- 全量模式会替换远端主题和三个插件目录，并按需修改 `application/extra/addons.php`、`application/extra/quickmenu.php`、应用控制器、hook、Cron 和数据库结构；`backend` 不修改主题，API-only 只替换 API 插件和控制器，VodOps-only 只处理合并的数据中心。所有 scope 运行前都必须再次核对主机、账号和 `DEPLOY_PATH`。
+- 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
+- 全量、`backend` 与 API-only 通过预检后保存当前 scope 的文件系统快照；安装或回环验证以非零状态退出时会尝试恢复快照并清缓存。恢复任一路径、缓存清理或快照完整性检查失败时会以状态 `95` 明确报错，并保留远端临时根、快照和本次上传归档；SSH 返回 `255` 时远端状态未知，也不会再次连接删除这些归档。
+- VodOps 安装会为插件目录、两个后台控制器、后台视图、旧公开豆瓣桥接、hook、快捷菜单配置和 crontab 创建同一份迁移快照。`deploy:vodops` 在缓存清理和回环验证完成前保持文件回滚保护；失败会恢复这些非数据库载荷与 Cron，但保留已经完成的增量数据库变化。完整部署中的保护也不会跨越后续主题或游戏服务阶段。
+- `pingfangdevice/install.sql` 与 VodOps 安装 SQL 都只执行幂等的新增或兼容更新；文件系统恢复不会反向删除这些数据库结构。`SIGKILL`、主机掉电或恢复本身失败也无法由 shell trap 兜底，仍需检查终端输出和部署生成的备份。
+- `npm run rollback` 默认是成功发布后的显式主题回滚；只有指定 `ROLLBACK_SCOPE=vodops` 时才恢复 VodOps 文件和应用载荷，两种模式都不删除数据库结构。
+- 游戏服务部署是 MacCMS 文件阶段之后的独立事务，会单独备份服务环境、systemd、Nginx 和插件配置；该阶段失败时自动恢复上一个游戏服务版本，但不会回滚此前已成功更新的主题与插件。
 
 API-only 安装成功后会保留共享同一 ID 的
 `pingfangapi.backup.<id>` 与 `Pingfangapi.php.backup.<id>`。API smoke 失败发生在
@@ -382,7 +401,7 @@ ROLLBACK_BACKUP=pingfangvideo.backup.20260701093000 npm run rollback
 
 默认回滚会把当前主题移为 `pingfangvideo.failed.<时间戳>`，复制选定备份为新的 `pingfangvideo`，并清理同一组 MacCMS 缓存。复制失败时脚本会尝试恢复刚移走的主题。
 
-此命令只回滚主题，不回滚 `pingfangdevice`、`pingfangapi`、应用控制器、hook 配置、数据库表结构或联机游戏服务。若故障来自插件或游戏服务发布，必须使用对应阶段留下的备份或 `deploy:games` 恢复链制定单独方案。主题回滚后仍需完成与发布后相同的线上验证。
+此命令只回滚主题，不回滚 `pingfangdevice`、`pingfangapi`、`vodops`、应用控制器、hook、Cron、数据库表结构或联机游戏服务。若故障来自插件或游戏服务发布，必须使用对应阶段留下的备份或恢复链制定单独方案。主题回滚后仍需完成与发布后相同的线上验证。
 
 ### PingFang API
 
@@ -397,6 +416,16 @@ API_ROLLBACK_BACKUP=<id> npm run rollback:api
 替换这两个目标、检查 PHP、清理缓存并执行真实 `home_v2&compact=1` 回环 smoke。
 它不修改主题、`pingfangdevice`、hook 或数据库。任一替换、校验、缓存清理或 smoke
 失败都会尝试恢复回滚前快照；恢复本身失败时以状态 `95` 报错并保留现场。
+
+### VodOps
+
+合并插件可显式回滚到 `addons/` 目录中的某个 `vodops.backup.*`：
+
+```bash
+ROLLBACK_SCOPE=vodops ROLLBACK_BACKUP=vodops.backup.20260810120000 npm run rollback
+```
+
+该模式读取备份内的迁移状态：首次合并发布可恢复发布前的 VodOps 与独立豆瓣目录、两个后台控制器、质量后台视图及当时存在的旧公开豆瓣桥接；后续发布则恢复上一版合并插件。切换或载荷恢复失败时会放回当前插件和应用文件。回滚不会修改 `vodops_*`、`douban_*` 表、快捷菜单、hook 或 Cron，因此数据库与调度兼容性必须结合目标备份版本复核。
 
 ## 数据维护工具
 
@@ -449,6 +478,7 @@ API_ROLLBACK_BACKUP=<id> npm run rollback:api
 pingfangvideo-theme  -> dist/pingfangvideo.tar.gz
 pingfangdevice-addon -> dist/pingfangdevice.tar.gz
 pingfangapi-addon    -> dist/pingfangapi.tar.gz
+vodops-addon         -> dist/vodops.tar.gz
 pingfangplayer-player -> dist/pingfangplayer-player.tar.gz
 pingfanggames-server -> dist/pingfanggames-server.tar.gz
 ```

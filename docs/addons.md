@@ -9,10 +9,10 @@
 | --- | --- | --- | --- | --- |
 | `pingfangdevice` | 管理会员设备会话；为主题提供动态筛选、线路检测和联机游戏短票据 | `__PREFIX__pingfang_device_session` | `app_begin` | 已纳入打包、发布校验和 SSH 部署 |
 | `pingfangapi` | 为 React 提供 MacCMS 内容、播放、会话、收藏、历史和设备 JSON API | 复用 `vod`、`user`、`ulog` 与设备会话表 | 无 | 已纳入打包、发布校验和 SSH 部署 |
-| `videolint` | 扫描视频库质量，记录、筛选、导出并人工标记问题 | `__PREFIX__pingfang_video_lint_scan`、`__PREFIX__pingfang_video_lint_issue` | 无 | 当前未纳入自动打包或部署 |
+| `vodops` | 通用质量扫描与单条修复；豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检和日志 | 五张 `vodops_*` 表及七张兼容保留的 `douban_*` 表 | 无前台钩子；质量扫描由 CLI/Cron Worker 执行，豆瓣外部请求由管理员动作或任务 Worker 明确触发 | 已作为一个插件纳入打包、发布校验和 SSH 部署 |
 
-三个插件的主类 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
-有 `install.sql` 的插件必须由部署环境另行执行；卸载代码不会自动删除历史数据。
+三个插件主类的 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
+仓库部署脚本会执行现有的 `install.sql`；其他安装方式必须确认安装器已导入对应 SQL。卸载代码不会自动删除历史数据。
 
 ## `pingfangdevice`
 
@@ -163,7 +163,7 @@ NEXT_PUBLIC_HOME_API_URL=/index.php/pingfangapi/index
 
 `tests/pingfang-api.test.php`、`tests/pingfang-api-controller.test.php` 与发布包校验覆盖分页参数、详情路由、服务、控制器 JSON 策略和静态安全边界，但不连接真实数据库。宣称生产可用前仍必须在 staging 完成：分页总数与跨页去重、组合筛选和关键词查询计划、详情字段对照、Cookie/CSRF 轮换、真实账号和设备撤销、收藏/历史用户隔离、付费记录保护，以及匿名/试看/付费/密码/版权的 `playback`、`stream` 和真实媒体播放验收。
 
-## `videolint`
+## `vodops` 统一视频数据中心
 
 ### 扫描边界与显式修复
 
@@ -202,7 +202,7 @@ NEXT_PUBLIC_HOME_API_URL=/index.php/pingfangapi/index
 - 只有已完成或已结束的任务可由管理员确认后删除；该操作仅删除对应的 `vodops_issue`、`vodops_fingerprint` 和 `vodops_scan` 记录，不触碰视频、分类或其他 MacCMS 表，已经形成的 `vodops_repair_log` 继续保留，并以管理员 ID、任务 ID、状态和异常数写入服务端日志。插件不自动执行历史保留期清理，页面可选择最近 50 次任务。
 - 列表支持异常类型、完整视频 ID 或视频名称筛选，每条异常可打开 MacCMS 原生视频编辑页；父分类期望值和播放空组位置等脱敏结构化依据直接显示在判定说明下方。CSV 导出沿用当前筛选，最多 50000 条，并处理电子表格公式前缀；进行中的任务不能导出，任务不存在或结果过多会返回可操作提示，其他数据库或文件异常只在服务端记录。导出不包含原始播放地址。
 
-插件需要将 `addons/videolint` 放入可加载目录并执行 `install.sql`。当前插件打包、发布校验、SSH 部署和 CI 产物只覆盖 `pingfangdevice` 与 `pingfangapi`，没有为 `videolint` 提供自动安装或桥接控制器；其入口依赖 MacCMS 插件路由 `/addons/videolint/index/index`。
+### 豆瓣匹配、同步与专项体检
 
 原豆瓣插件已整体吸收到 `addons/vodops`，不是删减版。以下能力继续保留：
 
@@ -220,7 +220,7 @@ NEXT_PUBLIC_HOME_API_URL=/index.php/pingfangapi/index
 
 ### 安装、发布与测试
 
-`npm run package` 只生成一个 `dist/vodops.tar.gz`，不再生成 `douban.tar.gz`。`npm run deploy` 会先检查 Cron 命令、现有 crontab 的读取权限和旧 `douban_*` 表结构，全部通过后才把原 VodOps/豆瓣插件目录、两个后台控制器、质量后台视图、旧公开豆瓣桥接、快捷菜单、Hook 配置和 crontab 保存到同一个 `vodops.backup.*` 迁移快照；快照成功后才停用独立 `addons/douban` 和旧公开桥接。随后脚本保留旧 VodOps 配置中仍存在的同名设置，安装完整豆瓣模块、`application/admin/view_new` 与 CLI Worker 载荷，执行并校验五张 `vodops_*` 和七张 `douban_*` 表、幂等补充扫描范围与 Worker 字段并写入两个固定互斥行；旧 VodOps/豆瓣快捷菜单会归并为一个入口，旧版 `response_end` 注册会被移除，并安装、复核每分钟一次且由 `flock` 保证单实例的 Cron。VodOps 安装阶段在文件替换后失败时，退出处理器会自动恢复上述文件与 Cron，并把失败版本保留为 `vodops.failed.*`/`douban.failed.*`；增量数据库变化不会被反向删除。服务器没有 `crontab` 或 `flock` 时会在替换插件前停止；明确由其他调度器接管时可设置 `VODOPS_INSTALL_CRON=0`。
+`npm run package` 会生成 `dist/vodops.tar.gz`，不再生成 `douban.tar.gz`。`npm run deploy` 的 VodOps 阶段和 `npm run deploy:vodops` 都会先检查 Cron 命令、现有 crontab 的读取权限和旧 `douban_*` 表结构，全部通过后才把原 VodOps/豆瓣插件目录、两个后台控制器、质量后台视图、旧公开豆瓣桥接、快捷菜单、Hook 配置和 crontab 保存到同一个 `vodops.backup.*` 迁移快照；快照成功后才停用独立 `addons/douban` 和旧公开桥接。随后脚本保留旧 VodOps 配置中仍存在的同名设置，安装完整豆瓣模块、`application/admin/view_new` 与 CLI Worker 载荷，执行并校验五张 `vodops_*` 和七张 `douban_*` 表、幂等补充扫描范围与 Worker 字段并写入两个固定互斥行；旧 VodOps/豆瓣快捷菜单会归并为一个入口，旧版 `response_end` 注册会被移除，并安装、复核每分钟一次且由 `flock` 保证单实例的 Cron。VodOps 安装阶段在文件替换后失败时，退出处理器会自动恢复上述文件与 Cron，并把失败版本保留为 `vodops.failed.*`/`douban.failed.*`；增量数据库变化不会被反向删除。服务器没有 `crontab` 或 `flock` 时会在替换插件前停止；明确由其他调度器接管时可设置 `VODOPS_INSTALL_CRON=0`。
 
 插件设置中的 `scheduled_scan_hours` 控制定时新建任务，`0` 为默认值并表示关闭，`1`～`720` 表示间隔小时数；`scheduled_scope_type_id` 和 `scheduled_batch_size` 分别控制分类范围与每批 100～1000 条。定时器在 `scan_start` 互斥锁内重新检查进行中任务和上次自动任务时间，因此并发 Cron 不会重复创建任务；即使定时新建关闭，Cron 仍会继续管理员明确启用 Worker 的任务。
 

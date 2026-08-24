@@ -23,18 +23,66 @@ function shellQuote(value) {
 
 const rollbackFunctions = extractBetween("restore_release() {", "\ntrap cleanup_deploy_files EXIT");
 const uploadCleanupFunction = extractBetween("cleanup_remote_uploads() {", "\ntrap cleanup_remote_uploads EXIT");
+const remoteDeployExitFunction = extractBetween("remote_deploy_exit() {", "\n\ntrap remote_deploy_exit EXIT");
 const clearCacheFunction = extractBetween("clear_maccms_cache() {", "\n\nvalidate_api_warmup_response() {");
 const addonConfigMergeFunction = extractBetween("merge_addon_config_values() {", "\n\ninstall_device_addon() {");
+const vodopsInstallFunction = extractBetween("install_vodops_addon() {", '\n\nif [[ ! -d "$DEPLOY_PATH" ]]');
 
 assert.match(deployScript, /ROLLBACK_FAILED_EXIT_STATUS=95/);
 assert.match(rollbackFunctions, /local rollback_status=0/);
 assert.match(rollbackFunctions, /if ! restore_release; then\n\s+rollback_status=1/);
 assert.match(rollbackFunctions, /CRITICAL: automatic rollback failed/);
 assert.match(clearCacheFunction, /if ! find "\$cache_dir"/);
+assert.doesNotMatch(vodopsInstallFunction, /vodops_auto_rollback_backup=""/);
+assert.match(
+  deployScript,
+  /verify_deployed_site\nvodops_auto_rollback_backup=""\nvodops_auto_rollback_root=""\nvodops_auto_rollback_addon=""\nvodops_auto_rollback_cron="0"\nrelease_committed=1/
+);
 assert.ok(
   uploadCleanupFunction.indexOf('if [[ "$status" -eq "$ROLLBACK_FAILED_EXIT_STATUS" ]]') < uploadCleanupFunction.indexOf("REMOTE_UPLOAD_CLEANUP"),
   "The local exit trap must preserve uploads before attempting remote cleanup"
 );
+
+const remoteExitHarnessRoot = mkdtempSync(path.join(tmpdir(), "pingfang-remote-exit-test-"));
+try {
+  const archives = {
+    theme: path.join(remoteExitHarnessRoot, "pingfangvideo.tar.gz"),
+    device: path.join(remoteExitHarnessRoot, "pingfangdevice.tar.gz"),
+    api: path.join(remoteExitHarnessRoot, "pingfangapi.tar.gz"),
+    vodops: path.join(remoteExitHarnessRoot, "vodops.tar.gz")
+  };
+  Object.values(archives).forEach((archive) => writeFileSync(archive, "release archive\n"));
+  const harnessPath = path.join(remoteExitHarnessRoot, "remote-exit.sh");
+  writeFileSync(
+    harnessPath,
+    [
+      "#!/usr/bin/env bash",
+      "set -u",
+      "restore_vodops_deploy_snapshot() { return 0; }",
+      "clear_maccms_cache() { return 0; }",
+      remoteDeployExitFunction,
+      "DEPLOY_SCOPE=api",
+      "deploy_tmp_dir=",
+      "vodops_auto_rollback_backup=",
+      `REMOTE_TMP=${shellQuote(archives.theme)}`,
+      `REMOTE_ADDON_TMP=${shellQuote(archives.device)}`,
+      `REMOTE_API_ADDON_TMP=${shellQuote(archives.api)}`,
+      `REMOTE_VODOPS_ADDON_TMP=${shellQuote(archives.vodops)}`,
+      "deployment_success() { return 0; }",
+      "deployment_success",
+      "remote_deploy_exit",
+      ""
+    ].join("\n")
+  );
+  const result = spawnSync("bash", [harnessPath], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(archives.api), false);
+  assert.equal(existsSync(archives.theme), true);
+  assert.equal(existsSync(archives.device), true);
+  assert.equal(existsSync(archives.vodops), true);
+} finally {
+  rmSync(remoteExitHarnessRoot, { recursive: true, force: true });
+}
 
 const addonConfigHarnessRoot = mkdtempSync(path.join(tmpdir(), "pingfang-addon-config-test-"));
 try {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -8,6 +8,7 @@ const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
 const addonRoot = path.join(root, "addons", "pingfangdevice");
 const apiAddonRoot = path.join(root, "addons", "pingfangapi");
+const vodopsAddonRoot = path.join(root, "addons", "vodops");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
@@ -156,9 +157,7 @@ const requiredFiles = [
   "html/user/login.html",
   "html/user/plays.html",
   "html/user/reg.html",
-  "html/user/findpass.html",
-  "js/hls.min.js",
-  "js/pingfang-player.js"
+  "html/user/findpass.html"
 ];
 
 const requiredRootFiles = [
@@ -199,6 +198,24 @@ const requiredRootFiles = [
   "ops/systemd/squaredmedia-next.service",
   "preview/data.json",
   "scripts/deploy-next-web.sh",
+  "addons/vodops/Vodops.php",
+  "addons/vodops/application/admin/controller/Douban.php",
+  "addons/vodops/application/admin/controller/Vodops.php",
+  "addons/vodops/application/admin/view_new/vodops/index.html",
+  "addons/vodops/backend/DoubanController.php",
+  "addons/vodops/bin/vodops-worker.php",
+  "addons/vodops/config.php",
+  "addons/vodops/info.ini",
+  "addons/vodops/install.sql",
+  "addons/vodops/service/DoubanAiReviewer.php",
+  "addons/vodops/service/DoubanData.php",
+  "addons/vodops/service/DoubanGateway.php",
+  "addons/vodops/service/DoubanMatcher.php",
+  "addons/vodops/service/VodQualityAnalyzer.php",
+  "addons/vodops/service/VodQualityRepair.php",
+  "addons/vodops/service/VodQualityScanner.php",
+  "addons/vodops/view/index/index.html",
+  "preview/qixi.html",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
   "scripts/deploy-theme.sh",
@@ -590,7 +607,6 @@ assert.match(gamesPage, /mac_url\('user\/login'\)/);
 assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
 
 const game2048Page = readThemeFile("html/label/game-2048.html");
-const game2048AuthBranch = game2048Page.slice(game2048Page.indexOf('{if condition="$user.user_id gt 0"}'), game2048Page.indexOf("{else/}"));
 assert.match(game2048Page, /seo_title="2048"/);
 assert.doesNotMatch(game2048Page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
 assert.match(game2048Page, /data-game-authenticated[^>]*data-auth-member hidden/);
@@ -603,7 +619,6 @@ assert.match(game2048Page, /mac_url\('user\/login'\)/);
 assert.match(game2048Page, /\{include file="public\/foot" \/\}/);
 
 const gameBlockrainPage = readThemeFile("html/label/game-blockrain.html");
-const gameBlockrainAuthBranch = gameBlockrainPage.slice(gameBlockrainPage.indexOf('{if condition="$user.user_id gt 0"}'), gameBlockrainPage.indexOf("{else/}"));
 assert.match(gameBlockrainPage, /seo_title="俄罗斯方块"/);
 assert.doesNotMatch(gameBlockrainPage, /\$user\.user_id|\{else\/\}|\{\/if\}/);
 assert.match(gameBlockrainPage, /data-game-authenticated[^>]*data-auth-member hidden/);
@@ -1536,7 +1551,6 @@ const bannerDotActiveRule = style.match(/\.banner-dot\.is-active\s*\{[\s\S]*?\}/
 const bannerDotActiveAfterRule = style.match(/\.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const dunhuangBannerDotActiveRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const dunhuangBannerDotActiveAfterRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
-const hotSearchTermRule = style.match(/\.hot-search-panel a\s*\{[\s\S]*?\}/)?.[0] || "";
 const pageHeadingRule = style.match(/\.hero-copy h1,[\s\S]*?\.player-head h1\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankListTitleRule = style.match(/\.rank-item strong,[\s\S]*?\.list-item strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardTitleRule = style.match(/\.vod-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1980,7 +1994,7 @@ assert.match(dunhuangBannerDotActiveAfterRule, /width: 30px/);
 assert.match(dunhuangBannerDotActiveAfterRule, /background: var\(--dunhuang-gold\)/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
-for (const chipRule of [hotSearchTermRule, posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
+for (const chipRule of [posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
   assert.match(chipRule, /white-space: normal/);
   assert.match(chipRule, /overflow-wrap: anywhere/);
   assert.doesNotMatch(chipRule, /text-overflow: ellipsis/);
@@ -2373,6 +2387,7 @@ const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"),
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
 assert.match(packageScript, /pingfangapi/);
+assert.match(packageScript, /vodops/);
 assert.match(packageScript, /dist/);
 assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
@@ -2431,6 +2446,17 @@ for (const releaseTest of [
   "deploy-rollback.test.mjs"
 ]) {
   assert.match(packageJson.scripts.test, new RegExp(releaseTest.replaceAll(".", "\\.")));
+}
+assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh");
+for (const testFile of [
+  "douban-gateway.test.php",
+  "douban-matcher.test.php",
+  "douban-ai-reviewer.test.php",
+  "douban-data.test.php",
+  "douban-controller.test.php",
+  "douban-worker.test.php",
+]) {
+  assert.match(packageJson.scripts.test, new RegExp(testFile.replace(".", "\\.")));
 }
 assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
 assert.equal(packageJson.scripts["deploy:web"], "bash scripts/deploy-next-web.sh");
@@ -2645,7 +2671,7 @@ assert.match(deployScript, /DEPLOY_SITE_HOST/);
 assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
 assert.match(deployScript, /DEPLOY_SITE_MARKER/);
 assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
-assert.match(deployScript, /DEPLOY_SCOPE must be all, backend, or api/);
+assert.match(deployScript, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
 assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
 assert.match(deployScript, /Verified deployed site/);
 assert.match(deployScript, /index\.php\/pingfangapi\/index\?\$\{query\}/);
@@ -2685,6 +2711,8 @@ for (let index = 1; index < warmupSequence.length; index += 1) {
     `API warmup endpoint ${warmupSequence[index]} must keep its bounded order`
   );
 }
+assert.match(deployScript, /for attempt in 1 2/);
+assert.match(deployScript, /Deployed site warm-up request failed; retrying/);
 assert.match(deployScript, /scp/);
 assert.match(deployScript, /ssh/);
 assert.match(deployScript, /tar -xzf/);
@@ -2722,10 +2750,47 @@ const remoteUploadCleanup = deployScript.match(/<<'REMOTE_UPLOAD_CLEANUP'\n([\s\
 assert.ok(remoteUploadCleanup, "Interrupted uploads should have a remote cleanup script");
 const remoteUploadCleanupSyntax = spawnSync("bash", ["-n"], { input: remoteUploadCleanup[1], encoding: "utf8" });
 assert.equal(remoteUploadCleanupSyntax.status, 0, remoteUploadCleanupSyntax.stderr || "Remote upload cleanup must be valid Bash");
-const remoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/);
-assert.ok(remoteDeployScript, "Remote deploy script should exist");
-const remoteDeploySyntax = spawnSync("bash", ["-n"], { input: remoteDeployScript[1], encoding: "utf8" });
+const apiRemoteDeployScript = deployScript.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/);
+assert.ok(apiRemoteDeployScript, "Remote deploy script should exist");
+const remoteDeploySyntax = spawnSync("bash", ["-n"], { input: apiRemoteDeployScript[1], encoding: "utf8" });
 assert.equal(remoteDeploySyntax.status, 0, remoteDeploySyntax.stderr || "Remote deploy script must be valid Bash");
+assert.match(deployScript, /VODOPS_ADDON_NAME="vodops"/);
+assert.match(deployScript, /dist\/vodops\.tar\.gz/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
+assert.match(deployScript, /if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]/);
+assert.match(deployScript, /application\/admin\/controller\/Vodops\.php/);
+assert.match(deployScript, /application\/admin\/controller\/Douban\.php/);
+assert.match(deployScript, /application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(deployScript, /legacy_douban_dir="\$maccms_root\/addons\/douban"/);
+assert.match(deployScript, /\.vodops-deploy-state/);
+assert.match(deployScript, /cp -a "\$legacy_douban_dir" "\$state_dir\/addons\/douban"/);
+assert.match(deployScript, /rm -rf "\$legacy_douban_dir"/);
+assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
+assert.match(deployScript, /rm -f "\$legacy_index_controller_target"/);
+assert.match(deployScript, /application\/extra\/quickmenu\.php/);
+assert.match(deployScript, /\$singleWorkbenchRoutes[\s\S]*?vodops\/index[\s\S]*?admin\/vodops\/index[\s\S]*?douban\/index[\s\S]*?admin\/douban\/index/);
+assert.match(deployScript, /count\(array_keys\(\$verified, \$entry, true\)\) !== 1/);
+assert.match(deployScript, /workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/index\/index[\s\S]*?Vodops single-workbench verification failed/);
+assert.match(deployScript, /vodops_lock/);
+assert.match(deployScript, /vodops_scan/);
+assert.match(deployScript, /vodops_issue/);
+assert.match(deployScript, /vodops_fingerprint/);
+assert.match(deployScript, /vodops_repair_log/);
+assert.match(deployScript, /douban_vod_meta/);
+assert.match(deployScript, /douban_task/);
+assert.match(deployScript, /douban_log/);
+assert.match(deployScript, /douban_review_candidate/);
+assert.match(deployScript, /douban_scan_issue/);
+assert.match(deployScript, /response_end/);
+assert.match(deployScript, /array_filter/);
+assert.match(deployScript, /Vodops response_end hook removal failed/);
+assert.match(deployScript, /bin\/vodops-worker\.php/);
+assert.match(deployScript, /crontab -l/);
+assert.match(deployScript, /flock/);
+assert.match(deployScript, /install_vodops_worker_cron preflight/);
+assert.match(deployScript, /execution_mode/);
+assert.match(deployScript, /lease_until/);
+assert.match(deployScript, /next_run_at/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangdevice\.php/);
 assert.match(deployScript, /application_source="\$addon_dir\/application\/index\/controller\/Pingfangdevice\.php"/);
 assert.doesNotMatch(deployScript, /bridge_(?:source|target|backup)/);
@@ -2735,6 +2800,9 @@ assert.match(deployScript, /php -l "\$php_file"/);
 assert.doesNotMatch(deployScript, /str_starts_with/);
 assert.match(deployScript, /Addon app_begin hook verification failed/);
 assert.match(deployScript, /COLUMN_NAME IN \(/);
+assert.match(deployScript, /opcache_invalidate\(\$path, true\)/);
+assert.doesNotMatch(deployScript, /fwrite\(STDERR/);
+assert.match(deployScript, /COLUMN_NAME = \?/);
 assert.match(deployScript, /Device session schema verification failed/);
 assert.match(deployScript, /DEPLOY_CLEAR_CACHE/);
 assert.match(deployScript, /maccms_root="\$\(dirname "\$DEPLOY_PATH"\)"/);
@@ -2940,7 +3008,7 @@ try {
     }
   });
   assert.notEqual(invalidDeployScope.status, 0);
-  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, or api/);
+  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
 
   writeFileSync(deployHarnessLog, "");
   const apiOnlyDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
@@ -3094,6 +3162,20 @@ const invalidRemoteArchivePath = spawnSync("bash", ["scripts/deploy-theme.sh"], 
 });
 assert.notEqual(invalidRemoteArchivePath.status, 0);
 assert.match(invalidRemoteArchivePath.stderr, /DEPLOY_REMOTE_API_ADDON_TMP must be a single \.tar\.gz file directly under \/tmp/);
+
+const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+  cwd: root,
+  encoding: "utf8",
+  env: {
+    ...process.env,
+    DEPLOY_HOST: "example.invalid",
+    DEPLOY_USER: "deploy",
+    DEPLOY_PATH: "/tmp/maccms/template",
+    DEPLOY_SCOPE: "theme-only",
+  }
+});
+assert.notEqual(invalidDeployScope.status, 0);
+assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
 
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
@@ -3540,6 +3622,7 @@ assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangapi\.tar\.gz/);
 assert.match(releaseVerifier, /API addon archive must contain only regular files and directories/);
 assert.match(releaseVerifier, /must contain valid PHP/);
+assert.match(releaseVerifier, /vodops\.tar\.gz/);
 assert.match(releaseVerifier, /html\/public\/include\.html/);
 assert.match(releaseVerifier, /html\/comment\/index\.html/);
 assert.match(releaseVerifier, /html\/rss\/rss\.html/);
@@ -3559,13 +3642,19 @@ assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
 assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /requiredApiAddonEntries/);
+assert.match(releaseVerifier, /requiredVodopsEntries/);
+assert.match(releaseVerifier, /vodops\/application\/admin\/view_new\/vodops\/index\.html/);
+assert.match(releaseVerifier, /vodops\/application\/admin\/controller\/Douban\.php/);
+assert.match(releaseVerifier, /vodops\/service\/DoubanData\.php/);
+assert.match(releaseVerifier, /Douban must be packaged inside vodops/);
+assert.match(releaseVerifier, /scope_json/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/VodFilterOptions\.php/);
 assert.match(releaseVerifier, /pingfangdevice\/service\/GameAccessTicket\.php/);
 assert.match(releaseVerifier, /excludedEntries/);
 assert.doesNotMatch(releaseVerifier, /react\.production|pingfang-player|rank-react|pingfangvideo\/js\/hls\.min/);
 assert.match(releaseVerifier, /pingfang_device_session/);
 assert.match(releaseVerifier, /LIBARCHIVE\\\.xattr/);
-assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 4);
+assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 5);
 
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");

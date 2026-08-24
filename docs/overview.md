@@ -1,6 +1,6 @@
 # SquaredMedia 项目总览
 
-最后核验：2026-07-30
+最后核验：2026-08-12
 
 ## 项目定位
 
@@ -12,7 +12,8 @@
 - 主题发布包：`dist/pingfangvideo.tar.gz`
 - 登录设备插件：`addons/pingfangdevice/`
 - 生产 API 插件：`addons/pingfangapi/`
-- 插件发布包：`dist/pingfangdevice.tar.gz`、`dist/pingfangapi.tar.gz`
+- 视频数据中心插件（含豆瓣模块）：`addons/vodops/`
+- 插件发布包：`dist/pingfangdevice.tar.gz`、`dist/pingfangapi.tar.gz`、`dist/vodops.tar.gz`
 
 这些名称会参与 MacCMS 配置、远端目录、路由、数据库表和部署脚本，不应仅因仓库名称不同而单独重命名。若要迁移运行时标识，需要同时核对模板配置、插件钩子、数据库、发布脚本和线上安装状态。
 
@@ -24,7 +25,7 @@ SquaredMedia/
 ├── addons/                       # MacCMS 插件源码
 │   ├── pingfangapi/              # React 生产 API 与 MacCMS 数据适配
 │   ├── pingfangdevice/           # 登录设备与会话管理
-│   └── videolint/                # 视频库质量扫描与问题导出
+│   └── vodops/                   # 质量扫描/修复与豆瓣匹配/同步
 ├── apps/web/                     # Next.js App Router 前台、API 客户端、单元/E2E 测试与构建配置
 ├── docker/                       # PHP 8.4 + Apache 开发镜像
 ├── docs/                         # 规范、模块说明、运维文档和历史方案
@@ -48,15 +49,15 @@ SquaredMedia/
 
 | 模块 | 主要职责 | 是否进入当前发布流程 | 详细说明 |
 | --- | --- | --- | --- |
-| `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片和播放器提示页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
+| `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片、内置游戏、播放器提示页和七夕 Canvas 粒子页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
 | `apps/web/` | Next.js App Router、干净 URL 路由、Query Provider、TypeScript API、组件/API 与 Playwright E2E 测试 | 是，仅发布到 `react.ping2.my` staging | [Next.js 前台](web-frontend.md) |
 | `maccms-player/` | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包并由完整部署或 `deploy:games` 安装 | [开发、发布与运维](development-and-operations.md) |
-| `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
+| `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染；另提供独立七夕静态预览，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
 | `addons/pingfangapi/` | 为 React 前台提供同源、白名单化的 MacCMS 内容、播放、会话和账户 API | 是，打包并由部署脚本安装 | [生产 API](pingfangapi.md) |
 | `addons/pingfangdevice/` | 管理设备会话，并为主题提供动态筛选、线路检测和联机游戏短票据 | 是，打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
-| `addons/videolint/` | 扫描视频库缺失字段、播放源、封面和重复数据，支持导出问题清单 | 否，当前需单独安装 | [MacCMS 插件](addons.md) |
 | `scripts/figma-product-baseline/` | 维护代码对齐的 Figma 产品基准、主题说明、组件状态和受保护 Raw Evidence | 否，本地设计工具，不进入生产包 | 目录内 `README.md` |
+| `addons/vodops/` | 通用质量扫描、CSV、显式单条修复；完整吸收豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检、AI 复核和日志，并兼容原 `douban_*` 数据及 `admin/douban/*` 路由 | 是，作为一个插件独立打包并由部署脚本安装 | [MacCMS 插件](addons.md) |
 | `ops/security/` | 保存需人工审核和应用的防火墙规则数据，不参与主题或插件发布 | 否 | 本文 |
 | `scripts/`、`tests/`、`.github/` | 本地与 CI 验证、发布包构建、部署回滚、分类维护和海报修复 | 工程支撑 | [开发、发布与运维](development-and-operations.md) |
 | `docs/` | 保存当前规范、模块上下文、操作手册和历史设计记录 | 不进入生产包 | 本文与各模块文档 |
@@ -106,7 +107,9 @@ npm run package
 npm run verify:release
 ```
 
-当前打包脚本生成 `pingfangvideo` 主题、`pingfangdevice`、`pingfangapi`、独立播放器和联机游戏服务五个归档。`npm run deploy` 安装主题与两个生产插件，并更新联机游戏进程；独立播放器仍需单独授权和安装，`videolint` 也不在自动打包或部署范围内。Next.js standalone 由 `npm run deploy:web` 走独立 staging 链路，不混入这些 MacCMS 归档。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
+当前打包脚本生成 `pingfangvideo` 主题、`pingfangdevice`、`pingfangapi`、`vodops`、独立播放器和联机游戏服务六个归档。`npm run deploy` 安装主题与三个生产插件，并更新联机游戏进程；独立播放器仍需单独授权和安装。Next.js standalone 由 `npm run deploy:web` 走独立 staging 链路，不混入这些 MacCMS 归档。部署与回滚边界见 [开发、发布与运维](development-and-operations.md)。
+
+GitHub Actions 只执行验证、打包并上传这六个发布单元，不连接生产服务器，也不修改数据库。
 
 ### 数据维护
 
@@ -129,12 +132,15 @@ npm run verify:release
 - `docs/superpowers/` 保存仍有追溯价值的带日期设计，以及未进入当前实现的历史计划；其中的路径和预期结果不自动代表当前实现。
 - `docs/vod-poster-provider-matches-20260716.md` 是特定日期的生产数据审计快照，可能随持续采集或人工修复失效。
 - `scripts/figma-product-baseline/` 当前维护的是以 MacCMS 源码为事实源的 Figma 基准，并把旧 Next.js 映射标为 archive。合入本轮 `apps/web/` 后，必须先扩展其 source roots、页面/组件映射和验证契约，才能宣称 Figma 已覆盖当前 React 实现；现有 Raw Evidence 仍保持只读。
+- `项目管理/` 保存 Obsidian 项目记录和带时间点的 Codex 历史快照；理解当前实现时仍应以源码、测试和本目录中的现行文档为准。
 
 ## 已知边界
 
 - 本仓库不是完整的 MacCMS 应用，不包含 MacCMS 核心、生产数据库或服务器运行时配置。
 - 本地模拟数据只能验证页面结构和交互流程，不能证明真实模板标签、登录态、插件钩子或生产数据已经正确运行。
 - MacCMS 主题和当前 React `SiteHeader` 都已注册液态影院、极光夜幕、海报画廊、敦煌流光与像素蛙五套主题；生产或 staging 的真实首帧、切换、响应式和减少动效验收仍需按发布版本单独记录。
+- `preview/qixi.html` 直接加载生产 CSS 与七夕粒子脚本；`npm run verify:preview` 不执行该 Canvas 动画，视觉与交互仍需浏览器验收。
 - Docker 通过 `PINGFANG_PREVIEW_DATA` 显式指向容器内挂载的样例数据；自动路由验证仍以 `npm run verify:preview` 为准，浏览器静态预览需通过 HTTP 服务访问 `/preview/index.html`。
 - `ops/security/gptbot-ip-rules.json` 是独立规则数据文件，仓库内没有自动应用它的脚本；使用前需要在目标防火墙或面板中再次核对格式、来源和有效期。
+- `scripts/figma-product-baseline/` 是手工运行的历史设计基线工具，不在 `package.json` 或 CI 发布链中；其中固定的提交和审批短语不代表当前分支。
 - `output/playwright/` 是被忽略的 Playwright 截图、跟踪和报告目录，可随时重建；`output/` 下的其他内容没有稳定用途，长期资料应放入职责明确的 `docs/`。

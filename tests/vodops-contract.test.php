@@ -395,8 +395,16 @@ vodops_contract_match('/legacy_douban_dir="\$maccms_root\/addons\/douban"[\s\S]*
 vodops_contract_match('/legacy_index_controller_target="\$maccms_root\/application\/index\/controller\/Douban\.php"[\s\S]*?rm -f "\$legacy_index_controller_target"/', $deployScript, 'SSH deployment must snapshot and remove the obsolete public Douban bridge.');
 vodops_contract_match('/restore_vodops_deploy_snapshot\(\)[\s\S]*?quickmenu\.php[\s\S]*?application\/extra\/addons\.php[\s\S]*?crontab/', $deployScript, 'Automatic rollback must restore every non-database payload changed by the VodOps deployment.');
 vodops_contract_match('/trap remote_deploy_exit EXIT[\s\S]*?vodops_auto_rollback_backup="\$backup_dir"[\s\S]*?rm -rf "\$addon_dir"/', $deployScript, 'Automatic rollback must be armed only after the snapshot and before addon replacement.');
-vodops_contract_match('/install_vodops_worker_cron[\s\S]*?if \[\[ "\$DEPLOY_SCOPE" != "vodops" \]\]; then[\s\S]*?vodops_auto_rollback_backup=""/', $deployScript, 'Full deployment may disarm VodOps rollback only after Cron verification succeeds.');
-vodops_contract_match('/verify_deployed_site\s+if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]; then[\s\S]*?vodops_auto_rollback_backup=""/', $deployScript, 'Vodops-only deployment must remain rollback-protected through final site verification.');
+$vodopsInstallStart = strpos($deployScript, 'install_vodops_addon() {');
+$vodopsInstallEnd = strpos($deployScript, 'if [[ ! -d "$DEPLOY_PATH" ]]', $vodopsInstallStart === false ? 0 : $vodopsInstallStart);
+if ($vodopsInstallStart === false || $vodopsInstallEnd === false) {
+    vodops_contract_fail('VodOps installer boundaries must remain discoverable.');
+}
+$vodopsInstall = substr($deployScript, $vodopsInstallStart, $vodopsInstallEnd - $vodopsInstallStart);
+if (strpos($vodopsInstall, 'vodops_auto_rollback_backup=""') !== false) {
+    vodops_contract_fail('VodOps rollback protection must remain armed until full site verification succeeds.');
+}
+vodops_contract_match('/verify_deployed_site\s+vodops_auto_rollback_backup=""\s+vodops_auto_rollback_root=""\s+vodops_auto_rollback_addon=""\s+vodops_auto_rollback_cron="0"\s+release_committed=1/', $deployScript, 'Every deployment scope must keep VodOps rollback protection through final site verification.');
 vodops_contract_match('/verify_deployed_site\(\)[\s\S]*?--max-time 60/', $deployScript, 'Cold-cache site verification must allow the observed MacCMS template query to finish.');
 $rollbackScript = file_get_contents($root . '/scripts/rollback-theme.sh');
 vodops_contract_match('/\.vodops-deploy-state[\s\S]*?state_dir\/addons\/douban[\s\S]*?restore_optional_file/', $rollbackScript, 'Vodops rollback must understand the pre-merge two-addon snapshot.');

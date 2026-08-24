@@ -223,6 +223,7 @@ It also builds the companion MacCMS addon archives:
 ```text
 dist/pingfangdevice.tar.gz
 dist/pingfangapi.tar.gz
+dist/vodops.tar.gz
 ```
 
 The same command builds the independently reviewed static player archive:
@@ -373,14 +374,15 @@ loopback request with the real Host/SNI after cache clearing. An optional
 `DEPLOY_SITE_MARKER` must also occur in the response, preventing a generic
 control-panel default page from being accepted as a successful deployment.
 This verification runs after remote files and database changes are applied. In
-the default scope, a failure restores the theme, both addons, both application
-controllers, and addon hook config. Backend failure restores both addons,
-controllers, and hook config without touching the theme; API-only failure
-restores only the API addon and controller. Additive database schema changes
-are intentionally retained. If automatic restoration or rollback cache clearing
-fails, the script exits with status `95` and preserves the remote snapshot,
-temporary root, and uploaded archives. SSH status `255` is also treated as an
-unknown remote state, so recovery archives are not deleted.
+the default scope, a failure restores the theme and the current scope's addon,
+application, hook, quick-menu, and Cron snapshots. Backend failure restores the
+device/API files without touching the theme; API-only failure restores only the
+API addon and controller; VodOps-only failure restores its migration snapshot
+and Cron. Additive database schema changes are intentionally retained. If
+automatic restoration or rollback cache clearing fails, the script exits with
+status `95` and preserves the remote snapshot, temporary root, and uploaded
+archives. SSH status `255` is also treated as an unknown remote state, so
+recovery archives are not deleted.
 
 The default full deployment installs the `pingfangdevice` and
 `pingfangapi` addons under the remote MacCMS `addons` directory, applies
@@ -487,8 +489,9 @@ pull requests: `npm test`, `npm run lint`, `npm run typecheck:web`,
 workflow uploads `dist/pingfangvideo.tar.gz` as `pingfangvideo-theme` and
 `dist/pingfangdevice.tar.gz` as `pingfangdevice-addon`, plus
 `dist/pingfangapi.tar.gz` as `pingfangapi-addon`,
+`dist/vodops.tar.gz` as `vodops-addon`,
 `dist/pingfangplayer-player.tar.gz` as `pingfangplayer-player` and
-`dist/pingfanggames-server.tar.gz` as `pingfanggames-server`, keeping all five
+`dist/pingfanggames-server.tar.gz` as `pingfanggames-server`, keeping all six
 release units separate.
 
 `npm run lint` checks theme browser JavaScript with ESLint, Next.js/React TypeScript with

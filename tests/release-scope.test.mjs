@@ -24,6 +24,7 @@ function copyAddon(testRoot, name) {
 
 const apiRoot = mkdtempSync(path.join(tmpdir(), "pingfang-api-package-"));
 const backendRoot = mkdtempSync(path.join(tmpdir(), "pingfang-backend-package-"));
+const vodopsRoot = mkdtempSync(path.join(tmpdir(), "vodops-package-"));
 try {
   copyAddon(apiRoot, "pingfangapi");
   const apiPackage = run(packageScript, apiRoot, "api");
@@ -36,7 +37,7 @@ try {
   writeFileSync(path.join(apiRoot, "dist", "sentinel"), "keep");
   const invalidPackage = run(packageScript, apiRoot, "invalid");
   assert.notEqual(invalidPackage.status, 0);
-  assert.match(invalidPackage.stderr, /DEPLOY_SCOPE must be all, backend, or api/);
+  assert.match(invalidPackage.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
   assert.equal(existsSync(path.join(apiRoot, "dist", "sentinel")), true, "invalid scope must fail before clearing dist");
 
   copyAddon(backendRoot, "pingfangapi");
@@ -46,9 +47,17 @@ try {
   assert.deepEqual(readdirSync(path.join(backendRoot, "dist")).sort(), ["pingfangapi", "pingfangapi.tar.gz", "pingfangdevice", "pingfangdevice.tar.gz"]);
   const backendVerify = run(verifyScript, backendRoot, "backend");
   assert.equal(backendVerify.status, 0, backendVerify.stderr);
+
+  copyAddon(vodopsRoot, "vodops");
+  const vodopsPackage = run(packageScript, vodopsRoot, "vodops");
+  assert.equal(vodopsPackage.status, 0, vodopsPackage.stderr);
+  assert.deepEqual(readdirSync(path.join(vodopsRoot, "dist")).sort(), ["vodops", "vodops.tar.gz"]);
+  const vodopsVerify = run(verifyScript, vodopsRoot, "vodops");
+  assert.equal(vodopsVerify.status, 0, vodopsVerify.stderr);
 } finally {
   rmSync(apiRoot, { recursive: true, force: true });
   rmSync(backendRoot, { recursive: true, force: true });
+  rmSync(vodopsRoot, { recursive: true, force: true });
 }
 
 console.log("Release scope tests passed");

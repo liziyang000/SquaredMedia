@@ -218,6 +218,7 @@ const requiredRootFiles = [
   "preview/qixi.html",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
+  "scripts/deploy-pingfangapi.sh",
   "scripts/deploy-theme.sh",
   "scripts/next-artifact-cache.mjs",
   "scripts/release-input-fingerprint.mjs",
@@ -316,8 +317,8 @@ assert.match(readme, /npm run rollback/);
 assert.match(readme, /DEPLOY_HOST/);
 assert.match(readme, /DEPLOY_PATH/);
 assert.match(readme, /DEPLOY_CLEAR_CACHE/);
-assert.match(readme, /DEPLOY_SCOPE=api npm run deploy/);
-assert.match(readme, /DEPLOY_SCOPE=backend npm run deploy/);
+assert.match(readme, /npm run deploy:api -- --check/);
+assert.match(readme, /npm run deploy:api -- --backend/);
 assert.match(readme, /scripts\/deploy-ping2\.env/);
 assert.match(readme, /ROLLBACK_BACKUP/);
 assert.match(readme, /GitHub Actions/);
@@ -2435,6 +2436,7 @@ assert.match(packageJson.scripts["verify:release"], /verify:game-server-release/
 assert.equal(packageJson.dependencies.ws, "8.21.1");
 assert.match(packageJson.scripts.deploy, /deploy-theme\.sh/);
 assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
+assert.equal(packageJson.scripts["deploy:api"], "bash scripts/deploy-pingfangapi.sh");
 assert.match(packageJson.scripts["test:api"], /pingfang-api\.test\.php/);
 assert.match(packageJson.scripts["test:api"], /pingfang-api-controller\.test\.php/);
 assert.match(packageJson.scripts["test:api"], /device-session\.test\.php/);
@@ -2443,7 +2445,8 @@ for (const releaseTest of [
   "release-input-fingerprint.test.mjs",
   "release-cache.test.mjs",
   "next-deploy-cache-hardening.test.mjs",
-  "deploy-rollback.test.mjs"
+  "deploy-rollback.test.mjs",
+  "pingfangapi-deploy-command.test.mjs"
 ]) {
   assert.match(packageJson.scripts.test, new RegExp(releaseTest.replaceAll(".", "\\.")));
 }

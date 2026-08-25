@@ -2381,22 +2381,40 @@ dist/pingfangapi.tar.gz
 归档包含插件目录和标准 `application/` 控制器载荷。发布校验会检查必需文件、归档
 路径、PHP 结构、受控播放器路径和 Ulog 隔离条件。
 
-### 16.3 首次建立后端基线
+### 16.3 推荐：一键部署
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=backend npm run deploy
+npm run deploy:api -- --check
+npm run deploy:api
 ```
 
-`backend` 会安装并验证 `pingfangdevice`、hook、设备表、Ulog 进度列和
-`pingfangapi`，但不替换主题。
+第一条命令只读取本地配置并通过 SSH 检查服务器，不安装依赖、不打包、也不修改
+远端；它会打印实际目标、`backend`/`api` 范围和判定原因。确认目标正确且当前
+MacCMS 数据库备份已经完成后，再执行第二条命令并按提示输入 `deploy`。
 
-### 16.4 仅更新 API
+部署入口会自动读取 `scripts/deploy-ping2.env`，缺少本地 Node 依赖时执行
+`npm ci`，再把自动选择的范围交给 `scripts/deploy-theme.sh`。它不发布主题、Next
+或联机游戏服务。已经完成审批、目标复核和数据库备份的非交互任务可执行：
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=api npm run deploy
+npm run deploy:api -- --yes
 ```
+
+如果底层数据库预检指出设备依赖基线不完整，先完成数据库备份，再强制刷新后端
+依赖：
+
+```bash
+npm run deploy:api -- --backend
+```
+
+### 16.4 自动选择的部署范围
+
+只读探测发现 API 未安装、当前 `pingfangdevice` 服务或 hook 与本发布不一致，或者
+`app_begin` 未登记时，选择 `backend`。该范围会安装并验证 `pingfangdevice`、hook、
+设备表和 `pingfangapi`，同时验证 API 依赖的 Ulog 进度列，但不会替换主题。
+
+上述基线兼容时选择 `api`。最终写入前，底层脚本仍会再次检查设备文件、hook、
+数据库结构和上传归档；探测结果不会跳过权威预检。
 
 API-only 部署会：
 

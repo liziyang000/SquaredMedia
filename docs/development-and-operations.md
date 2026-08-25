@@ -32,6 +32,7 @@
 | `npm run test:e2e` | 用 Playwright 验证本地 Next.js/PHP 路由、状态码、账号流程和响应式边界 | 失败证据写入已忽略的 `output/playwright/` |
 | `npm run deploy:web` | 验证、构建或复用 Linux standalone 归档并原子切换 `react.ping2.my` | 写入本地缓存、远端版本、systemd 与 Nginx |
 | `npm run rollback:web` | 将 staging 切回 `previous` 或指定 Next.js release | 修改远端 `current` 与对应运行配置 |
+| `npm run deploy:api` | 自动读取部署配置、只读判断后端基线并发布生产 API | 按判定写入 API，首次/依赖升级时也写入设备插件、hook 和设备表结构 |
 | `npm run rollback:api` | 使用显式成对备份 ID 回滚生产 API 插件和应用控制器 | 修改远端 API 文件并清理 MacCMS 缓存 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
@@ -234,21 +235,21 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
-首次建立生产 API、但保持线上主题不变时执行：
+生产 API 不再要求操作员先判断首次安装还是 API-only。先只读检查目标和自动选择的范围：
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=backend npm run deploy
+npm run deploy:api -- --check
 ```
 
-服务器已经具备当前后端依赖基线后，只发布生产 API、保持线上主题和 `pingfangdevice` 文件不变时执行：
+确认输出目标正确、当前数据库备份已经完成后执行：
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=api npm run deploy
+npm run deploy:api
 ```
 
-`DEPLOY_SCOPE` 只接受 `all`、`backend`、`api` 或 `vodops`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题，适合首次建立生产 API 依赖基线。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会核对服务器已安装的设备服务和 hook 文件摘要、`app_begin` 登记及完整设备会话表结构，不兼容时直接失败并要求先执行一次 `backend` 部署。VodOps-only 的边界见下文专节。发布脚本会对包含未提交文件的当前工作区计算内容指纹，并额外纳入实际发布源中会进入归档的 Git ignored 文件：该指纹首次发布仍执行完整门禁并写入 `.cache/deploy-gates/v1/`；相同指纹的后续 API-only 发布只运行生产 API、控制器和设备会话测试，并只打包、验证 API 归档。任一发布输入、测试、门禁脚本或工具链变化都会使成功章失效并恢复完整门禁。
+专用入口自动读取 `scripts/deploy-ping2.env`，通过 SSH 只读核对 API 是否存在、设备服务和 hook 摘要、应用控制器一致性及 `app_begin` 登记：缺少或不兼容时选择 `backend`，基线兼容时选择 `api`。它不会部署主题或联机游戏；缺少本地检查依赖时自动执行 `npm ci`，随后仍委托 `scripts/deploy-theme.sh` 完成完整门禁、数据库预检、归档、备份、替换、失败恢复和 smoke。交互执行要求输入 `deploy`；已经审批并确认备份的非交互任务才可使用 `npm run deploy:api -- --yes`。如果底层数据库预检指出设备基线不完整，备份后可用 `npm run deploy:api -- --backend` 强制刷新后端依赖。
+
+底层 `DEPLOY_SCOPE` 仍只接受 `all`、`backend`、`api` 或 `vodops`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会再次核对设备服务、hook、`app_begin` 及数据库结构。VodOps-only 的边界见下文专节。发布脚本会对包含未提交文件的当前工作区计算内容指纹，并额外纳入实际发布源中会进入归档的 Git ignored 文件：该指纹首次发布仍执行完整门禁并写入 `.cache/deploy-gates/v1/`；相同指纹的后续 API-only 发布只运行生产 API、控制器和设备会话测试，并只打包、验证 API 归档。任一发布输入、测试、门禁脚本或工具链变化都会使成功章失效并恢复完整门禁。
 
 API-only 在替换文件前为旧插件目录和旧应用控制器生成同一个成对备份 ID；发布
 成功后终端会输出对应的

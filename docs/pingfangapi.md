@@ -2383,6 +2383,9 @@ dist/pingfangapi.tar.gz
 
 ### 16.3 推荐：一键部署
 
+完整的操作前置、数据库备份、验收和回滚步骤见
+[PingFang API 生产部署指南](pingfangapi-deployment-guide.md)。
+
 ```bash
 npm run deploy:api -- --check
 npm run deploy:api

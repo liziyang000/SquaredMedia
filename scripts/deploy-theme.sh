@@ -17,7 +17,6 @@ DEPLOY_SITE_HOST="${DEPLOY_SITE_HOST:-}"
 DEPLOY_SITE_SCHEME="${DEPLOY_SITE_SCHEME:-https}"
 DEPLOY_SITE_MARKER="${DEPLOY_SITE_MARKER:-}"
 DEPLOY_SCOPE="${DEPLOY_SCOPE:-all}"
-DEPLOY_GATE_CACHE_ROOT="${DEPLOY_GATE_CACHE_ROOT:-$repo_root/.cache/deploy-gates/v1}"
 THEME_NAME="pingfangvideo"
 ADDON_NAME="pingfangdevice"
 API_ADDON_NAME="pingfangapi"
@@ -86,10 +85,6 @@ if [[ -n "$DEPLOY_SITE_HOST" && ! "$DEPLOY_SITE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; th
 fi
 if [[ "$DEPLOY_SITE_SCHEME" != "http" && "$DEPLOY_SITE_SCHEME" != "https" ]]; then
   echo "DEPLOY_SITE_SCHEME must be http or https." >&2
-  exit 1
-fi
-if [[ "$DEPLOY_GATE_CACHE_ROOT" != /* || "$DEPLOY_GATE_CACHE_ROOT" == "/" || -L "$DEPLOY_GATE_CACHE_ROOT" ]]; then
-  echo "DEPLOY_GATE_CACHE_ROOT must be a safe absolute directory." >&2
   exit 1
 fi
 
@@ -164,42 +159,39 @@ run_full_gate() {
   DEPLOY_SCOPE=all npm run verify:release
 }
 
-run_api_gate() {
-  npm run test:api
-  DEPLOY_SCOPE=api npm run package
-  DEPLOY_SCOPE=api npm run verify:release
+run_backend_gate() {
+  npm run test:backend
+  DEPLOY_SCOPE="$DEPLOY_SCOPE" node scripts/package-theme.mjs
+  DEPLOY_SCOPE="$DEPLOY_SCOPE" node scripts/verify-release.mjs
 }
 
+fingerprint_kind=repository
+if [[ "$DEPLOY_SCOPE" == "api" || "$DEPLOY_SCOPE" == "backend" ]]; then
+  fingerprint_kind=backend
+fi
 release_fingerprint=""
-if release_fingerprint="$(node scripts/release-input-fingerprint.mjs repository)"; then
-  gate_receipt="$DEPLOY_GATE_CACHE_ROOT/$release_fingerprint.ok"
-else
+if ! release_fingerprint="$(node scripts/release-input-fingerprint.mjs "$fingerprint_kind")"; then
+  if [[ "$fingerprint_kind" == "backend" ]]; then
+    echo "Backend release fingerprint unavailable; refusing to deploy." >&2
+    exit 1
+  fi
   echo "Release fingerprint unavailable; running the full local gate." >&2
   release_fingerprint=""
-  gate_receipt=""
 fi
 
-if [[ "$DEPLOY_SCOPE" == "api" && -n "$gate_receipt" && -f "$gate_receipt" && ! -L "$gate_receipt" && "$(<"$gate_receipt")" == "$release_fingerprint" ]]; then
-  echo "Using the scoped API gate for previously verified release inputs $release_fingerprint"
-  run_api_gate
+if [[ "$fingerprint_kind" == "backend" ]]; then
+  if [[ ! "$release_fingerprint" =~ ^[a-f0-9]{64}$ ]]; then
+    echo "Backend release fingerprint unavailable; refusing to deploy." >&2
+    exit 1
+  fi
+  echo "Running the independent backend gate for scope $DEPLOY_SCOPE"
+  run_backend_gate
 else
   run_full_gate
-  if [[ -n "$release_fingerprint" ]]; then
-    verified_fingerprint="$(node scripts/release-input-fingerprint.mjs repository)"
-    if [[ "$verified_fingerprint" != "$release_fingerprint" ]]; then
-      echo "Release inputs changed while the full local gate was running." >&2
-      exit 1
-    fi
-    mkdir -p "$DEPLOY_GATE_CACHE_ROOT"
-    chmod 0700 "$DEPLOY_GATE_CACHE_ROOT"
-    gate_receipt_tmp="$gate_receipt.$$.$RANDOM.tmp"
-    (umask 077 && printf '%s\n' "$release_fingerprint" > "$gate_receipt_tmp")
-    mv -f "$gate_receipt_tmp" "$gate_receipt"
-  fi
 fi
 
 if [[ -n "$release_fingerprint" ]]; then
-  upload_fingerprint="$(node scripts/release-input-fingerprint.mjs repository)"
+  upload_fingerprint="$(node scripts/release-input-fingerprint.mjs "$fingerprint_kind")"
   if [[ "$upload_fingerprint" != "$release_fingerprint" ]]; then
     echo "Release inputs changed after local verification; refusing to upload." >&2
     exit 1
@@ -1134,62 +1126,8 @@ if (!is_array($config) || !in_array($addon, $config['hooks']['app_begin'] ?? [],
 PHP_DEVICE_HOOK
   fi
 
-  MACCMS_ROOT="$maccms_root" DEPLOY_SCOPE="$DEPLOY_SCOPE" php <<'PHP_API_SCHEMA'
-<?php
-$root = rtrim(getenv('MACCMS_ROOT'), '/');
-$dbFile = $root . '/application/database.php';
-if (!is_file($dbFile)) {
-    file_put_contents('php://stderr', "MacCMS database config is missing.\n");
-    exit(1);
-}
-$db = include $dbFile;
-$prefix = isset($db['prefix']) ? $db['prefix'] : '';
-$dsn = isset($db['dsn']) && $db['dsn'] !== '' ? $db['dsn'] : sprintf(
-    'mysql:host=%s;port=%s;dbname=%s;charset=%s',
-    $db['hostname'] ?? '127.0.0.1',
-    $db['hostport'] ?? '3306',
-    $db['database'] ?? '',
-    $db['charset'] ?? 'utf8'
-);
-$pdo = new PDO($dsn, $db['username'] ?? '', $db['password'] ?? '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-$table = $prefix . 'ulog';
-$check = $pdo->prepare('SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME IN (?, ?)');
-$check->execute([$table, 'ulog_point', 'ulog_duration']);
-$columns = $check->fetchAll(PDO::FETCH_COLUMN);
-sort($columns);
-if ($columns !== ['ulog_duration', 'ulog_point']) {
-    file_put_contents('php://stderr', "MacCMS ulog progress columns are required by pingfangapi.\n");
-    exit(1);
-}
-
-if (getenv('DEPLOY_SCOPE') === 'api') {
-    $table = $prefix . 'pingfang_device_session';
-    $required = [
-        'device_label',
-        'ip_address',
-        'last_seen_time',
-        'login_check_hash',
-        'login_time',
-        'revoked_reason',
-        'revoked_time',
-        'session_id',
-        'token_hash',
-        'user_agent',
-        'user_id',
-    ];
-    $placeholders = implode(',', array_fill(0, count($required), '?'));
-    $check = $pdo->prepare(
-        'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME IN (' . $placeholders . ')'
-    );
-    $check->execute(array_merge([$table], $required));
-    $columns = $check->fetchAll(PDO::FETCH_COLUMN);
-    sort($columns);
-    if ($columns !== $required) {
-        file_put_contents('php://stderr', "Installed pingfangdevice database schema is not compatible with API-only deployment.\n");
-        exit(1);
-    }
-}
-PHP_API_SCHEMA
+  MACCMS_ROOT="$maccms_root" DEPLOY_SCOPE="$DEPLOY_SCOPE" PFAPI_RUN_DEPLOY_CHECK=1 PFAPI_DETECT_SCOPE=0 \
+    php "$api_addon_source/service/DeploymentCheck.php"
 
   if [[ "$DEPLOY_SCOPE" == "api" ]]; then
     echo "Preflighted API addon, installed device service and hook, PHP syntax, and API database requirements"

@@ -120,9 +120,32 @@ export function repositoryFiles(root) {
   return [...files];
 }
 
+function backendFiles(root) {
+  const sources = releaseSources.filter((source) => source.relativePath.startsWith("addons/"));
+  const files = new Set(
+    gitFiles(root).filter(
+      (entry) =>
+        entry === "package.json" ||
+        entry === "package-lock.json" ||
+        entry.startsWith("scripts/") ||
+        entry.startsWith("tests/") ||
+        sources.some((source) => entry.startsWith(`${source.relativePath}/`))
+    )
+  );
+  for (const source of sources) {
+    for (const relativePath of packagedFiles(root, source)) files.add(relativePath);
+  }
+  return [...files];
+}
+
 export function createReleaseFingerprint(root, kind) {
-  if (kind !== "repository" && kind !== "next") throw new Error("Fingerprint kind must be repository or next");
-  const files = kind === "repository" ? repositoryFiles(root) : gitFiles(root).filter((entry) => !isGeneratedPath(entry) && isNextBuildInput(entry));
+  if (!["repository", "next", "backend"].includes(kind)) throw new Error("Fingerprint kind must be repository, next, or backend");
+  const files =
+    kind === "repository"
+      ? repositoryFiles(root)
+      : kind === "backend"
+        ? backendFiles(root)
+        : gitFiles(root).filter((entry) => !isGeneratedPath(entry) && isNextBuildInput(entry));
   const metadata = [
     `kind=${kind}`,
     `platform=${process.platform}`,
@@ -130,7 +153,7 @@ export function createReleaseFingerprint(root, kind) {
     `node=${process.version}`,
     `npm=${commandVersion("npm", ["--version"])}`
   ];
-  if (kind === "repository") metadata.push(`php=${commandVersion("php", ["-r", "echo PHP_VERSION;"])}`);
+  if (kind !== "next") metadata.push(`php=${commandVersion("php", ["-r", "echo PHP_VERSION;"])}`);
   if (kind === "next") {
     metadata.push(
       "target=linux-x64-glibc",

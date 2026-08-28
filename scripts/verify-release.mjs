@@ -162,7 +162,8 @@ const requiredApiAddonEntries = [
   "pingfangapi/service/AccountService.php",
   "pingfangapi/service/ApiException.php",
   "pingfangapi/service/ApiRequest.php",
-  "pingfangapi/service/ContentService.php"
+  "pingfangapi/service/ContentService.php",
+  "pingfangapi/service/DeploymentCheck.php"
 ];
 const requiredVodopsEntries = [
   "vodops/Vodops.php",
@@ -315,6 +316,12 @@ if (includeDevice) {
     assert.ok(addonEntries.includes(entry), `${entry} should be included in the addon archive`);
   }
   assert.ok(!addonEntries.some((entry) => entry.startsWith("pingfangdevice/bridge/")), "Legacy bridge files should not be included in the addon archive");
+
+  for (const entry of addonEntries.filter((entry) => entry.endsWith(".php"))) {
+    const content = execFileSync("tar", ["-xOf", addonArchive, entry], { encoding: "utf8" });
+    const lint = spawnSync("php", ["-l"], { input: content, encoding: "utf8" });
+    assert.equal(lint.status, 0, `${entry} must contain valid PHP: ${lint.stderr || lint.stdout}`);
+  }
 
   const addonSql = execFileSync("tar", ["-xOf", addonArchive, "pingfangdevice/install.sql"], { encoding: "utf8" });
   assert.match(addonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);

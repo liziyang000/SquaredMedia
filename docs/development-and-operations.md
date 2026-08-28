@@ -6,7 +6,7 @@
 
 ## 环境要求
 
-- Node.js：Next.js 16 最低要求 Node.js 20.9；本仓库、CI 和联机游戏服务固定使用 Node.js 22.22.0。先用 `npm ci` 安装根项目与 `apps/web` workspace 的检查工具、播放器依赖和锁定的 `ws` 8.21.1。
+- Node.js：Next.js 16 最低要求 Node.js 20.9；本仓库、CI 和联机游戏服务固定使用 Node.js 22.22.0。前端开发和完整发布先用 `npm ci` 安装根项目与 `apps/web` workspace 的检查工具、播放器依赖和锁定的 `ws` 8.21.1。专用 API 部署仅使用 Node.js 内置模块和 PHP CLI，不需要安装 npm 依赖。
 - PHP：目标版本为 PHP 8.4。完整测试会调用 PHP CLI；海报修复工具还要求 `curl`、`mbstring`、`pdo_mysql` 扩展。
 - 打包：需要系统 `tar`，且当前脚本使用 `--no-xattrs`。
 - 部署：本机需要 `bash`、`ssh`、`scp`；使用密码认证时还需要 `sshpass`，日常发布优先使用 SSH 密钥。
@@ -32,6 +32,8 @@
 | `npm run test:e2e` | 用 Playwright 验证本地 Next.js/PHP 路由、状态码、账号流程和响应式边界 | 失败证据写入已忽略的 `output/playwright/` |
 | `npm run deploy:web` | 验证、构建或复用 Linux standalone 归档并原子切换 `www.ping2.my` | 写入本地缓存、远端版本、systemd 与 Nginx |
 | `npm run rollback:web` | 将 staging 切回 `previous` 或指定 Next.js release | 修改远端 `current` 与对应运行配置 |
+| `npm run deploy:api` | 自动读取部署配置、只读判断后端基线并发布生产 API | 按判定写入 API，首次/依赖升级时也写入设备插件、hook 和设备表结构 |
+| `npm run test:backend` | 执行 API、设备及部署/回滚回归，不依赖 Next 或 `node_modules` | 仅创建并清理本地测试夹具，不连接生产服务 |
 | `npm run rollback:api` | 使用显式成对备份 ID 回滚生产 API 插件和应用控制器 | 修改远端 API 文件并清理 MacCMS 缓存 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
@@ -237,21 +239,25 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
-首次建立生产 API、但保持线上主题不变时执行：
+生产 API 不再要求操作员先判断首次安装还是 API-only。先只读检查目标和自动选择的范围：
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=backend npm run deploy
+npm run deploy:api -- --check
 ```
 
-服务器已经具备当前后端依赖基线后，只发布生产 API、保持线上主题和 `pingfangdevice` 文件不变时执行：
+确认输出目标正确、当前数据库备份已经完成后执行：
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=api npm run deploy
+npm run deploy:api
 ```
 
-`DEPLOY_SCOPE` 只接受 `all`、`backend`、`api` 或 `vodops`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题，适合首次建立生产 API 依赖基线。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会核对服务器已安装的设备服务和 hook 文件摘要、`app_begin` 登记及完整设备会话表结构，不兼容时直接失败并要求先执行一次 `backend` 部署。VodOps-only 的边界见下文专节。发布脚本会对包含未提交文件的当前工作区计算内容指纹，并额外纳入实际发布源中会进入归档的 Git ignored 文件：该指纹首次发布仍执行完整门禁并写入 `.cache/deploy-gates/v1/`；相同指纹的后续 API-only 发布只运行生产 API、控制器和设备会话测试，并只打包、验证 API 归档。任一发布输入、测试、门禁脚本或工具链变化都会使成功章失效并恢复完整门禁。
+专用入口自动读取 `scripts/deploy-ping2.env`，通过 SSH 只读核对 API 是否存在、设备服务和 hook 摘要、应用控制器一致性及 `app_begin` 登记。随后直接从标准输入运行共享 `DeploymentCheck.php`，检查 PHP CLI 扩展、数据库连接与字段、部署用户目录权限，并报告可用磁盘空间。文件/hook 不兼容、缺设备表或仅缺 `login_check_hash` 时选择 `backend`；全部兼容时选择 `api`。Ulog 进度列或不受安装 SQL 支持的设备字段缺失会停止，不执行迁移；`--backend` 不能绕过体检。
+
+该入口不会部署主题或联机游戏，也不执行 `npm ci`；本地只需 Node.js/npm、PHP、Git、tar 和 SSH。随后委托 `scripts/deploy-theme.sh` 完成后端门禁、归档、同一体检规则复查、备份、替换、失败恢复和 smoke。交互执行要求输入 `deploy`；已经审批并确认备份的非交互任务才可使用 `npm run deploy:api -- --yes`。PHP-FPM 用户的缓存权限及实际备份所需容量仍需人工核验。主动刷新兼容设备依赖时可在备份后使用 `npm run deploy:api -- --backend`。
+
+底层 `DEPLOY_SCOPE` 仍只接受 `all`、`backend`、`api` 或 `vodops`，默认是 `all`。`backend` 上传并安装设备和 API 插件、应用控制器、hook 与所需数据库结构，但不上传或替换主题。API-only 只上传 `dist/pingfangapi.tar.gz`，只快照和替换远端 API 插件与 `Pingfangapi.php` 控制器，不更新主题、设备插件、hook 或数据库结构；修改文件前会再次核对设备服务、hook、`app_begin` 及数据库结构。VodOps-only 的边界见下文专节。
+
+`backend` 和 `api` 每次都执行 `npm run test:backend`，然后带当前 scope 直接运行 `node scripts/package-theme.mjs` 与 `node scripts/verify-release.mjs`，不触发前端、播放器或游戏组包；设备及 API 包中的 PHP 文件都进行语法检查。后端内容指纹覆盖两个插件、脚本、测试、包配置和工具链，也纳入会进入归档的 Git ignored 文件，但不依赖 Next 或主题源码。指纹不可用或验证期间输入变化时，在远端上传前停止。此路径不再读写 `.cache/deploy-gates/v1/`；完整发布仍保留原有完整门禁，Next 的独立构建缓存不变。
 
 API-only 在替换文件前为旧插件目录和旧应用控制器生成同一个成对备份 ID；发布
 成功后终端会输出对应的

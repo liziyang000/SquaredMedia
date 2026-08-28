@@ -150,9 +150,9 @@ React 账号页固定每页 24 条，只选择当前页；底层 ID 超过单次
 
 ### 安装、配置与验收
 
-`npm run package` 生成 `dist/pingfangapi.tar.gz`。`npm run deploy` 会先安装 `pingfangdevice`，再备份并安装 `pingfangapi`，按配置名合并保留后台已经保存的插件配置，把应用控制器复制到 `application/index/controller/Pingfangapi.php`，检查 PHP 语法、设备插件依赖及 `ulog_point`、`ulog_duration` 数据列。插件不创建表、不修改 hook，也不会部署 React 静态文件。
+`npm run package` 生成 `dist/pingfangapi.tar.gz`。生产发布统一执行 `npm run deploy:api`：命令自动读取 `scripts/deploy-ping2.env`，先通过 SSH 只读判断是首次/依赖升级的 `backend`，还是只替换 API 的 `api`，缺少本地依赖时自动执行 `npm ci`，随后复用 `scripts/deploy-theme.sh` 的发布门禁、备份、回滚和 smoke。可先用 `npm run deploy:api -- --check` 只看目标和范围；确认当前数据库备份后才继续，预先批准的非交互任务可加 `--yes`。如果底层数据库预检指出设备基线不完整，备份后用 `npm run deploy:api -- --backend` 强制刷新依赖基线。
 
-首次建立生产 API、但不切换主题时，使用 `DEPLOY_SCOPE=backend npm run deploy` 安装并验证 `pingfangdevice` 与 `pingfangapi`。服务器已经具备这套依赖基线后，可使用 `DEPLOY_SCOPE=api npm run deploy` 让 MacCMS 阶段只上传和替换 `pingfangapi` 及其应用控制器。API-only 会在修改前核对设备服务和 hook 文件摘要、`app_begin` 登记及设备会话表结构；不匹配时拒绝部署，不会自动更新设备插件。这里的 scope 只约束 MacCMS 阶段；根级 `npm run deploy` 在其成功后仍会进入联机游戏部署，不能把 `api` 理解为“整个命令只接触 API”。
+`backend` 会安装并验证 `pingfangdevice`、`pingfangapi`、hook 和所需设备表结构，但不切换主题；`api` 只上传并替换 `pingfangapi` 及其应用控制器，并在写入前核对设备服务、hook、`app_begin` 登记和数据库结构。专用命令不会进入主题或联机游戏发布；根级 `npm run deploy` 仍是全量主题/addon 加游戏服务流程，不能用于 API-only 发布。
 
 React 生产构建可从 `apps/web/.env.example` 复制同源配置：
 

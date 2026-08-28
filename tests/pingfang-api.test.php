@@ -427,16 +427,6 @@ final class PingfangApiContentTotalProbe extends ContentService
         return $this->categoryTotalForQuery($query, $categories);
     }
 
-    public function forcedIndex(array $query, string $sort): string
-    {
-        return $this->forcedIndexForQuery($query, $sort);
-    }
-
-    public function primaryScan(array $query, array $types): bool
-    {
-        return $this->shouldUsePrimaryScan($query, $types);
-    }
-
     public function routeId(array $row)
     {
         return $this->nativeVodRouteId($row);
@@ -1221,15 +1211,6 @@ $assertSame(12, $totalProbe->categoryTotal(['typeId' => 47], $categoryTotals), '
 $assertSame(null, $totalProbe->categoryTotal(['typeId' => 99], $categoryTotals), 'Unknown or child categories must fall back to an exact count.');
 $assertSame(null, $totalProbe->categoryTotal(['year' => '2026'], $categoryTotals), 'Filtered content must keep an exact query-specific count.');
 $assertSame(null, $totalProbe->categoryTotal(['keyword' => '测试'], $categoryTotals), 'Search results must keep an exact query-specific count.');
-$assertSame('vod_time', $totalProbe->forcedIndex([], 'latest'), 'Unfiltered latest queries must keep the sequential sort index.');
-$assertSame('vod_hits', $totalProbe->forcedIndex(['page' => 2], 'hot'), 'Pagination alone must not disable the sort index.');
-$assertSame('', $totalProbe->forcedIndex(['typeId' => 47], 'latest'), 'Category queries must let the optimizer choose a selective index.');
-foreach (['area', 'year', 'lang', 'letter'] as $filter) {
-    $assertSame('', $totalProbe->forcedIndex([$filter => '测试'], 'latest'), $filter . ' filters must let the optimizer choose a selective index.');
-    $assertSame('vod_time', $totalProbe->forcedIndex([$filter => ''], 'latest'), 'Empty ' . $filter . ' filters must not disable the sort index.');
-}
-$assertSame('vod_time', $totalProbe->forcedIndex(['class' => '剧情'], 'latest'), 'LIKE-based class filters must keep the sequential sort index.');
-$assertSame('', $totalProbe->forcedIndex(['keyword' => ''], 'latest'), 'Even an empty search query must not force a full sort-index scan.');
 
 $playerConfig = $GLOBALS['config'] ?? [];
 $GLOBALS['config']['play'] = [
@@ -1290,10 +1271,6 @@ $scopeTypes = [
 $assertSame([42, 420], $totalProbe->typeIds(['scope' => 'library'], $scopeTypes), 'Library scope must contain only the five configured channels and their children.');
 $assertSame([420], $totalProbe->typeIds(['scope' => 'library', 'typeId' => 420], $scopeTypes), 'A library child filter must stay inside the library scope.');
 $assertSame([], $totalProbe->typeIds(['scope' => 'library', 'typeId' => 999], $scopeTypes), 'A library filter must not escape into unrelated root categories.');
-$assertSame(true, $totalProbe->primaryScan(['scope' => 'library'], $scopeTypes), 'Multi-category library queries must use the measured sequential primary scan.');
-$assertSame(true, $totalProbe->primaryScan(['typeId' => 42], $scopeTypes), 'Root category queries must use the measured sequential primary scan.');
-$assertSame(false, $totalProbe->primaryScan(['typeId' => 420], $scopeTypes), 'Leaf category queries must keep their selective index plan.');
-$assertSame(false, $totalProbe->primaryScan(['typeId' => 999], $scopeTypes), 'Unknown categories must keep the empty-result plan.');
 $assertSame(
     [['id' => '42', 'name' => '电影']],
     $totalProbe->catalog($scopeTypes, 'library'),

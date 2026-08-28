@@ -330,32 +330,46 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
-For the first production API release, publish both backend addons while leaving
-the current theme unchanged:
+For production API releases, use the dedicated command. It loads
+`scripts/deploy-ping2.env` itself and never deploys the theme or game service:
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=backend npm run deploy
+npm run deploy:api -- --check
+npm run deploy:api
 ```
 
-After that dependency baseline is installed, publish only the production API
-while leaving the current theme and `pingfangdevice` files unchanged:
+`--check` performs read-only SSH checks of files/hooks, PHP CLI extensions,
+database connectivity/schema, deployment-user directory access, and free disk
+space. It prints the target, selected scope, and check results without uploading
+files or changing the database. The actual command asks the operator to type `deploy`, then runs the
+backend-only tests and archive checks without installing npm dependencies or
+requiring Next, the theme, player, or game build. It selects `backend` when the API is not
+installed, the `pingfangdevice` files/hook need this release, or the device table
+needs a supported installation/upgrade; otherwise it
+selects `api`. A backend release can update the device-session schema, so confirm
+the current database backup before continuing. After a reviewed plan and backup,
+approved non-interactive automation may use:
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=api npm run deploy
+npm run deploy:api -- --yes
 ```
 
-API-only deployment uploads only `dist/pingfangapi.tar.gz`, snapshots only the
-installed API addon and application controller, clears the normal MacCMS caches,
-and runs bounded site/API loopback checks: at most five serial requests, ten
-seconds per request and a shared thirty-second network-request budget. Before changing files it requires
-the installed `pingfangdevice` service and hook files, enabled `app_begin` hook,
-and database schema to match the current API dependency; a mismatch fails safely
-and requires `DEPLOY_SCOPE=backend` first. The first deployment of a workspace
-fingerprint runs the full release gate; repeated API-only deployment of the same
-fingerprint runs only the production API/controller/device-session tests and
-builds and verifies only the API archive. The default scope remains `all`.
+Missing Ulog progress columns or unsupported device-table gaps stop the check
+and require a separate migration plan. `npm run deploy:api -- --backend` forces
+a reviewed dependency refresh, not a bypass. The same checker runs again from
+the staged release before installation. PHP-FPM permissions and sufficient
+space for the actual archives/backups still need operator verification. API-only
+deployment uploads only `dist/pingfangapi.tar.gz`, snapshots only the installed
+API addon and application controller, clears the normal MacCMS caches, and runs
+bounded site/API loopback checks: at most five serial requests, ten seconds per
+request and a shared thirty-second network-request budget. Both first installs
+and API updates run `npm run test:backend`, including API/device behavior and
+deployment/rollback regression tests. Packaging and verification run directly
+with the selected scope: `api` produces only the API archive, while `backend`
+also produces the device addon. Backend inputs are fingerprinted again before
+upload; unavailable or changed fingerprints stop deployment. Full theme releases
+retain their full validation gate. The local backend tooling needs Node.js, npm,
+PHP, Git, tar, and SSH, but no `node_modules` installation.
 
 `DEPLOY_PATH` must point to the remote MacCMS `template` directory. With the
 default scope, the deploy script runs the full local verification sequence,

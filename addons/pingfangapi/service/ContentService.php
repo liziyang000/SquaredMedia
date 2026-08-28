@@ -23,6 +23,7 @@ class ContentService
     private $addonConfigValue = [];
     private $blockedTypeIdsLoaded = false;
     private $blockedTypeIdsValue = [];
+    private $catalogIndexAvailable;
     private $fallbackImageValue;
 
     public function __construct(callable $accessChecker)
@@ -825,6 +826,37 @@ class ContentService
         return $builder;
     }
 
+    private function summaryVodQuery(array $query, array $typeList)
+    {
+        $builder = $this->baseVodQuery($query, $typeList);
+        if (array_key_exists('keyword', $query)
+            || trim((string) (isset($query['letter']) ? $query['letter'] : '')) !== ''
+            || !empty($query['playableOnly'])
+            || (intval(isset($query['typeId']) ? $query['typeId'] : 0) > 0 && empty($this->typeIdsForQuery($query, $typeList)))) {
+            return $builder;
+        }
+        if ($this->catalogIndexAvailable === null) {
+            $this->catalogIndexAvailable = false;
+            $table = $builder->getTable();
+            if (!is_string($table) || !preg_match('/^[A-Za-z0-9_]+$/D', $table)) {
+                return $builder;
+            }
+            $columns = [];
+            foreach (Db::query('SHOW INDEX FROM `' . $table . '` WHERE Key_name = :name', ['name' => 'idx_pfapi_catalog']) as $index) {
+                if (isset($index['Sub_part']) || (isset($index['Visible']) && $index['Visible'] !== 'YES')
+                    || !isset($index['Index_type']) || $index['Index_type'] !== 'BTREE') {
+                    return $builder;
+                }
+                $columns[intval($index['Seq_in_index'])] = (string) $index['Column_name'];
+            }
+            ksort($columns);
+            $this->catalogIndexAvailable = array_values($columns) === [
+                'vod_status', 'vod_recycle_time', 'type_id', 'vod_area', 'vod_year', 'vod_lang', 'vod_class',
+            ];
+        }
+        return $this->catalogIndexAvailable ? $builder->force('idx_pfapi_catalog') : $builder;
+    }
+
     protected function typeIdsForQuery(array $query, array $typeList)
     {
         $typeId = intval(isset($query['typeId']) ? $query['typeId'] : 0);
@@ -867,12 +899,6 @@ class ContentService
         $idQuery = $this->baseVodQuery($query, $typeList);
         if (intval($excludeId) > 0) {
             $idQuery = $idQuery->where('vod_id', '<>', intval($excludeId));
-        }
-        $forcedIndex = $this->shouldUsePrimaryScan($query, $typeList)
-            ? 'PRIMARY'
-            : $this->forcedIndexForQuery($query, $sort);
-        if ($forcedIndex !== '') {
-            $idQuery = $idQuery->force($forcedIndex);
         }
         $idRows = $idQuery
             ->field('vod_id')
@@ -1078,37 +1104,6 @@ class ContentService
             return 'vod_score desc,vod_id desc';
         }
         return 'vod_time desc,vod_id desc';
-    }
-
-    private function sortIndex($sort)
-    {
-        if ($sort === 'hot') {
-            return 'vod_hits';
-        }
-        if ($sort === 'score') {
-            return 'vod_score';
-        }
-        return 'vod_time';
-    }
-
-    protected function forcedIndexForQuery(array $query, $sort)
-    {
-        if (array_key_exists('keyword', $query)
-            || intval(isset($query['typeId']) ? $query['typeId'] : 0) > 0
-            || !empty($query['scope'])) {
-            return '';
-        }
-        foreach (['area', 'year', 'lang', 'letter'] as $name) {
-            if (trim((string) (isset($query[$name]) ? $query[$name] : '')) !== '') {
-                return '';
-            }
-        }
-        return $this->sortIndex($sort);
-    }
-
-    protected function shouldUsePrimaryScan(array $query, array $typeList)
-    {
-        return count($this->typeIdsForQuery($query, $typeList)) > 1;
     }
 
     private function homeVideo(array $video)
@@ -1789,7 +1784,7 @@ class ContentService
         $counts = $this->applyListAccess(Db::name('Vod')->where([
             'vod_status' => 1,
             'vod_recycle_time' => 0,
-        ]))->force('vod_time')
+        ]))
             ->field('type_id,count(*) as total')
             ->group('type_id')
             ->select();
@@ -1918,14 +1913,7 @@ class ContentService
             }
         }
 
-        $builder = $this->baseVodQuery($query, $typeList);
-        $forcedIndex = $this->shouldUsePrimaryScan($query, $typeList)
-            ? 'PRIMARY'
-            : $this->forcedIndexForQuery($query, 'latest');
-        if ($forcedIndex !== '') {
-            $builder = $builder->force($forcedIndex);
-        }
-        $total = intval($builder->count());
+        $total = intval($this->summaryVodQuery($query, $typeList)->count());
         if ($cacheSeconds > 0 && function_exists('cache')) {
             cache($cacheKey, ['total' => $total], $cacheSeconds);
         }
@@ -1963,10 +1951,7 @@ class ContentService
             }
         }
 
-        $builder = $this->baseVodQuery($facetQuery, $typeList);
-        if ($this->shouldUsePrimaryScan($facetQuery, $typeList)) {
-            $builder = $builder->force('PRIMARY');
-        }
+        $builder = $this->summaryVodQuery($facetQuery, $typeList);
         $rows = $builder->where('vod_class', '<>', '')
             ->field('vod_class as value,count(*) as total')
             ->group('vod_class')
@@ -2001,6 +1986,7 @@ class ContentService
         }
         $facetQuery = $this->facetQuery($query, $name);
         $typeId = intval(isset($query['typeId']) ? $query['typeId'] : 0);
+        $configured = $this->configuredFacet($typeId, $typeList, $name);
         $cacheSeconds = $this->configInteger(
             'summary_cache_seconds',
             self::DEFAULT_SUMMARY_CACHE_SECONDS,
@@ -2008,7 +1994,7 @@ class ContentService
             self::MAX_SUMMARY_CACHE_SECONDS
         );
         $cacheKey = 'pingfangapi_facet_' . self::CONTENT_CACHE_VERSION . '_' . $name . '_' . $this->accessCacheKey()
-            . '_' . substr(hash('sha256', serialize($facetQuery)), 0, 24);
+            . '_' . substr(hash('sha256', serialize([$facetQuery, $configured])), 0, 24);
         if ($cacheSeconds > 0 && function_exists('cache')) {
             $cached = cache($cacheKey);
             if (is_array($cached)) {
@@ -2016,22 +2002,7 @@ class ContentService
             }
         }
 
-        $configured = $this->configuredFacet($typeId, $typeList, $name);
-        if (!empty($configured)) {
-            if ($name === 'year') {
-                $configured = array_values(array_filter($configured, function ($value) {
-                    return preg_match('/^[0-9]{4}$/', $value)
-                        && intval($value) >= 1900
-                        && intval($value) <= intval(date('Y'));
-                }));
-                rsort($configured, SORT_STRING);
-            }
-            return array_slice($configured, 0, 80);
-        }
-        $builder = $this->baseVodQuery($facetQuery, $typeList);
-        if ($this->shouldUsePrimaryScan($facetQuery, $typeList)) {
-            $builder = $builder->force('PRIMARY');
-        }
+        $builder = $this->summaryVodQuery($facetQuery, $typeList);
         $builder = $builder->where($fields[$name], '<>', '');
         if (!empty($configured)) {
             $builder = $builder->where($fields[$name], 'in', $configured);
@@ -2044,12 +2015,16 @@ class ContentService
             ->select();
         $available = [];
         foreach ($this->rows($rows) as $row) {
-            foreach ($this->csvValues(isset($row['value']) ? $row['value'] : '') as $value) {
-                if ($name === 'year' && (!preg_match('/^[0-9]{4}$/', $value) || intval($value) < 1900 || intval($value) > intval(date('Y')))) {
-                    continue;
-                }
-                $available[$value] = $value;
+            // These dimensions use equality predicates, unlike comma-separated class tags.
+            $value = (string) (isset($row['value']) ? $row['value'] : '');
+            $length = function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
+            if ($value === '' || $value !== trim(strip_tags($value)) || $length > 40 || preg_match('/[\r\n\t]/', $value)) {
+                continue;
             }
+            if ($name === 'year' && (!preg_match('/^[0-9]{4}$/', $value) || intval($value) < 1900 || intval($value) > intval(date('Y')))) {
+                continue;
+            }
+            $available[$value] = $value;
         }
         $options = empty($configured)
             ? array_values($available)

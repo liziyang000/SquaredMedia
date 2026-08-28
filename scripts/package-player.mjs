@@ -2,6 +2,15 @@ import { chmodSync, copyFileSync, lstatSync, mkdirSync, readFileSync, readdirSyn
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 
+const scope = process.env.DEPLOY_SCOPE || "all";
+if (!["all", "backend", "api", "vodops"].includes(scope)) {
+  throw new Error("DEPLOY_SCOPE must be all, backend, api, or vodops");
+}
+if (scope !== "all") {
+  console.log(`Skipping player package for DEPLOY_SCOPE=${scope}`);
+  process.exit(0);
+}
+
 const root = process.cwd();
 const packageName = "pingfangplayer-player";
 const distRoot = path.join(root, "dist");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -63,6 +63,25 @@ try {
   writeFileSync(path.join(fixtureRoot, "maccms-player", "static", "player", ".env"), "SECRET=no\n");
   mkdirSync(path.join(fixtureRoot, "dist"), { recursive: true });
   writeFileSync(path.join(fixtureRoot, "dist", "existing-theme.tar.gz"), "keep\n");
+
+  for (const script of [packageScript, verifyScript]) {
+    for (const scope of ["backend", "api", "vodops"]) {
+      const scopedResult = spawnSync(process.execPath, [script], {
+        cwd: fixtureRoot,
+        encoding: "utf8",
+        env: { ...process.env, DEPLOY_SCOPE: scope }
+      });
+      assert.equal(scopedResult.status, 0, scopedResult.stderr);
+    }
+    const invalidScope = spawnSync(process.execPath, [script], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+      env: { ...process.env, DEPLOY_SCOPE: "invalid" }
+    });
+    assert.notEqual(invalidScope.status, 0);
+    assert.match(invalidScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
+  }
+  assert.equal(existsSync(path.join(fixtureRoot, "dist", packageName)), false);
 
   execFileSync(process.execPath, [packageScript], { cwd: fixtureRoot, stdio: "pipe" });
   execFileSync(process.execPath, [verifyScript], { cwd: fixtureRoot, stdio: "pipe" });

@@ -1,4 +1,7 @@
-{include file="public/head" seo_title="$obj.type_name" seo_keywords="$obj.type_key" seo_description="$obj.type_des" /}
+{assign name="pingfang_seo_title" value="$obj.type_name" /}
+{assign name="pingfang_seo_keywords" value="$obj.type_key|default=''" /}
+{assign name="pingfang_seo_description" value="$obj.type_des|default=''" /}
+{include file="public/head" seo_title="" seo_keywords="" seo_description="" /}
 <section class="wrap page-title">
   <span class="eyebrow">分类浏览</span>
   <h1>{$obj.type_name}</h1>

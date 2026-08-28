@@ -344,6 +344,22 @@ assert.doesNotMatch(include, /css\/style\.css\?v=20260620/);
 assert.doesNotMatch(include, /__ROOT__/);
 
 const head = readThemeFile("html/public/head.html");
+for (const field of ["title", "keywords", "description"]) {
+  assert.ok(head.includes(`{if condition="isset($pingfang_seo_${field})"}`));
+  assert.ok(head.includes(`{$pingfang_seo_${field}|htmlspecialchars=ENT_QUOTES,'UTF-8',false}`));
+}
+
+function assertRuntimeSeo(page, values) {
+  const include = '{include file="public/head" seo_title="" seo_keywords="" seo_description="" /}';
+  const includeIndex = page.indexOf(include);
+  assert.ok(includeIndex >= 0, "Dynamic pages must not pass request values to the compile-time include");
+  for (const [index, field] of ["title", "keywords", "description"].entries()) {
+    const assignment = `{assign name="pingfang_seo_${field}" value="${values[index]}" /}`;
+    const assignmentIndex = page.indexOf(assignment);
+    assert.ok(assignmentIndex >= 0 && assignmentIndex < includeIndex, `${field} must be assigned at runtime before rendering the head`);
+  }
+}
+
 assert.match(head, /\[seo_title\]/);
 assert.match(head, /\[seo_keywords\]/);
 assert.match(head, /\[seo_description\]/);
@@ -1072,7 +1088,7 @@ assert.doesNotMatch(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
 assert.doesNotMatch(index, /<a href="\{:mac_url\('vod\/show'\)\}">全部影片<\/a>/);
 
 const detail = readThemeFile("html/vod/detail.html");
-assert.match(detail, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
+assertRuntimeSeo(detail, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(detail, /\{\$obj\.vod_pic\|mac_url_img\}/);
 assert.match(detail, /class="detail-backdrop" aria-hidden="true"><img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="">/);
 assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/);
@@ -1108,7 +1124,7 @@ const searchImagePage = readThemeFile("html/vod/search.html");
 assert.equal((searchImagePage.match(/sizes="96px"/g) || []).length, 2);
 
 const play = readThemeFile("html/vod/play.html");
-assert.match(play, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
+assertRuntimeSeo(play, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(play, /\{\$player_data\}/);
 assert.match(play, /\{\$player_js\}/);
 assert.doesNotMatch(play, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -1145,7 +1161,7 @@ assert.match(vodDetailPwdPage, /name="pwd"/);
 assert.match(vodDetailPwdPage, /验证码/);
 
 const playerPage = readThemeFile("html/vod/player.html");
-assert.match(playerPage, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
+assertRuntimeSeo(playerPage, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(playerPage, /\{\$player_data\}/);
 assert.match(playerPage, /\{\$player_js\}/);
 assert.doesNotMatch(playerPage, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -1192,7 +1208,7 @@ assert.match(playerPwdPage, /name="pwd"/);
 assert.match(playerPwdPage, /验证码/);
 
 const downPage = readThemeFile("html/vod/down.html");
-assert.match(downPage, /seo_title="\$obj\.vod_name"/);
+assertRuntimeSeo(downPage, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(downPage, /obj\.vod_down_list/);
 assert.match(downPage, /download-list/);
 assert.match(downPage, /mac_url_vod_down/);
@@ -1208,7 +1224,7 @@ assert.match(copyrightPage, /版权限制/);
 assert.match(copyrightPage, /mac_url_vod_detail/);
 
 const plotPage = readThemeFile("html/vod/plot.html");
-assert.match(plotPage, /seo_title="\$obj\.vod_name"/);
+assertRuntimeSeo(plotPage, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(plotPage, /plot-list/);
 assert.match(plotPage, /obj\.vod_plot_list/);
 
@@ -1225,6 +1241,7 @@ function expandVodGridResults(pageurl, vodType) {
 }
 
 const typePageSource = readThemeFile("html/vod/type.html");
+assertRuntimeSeo(typePageSource, ["$obj.type_name", "$obj.type_key|default=''", "$obj.type_des|default=''"]);
 const typePage = [typePageSource, vodFilterCommonPartial, expandVodGridResults("vod/type", "current")].join("\n");
 assert.match(typePage, /\{include file="public\/head" seo_title=/);
 assert.match(typePageSource, /\{include file="public\/vod_filter_common" \/\}/);
@@ -1310,6 +1327,8 @@ assert.match(typePageSource, /class="vod-grid" data-empty-container data-empty-i
 assert.match(typePage, /\{include file="public\/paging" \/\}/);
 
 const showPageSource = readThemeFile("html/vod/show.html");
+assertRuntimeSeo(showPageSource, ["$obj.type_name|default='影片库'", "$obj.type_key|default=''", "$obj.type_des|default=''"]);
+assert.match(showPageSource, /<h1>\{\$pingfang_seo_title\|htmlspecialchars=ENT_QUOTES,'UTF-8',false\}<\/h1>/);
 const showPage = [showPageSource, vodFilterCommonPartial, expandVodGridResults("vod/show", nonAdultVodTypeScope)].join("\n");
 assert.match(showPageSource, /\{include file="public\/vod_filter_common" \/\}/);
 assert.match(showPageSource, new RegExp(`\\{include file="public/vod_grid_results" pageurl="vod/show" vod_type="${nonAdultVodTypeScope}" \\/\\}`));
@@ -1403,6 +1422,8 @@ for (const sortField of ["hits", "score", "time"]) {
 assert.doesNotMatch(showPage, /\{maccms:vod[^}]*pageurl="vod\/show"[^}]*type="all"/);
 
 const searchPage = readThemeFile("html/vod/search.html");
+assertRuntimeSeo(searchPage, ["$param.wd|default='搜索结果'", "$param.wd|default=''", "$param.wd|default=''"]);
+assert.match(searchPage, /<h1>\{\$pingfang_seo_title\|htmlspecialchars=ENT_QUOTES,'UTF-8',false\}<\/h1>/);
 assert.match(searchPage, /\{maccms:vod num="20" paging="yes" pageurl="vod\/search"/);
 assert.match(searchPage, /loading="lazy" decoding="async" width="160" height="240"/);
 assert.equal((searchPage.match(/data-empty-container data-empty-item="\.list-item"/g) || []).length, 2);

@@ -1,7 +1,10 @@
-{include file="public/head" seo_title="影片库" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
+{assign name="pingfang_seo_title" value="$obj.type_name|default='影片库'" /}
+{assign name="pingfang_seo_keywords" value="$obj.type_key|default=''" /}
+{assign name="pingfang_seo_description" value="$obj.type_des|default=''" /}
+{include file="public/head" seo_title="" seo_keywords="" seo_description="" /}
 <section class="wrap page-title">
   <span class="eyebrow">筛选</span>
-  <h1>影片库</h1>
+  <h1>{$pingfang_seo_title|htmlspecialchars=ENT_QUOTES,'UTF-8',false}</h1>
   <p>按分类、地区、年份和排序方式查找内容。</p>
 </section>
 

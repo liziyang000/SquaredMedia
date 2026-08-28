@@ -1,4 +1,7 @@
-{include file="public/head" seo_title="$obj.vod_name" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
+{assign name="pingfang_seo_title" value="$obj.vod_name" /}
+{assign name="pingfang_seo_keywords" value="$obj.vod_tag|default=''" /}
+{assign name="pingfang_seo_description" value="$obj.vod_blurb|default=''" /}
+{include file="public/head" seo_title="" seo_keywords="" seo_description="" /}
 <section class="player-page" data-next-play-url="{$obj.player_info.link_next}" data-source-quality-vod-id="{$obj.vod_id}" data-source-quality-sid="{$param.sid}" data-source-quality-nid="{$param.nid}">
   <div class="wrap">
     <div class="player-head">

@@ -1,0 +1,49 @@
+import styles from "./QixiPage.module.css";
+
+const qixiDocument = `<!doctype html>
+<html class="qixi-immersive" lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>七夕粒子玫瑰</title>
+  <link rel="stylesheet" href="/template/pingfangvideo/css/style.css">
+</head>
+<body>
+  <section class="qixi-rose-page" data-qixi-rose aria-labelledby="qixiRoseTitle">
+    <div class="qixi-rose-glow" aria-hidden="true"></div>
+    <canvas class="qixi-rose-canvas" data-qixi-canvas role="img" aria-label="由胭脂红、花瓣粉与香槟金粒子组成的六十一朵立体玫瑰花束"></canvas>
+
+    <div class="qixi-rose-copy">
+      <span class="qixi-rose-kicker"><i aria-hidden="true"></i>QIXI · THE SEVENTH NIGHT</span>
+      <h1 id="qixiRoseTitle"><span>今晚，把银河</span><strong>折成一束玫瑰</strong></h1>
+      <p class="qixi-rose-lead">送你一束不会凋谢的花，也把所有说不出口的喜欢，都藏进每一粒星光里。</p>
+      <div class="qixi-rose-actions">
+        <button class="qixi-bloom-button" type="button" data-qixi-bloom><span>为你绽放</span><i aria-hidden="true">✦</i></button>
+        <button class="qixi-share-button" type="button" data-qixi-share>把花送给 TA</button>
+      </div>
+      <p class="qixi-rose-status" data-qixi-status aria-live="polite">轻触花束，星光会重新聚拢。</p>
+    </div>
+
+    <p class="qixi-rose-gesture"><span aria-hidden="true">↔</span>拖动花束，让玫瑰随你转身</p>
+    <blockquote class="qixi-rose-vow"><p>鹊桥不必等一年<br>想念抵达你的时候<br>银河就在眼前</p></blockquote>
+    <div class="qixi-rose-edition" aria-hidden="true"><span>七夕限定</span><small>LOVE, IN EVERY PARTICLE</small></div>
+  </section>
+  <script>try { window.PingFangQixiShareUrl = window.parent.location.href; } catch (error) {}</script>
+  <script src="/template/pingfangvideo/js/qixi-particle-rose.js"></script>
+</body>
+</html>`;
+
+export function QixiPage() {
+  return (
+    <main className={styles.page} id="mainContent">
+      <iframe
+        className={styles.frame}
+        title="七夕粒子玫瑰花束"
+        srcDoc={qixiDocument}
+        sandbox="allow-scripts allow-same-origin"
+        allow="clipboard-write; web-share"
+        referrerPolicy="same-origin"
+      />
+    </main>
+  );
+}

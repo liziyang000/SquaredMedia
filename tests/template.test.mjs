@@ -194,7 +194,7 @@ const requiredRootFiles = [
   "apps/web/.env.example",
   "apps/web/next.config.ts",
   "apps/web/src/app/healthz/route.ts",
-  "ops/nginx/react.ping2.my.conf",
+  "ops/nginx/www.ping2.my.conf",
   "ops/systemd/squaredmedia-next.service",
   "preview/data.json",
   "scripts/deploy-next-web.sh",
@@ -582,6 +582,7 @@ assert.match(qixiScript, /pointerdown/);
 assert.match(qixiScript, /IntersectionObserver/);
 assert.match(qixiScript, /prefers-reduced-motion/);
 assert.match(qixiScript, /navigator\.share/);
+assert.match(qixiScript, /PingFangQixiShareUrl/);
 assert.doesNotMatch(qixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
 
 const gamesPage = readThemeFile("html/label/games.html");
@@ -2479,7 +2480,9 @@ assert.match(healthRoute, /status: "ok"/);
 assert.match(healthRoute, /SQUAREDMEDIA_RELEASE_ID/);
 assert.match(healthRoute, /private, no-store/);
 
-const nextNginx = readFileSync(path.join(root, "ops/nginx/react.ping2.my.conf"), "utf8");
+const nextNginx = readFileSync(path.join(root, "ops/nginx/www.ping2.my.conf"), "utf8");
+assert.match(nextNginx, /https:\/\/www\.ping2\.my/);
+assert.doesNotMatch(nextNginx, /react\.ping2\.my/);
 assert.match(nextNginx, /proxy_pass http:\/\/127\.0\.0\.1:3100/);
 assert.match(nextNginx, /location \^~ \/_next\/static\//);
 assert.match(nextNginx, /location ~ \^\/index\\\.php/);
@@ -2531,8 +2534,8 @@ assert.match(nextService, /PORT=3100/);
 assert.match(nextService, /ExecStart=\/usr\/bin\/node apps\/web\/server\.js/);
 assert.match(nextService, /NoNewPrivileges=true/);
 assert.match(nextService, /ProtectSystem=strict/);
-assert.match(nextService, /ReadWritePaths=\/www\/wwwroot\/react_squared_media\/current\/apps\/web\/\.next\/cache/);
-assert.doesNotMatch(nextService, /ReadWritePaths=\/www\/wwwroot\/react_squared_media\s*$/m);
+assert.match(nextService, /ReadWritePaths=\/www\/wwwroot\/squaredMediaOnline\/current\/apps\/web\/\.next\/cache/);
+assert.doesNotMatch(nextService, /react_squared_media/);
 
 for (const script of ["scripts/deploy-next-web.sh", "scripts/rollback-next-web.sh"]) {
   const syntax = spawnSync("bash", ["-n", script], { cwd: root, encoding: "utf8" });
@@ -2540,6 +2543,10 @@ for (const script of ["scripts/deploy-next-web.sh", "scripts/rollback-next-web.s
 }
 
 const nextDeployScript = readFileSync(path.join(root, "scripts/deploy-next-web.sh"), "utf8");
+assert.match(nextDeployScript, /NEXT_ROOT="\/www\/wwwroot\/squaredMediaOnline"/);
+assert.match(nextDeployScript, /NEXT_SITE_HOST="www\.ping2\.my"/);
+assert.match(nextDeployScript, /ops\/nginx\/www\.ping2\.my\.conf/);
+assert.doesNotMatch(nextDeployScript, /react\.ping2\.my|react_squared_media/);
 assert.match(nextDeployScript, /NEXT_PUBLIC_API_BASE_URL=\/index\.php\/pingfangapi\/index/);
 assert.match(nextDeployScript, /npm run build:web/);
 assert.match(nextDeployScript, /npm run test:e2e/);
@@ -2581,20 +2588,26 @@ assert.doesNotMatch(nextDeployScript, /chown -R www:www "\$target"/);
 assert.match(nextDeployScript, /rm -f -- "\$NEXT_ROOT\/current"/);
 assert.match(nextDeployScript, /old_nginx_exists/);
 assert.match(nextDeployScript, /old_service_enabled/);
-assert.match(nextDeployScript, /for route in \/ \/status \/vod\/371745 \/games \/favicon\.ico "\$asset_path"/);
+assert.match(nextDeployScript, /for route in \/ \/status \/vod\/371745 \/games \/qixi \/favicon\.ico "\$asset_path"/);
 assert.match(nextDeployScript, /\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js/);
 assert.match(nextDeployScript, /\/template\/pingfangvideo\/games\/2048\/js\/application\.js/);
+assert.doesNotMatch(nextDeployScript, /\/template\/pingfangvideo\/games\/bamboo-cicada\.js/);
+assert.match(nextDeployScript, /\/template\/pingfangvideo\/js\/qixi-particle-rose\.js/);
+assert.match(nextDeployScript, /wait_for_http_status "\$method" \/games\/bamboo-cicada 308/);
+assert.match(nextDeployScript, /https:\/\/imsai\.top\//);
 assert.match(nextDeployScript, /apps\/web\/public\/react-runtime\/multiplayer-games\.js/);
 assert.match(nextDeployScript, /Candidate React multiplayer runtime checksum mismatch/);
 assert.match(nextDeployScript, /Staging React multiplayer runtime checksum mismatch/);
 assert.match(nextDeployScript, /wait_for_websocket_status "https:\/\/invalid\.example" 403/);
-assert.match(nextDeployScript, /wait_for_websocket_status "https:\/\/react\.ping2\.my" 401/);
+assert.match(nextDeployScript, /wait_for_websocket_status "https:\/\/www\.ping2\.my" 401/);
 assert.match(nextDeployScript, /after Nginx reload/);
 assert.match(nextDeployScript, /Sec-WebSocket-Protocol: pfv-game, pfv-ticket\.invalid/);
 assert.match(nextDeployScript, /index\.php\/pingfangdevice\/sourceQuality/);
 assert.match(nextDeployScript, /valid, URL-free quality envelope/);
 assert.match(nextDeployScript, /\/index\.php\/label\/games\.html\|\/games/);
+assert.match(nextDeployScript, /\/index\.php\/label\/game-bamboo-cicada\.html\|\/games\/bamboo-cicada/);
 assert.match(nextDeployScript, /\/index\.php\/label\/game-gomoku\.html\|\/games\/gomoku/);
+assert.match(nextDeployScript, /\/index\.php\/label\/qixi\.html\|\/qixi/);
 assert.match(nextDeployScript, /\/index\.php\/vod\/play\/id\/1\/sid\/2\/nid\/3\.html/);
 assert.match(nextDeployScript, /\/vodplay\/1-2-3\.html/);
 assert.match(nextDeployScript, /\/watch\/1\/2\/3/);
@@ -2618,6 +2631,9 @@ const nextRemoteDeploySyntax = spawnSync("bash", ["-n"], { input: nextRemoteDepl
 assert.equal(nextRemoteDeploySyntax.status, 0, nextRemoteDeploySyntax.stderr || "Remote Next.js deploy script must be valid Bash");
 
 const nextRollbackScript = readFileSync(path.join(root, "scripts/rollback-next-web.sh"), "utf8");
+assert.match(nextRollbackScript, /NEXT_ROOT="\/www\/wwwroot\/squaredMediaOnline"/);
+assert.match(nextRollbackScript, /NEXT_SITE_HOST="www\.ping2\.my"/);
+assert.doesNotMatch(nextRollbackScript, /react\.ping2\.my|react_squared_media/);
 assert.match(nextRollbackScript, /NEXT_ROLLBACK_RELEASE/);
 assert.match(nextRollbackScript, /pre-next-react-spa\.conf/);
 assert.match(nextRollbackScript, /untrusted writable path/);

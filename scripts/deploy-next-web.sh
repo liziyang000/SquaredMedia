@@ -8,12 +8,12 @@ cd "$repo_root"
 : "${DEPLOY_USER:?Set DEPLOY_USER to the SSH user.}"
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
-NEXT_ROOT="/www/wwwroot/react_squared_media"
-NEXT_SITE_HOST="react.ping2.my"
+NEXT_ROOT="/www/wwwroot/squaredMediaOnline"
+NEXT_SITE_HOST="www.ping2.my"
 NEXT_PORT="3100"
 NEXT_CANDIDATE_PORT="3101"
 NEXT_SERVICE="squaredmedia-next.service"
-NEXT_NGINX_EXTENSION="/www/server/panel/vhost/nginx/extension/react.ping2.my/react-spa.conf"
+NEXT_NGINX_EXTENSION="/www/server/panel/vhost/nginx/extension/www.ping2.my/react-spa.conf"
 NEXT_UNIT_PATH="/etc/systemd/system/$NEXT_SERVICE"
 NEXT_DEPLOY_CACHE_ROOT="$repo_root/.cache/next-deploy/v1"
 NEXT_DEPLOY_LOCK_DIR="$NEXT_DEPLOY_CACHE_ROOT/.deploy.lock"
@@ -385,16 +385,16 @@ done
 REMOTE_PREFLIGHT
 
 "${scp_command[@]}" "$artifact_archive" "${REMOTE}:${remote_artifact}"
-"${scp_command[@]}" ops/nginx/react.ping2.my.conf "${REMOTE}:${remote_nginx}"
+"${scp_command[@]}" ops/nginx/www.ping2.my.conf "${REMOTE}:${remote_nginx}"
 "${scp_command[@]}" ops/systemd/squaredmedia-next.service "${REMOTE}:${remote_unit}"
 
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_DEPLOY'
 set -euo pipefail
 
-expected_root="/www/wwwroot/react_squared_media"
-expected_host="react.ping2.my"
+expected_root="/www/wwwroot/squaredMediaOnline"
+expected_host="www.ping2.my"
 expected_service="squaredmedia-next.service"
-expected_nginx="/www/server/panel/vhost/nginx/extension/react.ping2.my/react-spa.conf"
+expected_nginx="/www/server/panel/vhost/nginx/extension/www.ping2.my/react-spa.conf"
 expected_unit="/etc/systemd/system/squaredmedia-next.service"
 expected_multiplayer_runtime_path="/react-runtime/multiplayer-games.js"
 
@@ -795,8 +795,8 @@ wait_for_websocket_status() {
   return 1
 }
 wait_for_websocket_status "https://invalid.example" 403
-wait_for_websocket_status "https://react.ping2.my" 401
-for route in / /status /vod/371745 /games /favicon.ico "$asset_path"; do
+wait_for_websocket_status "https://www.ping2.my" 401
+for route in / /status /vod/371745 /games /qixi /favicon.ico "$asset_path"; do
   wait_for_http_status GET "$route" 200
 done
 for shared_asset in \
@@ -804,8 +804,21 @@ for shared_asset in \
   /template/pingfangvideo/css/fonts/fusion-pixel-12px-proportional-zh-hans.woff2 \
   /template/pingfangvideo/games/2048/js/application.js \
   /template/pingfangvideo/games/blockrain/blockrain.jquery.min.js \
+  /template/pingfangvideo/js/qixi-particle-rose.js \
   "$NEXT_MULTIPLAYER_RUNTIME_PATH"; do
   wait_for_http_status GET "$shared_asset" 200
+done
+for method in GET HEAD; do
+  wait_for_http_status "$method" /games/bamboo-cicada 308
+  if [[ "$method" == "HEAD" ]]; then
+    bamboo_cicada_location="$(curl -ksS --max-time 10 "${resolve_args[@]}" --head -o /dev/null -w '%{redirect_url}' "$base_url/games/bamboo-cicada")"
+  else
+    bamboo_cicada_location="$(curl -ksS --max-time 10 "${resolve_args[@]}" -o /dev/null -w '%{redirect_url}' "$base_url/games/bamboo-cicada")"
+  fi
+  if [[ "$bamboo_cicada_location" != "https://imsai.top/" ]]; then
+    echo "Staging Bamboo Cicada route did not redirect to the official site." >&2
+    exit 1
+  fi
 done
 live_multiplayer_runtime_hash="$(
   curl -kfsS --max-time 10 "${resolve_args[@]}" "$base_url$NEXT_MULTIPLAYER_RUNTIME_PATH" |
@@ -820,8 +833,10 @@ for legacy_game_spec in \
   "/index.php/label/games.html|/games" \
   "/index.php/label/game-2048.html|/games/2048" \
   "/index.php/label/game-blockrain.html|/games/blockrain" \
+  "/index.php/label/game-bamboo-cicada.html|/games/bamboo-cicada" \
   "/index.php/label/game-gomoku.html|/games/gomoku" \
-  "/index.php/label/game-drawguess.html|/games/drawguess"; do
+  "/index.php/label/game-drawguess.html|/games/drawguess" \
+  "/index.php/label/qixi.html|/qixi"; do
   IFS='|' read -r legacy_game_route expected_game_location <<<"$legacy_game_spec"
   for method in GET HEAD; do
     wait_for_http_status "$method" "$legacy_game_route" 301

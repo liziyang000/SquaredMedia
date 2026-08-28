@@ -6,9 +6,11 @@ import type { ReactNode } from "react";
 import { useAccount } from "../app/AccountContext";
 import { Link, useNavigate, useSearchParams } from "../app/routing";
 import { PageStatus } from "../components/PagePrimitives";
+import { bambooCicadaOfficialUrl, bambooCicadaRepositoryUrl } from "../gameLinks";
 import styles from "./GamesPages.module.css";
 
-type GameSlug = "2048" | "blockrain" | "gomoku" | "drawguess";
+type GameSlug = "2048" | "blockrain" | "bamboo-cicada" | "gomoku" | "drawguess";
+type PlayableGameSlug = Exclude<GameSlug, "bamboo-cicada">;
 
 type GameDefinition = {
   slug: GameSlug;
@@ -24,7 +26,7 @@ type GameDefinition = {
   loginDescription: string;
 };
 
-const gameDefinitions: Record<GameSlug, GameDefinition> = {
+const gameDefinitions = {
   "2048": {
     slug: "2048",
     eyebrow: "NUMBER PUZZLE",
@@ -50,6 +52,19 @@ const gameDefinitions: Record<GameSlug, GameDefinition> = {
     multiplayer: false,
     loginTitle: "登录后才能开始游戏",
     loginDescription: "登录会员账号后即可进入俄罗斯方块，未登录状态不会加载游戏脚本。"
+  },
+  "bamboo-cicada": {
+    slug: "bamboo-cicada",
+    eyebrow: "OFFICIAL EXPERIENCE",
+    title: "竹知了",
+    description: "由 imsai-sh 制作的竹知了 Web 模拟，试玩由作者官方网站提供。",
+    cardDescription: "前往作者官方站，体验手机优先、支持触摸和体感操作的竹知了 Web 模拟。",
+    category: "传统声响玩具",
+    controls: "官方站 · 触摸体感",
+    action: "官方试玩",
+    multiplayer: false,
+    loginTitle: "竹知了官方试玩",
+    loginDescription: "竹知了由作者官方网站提供。"
   },
   gomoku: {
     slug: "gomoku",
@@ -77,9 +92,9 @@ const gameDefinitions: Record<GameSlug, GameDefinition> = {
     loginTitle: "登录后才能加入画室",
     loginDescription: "你画我猜房间仅向已登录会员开放，未登录状态不会请求联机票据或加载游戏脚本。"
   }
-};
+} satisfies Record<GameSlug, GameDefinition>;
 
-const gameOrder: GameSlug[] = ["2048", "blockrain", "gomoku", "drawguess"];
+const gameOrder: GameSlug[] = ["2048", "blockrain", "bamboo-cicada", "gomoku", "drawguess"];
 const ticketEndpoint = "/index.php/pingfangdevice/gameTicket";
 const roomPattern = /^[A-Z2-9]{6}$/;
 
@@ -326,7 +341,7 @@ function multiplayerDocument(game: "gomoku" | "drawguess", initialRoom: string) 
   return gameDocument(body, '<script src="/react-runtime/multiplayer-games.js"></script>', definition.title);
 }
 
-function buildGameDocument(game: GameSlug, initialRoom: string) {
+function buildGameDocument(game: PlayableGameSlug, initialRoom: string) {
   if (game === "2048") return game2048Document();
   if (game === "blockrain") return blockrainDocument();
   return multiplayerDocument(game, initialRoom);
@@ -395,6 +410,19 @@ function GameCardArt({ game }: { game: GameSlug }) {
       </div>
     );
   }
+  if (game === "bamboo-cicada") {
+    return (
+      <div className="game-card-art game-card-art-bamboo-cicada" aria-hidden="true">
+        <span className="bamboo-card-orbit" />
+        <span className="bamboo-card-line" />
+        <span className="bamboo-card-handle" />
+        <span className="bamboo-card-toy">
+          <i />
+          <b />
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="game-card-art game-card-art-drawguess" aria-hidden="true">
       <span className="draw-art-paper">
@@ -414,7 +442,7 @@ function GamesHub() {
         <div>
           <span className="eyebrow">MEMBER ARCADE</span>
           <h1 id="gameHubTitle">片刻放松，随时开局</h1>
-          <p>为观影间隙准备的轻量小游戏，游戏代码本地加载，不额外接入广告或统计模块。</p>
+          <p>为观影间隙准备的轻量小游戏；站内游戏本地加载，竹知了由作者官方站提供。</p>
         </div>
         <span className="game-hub-status">
           <i aria-hidden="true" />
@@ -435,9 +463,15 @@ function GamesHub() {
                 <h2>{game.title.replace("联机", "")}</h2>
                 <p>{game.cardDescription}</p>
                 <div className="game-card-actions">
-                  <Link className="primary-btn" to={`/games/${slug}`}>
-                    {game.action}
-                  </Link>
+                  {slug === "bamboo-cicada" ? (
+                    <a className="primary-btn" href={bambooCicadaOfficialUrl} target="_blank" rel="noopener noreferrer">
+                      {game.action}
+                    </a>
+                  ) : (
+                    <Link className="primary-btn" to={`/games/${slug}`}>
+                      {game.action}
+                    </Link>
+                  )}
                   {slug === "2048" && (
                     <a className="game-source-link" href="https://github.com/gabrielecirulli/2048" target="_blank" rel="noopener noreferrer">
                       MIT · GitHub
@@ -454,18 +488,23 @@ function GamesHub() {
                       {slug === "gomoku" ? "2 人联机" : "实时同步"}
                     </span>
                   )}
+                  {slug === "bamboo-cicada" && (
+                    <a className="game-source-link" href={bambooCicadaRepositoryUrl} target="_blank" rel="noopener noreferrer">
+                      官方项目 · GitHub
+                    </a>
+                  )}
                 </div>
               </div>
             </article>
           );
         })}
       </div>
-      <p className="game-hub-note">单机游戏进度保存在当前浏览器；联机房间仅保留在游戏服务内存中，服务重启后自动结束。</p>
+      <p className="game-hub-note">站内单机游戏进度保存在当前浏览器；联机房间仅保留在游戏服务内存中，服务重启后自动结束。</p>
     </section>
   );
 }
 
-function GameFrame({ game, initialRoom }: { game: GameDefinition; initialRoom: string }) {
+function GameFrame({ game, initialRoom }: { game: GameDefinition & { slug: PlayableGameSlug }; initialRoom: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const navigate = useNavigate();
   const [height, setHeight] = useState(game.multiplayer ? 980 : 760);
@@ -518,7 +557,7 @@ function GameFrame({ game, initialRoom }: { game: GameDefinition; initialRoom: s
   );
 }
 
-function GamePlayPage({ slug }: { slug: GameSlug }) {
+function GamePlayPage({ slug }: { slug: PlayableGameSlug }) {
   const game = gameDefinitions[slug];
   const [searchParams] = useSearchParams();
   const initialRoom = game.multiplayer ? normalizedRoom(searchParams.get("room")) : "";

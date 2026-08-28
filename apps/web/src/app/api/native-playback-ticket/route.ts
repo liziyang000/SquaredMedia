@@ -9,7 +9,7 @@ import {
 
 export const runtime = "nodejs";
 
-const STAGING_HOST = "react.ping2.my";
+const STAGING_HOST = "www.ping2.my";
 const MAX_REQUEST_BYTES = 2048;
 
 function jsonResponse(body: object, status: number) {

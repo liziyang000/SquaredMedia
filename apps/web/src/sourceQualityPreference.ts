@@ -1,5 +1,6 @@
 import type { ContentEpisode } from "./api/content";
 import type { SourceQualityData } from "./api/sourceQuality";
+import { comparePlaybackQoe, markPlaybackLineSwitch } from "./playbackQoe";
 
 const preferencePrefix = "pingfang_source_quality_preference_v1_";
 const preferenceMaxAgeMs = 60_000;
@@ -120,6 +121,8 @@ export function storeSourceQualityPreference(
   const sources = quality.sources
     .filter((source) => source.available && positiveIntegerString(source.sid))
     .sort((left, right) => {
+      const qoeDifference = comparePlaybackQoe(storage, vodId, episodeNo, left.sid, right.sid, now);
+      if (qoeDifference) return qoeDifference;
       const leftRank = left.quality_rank ?? Number.MAX_SAFE_INTEGER;
       const rightRank = right.quality_rank ?? Number.MAX_SAFE_INTEGER;
       if (leftRank !== rightRank) return leftRank - rightRank;
@@ -131,8 +134,7 @@ export function storeSourceQualityPreference(
     remove(storage, key);
     return null;
   }
-  const requestedRecommendation = positiveIntegerString(quality.recommended_sid);
-  const recommendedSourceId = rankedSourceIds.includes(requestedRecommendation) ? requestedRecommendation : rankedSourceIds[0]!;
+  const recommendedSourceId = rankedSourceIds[0]!;
   const record: SourceQualityPreference = {
     version: 1,
     vodId: positiveIntegerString(vodId),
@@ -221,8 +223,14 @@ export function selectAutomaticFallback({
         .filter((candidate) => rank.has(candidate.group.sourceId))
         .sort(
           (left, right) =>
-            (rank.get(left.group.sourceId) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.group.sourceId) ?? Number.MAX_SAFE_INTEGER) || left.order - right.order
+            comparePlaybackQoe(storage, vodId, activeEpisode.no, left.group.sourceId, right.group.sourceId, now) ||
+            (rank.get(left.group.sourceId) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.group.sourceId) ?? Number.MAX_SAFE_INTEGER) ||
+            left.order - right.order
         )
+    );
+  } else {
+    candidates.sort(
+      (left, right) => comparePlaybackQoe(storage, vodId, activeEpisode.no, left.group.sourceId, right.group.sourceId, now) || left.order - right.order
     );
   }
 
@@ -233,6 +241,7 @@ export function selectAutomaticFallback({
   state.visitedSourceIds.push(candidate.group.sourceId);
   state.expiresAt = now + automaticSwitchMaxAgeMs;
   write(storage, automaticSwitchKey, state);
+  markPlaybackLineSwitch(storage, { vodId, episodeNo: activeEpisode.no, sourceId: candidate.group.sourceId }, now);
   return candidate.episode;
 }
 

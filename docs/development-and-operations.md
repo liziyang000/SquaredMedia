@@ -30,7 +30,7 @@
 | `npm run analyze:web` | 生成 Next bundle 分析结果并复用预渲染检查 | 是，重建 `.next/` 并生成分析产物 |
 | `npm run performance:lighthouse` | 构建本地固定 fixture，并对首页、目录和详情运行 Lighthouse | 是，写入已忽略的 `output/lighthouse/` |
 | `npm run test:e2e` | 用 Playwright 验证本地 Next.js/PHP 路由、状态码、账号流程和响应式边界 | 失败证据写入已忽略的 `output/playwright/` |
-| `npm run deploy:web` | 验证、构建或复用 Linux standalone 归档并原子切换 `react.ping2.my` | 写入本地缓存、远端版本、systemd 与 Nginx |
+| `npm run deploy:web` | 验证、构建或复用 Linux standalone 归档并原子切换 `www.ping2.my` | 写入本地缓存、远端版本、systemd 与 Nginx |
 | `npm run rollback:web` | 将 staging 切回 `previous` 或指定 Next.js release | 修改远端 `current` 与对应运行配置 |
 | `npm run rollback:api` | 使用显式成对备份 ID 回滚生产 API 插件和应用控制器 | 修改远端 API 文件并清理 MacCMS 缓存 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
@@ -161,14 +161,17 @@ dist/
 
 ### Next.js staging
 
+面向操作人的首次服务器准备、逐步发布、验收、回滚和排障命令统一见
+[Next.js 服务器部署手册](next-server-deployment.md)。本节保留发布脚本的工程契约与边界说明。
+
 Next.js 与 MacCMS 主题/addon 使用两条独立发布链。`npm run deploy:web` 的目标被脚本锁定为：
 
 ```text
-域名：react.ping2.my
-发布根：/www/wwwroot/react_squared_media
+域名：www.ping2.my
+发布根：/www/wwwroot/squaredMediaOnline
 Node：127.0.0.1:3100
 服务：squaredmedia-next.service
-Nginx include：/www/server/panel/vhost/nginx/extension/react.ping2.my/react-spa.conf
+Nginx include：/www/server/panel/vhost/nginx/extension/www.ping2.my/react-spa.conf
 ```
 
 服务器只需安装 Node.js 22.22 以上，不再要求在 1 GiB staging 主机执行 npm install 或 production build。不能直接上传未经脚本替换和验证原生依赖的 macOS `.next`。连接参数继续复用 `scripts/deploy-ping2.env`，其中的 `DEPLOY_PATH` 与 `DEPLOY_SITE_HOST` 只供 MacCMS 发布脚本使用，不会改变 Next.js 的锁定 staging 目标。
@@ -184,10 +187,10 @@ npm run deploy:web
 
 本地锁位于 `.cache/next-deploy/v1/.deploy.lock`。正常退出会自动释放；若本机进程被 `SIGKILL` 或掉电打断，确认没有其他 `deploy:web` 进程后再手工移除这个空锁目录。
 
-Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；两个 PHP 入口只检查真实的 `index.php` 或 `api.php` 文件，并显式把 `SCRIPT_NAME` 与 `PATH_INFO` 传给 FastCGI，保证插件 action 和 provider 路由不会被完整 URI 的物理文件检查误拦。旧播放页 `/index.php/vod/play/id/<vod_id>/sid/<sid>/nid/<nid>.html`、rewrite `/vodplay/<vod_id>-<sid>-<nid>.html` 和五个旧游戏 label 地址的 GET/HEAD 会在通用 PHP 规则之前交给 Next 迁移规则并返回单跳 `301`；其他方法继续进入 MacCMS PHP。播放别名共享 1～2147483647 的正整数校验，联机邀请仅保留 `[A-Z2-9]{6}` 房间码；非数字播放地址、非法房间码和外部跳转参数不会进入重定向目标。`/game-socket` 只接受浏览器 Origin 精确为 `https://react.ping2.my` 的 GET WebSocket 握手，并在代理到现有 `127.0.0.1:8787` 服务前把 Host/Origin 固定改写为主站已允许值；这不会扩大独立服务的允许来源，也不会把浏览器 Cookie 交给它。`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
+Nginx 保留 `/index.php`、`/api.php`、`/upload`、`/static` 和 `/template` 给 `/www/wwwroot/squaredMedia` 的 PHP/文件系统；两个 PHP 入口只检查真实的 `index.php` 或 `api.php` 文件，并显式把 `SCRIPT_NAME` 与 `PATH_INFO` 传给 FastCGI，保证插件 action 和 provider 路由不会被完整 URI 的物理文件检查误拦。旧播放页 `/index.php/vod/play/id/<vod_id>/sid/<sid>/nid/<nid>.html`、rewrite `/vodplay/<vod_id>-<sid>-<nid>.html` 和五个旧游戏 label 地址的 GET/HEAD 会在通用 PHP 规则之前交给 Next 迁移规则并返回单跳 `301`；其他方法继续进入 MacCMS PHP。播放别名共享 1～2147483647 的正整数校验，联机邀请仅保留 `[A-Z2-9]{6}` 房间码；非数字播放地址、非法房间码和外部跳转参数不会进入重定向目标。`/game-socket` 只接受浏览器 Origin 精确为 `https://www.ping2.my` 的 GET WebSocket 握手，并在代理到现有 `127.0.0.1:8787` 服务前把 Host/Origin 固定改写为主站已允许值；这不会扩大独立服务的允许来源，也不会把浏览器 Cookie 交给它。`/react-api.php` 与 `/preview` 明确返回 404，其余干净 URL 反代 Next。Node 端口不向公网监听。失败会恢复旧 `current`、Nginx include 和服务状态；成功后旧目标记录为 `previous`。
 
 测试域名的夸克兼容凭证由 Next 路由隔离承载，不修改共享 MacCMS PHP：
-`POST /api/native-playback-ticket` 只接受 `react.ping2.my` 的同源 JSON，并且只允许
+`POST /api/native-playback-ticket` 只接受 `www.ping2.my` 的同源 JSON，并且只允许
 现有 `pingfangapi/stream/id/.../sid/.../nid/...` 路径。Next 通过服务器回环请求把
 浏览器 Cookie 和 Nginx 提供的客户端 IP 交给原 `stream` 再授权，只有得到 302 后才
 在当前 Node 进程内保存 120 秒媒体凭证；无 Cookie 的

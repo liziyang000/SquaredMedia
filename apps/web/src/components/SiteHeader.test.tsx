@@ -73,6 +73,25 @@ describe("SiteHeader themes", () => {
     expect(document.documentElement).toHaveAttribute("data-theme", "dunhuang-caisson");
   });
 
+  it("offers, applies, and restores the Digital Particles theme", async () => {
+    const firstRender = renderHeader();
+    const digitalOptions = screen.getAllByRole("button", { name: "数码粒子", hidden: true });
+
+    expect(digitalOptions).toHaveLength(2);
+    digitalOptions.forEach((option) => expect(option).toHaveAttribute("data-theme-option", "digital-particles"));
+    fireEvent.click(screen.getByRole("button", { name: "主题" }));
+    fireEvent.click(screen.getByRole("button", { name: "数码粒子" }));
+
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "digital-particles"));
+    expect(localStorage.getItem("pingfang_theme")).toBe("digital-particles");
+
+    firstRender.unmount();
+    renderHeader();
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "数码粒子", hidden: true })[0]).toHaveAttribute("aria-pressed", "true"));
+    expect(document.documentElement).toHaveAttribute("data-theme", "digital-particles");
+  });
+
   it("offers, applies, animates, and restores the Pixel Frog theme", async () => {
     const emitter = Object.assign(vi.fn(), { reset: vi.fn() });
     const create = vi.fn(() => emitter);

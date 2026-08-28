@@ -18,13 +18,13 @@ const streamUrl = "/index.php/pingfangapi/stream/id/42/sid/2/nid/7.html";
 const authorizeMock = vi.mocked(authorizeProtectedStream);
 
 function ticketRequest(body: unknown, headers: Record<string, string> = {}) {
-  return new NextRequest("https://react.ping2.my/api/native-playback-ticket", {
+  return new NextRequest("https://www.ping2.my/api/native-playback-ticket", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Cookie: "PHPSESSID=test-session",
-      Host: "react.ping2.my",
-      Origin: "https://react.ping2.my",
+      Host: "www.ping2.my",
+      Origin: "https://www.ping2.my",
       "Sec-Fetch-Site": "same-origin",
       "User-Agent": "Quark/10.13.0",
       "X-Real-IP": "203.0.113.9",
@@ -59,6 +59,21 @@ describe("POST /api/native-playback-ticket", () => {
 
   it("rejects cross-origin requests before contacting MacCMS", async () => {
     const response = await POST(ticketRequest({ streamUrl }, { Origin: "https://attacker.example", "Sec-Fetch-Site": "cross-site" }));
+
+    expect(response.status).toBe(403);
+    expect(authorizeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests for the former staging host", async () => {
+    const response = await POST(
+      ticketRequest(
+        { streamUrl },
+        {
+          Host: "react.ping2.my",
+          Origin: "https://react.ping2.my"
+        }
+      )
+    );
 
     expect(response.status).toBe(403);
     expect(authorizeMock).not.toHaveBeenCalled();

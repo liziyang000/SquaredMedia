@@ -1,6 +1,6 @@
 # React 模板迁移矩阵
 
-本文逐一覆盖 `template/pingfangvideo/html/**` 下当前 84 个 MacCMS 模板或片段，固定它们在 React 前台迁移后的归属、路由、数据契约和验收边界。实施顺序与总体约束以
+本文逐一覆盖 `template/pingfangvideo/html/**` 下当前 86 个 MacCMS 模板或片段，固定它们在 React 前台迁移后的归属、路由、数据契约和验收边界。实施顺序与总体约束以
 [`docs/superpowers/plans/2026-07-21-react-frontend-migration.md`](superpowers/plans/2026-07-21-react-frontend-migration.md)
 为准。
 
@@ -17,7 +17,7 @@
 
 ## 事实来源
 
-- 当前职责、字段和交互以仓库内 84 个 `template/pingfangvideo/html/**` 文件及 `template/pingfangvideo/js/app.js`、`multiplayer-games.js` 为准。
+- 当前职责、字段和交互以仓库内 86 个 `template/pingfangvideo/html/**` 文件及 `template/pingfangvideo/js/app.js`、`multiplayer-games.js` 为准。
 - 总体架构、干净 URL、无 SEO 和播放器边界来自本仓库 React 迁移实施计划。
 - MacCMS 模板文件职责以[官方模板结构](https://www.maccms.la/theme/structure)为准；视频对象、播放参数及 `$player_data`、`$player_js` 语义以[官方视频模板文档](https://www.maccms.la/theme/theme-vod)为准；默认 rewrite 名称参考[官方默认路由](https://www.maccms.la/config)。
 
@@ -39,20 +39,20 @@
 
 | 最终归属              | 数量 | 说明                                                    |
 | --------------------- | ---: | ------------------------------------------------------- |
-| React 页面            |   31 | 首页、视频、既有会员账号、设备、评论、反馈和会员游戏页面。 |
+| React 页面            |   33 | 首页、视频、既有会员账号、设备、评论、反馈、会员游戏和沉浸式页面。 |
 | React 共享组件        |   17 | 公共骨架、系统状态、列表片段、评分展示和用户 include。  |
 | MacCMS 后端直通或候选 |    5 | 1 个播放器内部页面；4 个仅在有消费者时保留的 RSS 输出。 |
 | `410` 退场            |   31 | 25 个无业务数据兜底、4 个 Sitemap 和 2 个账号流程页面。 |
-| 合计                  |   84 | 与当前目录文件数一致。                                  |
+| 合计                  |   86 | 与当前目录文件数一致。                                  |
 
 ## 当前实现状态
 
-- 84 个模板或片段已经全部获得 React 页面、React 共享组件、MacCMS 后端直通候选或 `410` 退场归属；矩阵无遗漏。当前切流范围仅为 `react.ping2.my` staging，主站保持原状。
-- Next.js Proxy 的代码和契约测试已覆盖已知旧公开 GET/HEAD 地址的单跳 `301`、参数保留，以及明确退场地址的真实 HTTP `410`。这些规则只用于迁移兼容，不实施 SEO；Sitemap、搜索引擎元数据和 SEO 切流均不在范围内。Nginx 模板现将两个数字形态旧播放地址和五个旧游戏地址的 GET/HEAD 交给 Next 迁移规则，其他方法仍交给 PHP；播放别名共享 1～2147483647 的参数上限，联机邀请只保留合法六位房间码。部署 smoke 会逐一核对这些地址及重定向目标。
+- 86 个模板或片段已经全部获得 React 页面、React 共享组件、MacCMS 后端直通候选或 `410` 退场归属；矩阵无遗漏。当前切流范围仅为 `www.ping2.my` staging，`www.ping2video.xyz` 主站保持原状。
+- Next.js Proxy 的代码和契约测试已覆盖已知旧公开 GET/HEAD 地址的单跳 `301`、参数保留，以及明确退场地址的真实 HTTP `410`。这些规则只用于迁移兼容，不实施 SEO；Sitemap、搜索引擎元数据和 SEO 切流均不在范围内。Nginx 模板现将两个数字形态旧播放地址、六个旧游戏地址和七夕旧地址的 GET/HEAD 交给 Next 迁移规则，其他方法仍交给 PHP；播放别名共享 1～2147483647 的参数上限，联机邀请只保留合法六位房间码。部署 smoke 会逐一核对这些地址及重定向目标。
 - App Router 的未匹配路由可进入框架级 `not-found`；但影片详情、下载、剧情等动态页面当前仍在客户端请求 API。API 404 只映射为 `MissingContentPage` UI，API 403 映射为现有权限 UI，尚未实现这些动态页面的真实服务端 HTTP 404/403 状态。
 - 匿名历史保存在经过结构和 URL 白名单校验的浏览器存储中。账号收藏和播放历史通过私有 session 接口以 24 条页码读取，DTO 用 `recordIds` 保留每条原生 `ulog_id`；全选只选择当前页，选择删除只按当前用户、日志类型和精确 `ulog_id` 删除，不按 `ulog_rid` 扩大到同一影片的其他记录，清空操作仍限制在当前用户对应的 type 2 或 type 4 范围内。
 - 影片库、分类、搜索和年度榜已统一使用服务端 scope、父子分类上下文、真实 facets 与 24 条分页；详情保留线路名称/提示和评分顶踩计数，并通过同源 `pingfangdevice/sourceQuality` 自动检测指定集、显示唯一推荐线路且把主播放入口指向推荐来源。播放器在启动超时、持续缓冲、致命 HLS 或原生视频错误时只向尚未尝试且同集可映射的下一条线路切换，并在当前标签页恢复进度；无候选时保留手动选线。下载与剧情分别读取原生 `vod_down_*` 和 `vod_plot_*`。下载 API 的 404/403 分别显示影片不存在/下载权限状态，剧情 API 的 404/403 分别显示影片不存在/详情权限状态；两者都是客户端 UI 分流。
-- 会员游戏大厅、2048、俄罗斯方块、联机五子棋和联机你画我猜已迁移到 `/games/**`。未登录页面只显示权限提示且不加载运行时；登录后游戏在隔离 iframe 内使用主题共享资源，联机页面继续通过设备插件短票据和独立房间服务鉴权。旧 `label/game*` GET/HEAD 地址单跳 `301`，写请求仍留给 PHP。
+- 会员游戏大厅、2048、俄罗斯方块、联机五子棋和联机你画我猜已迁移到 `/games/**`。未登录页面只显示权限提示且不加载运行时；登录后站内游戏在隔离 iframe 内使用主题共享资源，联机页面继续通过设备插件短票据和独立房间服务鉴权。竹知了卡片直接打开作者官方站，兼容路由 `/games/bamboo-cicada` 返回 `308`，不复制或部署上游源码。七夕粒子玫瑰迁移到不等待导航数据的 `/qixi` 沉浸式路由。旧 `label/game*` 与 `label/qixi` GET/HEAD 地址单跳 `301`，写请求仍留给 PHP。
 - 账号前台只保留既有会员登录、会话、账号首页、收藏、播放记录、设备和退出登录；不提供新会员注册或账号找回。`/register`、`/forgot-password` 及两个旧 GET 页面地址的本地路由与 Nginx 模板均配置为对 GET/HEAD 返回 `410 Gone`，发布脚本会在 Nginx reload 后验证该状态码。
 - 留言、片源报错和评论已读取 MacCMS 的 `enabled`、登录、验证码和 `audit` 配置；关闭时前端不展示提交面板或不发起评论列表请求，PHP API 仍独立拒绝写入。接口返回 `pending`/`published` 后，前端明确区分“等待审核”和“已发布”，不把通用成功消息当作已公开。
 - production build 使用 Linux standalone、systemd 健康检查、版本目录、`current` 原子切换和 Nginx 反向代理，不携带 fixture、本地适配器或媒体样例地址。真实 MacCMS API 已保持同源直通；普通会员基础流程只有有限的 staging 验收证据，VIP、付费、试看、密码、版权等真实会员矩阵仍未完成验收，不能以代码或契约测试代替。
@@ -90,11 +90,13 @@
 | --------------------------------------------------- | ------------------------------------------------------------------------------------ | ---------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `template/pingfangvideo/html/label/categories.html` | 视频分类入口；action `label/categories`，默认 `/index.php/label/categories.html`     | React 页面 | `/categories`，`CategoriesPage`              | 父级视频分类 `type_id`、`type_name`；最新、最热、评分快捷排序                                                           | `R1`；顶部“视频”和旧地址均进入独立分类页，旧地址单跳 `301`                   |
 | `template/pingfangvideo/html/label/comics.html`     | 仅显示“漫画模块暂未启用”的兜底页；action `label/comics`                              | `410` 退场 | 无                                           | 无业务数据或写操作，仅跳首页和影片库                                                                                    | `X1`                                                                         |
-| `template/pingfangvideo/html/label/games.html`      | 会员游戏大厅；action `label/games`，默认 `/index.php/label/games.html`               | React 页面 | `/games`，`GamesHubPage`                     | 四个游戏的名称、说明、玩法和登录要求；未登录仅展示权限提示，不创建游戏 iframe                                           | `R2`；旧地址 GET/HEAD 单跳 `301`；游客、登录、会话失效、键盘导航和响应式布局           |
+| `template/pingfangvideo/html/label/games.html`      | 会员游戏大厅；action `label/games`，默认 `/index.php/label/games.html`               | React 页面 | `/games`，`GamesHubPage`                     | 五个游戏的名称、说明、玩法和登录要求；未登录仅展示权限提示，不创建游戏 iframe                                           | `R2`；旧地址 GET/HEAD 单跳 `301`；游客、登录、会话失效、键盘导航和响应式布局           |
 | `template/pingfangvideo/html/label/game-2048.html`  | 会员 2048；action `label/game-2048`，默认 `/index.php/label/game-2048.html`           | React 页面 | `/games/2048`，`GamePage`                    | 登录后在隔离 iframe 内加载本地 2048 MIT 运行时；方向键、WASD、滑动、重新开始和最高分                                    | `R2`；游客不加载脚本；旧地址单跳 `301`；键盘/触控、存储隔离、主题同步和离页清理        |
 | `template/pingfangvideo/html/label/game-blockrain.html` | 会员俄罗斯方块；action `label/game-blockrain`，默认 `/index.php/label/game-blockrain.html` | React 页面 | `/games/blockrain`，`GamePage`               | 登录后在隔离 iframe 内加载本地 jQuery 1.11.1 与 Blockrain.js；键盘和触控按钮                                              | `R2`；游客不加载脚本；旧地址单跳 `301`；操作、结束/重开、主题同步和离页清理            |
+| `template/pingfangvideo/html/label/game-bamboo-cicada.html` | 会员竹知了；action `label/game-bamboo-cicada`，默认 `/index.php/label/game-bamboo-cicada.html` | React 页面 | `/games/bamboo-cicada`，`308` 到 `https://imsai.top/` | 游戏大厅直接提供作者官方试玩与 GitHub 项目链接；Next 不复制、嵌入或部署 `imsai-sh/zhuzhiliao` 源码和素材 | `R2`；官方链接新窗口打开并保留安全 `rel`；兼容路由固定 `308`；旧地址先单跳 `301` 到兼容路由；Next 页面不创建竹知了 iframe |
 | `template/pingfangvideo/html/label/game-gomoku.html` | 会员联机五子棋；action `label/game-gomoku`，默认 `/index.php/label/game-gomoku.html` | React 页面 | `/games/gomoku?room=:code`，`GamePage`       | 登录后通过 `pingfangdevice/gameTicket` 获取短票据，以 WebSocket 子协议接入 `/game-socket`；六位房间码、邀请链接、轮流落子 | `R2`；游客/票据失败/断线/重连/胜负；房间码白名单；旧地址保留合法 `room` 后单跳 `301`    |
 | `template/pingfangvideo/html/label/game-drawguess.html` | 会员联机你画我猜；action `label/game-drawguess`，默认 `/index.php/label/game-drawguess.html` | React 页面 | `/games/drawguess?room=:code`，`GamePage`    | 登录后复用短票据和 WebSocket；2–8 人轮流作画、画手私有题目、实时猜词、回合和计分                                          | `R2`；游客/票据失败/断线/重连/房主与回合状态；答案不广播；旧地址保留合法 `room` 后单跳 `301` |
+| `template/pingfangvideo/html/label/qixi.html` | 七夕粒子玫瑰；action `label/qixi`，默认 `/index.php/label/qixi.html` | React 页面 | `/qixi`，`QixiPage` | 沉浸式隔离 iframe 复用生产 CSS 与粒子脚本；绽放、分享和拖动交互 | `R2`；旧地址单跳 `301`；不等待导航数据；离页销毁 iframe；动效和分享需浏览器验收 |
 | `template/pingfangvideo/html/label/history.html`    | 匿名浏览器本地观看记录；action `label/history`，默认 `/index.php/label/history.html` | React 页面 | `/history`，`LocalHistoryPage`               | `localStorage` 的 `pingfang_history` 或 `mac_history`；日期、时间、名称、继续播放 URL、海报、进度；不与登录账号记录混淆 | `R1`；无效 JSON、危险 URL、去重和空记录；登录账号记录仍走 `/account/history` |
 | `template/pingfangvideo/html/label/hot.html`        | 本年度热播榜；action `label/hot`，默认 `/index.php/label/hot.html`                   | React 页面 | `/rankings/yearly`，`YearlyRankingPage`      | 当前年份；固定视频范围；按 `hits` 倒序；视频卡片 DTO 和分页                                                             | `R1`；年份边界、排序和分页对照 MacCMS 数据                                   |
 | `template/pingfangvideo/html/label/videos.html`     | 全站最新影片；action `label/videos`，默认 `/index.php/label/videos.html`             | React 页面 | `/videos`，`VideoLibraryPage` 的默认最新视图 | 固定视频范围；按 `time` 倒序；视频卡片 DTO 和分页                                                                       | `R1`；与 `vod/show` 合并时每个旧地址分别单跳 `301`                           |
@@ -192,12 +194,12 @@
 | 应用骨架           | `AppShell`、`SiteHeader`、主题、抽屉、搜索、当前用户和路由状态                                                                 | `public/head`、`public/include`、`public/foot`、`user/head`、`user/include`、`user/foot`                                                                                         |
 | 视频目录           | 一个查询模型和一套 `VideoLibraryPage`、`VodFilterPanel`、`VodGrid`、`VodCard`，由路由决定全站、分类、搜索或榜单参数            | `vod/show`、`vod/type`、`vod/search`、`label/categories`、`label/hot`、`label/videos`、`public/paging`、`public/vod_card`、`public/vod_filter_common`、`public/vod_grid_results` |
 | 视频详情和权限挑战 | `VodDetailPage` 加 `SourceQualityPanel`、通用 `PasswordChallengePage`、`AccessConfirmPage`、`AvailabilityPage`；线路检测只返回脱敏健康指标，所有授权由后端决定 | `vod/detail`、`vod/detail_pwd`、`vod/confirm`、`vod/copyright`、`public/digg`、`public/score`、`public/star`、`public/verify`                                                    |
-| 播放和下载         | `PlayerPage`、`DownloadsPage` 共享线路与集数 DTO；`PlotPage` 复用详情权限；播放器按短期健康顺序有界换线，最终资源地址继续后端授权 | `vod/play`、`vod/player`、`vod/player_pwd`、`vod/down`、`vod/downer_pwd`、`vod/plot`                                                                                             |
+| 播放和下载         | `PlayerPage`、`DownloadsPage` 共享线路与集数 DTO；`PlotPage` 复用详情权限；播放器结合服务端健康与标签页 QoE 有界换线，HLS 多档提供清晰度菜单，最终资源地址继续后端授权 | `vod/play`、`vod/player`、`vod/player_pwd`、`vod/down`、`vod/downer_pwd`、`vod/plot`                                                                                             |
 | 账号记录           | 统一用户日志 DTO 和批量删除交互；type 2 区分收藏、type 4 区分播放记录，折叠展示仍保留原生 `ulog_id` 并按精确 ID 删除           | `user/index`、`user/favs`、`user/plays`、`pingfangdevice/index`                                                                                                                  |
 | 身份流程           | 只保留既有会员登录的验证码、重复提交和安全回跳；公开 `StatusPage` 只显示固定文案                                               | `user/login`、`public/jump`、`public/msg`、`public/verify`                                                                                                                       |
 | 互动反馈           | 统一读取 `enabled`、登录、验证码和 `audit` 配置，执行同源写请求并按 `pending`/`published` 显示真实状态；评论额外绑定内容上下文 | `comment/index`、`comment/ajax`、`gbook/index`、`book/index`、`book/report`                                                                                                      |
 | 本地历史           | 只处理经过 URL 白名单和结构校验的浏览器本地记录，不与账号记录混用                                                              | `label/history`                                                                                                                                                                  |
-| 会员游戏           | `GamesHubPage` 与 `GamePage` 共用登录门禁、游戏元数据、隔离 iframe 和主题桥接；联机页额外桥接房间码并从同源插件取得一次性票据  | `label/games`、`label/game-2048`、`label/game-blockrain`、`label/game-gomoku`、`label/game-drawguess`                                                                            |
+| 会员游戏           | `GamesHubPage` 与站内 `GamePage` 共用登录门禁、游戏元数据、隔离 iframe 和主题桥接；竹知了改走作者官方外链，联机页额外桥接房间码并从同源插件取得一次性票据  | `label/games`、`label/game-2048`、`label/game-blockrain`、`label/game-bamboo-cicada`、`label/game-gomoku`、`label/game-drawguess`                                                                            |
 
 ## 最小完成顺序
 
@@ -212,8 +214,8 @@
 
 ## 矩阵完成门槛
 
-- 文件枚举脚本确认 84 个模板路径在本矩阵中各出现一次，没有遗漏或重复。
-- 31 个 React 页面模板均有路由、DTO、成功、空、无权限、404 和后端失败测试；涉及写操作的页面另有安全与会话测试。
+- 文件枚举脚本确认 86 个模板路径在本矩阵中各出现一次，没有遗漏或重复。
+- 33 个 React 页面模板均有路由及对应状态测试；涉及数据、权限或写操作的页面按契约补充成功、空、无权限、404、后端失败、安全与会话测试。
 - 17 个共享组件不再依赖 jQuery、`home.js` 或全局 `maccms` 对象；React 页面不加载旧 `app.js`。
 - `vod/player` 和保留的 RSS 端点不经过 SPA，且 Nginx 顺序不会让 `/api.php/**`、后台、上传和插件端点落入 React。
 - Next.js 直达的 31 个退场项返回 `410`；其中 `/register`、`/forgot-password` 及对应旧 GET 页面地址必须覆盖 GET/HEAD。staging 中仍由 MacCMS 接管的其他 `/index.php/**` 不纳入该断言。未匹配路由不得统一跳首页；动态内容不存在当前仅有客户端 404 UI，若上线门槛要求真实 HTTP 404，仍需单独完成服务端数据判定。

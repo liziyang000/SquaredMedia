@@ -2385,17 +2385,18 @@ dist/pingfangapi.tar.gz
 
 ```bash
 source scripts/deploy-ping2.env
-DEPLOY_SCOPE=backend npm run deploy
+DEPLOY_SCOPE=backend DEPLOY_CLEAR_CACHE=1 bash scripts/deploy-theme.sh
 ```
 
 `backend` 会安装并验证 `pingfangdevice`、hook、设备表、Ulog 进度列和
-`pingfangapi`，但不替换主题。
+`pingfangapi`，但不替换主题。不要使用根级 `npm run deploy` 代替这条命令；根级
+命令在 MacCMS 阶段成功后还会继续部署联机游戏服务。
 
 ### 16.4 仅更新 API
 
 ```bash
 source scripts/deploy-ping2.env
-DEPLOY_SCOPE=api npm run deploy
+DEPLOY_SCOPE=api DEPLOY_CLEAR_CACHE=1 bash scripts/deploy-theme.sh
 ```
 
 API-only 部署会：
@@ -2565,6 +2566,7 @@ GET action 不能 POST，POST action 不能 GET。读取响应 `Allow` 头确认
 
 ## 20. 相关文档
 
+- [PingFang API 生产部署指南](pingfangapi-deployment-guide.md)
 - [MacCMS 插件模块](addons.md)
 - [项目总览](overview.md)
 - [开发、发布与运维](development-and-operations.md)

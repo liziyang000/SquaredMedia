@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createNativePlaybackTicket, resetNativePlaybackTicketsForTest } from "../../../../server/nativePlaybackTickets";
 import { GET } from "./route";
 
-const request = new NextRequest("https://react.ping2.my/api/native-playback-stream/test", {
-  headers: { Host: "react.ping2.my" }
+const request = new NextRequest("https://www.ping2.my/api/native-playback-stream/test", {
+  headers: { Host: "www.ping2.my" }
 });
 
 afterEach(() => {
@@ -32,10 +32,10 @@ describe("GET /api/native-playback-stream/[ticket]", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("is unavailable on any host other than the staging domain", async () => {
+  it("is unavailable on the former staging host", async () => {
     const ticket = createNativePlaybackTicket("https://media.example/video/index.m3u8");
-    const otherHostRequest = new NextRequest("https://example.com/api/native-playback-stream/test", {
-      headers: { Host: "example.com" }
+    const otherHostRequest = new NextRequest("https://react.ping2.my/api/native-playback-stream/test", {
+      headers: { Host: "react.ping2.my" }
     });
     const response = await GET(otherHostRequest, { params: Promise.resolve({ ticket }) });
 

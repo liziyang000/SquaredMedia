@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   icons: { icon: "/template/pingfangvideo/images/brand/favicon.ico" }
 };
 
-const themeBootstrapScript = `(function(){try{var theme=window.localStorage.getItem("pingfang_theme");if(theme==="blue-pink-purple"||theme==="poster-magazine"||theme==="dunhuang-caisson"||theme==="pixel-frog"){document.documentElement.setAttribute("data-theme",theme);}else{document.documentElement.removeAttribute("data-theme");}}catch(error){}})();`;
+const themeBootstrapScript = `(function(){try{var theme=window.localStorage.getItem("pingfang_theme");if(theme==="blue-pink-purple"||theme==="poster-magazine"||theme==="dunhuang-caisson"||theme==="digital-particles"||theme==="pixel-frog"){document.documentElement.setAttribute("data-theme",theme);}else{document.documentElement.removeAttribute("data-theme");}}catch(error){}})();`;
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (

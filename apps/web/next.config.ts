@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import { fileURLToPath } from "node:url";
 
+import { bambooCicadaOfficialUrl } from "./src/gameLinks";
+
 const localMacCmsOrigin = process.env.MACCMS_ORIGIN?.replace(/\/$/, "") || (process.env.NODE_ENV === "development" ? "http://127.0.0.1:8084" : "");
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const lowMemoryBuild = process.env.SQUAREDMEDIA_LOW_MEMORY_BUILD === "1";
@@ -9,6 +11,15 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: repositoryRoot,
   experimental: lowMemoryBuild ? { cpus: 1 } : undefined,
+  async redirects() {
+    return [
+      {
+        source: "/games/bamboo-cicada",
+        destination: bambooCicadaOfficialUrl,
+        permanent: true
+      }
+    ];
+  },
   async rewrites() {
     if (!localMacCmsOrigin) return [];
 

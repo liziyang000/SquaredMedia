@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import type { PlaybackDescriptor } from "../api/content";
 import { requestJson } from "../api/http";
+import { reportPlaybackQoe } from "../playbackQoe";
+import type { PlaybackQoeStatus } from "../playbackQoe";
 import styles from "./MacCmsPlayer.module.css";
 
 const STARTUP_TIMEOUT_MS = 12_000;
@@ -55,6 +57,73 @@ function prefersNativeHls(video: HTMLVideoElement) {
   if (isAppleMobile) return true;
 
   return /safari/i.test(userAgent) && !/(?:android|chrome|chromium|crios|edg|opr)/i.test(userAgent);
+}
+
+type HlsQualityLevel = { width?: number; height?: number; bitrate?: number };
+type HlsQualityItem = { html: string; level: number; height?: number; bitrate?: number; default?: boolean };
+type HlsQualityRuntime = {
+  levels: HlsQualityLevel[];
+  autoLevelEnabled: boolean;
+  manualLevel: number;
+  nextLevel: number;
+};
+
+function hlsLevelLabel(level: HlsQualityLevel, index: number, levels: HlsQualityLevel[]) {
+  const height = Math.round(Number(level.height) || 0);
+  const bitrate = Math.round(Number(level.bitrate) || 0);
+  if (height > 0) {
+    const duplicateHeight = levels.filter((candidate) => Math.round(Number(candidate.height) || 0) === height).length > 1;
+    if (!duplicateHeight) return `${height}p`;
+    return `${height}p · ${bitrate > 0 ? `${Math.round(bitrate / 1000)} Kbps` : `档位 ${index + 1}`}`;
+  }
+  return bitrate > 0 ? `${Math.round(bitrate / 1000)} Kbps` : `档位 ${index + 1}`;
+}
+
+function hlsQualityTooltip(hls: HlsQualityRuntime, activeLevel: number) {
+  const level = hls.levels[activeLevel];
+  const label = level ? hlsLevelLabel(level, activeLevel, hls.levels) : "";
+  if (hls.autoLevelEnabled) return label ? `自动（当前 ${label}）` : "自动";
+  return label || "清晰度";
+}
+
+function updateHlsQualitySetting(art: import("artplayer").default, source: import("hls.js").default, activeLevel: number) {
+  const hls = source as unknown as HlsQualityRuntime;
+  const setting = (art as unknown as { setting?: { update?: (item: Record<string, unknown>) => void } }).setting;
+  if (!setting?.update || !Array.isArray(hls.levels) || hls.levels.length === 0) return;
+  const selector: HlsQualityItem[] = [{ html: "自动", level: -1, default: Boolean(hls.autoLevelEnabled) }];
+  selector.push(
+    ...hls.levels
+      .map((level, index) => ({
+        html: hlsLevelLabel(level, index, hls.levels),
+        level: index,
+        height: Number(level.height) || 0,
+        bitrate: Number(level.bitrate) || 0,
+        default: !hls.autoLevelEnabled && Number(hls.manualLevel) === index
+      }))
+      .sort((left, right) => right.height - left.height || right.bitrate - left.bitrate || left.level - right.level)
+  );
+  setting.update({
+    name: "pingfang-quality",
+    html: "清晰度",
+    tooltip: hlsQualityTooltip(hls, activeLevel),
+    selector,
+    onSelect(item: HlsQualityItem) {
+      const level = Number(item?.level);
+      if (!Number.isInteger(level) || level < -1 || level >= hls.levels.length) return hlsQualityTooltip(hls, activeLevel);
+      hls.nextLevel = level;
+      return level === -1 ? hlsQualityTooltip(hls, activeLevel) : item.html || "清晰度";
+    }
+  });
+}
+
+function playbackEpisodeNo(playback: PlaybackDescriptor) {
+  const source = playback.playSources.find((candidate) => candidate.id === playback.sourceId);
+  const episode = source?.episodes.find((candidate) => candidate.id === playback.episodeId);
+  return episode?.no ?? Number(playback.episodeId);
+}
+
+function monotonicNow() {
+  return typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
 }
 
 type MacCmsPlayerProps = {
@@ -113,6 +182,21 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
     let player: import("artplayer").default | undefined;
     let activeHls: import("hls.js").default | undefined;
     let resetHlsRecovery: (() => void) | undefined;
+    const qoeContext = { vodId: playback.vodId, episodeNo: playbackEpisodeNo(playback), sourceId: playback.sourceId };
+    const qoeStartedAt = monotonicNow();
+    const qoeSessionId = `${Date.now().toString(36)}-${Math.round(qoeStartedAt).toString(36)}`;
+    let qoeStatus: PlaybackQoeStatus = "starting";
+    let qoeFirstFrameMs = 0;
+    let qoeFirstFrameReported = false;
+    let qoeBufferingCount = 0;
+    let qoeBufferingMs = 0;
+    let qoeBufferingStartedAt: number | null = null;
+    let qoePlayedMs = 0;
+    let qoeLastPlaybackPosition: number | null = null;
+    let qoeLastReportAt = 0;
+    let currentHlsLevel = -1;
+    let currentVideoWidth = 0;
+    let currentVideoHeight = 0;
 
     const clearPlaybackTimers = () => {
       if (startupHintTimer) clearTimeout(startupHintTimer);
@@ -125,6 +209,57 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
       bufferHintTimer = undefined;
       stallTimer = undefined;
       playerErrorTimer = undefined;
+    };
+    const activeBufferingMs = () => (qoeBufferingStartedAt === null ? qoeBufferingMs : qoeBufferingMs + Math.max(0, monotonicNow() - qoeBufferingStartedAt));
+    const storePlaybackQoe = (statusName: PlaybackQoeStatus = qoeStatus, qoeErrorType = "", hlsOverride?: import("hls.js").default) => {
+      qoeStatus = statusName;
+      const video = player?.video;
+      const hls = hlsOverride ?? activeHls;
+      const bandwidthEstimate = Number((hls as unknown as { bandwidthEstimate?: number } | undefined)?.bandwidthEstimate);
+      reportPlaybackQoe(window.sessionStorage, qoeContext, {
+        sessionId: qoeSessionId,
+        status: qoeStatus,
+        firstFrameMs: qoeFirstFrameMs,
+        bufferingCount: qoeBufferingCount,
+        bufferingMs: Math.round(activeBufferingMs()),
+        playedMs: Math.round(qoePlayedMs),
+        bandwidthEstimate: Number.isFinite(bandwidthEstimate) && bandwidthEstimate > 0 ? Math.round(bandwidthEstimate) : 0,
+        currentLevel: currentHlsLevel,
+        currentWidth: Math.round(currentVideoWidth || Number(video?.videoWidth) || 0),
+        currentHeight: Math.round(currentVideoHeight || Number(video?.videoHeight) || 0),
+        errorType: qoeErrorType
+      });
+      qoeLastReportAt = monotonicNow();
+    };
+    const finishBuffering = () => {
+      if (qoeBufferingStartedAt === null) return false;
+      qoeBufferingMs += Math.max(0, monotonicNow() - qoeBufferingStartedAt);
+      qoeBufferingStartedAt = null;
+      return true;
+    };
+    const reportPlaying = () => {
+      const firstFrame = !qoeFirstFrameReported;
+      if (firstFrame) {
+        qoeFirstFrameReported = true;
+        qoeFirstFrameMs = Math.max(0, Math.round(monotonicNow() - qoeStartedAt));
+      }
+      const resumed = finishBuffering();
+      if (firstFrame || resumed || monotonicNow() - qoeLastReportAt >= 5000) storePlaybackQoe("playing");
+    };
+    const recordPlaybackProgress = () => {
+      const position = Number(player?.video.currentTime);
+      if (!Number.isFinite(position) || position < 0) return;
+      if (qoeLastPlaybackPosition !== null) {
+        const progress = position - qoeLastPlaybackPosition;
+        if (progress > 0 && progress <= 10) qoePlayedMs += progress * 1000;
+      }
+      qoeLastPlaybackPosition = position;
+    };
+    const startBuffering = () => {
+      if (!hasPlayed || qoeBufferingStartedAt !== null) return;
+      qoeBufferingCount += 1;
+      qoeBufferingStartedAt = monotonicNow();
+      storePlaybackQoe("buffering");
     };
     const showHint = (message: string) => {
       if (!disposed && !blockingStatus) setHint(message);
@@ -147,11 +282,13 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
     };
     const scheduleStallWarning = () => {
       if (!hasPlayed) return;
+      startBuffering();
       if (playback.playerHints?.bufferingHintEnabled && !bufferHintTimer) {
         bufferHintTimer = setTimeout(() => showHint("正在续接画面"), BUFFER_HINT_DELAY_MS);
       }
       if (!stallTimer) {
         stallTimer = setTimeout(() => {
+          storePlaybackQoe("failed", "stall_timeout");
           if (!tryAutomaticLineSwitch("当前线路持续缓冲，正在自动切换…")) {
             showStatus("视频缓冲时间较长，可以重新加载或切换线路。");
           }
@@ -259,6 +396,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
             video.src = url;
             return;
           }
+          storePlaybackQoe("failed", "hls_unsupported");
           showStatus("当前浏览器不支持 HLS 播放，请更换浏览器或线路。");
           return;
         }
@@ -280,6 +418,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
             if (mediaRecoveryCount < MAX_MEDIA_RECOVERIES) {
               mediaRecoveryCount += 1;
               lastMediaRecoveryAt = now;
+              storePlaybackQoe("recovering", "hls_media_error", hls);
               art.notice.show = "正在恢复视频播放…";
               hls.recoverMediaError();
               return;
@@ -287,8 +426,20 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
           }
 
           clearPlaybackTimers();
+          storePlaybackQoe("failed", data.type === Hls.ErrorTypes.NETWORK_ERROR ? "hls_network_error" : "hls_media_error", hls);
           if (tryAutomaticLineSwitch("当前线路异常，正在自动切换…")) return;
           showStatus(data.type === Hls.ErrorTypes.NETWORK_ERROR ? "视频线路连接失败，请重新加载或切换线路。" : "视频解码失败，请重新加载或切换线路。");
+        });
+        hls.on(Hls.Events.MANIFEST_PARSED, () => updateHlsQualitySetting(art, hls, currentHlsLevel));
+        hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+          const levelIndex = Number(data?.level);
+          if (!Number.isInteger(levelIndex) || levelIndex < 0 || levelIndex >= hls.levels.length) return;
+          const level = hls.levels[levelIndex];
+          currentHlsLevel = levelIndex;
+          currentVideoWidth = Number(level?.width) || 0;
+          currentVideoHeight = Number(level?.height) || 0;
+          updateHlsQualitySetting(art, hls, currentHlsLevel);
+          storePlaybackQoe(qoeStatus, "", hls);
         });
         hls.loadSource(url);
         hls.attachMedia(video);
@@ -342,6 +493,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
         ? Math.max(STARTUP_TIMEOUT_MS, playback.playerHints.startupHintAfterMs + STARTUP_HINT_GRACE_MS)
         : STARTUP_TIMEOUT_MS;
       startupTimer = setTimeout(() => {
+        storePlaybackQoe("failed", "startup_timeout");
         if (!tryAutomaticLineSwitch("当前线路启动超时，正在自动切换…")) {
           showStatus("视频加载较慢，可以重新加载或切换线路。");
         }
@@ -354,6 +506,7 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
       art.on("video:playing", () => {
         if (!hasPlayed) lastCheckpointAt = Date.now();
         hasPlayed = true;
+        reportPlaying();
         playbackReady(true);
       });
       art.on("video:timeupdate", () => {
@@ -361,6 +514,8 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
         if (!art.video.paused && art.video.readyState >= 3) {
           if (!hasPlayed) lastCheckpointAt = Date.now();
           hasPlayed = true;
+          recordPlaybackProgress();
+          reportPlaying();
           playbackReady();
         }
         if (hasPlayed && Number.isFinite(art.video.currentTime) && art.video.currentTime >= 0) {
@@ -394,12 +549,17 @@ export function MacCmsPlayer({ playback, resumePositionSeconds, transientResumeP
         clearPlaybackTimers();
         if (!disposed) setHint("");
         playerErrorTimer = setTimeout(() => {
+          storePlaybackQoe("failed", "video_error");
           if (!tryAutomaticLineSwitch("当前线路播放失败，正在自动切换…")) {
             showStatus("视频播放失败，请重新加载或切换线路。");
           }
         }, PLAYER_ERROR_TIMEOUT_MS);
       });
-      art.once("destroy", destroyHls);
+      art.once("destroy", () => {
+        finishBuffering();
+        storePlaybackQoe(qoeStatus);
+        destroyHls();
+      });
     };
 
     void mount().catch(() => showStatus("播放器核心加载失败，请重新加载后重试。"));

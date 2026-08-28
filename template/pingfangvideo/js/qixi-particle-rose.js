@@ -1052,10 +1052,15 @@
   if (bloomButton) bloomButton.addEventListener("click", triggerBloom);
   if (shareButton) {
     shareButton.addEventListener("click", function () {
+      var shareUrl = window.location.href;
+      try {
+        var overrideUrl = new URL(String(window.PingFangQixiShareUrl || ""));
+        if (overrideUrl.protocol === "http:" || overrideUrl.protocol === "https:") shareUrl = overrideUrl.href;
+      } catch (error) {}
       var shareData = {
         title: "送你一束七夕粒子玫瑰",
         text: "把银河折成一束不会凋谢的玫瑰，送给最特别的你。",
-        url: window.location.href
+        url: shareUrl
       };
       if (navigator.share) {
         navigator.share(shareData).then(

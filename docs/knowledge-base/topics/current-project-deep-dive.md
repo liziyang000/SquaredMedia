@@ -46,7 +46,7 @@ SquaredMedia 当前不是一套从零自研的视频 SaaS，也不是单纯的 M
 | 模块                              | 当前职责                                                           | 状态               | 主要边界                                                 |
 | --------------------------------- | ------------------------------------------------------------------ | ------------------ | -------------------------------------------------------- |
 | `template/pingfangvideo/`         | 84 个 MacCMS 模板、五套主题、共享交互和原生播放承载                | 生产路径已实现     | 依赖完整 MacCMS runtime、标签和后台播放器配置            |
-| `apps/web/`                       | 32 个 App Router 页面、React UI、同源 API、Artplayer/HLS、游戏入口 | Staging 路径已实现 | 当前目标固定为 `react.ping2.my`；内容不是完整 SSR        |
+| `apps/web/`                       | 32 个 App Router 页面、React UI、同源 API、Artplayer/HLS、游戏入口 | Staging 路径已实现 | 当前目标固定为 `www.ping2.my`；内容不是完整 SSR          |
 | `addons/pingfangapi/`             | 28 个 JSON action、播放页和二次授权 stream                         | 生产路径已实现     | BFF，不是第三方开放 API；真实权限矩阵仍需验收            |
 | `addons/pingfangdevice/`          | 设备 Session、筛选、线路抽样、游戏票据                             | 生产路径已实现     | 部分 action 的 CSRF/Origin 保障未在仓库内独立证明        |
 | `addons/videolint/`               | 后台视频质量扫描、问题记录和 CSV 导出                              | 已有但需显式安装   | 不在 CI 制品/自动部署；鉴权、CSRF 和远程 URL 安全需再审  |

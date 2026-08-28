@@ -60,13 +60,15 @@ export function resolveMigrationRoute(requestUrl: string, method = "GET"): Migra
   if (pathname === "/index.php/label/categories.html") return { status: 301, location: "/categories" };
   if (pathname === "/index.php/label/hot.html") return { status: 301, location: appendCatalogParams("/rankings/yearly", searchParams) };
   if (pathname === "/index.php/label/history.html") return { status: 301, location: "/history" };
+  if (/^\/index\.php\/label\/qixi(?:\.html)?$/.test(pathname)) return { status: 301, location: "/qixi" };
 
-  const legacyGame = pathname.match(/^\/index\.php\/label\/(games|game-2048|game-blockrain|game-gomoku|game-drawguess)(?:\.html)?$/);
+  const legacyGame = pathname.match(/^\/index\.php\/label\/(games|game-2048|game-blockrain|game-bamboo-cicada|game-gomoku|game-drawguess)(?:\.html)?$/);
   if (legacyGame) {
     const gameLocations: Record<string, string> = {
       games: "/games",
       "game-2048": "/games/2048",
       "game-blockrain": "/games/blockrain",
+      "game-bamboo-cicada": "/games/bamboo-cicada",
       "game-gomoku": "/games/gomoku",
       "game-drawguess": "/games/drawguess"
     };

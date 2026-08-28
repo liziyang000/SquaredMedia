@@ -20,8 +20,10 @@ describe("local migration route policy", () => {
     ["/index.php/label/games.html", "/games"],
     ["/index.php/label/game-2048.html", "/games/2048"],
     ["/index.php/label/game-blockrain.html", "/games/blockrain"],
+    ["/index.php/label/game-bamboo-cicada.html", "/games/bamboo-cicada"],
     ["/index.php/label/game-gomoku.html?room=abc234", "/games/gomoku?room=ABC234"],
     ["/index.php/label/game-drawguess.html?room=XYZ789&next=https://evil.example", "/games/drawguess?room=XYZ789"],
+    ["/index.php/label/qixi.html", "/qixi"],
     ["/index.php/user/favs.html", "/account/favorites"],
     ["/index.php/comment/index.html?mid=1&id=9", "/comments/1/9"]
   ])("redirects %s to one clean URL", (source, location) => {

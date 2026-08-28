@@ -14,12 +14,18 @@ function AppShellContent({ children }: PropsWithChildren) {
   const account = useAccount();
   const { pathname } = useLocation();
   const homeRoute = pathname === "/";
+  const immersiveRoute = pathname === "/qixi";
   const query = useQuery({
     queryKey: homeRoute ? ["home", "v2"] : ["navigation"],
     queryFn: () => (homeRoute ? homeApi.getHome() : homeApi.getNavigation()),
-    enabled: !account.isPending,
+    enabled: !immersiveRoute && !account.isPending,
     staleTime: 300_000
   });
+
+  if (immersiveRoute) {
+    return <div className="react-app react-app-immersive">{children}</div>;
+  }
+
   const lazyloadImage = query.data?.ui?.lazyloadImage ?? "/template/pingfangvideo/images/brand/lazyload.png";
 
   return (

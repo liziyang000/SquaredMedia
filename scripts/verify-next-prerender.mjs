@@ -7,6 +7,7 @@ const appRoot = path.join(nextRoot, "server/app");
 const manifestPath = path.join(nextRoot, "prerender-manifest.json");
 const bailoutMarker = "BAILOUT_TO_CLIENT_SIDE_RENDERING";
 const oldFallbackText = ["正在加载页面", "正在准备内容与会员会话"];
+const immersiveRoutes = new Set(["/qixi"]);
 
 async function htmlFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -68,6 +69,11 @@ for (const route of staticRoutes) {
     continue;
   }
   if (!/class="[^"]*\breact-app\b/.test(markup)) failures.push(`${route}: 缺少 react-app 静态壳`);
+  if (immersiveRoutes.has(route)) {
+    if (!/class="[^"]*\breact-app-immersive\b/.test(markup)) failures.push(`${route}: 缺少沉浸式静态壳`);
+    if (!markup.includes('title="七夕粒子玫瑰花束"')) failures.push(`${route}: 缺少七夕粒子 iframe`);
+    continue;
+  }
   if (!/class="[^"]*\bsite-header\b/.test(markup)) failures.push(`${route}: 缺少 site-header`);
   if (!markup.includes("正在确认登录状态")) failures.push(`${route}: 缺少 session-first 状态`);
   for (const text of oldFallbackText) {
@@ -80,4 +86,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Next.js 预渲染验证通过：${files.length} 个 HTML 无全页 CSR bailout，${staticRoutes.length} 个静态路由保留 session-first 静态壳。`);
+console.log(`Next.js 预渲染验证通过：${files.length} 个 HTML 无全页 CSR bailout，${staticRoutes.length} 个静态路由保留预期静态壳。`);

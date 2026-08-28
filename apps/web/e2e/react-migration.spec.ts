@@ -85,14 +85,20 @@ test("old public URLs redirect once and retired outputs return HTTP 410", async 
     ["/index.php/label/games.html", "/games"],
     ["/index.php/label/game-2048.html", "/games/2048"],
     ["/index.php/label/game-blockrain.html", "/games/blockrain"],
+    ["/index.php/label/game-bamboo-cicada.html", "/games/bamboo-cicada"],
     ["/index.php/label/game-gomoku.html?room=abc234", "/games/gomoku?room=ABC234"],
-    ["/index.php/label/game-drawguess.html?room=XYZ789", "/games/drawguess?room=XYZ789"]
+    ["/index.php/label/game-drawguess.html?room=XYZ789", "/games/drawguess?room=XYZ789"],
+    ["/index.php/label/qixi.html", "/qixi"]
   ]) {
     const legacy = await request.get(path, { maxRedirects: 0 });
     expect(legacy.status()).toBe(301);
     const location = new URL(legacy.headers().location, "http://127.0.0.1:5173");
     expect(`${location.pathname}${location.search}`).toBe(target);
   }
+
+  const bambooCicada = await request.get("/games/bamboo-cicada", { maxRedirects: 0 });
+  expect(bambooCicada.status()).toBe(308);
+  expect(bambooCicada.headers().location).toBe("https://imsai.top/");
 
   const malformedPlayback = await request.get("/vodplay/1-2-%2F%2Fevil%2Eexample.html", { maxRedirects: 0 });
   expect(malformedPlayback.status()).not.toBe(301);
@@ -224,11 +230,16 @@ test("detail poster matches the desktop panel height without manual rating contr
   expect(browserErrors).toEqual([]);
 });
 
-test("Pixel Frog persists and member games keep guest runtimes gated", async ({ page }) => {
+test("master themes, Qixi and member games keep their React behavior", async ({ page }) => {
   await blockExternalResources(page);
   const browserErrors = observeBrowserErrors(page);
 
   await page.goto("/");
+  await page.getByRole("button", { name: "主题" }).click();
+  await page.getByRole("button", { name: "数码粒子" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "digital-particles");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "digital-particles");
   await page.getByRole("button", { name: "主题" }).click();
   await page.getByRole("button", { name: "像素蛙" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "pixel-frog");
@@ -247,6 +258,16 @@ test("Pixel Frog persists and member games keep guest runtimes gated", async ({ 
   await expect(page).toHaveURL(/\/games\/2048$/);
   await expect(page.getByTitle("2048游戏区域")).toBeVisible();
   await expect(page.locator('iframe[data-game-runtime="2048"]')).toHaveAttribute("sandbox", /allow-scripts/);
+
+  await page.goto("/games");
+  await expect(page.getByRole("link", { name: "官方试玩" })).toHaveAttribute("href", "https://imsai.top/");
+  await expect(page.getByRole("link", { name: "官方试玩" })).toHaveAttribute("target", "_blank");
+  await expect(page.getByRole("link", { name: "官方项目 · GitHub" })).toHaveAttribute("href", "https://github.com/imsai-sh/zhuzhiliao");
+  await expect(page.locator('iframe[data-game-runtime="bamboo-cicada"]')).toHaveCount(0);
+
+  await page.goto("/qixi");
+  await expect(page.getByTitle("七夕粒子玫瑰花束")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "主导航" })).toHaveCount(0);
   expect(browserErrors).toEqual([]);
 });
 

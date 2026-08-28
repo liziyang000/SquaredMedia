@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { ContentEpisode } from "./api/content";
 import type { SourceQualityData, SourceQualitySource } from "./api/sourceQuality";
+import { reportPlaybackQoe } from "./playbackQoe";
 import {
   consumeAlternatePlaybackResume,
   readSourceQualityPreference,
@@ -57,7 +58,7 @@ afterEach(() => {
 });
 
 describe("source quality preference", () => {
-  it("stores only available sources in measured order and honors a valid recommendation", () => {
+  it("stores only available sources in measured order", () => {
     window.sessionStorage.setItem("pingfang_automatic_line_switch_v1", JSON.stringify({ stale: true }));
 
     const stored = storeSourceQualityPreference(
@@ -80,12 +81,61 @@ describe("source quality preference", () => {
       version: 1,
       vodId: "7",
       episodeNo: 1,
-      recommendedSourceId: "1",
+      recommendedSourceId: "2",
       rankedSourceIds: ["2", "1", "3"],
       expiresAt: 61_000
     });
     expect(readSourceQualityPreference(window.sessionStorage, 7, 1, 2000)).toEqual(stored);
     expect(window.sessionStorage.getItem("pingfang_automatic_line_switch_v1")).toBeNull();
+  });
+
+  it("uses recent playback QoE ahead of server quality when ranking fallbacks", () => {
+    reportPlaybackQoe(
+      window.sessionStorage,
+      { vodId: 7, episodeNo: 1, sourceId: 2 },
+      {
+        sessionId: "failed-source",
+        status: "failed",
+        firstFrameMs: 0,
+        bufferingCount: 0,
+        bufferingMs: 0,
+        playedMs: 0,
+        bandwidthEstimate: 0,
+        currentLevel: -1,
+        currentWidth: 0,
+        currentHeight: 0,
+        errorType: "startup_timeout"
+      },
+      1000
+    );
+    reportPlaybackQoe(
+      window.sessionStorage,
+      { vodId: 7, episodeNo: 1, sourceId: 3 },
+      {
+        sessionId: "playing-source",
+        status: "playing",
+        firstFrameMs: 600,
+        bufferingCount: 0,
+        bufferingMs: 0,
+        playedMs: 20_000,
+        bandwidthEstimate: 4_000_000,
+        currentLevel: 1,
+        currentWidth: 1920,
+        currentHeight: 1080
+      },
+      1000
+    );
+
+    const stored = storeSourceQualityPreference(
+      window.sessionStorage,
+      7,
+      1,
+      quality([qualitySource(2, { quality_rank: 1 }), qualitySource(3, { quality_rank: 2 })], 2),
+      2000
+    );
+
+    expect(stored?.rankedSourceIds).toEqual(["3", "2"]);
+    expect(stored?.recommendedSourceId).toBe("3");
   });
 
   it("falls back to the highest-ranked source and removes expired or invalid preferences", () => {

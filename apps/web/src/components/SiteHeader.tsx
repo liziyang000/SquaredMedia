@@ -8,6 +8,7 @@ const themes = [
   { id: "blue-pink-purple", label: "极光夜幕", swatch: "theme-option-swatch-aurora" },
   { id: "poster-magazine", label: "海报画廊", swatch: "theme-option-swatch-poster" },
   { id: "dunhuang-caisson", label: "敦煌流光", swatch: "theme-option-swatch-dunhuang" },
+  { id: "digital-particles", label: "数码粒子", swatch: "theme-option-swatch-digital" },
   { id: "pixel-frog", label: "像素蛙", swatch: "theme-option-swatch-pixel" }
 ] as const;
 
@@ -145,6 +146,7 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
     (path) => location.pathname === path || location.pathname.startsWith(path)
   );
   const gamesAreCurrent = location.pathname === "/games" || location.pathname.startsWith("/games/");
+  const qixiIsCurrent = location.pathname === "/qixi";
 
   useEffect(() => {
     setTheme(readStoredTheme());
@@ -374,6 +376,9 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
             <Link to="/games" aria-current={gamesAreCurrent ? "page" : undefined}>
               游戏
             </Link>
+            <Link to="/qixi" aria-current={qixiIsCurrent ? "page" : undefined}>
+              七夕花束
+            </Link>
           </nav>
           <div className="header-search-wrap">
             <form className="header-search" action="/search" method="get" role="search">
@@ -451,6 +456,9 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
           </Link>
           <Link to="/games" aria-current={gamesAreCurrent ? "page" : undefined} onClick={closeDrawer}>
             游戏
+          </Link>
+          <Link to="/qixi" aria-current={qixiIsCurrent ? "page" : undefined} onClick={closeDrawer}>
+            七夕花束
           </Link>
         </nav>
         <div className="mobile-drawer-section mobile-drawer-account">

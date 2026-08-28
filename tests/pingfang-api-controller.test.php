@@ -616,8 +616,8 @@ namespace {
     $GLOBALS['user'] = ['user_id' => 42, 'user_name' => 'alice'];
     $GLOBALS['pingfang_test_request'] = new PingfangApiControllerRequest('POST', ['action' => 'logout'], '{}', [
         'Content-Type' => 'application/json',
-        'Host' => 'react.ping2.my',
-        'Origin' => 'https://react.ping2.my',
+        'Host' => 'www.ping2.my',
+        'Origin' => 'https://www.ping2.my',
         'Sec-Fetch-Site' => 'same-origin',
         'X-Requested-With' => 'XMLHttpRequest',
         'X-CSRF-Token' => str_repeat('b', 64),

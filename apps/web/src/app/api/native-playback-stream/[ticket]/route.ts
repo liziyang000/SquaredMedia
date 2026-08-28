@@ -4,7 +4,7 @@ import { redeemNativePlaybackTicket } from "../../../../server/nativePlaybackTic
 
 export const runtime = "nodejs";
 
-const STAGING_HOST = "react.ping2.my";
+const STAGING_HOST = "www.ping2.my";
 
 function requestHost(request: NextRequest) {
   const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();

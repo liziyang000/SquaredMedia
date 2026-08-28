@@ -119,11 +119,11 @@ export function authorizeProtectedStream({
   cookie,
   clientIp,
   userAgent,
-  host = "react.ping2.my",
+  host = "www.ping2.my",
   timeoutMs = 7_000
 }: AuthorizeProtectedStreamOptions) {
   const protectedPath = validateProtectedStreamPath(streamPath);
-  if (!protectedPath || host !== "react.ping2.my" || !isIP(clientIp)) {
+  if (!protectedPath || host !== "www.ping2.my" || !isIP(clientIp)) {
     return Promise.reject(new NativePlaybackAuthorizationError("播放授权请求无效", 403));
   }
 

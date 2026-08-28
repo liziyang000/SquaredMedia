@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultAccountRequirements } from "../api/account";
 import { AccountProvider } from "../app/AccountContext";
 import { TestRoutingProvider, useSearchParams } from "../app/routing";
+import { bambooCicadaOfficialUrl, bambooCicadaRepositoryUrl } from "../gameLinks";
 import { Game2048Page, GameBlockrainPage, GameDrawguessPage, GameGomokuPage, GamesPage } from "./GamesPages";
 
 function sessionResponse(authenticated: boolean) {
@@ -55,14 +56,17 @@ describe("React game pages", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows the four-card member hub after authentication", async () => {
+  it("shows the five-card member hub after authentication", async () => {
     renderPage(<GamesPage />, "/games", true);
 
     expect(await screen.findByRole("heading", { name: "片刻放松，随时开局" })).toBeInTheDocument();
-    for (const title of ["2048", "俄罗斯方块", "五子棋", "你画我猜"]) {
+    for (const title of ["2048", "俄罗斯方块", "竹知了", "五子棋", "你画我猜"]) {
       expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
     }
-    expect(screen.getAllByRole("link", { name: /开始游戏|创建对局|创建房间/ })).toHaveLength(4);
+    expect(screen.getAllByRole("link", { name: /开始游戏|官方试玩|创建对局|创建房间/ })).toHaveLength(5);
+    expect(screen.getByRole("link", { name: "官方试玩" })).toHaveAttribute("href", bambooCicadaOfficialUrl);
+    expect(screen.getByRole("link", { name: "官方试玩" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "官方项目 · GitHub" })).toHaveAttribute("href", bambooCicadaRepositoryUrl);
     expect(screen.queryByTitle(/游戏区域$/)).not.toBeInTheDocument();
   });
 

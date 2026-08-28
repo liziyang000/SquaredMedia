@@ -8,13 +8,13 @@
 
 ## 模块定位
 
-`apps/web/` 是独立的 Next.js 16 App Router 前台。它负责干净 URL、页面与交互状态、运行时数据校验、Artplayer/HLS 播放外壳、五套视觉主题和 staging 发布，不替代 MacCMS：
+`apps/web/` 是独立的 Next.js 16 App Router 前台。它负责干净 URL、页面与交互状态、运行时数据校验、Artplayer/HLS 播放外壳、六套视觉主题和 staging 发布，不替代 MacCMS：
 
 - MacCMS 继续拥有后台、内容与用户数据、原生 Session、权限规则和生产播放授权。
 - `addons/pingfangapi/` 是浏览器与 MacCMS 之间的同源 BFF；React 不直接连接数据库，也不直接调用任意 MacCMS OpenAPI。
 - `addons/pingfangdevice/` 提供设备会话、动态筛选、服务端线路抽样和联机游戏票据。
 - `server/react-api.php` 只为本地 fixture 验收服务，不能证明生产数据、Cookie、权限或媒体链。
-- 当前独立发布目标是 `react.ping2.my` staging；是否已在某次发布中成功运行，必须以对应 release、健康检查和浏览器验收记录为准。
+- 当前独立发布目标是 `www.ping2.my` staging；是否已在某次发布中成功运行，必须以对应 release、健康检查和浏览器验收记录为准。
 
 ## 技术与源码结构
 
@@ -63,7 +63,7 @@ flowchart LR
 
 ## 页面与路由面
 
-当前工作区有 32 个 `page.tsx`：
+当前工作区有 34 个 `page.tsx`：
 
 | 页面族     | 路由                                                                                       | 数量 |
 | ---------- | ------------------------------------------------------------------------------------------ | ---: |
@@ -71,7 +71,8 @@ flowchart LR
 | 内容与播放 | `/vod/[vodId]` 下的详情、确认、密码、下载、剧情和不可用状态，以及 `/watch/**`、`/trial/**` |   11 |
 | 账号与历史 | `/login`、`/account`、收藏、账号历史、设备、匿名 `/history`                                |    6 |
 | 互动与状态 | 评论、留言、报错、状态页                                                                   |    4 |
-| 会员游戏   | 大厅、2048、俄罗斯方块、五子棋、你画我猜                                                   |    5 |
+| 会员游戏   | 大厅、2048、俄罗斯方块、竹知了、五子棋、你画我猜                                           |    6 |
+| 沉浸式页面 | 七夕粒子玫瑰                                                                               |    1 |
 
 另有：
 
@@ -79,7 +80,7 @@ flowchart LR
 - `src/app/healthz/route.ts`：Next release 健康与版本响应。
 - 两个 `/api/native-playback-*` Route Handler：仅用于当前 staging 的原生媒体兼容桥。
 
-[React 模板迁移矩阵](react-template-migration-matrix.md) 中的“31 个 React 页面”是 84 个 MacCMS 模板的归属统计，不等同于当前文件系统的 32 个 `page.tsx`，两种口径不能混用。
+[React 模板迁移矩阵](react-template-migration-matrix.md) 中的“33 个 React 页面”是 86 个 MacCMS 模板的归属统计，不等同于当前文件系统的 34 个 `page.tsx`，两种口径不能混用。
 
 ## 渲染与首屏边界
 
@@ -160,13 +161,13 @@ sequenceDiagram
 
 MacCMS cache 可用且写入回读成功时，生产流票据由 32 字节随机值生成，十六进制长度 64，默认 120 秒，并绑定影片、线路、分集和媒体授权。cache 不可用或写入失败时，BFF 保留无票据的同源兼容路径，`stream` 重新按当前 Session 执行播放权限；这条回退不支持依赖无 Cookie 接管的场景。短票据可减少原始地址暴露，但不能代替 DRM、版权台账或完整的商业权益系统。
 
-详情页的 `sourceQuality` 是服务器到播放源的短时抽样。它最多检测 12 条线路，带有总预算、重定向、字节和 SSRF 约束，返回健康排序而不返回 URL。该数据不等于用户设备上的首帧、卡顿、码率或失败 QoE。
+详情页的 `sourceQuality` 是服务器到播放源的短时抽样。它最多检测 12 条线路，带有总预算、重定向、字节和 SSRF 约束，返回健康排序而不返回 URL。播放器另在当前标签页记录首帧、卡顿、失败、实际档位和带宽估计，用于同集换线排序；记录 30 分钟后过期、不含媒体 URL，也不会上传为经营数据。
 
 ### Staging 原生播放桥
 
-当前 `/api/native-playback-ticket` 与 `/api/native-playback-stream/[ticket]` 是为 `react.ping2.my` 和特定原生媒体兼容场景增加的隔离桥：
+当前 `/api/native-playback-ticket` 与 `/api/native-playback-stream/[ticket]` 是为 `www.ping2.my` 和特定原生媒体兼容场景增加的隔离桥：
 
-- Host 和 Origin 硬编码为 `react.ping2.my`。
+- Host 和 Origin 硬编码为 `www.ping2.my`。
 - 只接受既有 `pingfangapi/stream/id/.../sid/.../nid/...` 路径。
 - 通过服务器回环把 Cookie 与客户端 IP 交回 PHP 再授权。
 - 只有 PHP 返回 `302` 才生成 120 秒票据。
@@ -180,21 +181,22 @@ MacCMS cache 可用且写入回读成功时，生产流票据由 32 字节随机
 - `ps=1` 第三方解析线路不由当前非 iframe React 播放链承载，会返回不可用状态。
 - “确认购买”页面没有对应的订单或扣点 action，不能描述为已完成付费闭环。
 - VIP、付费、试看、内容密码、版权、地区、浏览器与真实媒体源组合尚未形成完整生产验收矩阵。
-- 仓库未发现独立的客户端播放 QoE 上报与经营分析链。
+- 当前只有标签页内的客户端 QoE 选线优化，没有服务端上报、长期聚合或经营分析链。
 
 ## 主题与游戏
 
-React `SiteHeader` 当前注册并管理五套主题：
+React `SiteHeader` 当前注册并管理六套主题：
 
 1. 液态影院。
 2. 极光夜幕。
 3. 海报画廊。
 4. 敦煌流光。
-5. 像素蛙。
+5. 数码粒子。
+6. 像素蛙。
 
 React 复用 `template/pingfangvideo/css/style.css`、品牌和游戏资源，但不加载旧主题 `app.js`。主题恢复发生在首帧前，像素主题动效遵循 `prefers-reduced-motion`。
 
-游戏大厅和四个游戏页都要求登录后才创建隔离 iframe。五子棋与你画我猜先从 `pingfangdevice` 获取 60 秒、游戏和 `client_id` 绑定的 HMAC 票据，再连接同源 `/game-socket`。房间、票据防重放和战局仅存在单个游戏进程内存中；服务重启会结束房间，当前不能直接做多实例水平扩容。
+游戏大厅要求登录后展示；2048、俄罗斯方块、五子棋和你画我猜只在登录分支创建隔离 iframe。竹知了主按钮直接在新窗口打开作者官方站 `https://imsai.top/`，`/games/bamboo-cicada` 仅作为 `308` 兼容跳转，不加载本地游戏运行时，也不复制或部署 `imsai-sh/zhuzhiliao` 源码和素材。五子棋与你画我猜先从 `pingfangdevice` 获取 60 秒、游戏和 `client_id` 绑定的 HMAC 票据，再连接同源 `/game-socket`。房间、票据防重放和战局仅存在单个游戏进程内存中；服务重启会结束房间，当前不能直接做多实例水平扩容。`/qixi` 在独立沉浸式 iframe 中复用主题粒子玫瑰，离开路由即销毁动画和监听器。
 
 ## 本地开发、构建与发布
 
@@ -217,7 +219,9 @@ npm run performance:lighthouse
 - `deploy:web` 走独立 staging 链，在本机构建 Linux x64/glibc 产物，远端候选端口为 `3101`，通过后原子切换 `3100`。
 - `rollback:web` 只回退 Next release、Nginx include 和 systemd 状态，不回退 MacCMS、API、设备表或游戏服务。
 
-完整命令和证据含义见 [开发、发布与数据运维](development-and-operations.md)。
+完整的服务器准备、发布、验收、回滚和排障步骤见
+[Next.js 服务器部署手册](next-server-deployment.md)；命令职责和证据含义见
+[开发、发布与数据运维](development-and-operations.md)。
 
 ## 验证层级
 

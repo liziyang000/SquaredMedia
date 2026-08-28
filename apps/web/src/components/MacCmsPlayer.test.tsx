@@ -13,6 +13,7 @@ const playerMocks = vi.hoisted(() => ({
     hls: unknown;
     notice: { show: string };
     options: Record<string, unknown>;
+    setting: { updates: Record<string, unknown>[]; update: (item: Record<string, unknown>) => void };
     video: HTMLVideoElement;
   }>,
   hlsInstances: [] as Array<{
@@ -20,6 +21,11 @@ const playerMocks = vi.hoisted(() => ({
     destroyed: boolean;
     emit: (event: string, data: Record<string, unknown>) => void;
     media: HTMLVideoElement | null;
+    levels: Array<{ width?: number; height?: number; bitrate?: number }>;
+    autoLevelEnabled: boolean;
+    manualLevel: number;
+    nextLevel: number;
+    bandwidthEstimate: number;
     recoveries: number;
     source: string;
   }>
@@ -34,6 +40,12 @@ vi.mock("artplayer", () => {
     hls: unknown = null;
     notice = { show: "" };
     options: Record<string, unknown>;
+    setting = {
+      updates: [] as Record<string, unknown>[],
+      update: (item: Record<string, unknown>) => {
+        this.setting.updates.push(item);
+      }
+    };
     video: HTMLVideoElement;
 
     constructor(options: Record<string, unknown>) {
@@ -86,7 +98,7 @@ vi.mock("artplayer", () => {
 vi.mock("hls.js", () => {
   class FakeHls {
     static ErrorTypes = { MEDIA_ERROR: "mediaError", NETWORK_ERROR: "networkError" };
-    static Events = { ERROR: "error" };
+    static Events = { ERROR: "error", MANIFEST_PARSED: "manifestParsed", LEVEL_SWITCHED: "levelSwitched" };
 
     static isSupported() {
       return true;
@@ -97,6 +109,11 @@ vi.mock("hls.js", () => {
     media: HTMLVideoElement | null = null;
     recoveries = 0;
     source = "";
+    levels: Array<{ width?: number; height?: number; bitrate?: number }> = [];
+    autoLevelEnabled = true;
+    manualLevel = -1;
+    nextLevel = -1;
+    bandwidthEstimate = 0;
 
     config: Record<string, unknown>;
 
@@ -152,6 +169,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   playerMocks.artInstances.length = 0;
   playerMocks.hlsInstances.length = 0;
+  window.sessionStorage.clear();
 });
 
 describe("MacCmsPlayer", () => {
@@ -193,6 +211,49 @@ describe("MacCmsPlayer", () => {
     view.unmount();
     expect(art.destroyed).toBe(true);
     expect(hls.destroyed).toBe(true);
+  });
+
+  it("adds an HLS quality selector and keeps its tooltip aligned with the active level", async () => {
+    render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+    await waitFor(() => expect(playerMocks.hlsInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    const hls = playerMocks.hlsInstances[0]!;
+    hls.levels = [
+      { width: 1920, height: 1080, bitrate: 6_000_000 },
+      { width: 1280, height: 720, bitrate: 3_000_000 }
+    ];
+    act(() => hls.emit("manifestParsed", {}));
+
+    const initialSetting = art.setting.updates.at(-1)!;
+    expect(initialSetting).toMatchObject({ name: "pingfang-quality", html: "清晰度", tooltip: "自动" });
+    expect(initialSetting.selector).toEqual([
+      expect.objectContaining({ html: "自动", level: -1 }),
+      expect.objectContaining({ html: "1080p", level: 0 }),
+      expect.objectContaining({ html: "720p", level: 1 })
+    ]);
+
+    const select = initialSetting.onSelect as (item: { html: string; level: number }) => string;
+    expect(select({ html: "720p", level: 1 })).toBe("720p");
+    expect(hls.nextLevel).toBe(1);
+
+    act(() => hls.emit("levelSwitched", { level: 1 }));
+    expect(art.setting.updates.at(-1)).toMatchObject({ tooltip: "自动（当前 720p）" });
+  });
+
+  it("stores playback QoE for the current video, episode number and source without the media URL", async () => {
+    render(<MacCmsPlayer playback={playback} onCheckpoint={vi.fn()} onComplete={vi.fn()} />);
+    await waitFor(() => expect(playerMocks.artInstances).toHaveLength(1));
+
+    const art = playerMocks.artInstances[0]!;
+    art.video.currentTime = 5;
+    act(() => art.emit("video:playing"));
+    art.video.currentTime = 10;
+    act(() => art.emit("video:timeupdate"));
+
+    const record = window.sessionStorage.getItem("pingfang_playback_qoe_v1_1_1_1") || "";
+    expect(record).toContain('"status":"playing"');
+    expect(record).not.toContain(playback.url);
   });
 
   it("keeps the authorized HLS URL on the video element for Quark native takeover", async () => {

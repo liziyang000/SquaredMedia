@@ -271,8 +271,10 @@ describe("React migration routes", () => {
     expect(screen.getByRole("link", { name: "登录" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/categories"]')).toHaveTextContent("视频");
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/games"]')).toHaveTextContent("游戏");
+    expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/qixi"]')).toHaveTextContent("七夕花束");
     expect(container.querySelector('.mobile-drawer-links a[href="/categories"]')).toHaveTextContent("视频");
     expect(container.querySelector('.mobile-drawer-links a[href="/games"]')).toHaveTextContent("游戏");
+    expect(container.querySelector('.mobile-drawer-links a[href="/qixi"]')).toHaveTextContent("七夕花束");
     expect((container.querySelector(".react-app") as HTMLElement).style.getPropertyValue("--react-lazyload-image")).toBe(
       'url("/template/pingfangvideo/images/brand/lazyload.png")'
     );

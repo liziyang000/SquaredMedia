@@ -123,7 +123,7 @@ deployment path.
 
 ### Next.js staging deployment
 
-`react.ping2.my` uses a loopback-only Next.js process on port `3100`. BaoTa
+`www.ping2.my` uses a loopback-only Next.js process on port `3100`. BaoTa
 Nginx keeps `/index.php`, `/api.php`, `/upload`, `/static`, and `/template`
 under MacCMS/PHP ownership and reverse proxies clean public routes to Next.js.
 The local fixture endpoints `/react-api.php` and `/preview` are blocked.
@@ -142,7 +142,7 @@ validation. Cache access is serialized locally; a hit is copied and hashed again
 while a miss is published from a complete temporary entry by atomic rename. The
 server starts it on a candidate port and switches `current` only
 after the health, route, static asset, Nginx, and 10-second real content API checks pass. Releases live under
-`/www/wwwroot/react_squared_media/releases/`; the previous target is preserved
+`/www/wwwroot/squaredMediaOnline/releases/`; the previous target is preserved
 for rollback. This command does not change the main `www.ping2video.xyz` site,
 the MacCMS theme, addons, or database.
 

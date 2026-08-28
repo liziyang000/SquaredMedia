@@ -50,7 +50,7 @@ SquaredMedia/
 | 模块 | 主要职责 | 是否进入当前发布流程 | 详细说明 |
 | --- | --- | --- | --- |
 | `template/pingfangvideo/` | MacCMS 页面模板、公共片段、样式、脚本、图片、内置游戏、播放器提示页和七夕 Canvas 粒子页 | 是，打包为 `pingfangvideo.tar.gz` | [主题与本地预览](theme-and-preview.md) |
-| `apps/web/` | Next.js App Router、干净 URL 路由、Query Provider、TypeScript API、组件/API 与 Playwright E2E 测试 | 是，仅发布到 `react.ping2.my` staging | [Next.js 前台](web-frontend.md) |
+| `apps/web/` | Next.js App Router、干净 URL 路由、Query Provider、TypeScript API、组件/API 与 Playwright E2E 测试 | 是，仅发布到 `www.ping2.my` staging | [Next.js 前台](web-frontend.md)；[服务器部署手册](next-server-deployment.md) |
 | `maccms-player/` | ArtPlayer + hls.js 的独立性能版播放入口，不属于主题目录 | 是，单独打包但不由现有部署脚本安装 | [开发、发布与运维](development-and-operations.md) |
 | `services/game-server/` | 为五子棋和你画我猜提供登录票据校验、内存房间与服务端权威规则 | 是，单独打包并由完整部署或 `deploy:games` 安装 | [开发、发布与运维](development-and-operations.md) |
 | `preview/`、`server/`、`docker/` | 使用模拟数据验证页面流程和 PHP 渲染；另提供独立七夕静态预览，不替代真实 MacCMS | 否 | [主题与本地预览](theme-and-preview.md) |
@@ -77,11 +77,11 @@ SquaredMedia/
 
 - `apps/web/` 是 npm workspace，使用 Next.js 16 App Router、React、TypeScript、TanStack Query、React Hook Form、Zod、Vitest 和 Testing Library。Node.js 负责前台开发、构建和 staging 运行时，MacCMS/PHP 继续负责后台和业务数据。
 - `src/app/**/page.tsx` 以显式 App Router 路径承载发现、内容/播放、账号、互动、挑战和状态；未匹配框架路由由 `not-found.tsx` 返回真实 `404`。动态影片不存在或无权限目前仍是页面内 UI，不等同于页面 HTTP `404/403`。`src/screens/` 保留页面 UI，`src/app/routing.tsx` 提供客户端导航适配。站内链接均使用不含 `index.php` 的干净 URL。
-- `src/api/http.ts` 统一处理同源 Cookie、JSON 请求头、超时、取消、HTTP 错误和响应解析；React Query 对 4xx、业务、校验及配置错误不重试，网络、超时和 5xx 最多重试两次。`src/api/home.ts` 通过独立 `navigation` 与分区 `home_v2` 契约避免非首页路由等待完整首页，`content.ts`、`account.ts` 分别约束公开内容/播放和会话写操作 DTO。详情页通过同源 `pingfangdevice/sourceQuality` 读取短期线路健康排序，播放器在启动、持续缓冲或致命错误时按该排序有界换线并恢复当前标签页进度；播放 URL 仍只能通过独立 playback 响应进入前端。
+- `src/api/http.ts` 统一处理同源 Cookie、JSON 请求头、超时、取消、HTTP 错误和响应解析；React Query 对 4xx、业务、校验及配置错误不重试，网络、超时和 5xx 最多重试两次。`src/api/home.ts` 通过独立 `navigation` 与分区 `home_v2` 契约避免非首页路由等待完整首页，`content.ts`、`account.ts` 分别约束公开内容/播放和会话写操作 DTO。详情页通过同源 `pingfangdevice/sourceQuality` 读取短期线路健康排序，播放器再结合当前标签页 30 分钟内的首帧、卡顿和失败 QoE 有界换线并恢复进度；HLS 主清单提供多档时在 Artplayer 设置中显示清晰度选择，播放 URL 仍只能通过独立 playback 响应进入前端。
 - `server/react-api.php` 仅用于本地验收：从 fixture 生成白名单 DTO，并用 PHP session、严格 JSON 输入与 CSRF 完成可观察的本地写入。公开首页响应不携带浏览器或账号历史；匿名历史读取经过校验的本地存储，账号历史由私有会话接口提供。Next.js development rewrite 将 `/react-api.php` 指向该文件；production build 不包含本地适配器，必须配置经过真实 MacCMS 验证的 `NEXT_PUBLIC_API_BASE_URL`。
 - `addons/pingfangapi/` 是独立生产 API 插件，标准入口为 `/index.php/pingfangapi/index?action=...`。当前 React 对首页、目录和详情使用向后兼容的 `compact=1`：`home_v2` 以 MacCMS 原生列表字段白名单返回有界区块，目录卡片只取 7 个渲染字段，搜索只增加 3 个字段，分类总数和剧情选项按需查询；旧响应仍保留供缓存中的旧发布包回滚。插件同时从用户、Ulog 和设备会话生成白名单 DTO，并复用原生登录、验证码、评论审核和互动计数逻辑；新会员注册、注册验证码和账号找回不对外开放。`playback` 返回同源 `pingfangapi/stream` 描述符，React 在页面内使用与 MacCMS 当前配置一致的 Artplayer/HLS，`stream` 在媒体跳转前再次校验播放权限；原 `player` HTML 入口保留作原生模板与回滚。React 生产环境示例固定使用站内相对地址，真实数据和权限链仍需 staging 验收。
 - `src/migrationRoutes.ts` 与 `src/proxy.ts` 验证已知旧公开 URL 的单跳 `301`、参数保留和退场地址的 HTTP `410`。staging Nginx 优先保留 MacCMS `/index.php`，但对旧注册与找回页面的 PATH_INFO 路径族统一返回 `410`；其他旧 PHP URL 仍由后端处理。当前用户明确不做 SEO，完整旧 rewrite/RSS 切流不属于本次 staging 发布。
-- React 复用现有主题 CSS、品牌和游戏运行时资源，但轮播、五套主题、筛选、账号、播放器外壳、移动抽屉、游戏权限与状态切换均由 React 管理，不加载旧 `app.js`。会员游戏大厅、2048、俄罗斯方块、五子棋和你画我猜使用干净 App Router 地址；游戏脚本只在登录分支的隔离 iframe 中加载，联机票据仍由 MacCMS 设备插件签发。84 个模板的最终归属记录在 [React 模板迁移矩阵](react-template-migration-matrix.md)。
+- React 复用现有主题 CSS、品牌和游戏运行时资源，但轮播、六套主题、筛选、账号、播放器外壳、移动抽屉、游戏权限与状态切换均由 React 管理，不加载旧 `app.js`。会员游戏大厅、2048、俄罗斯方块、五子棋和你画我猜使用干净 App Router 地址，脚本只在登录分支的隔离 iframe 中加载；竹知了卡片直接打开作者官方试玩站，兼容路由 `/games/bamboo-cicada` 返回永久重定向，不复制或部署上游源码。联机票据仍由 MacCMS 设备插件签发。七夕粒子玫瑰由 `/qixi` 沉浸式路由复用主题资源。86 个模板的最终归属记录在 [React 模板迁移矩阵](react-template-migration-matrix.md)。
 - `apps/web/e2e/react-migration.spec.ts` 用 Playwright 覆盖路由状态码、干净 URL 直达、匿名历史、账号操作和六个响应式宽度；CI 安装 Chromium 后运行同一门禁。
 - `npm run build:web` 生成 `output: "standalone"` 的 `apps/web/.next/` 产物，并验证预渲染 HTML 没有全页 CSR bailout、保留 Session-first 静态壳；该结果不代表内容已经 SSR。由于任意视频动态路由、Cookie 会话和 Proxy 不支持静态导出，本项目没有配置 `output: "export"`。`npm run deploy:web` 在本机生成并校验 Linux x64/glibc standalone 归档，相同构建输入可复用 `.cache/next-deploy/` 中的已验证产物；服务器只负责候选进程验收和 systemd/Nginx 原子切换。它与主题/addon 发布互不替代。
 
@@ -138,7 +138,7 @@ GitHub Actions 只执行验证、打包并上传这六个发布单元，不连�
 
 - 本仓库不是完整的 MacCMS 应用，不包含 MacCMS 核心、生产数据库或服务器运行时配置。
 - 本地模拟数据只能验证页面结构和交互流程，不能证明真实模板标签、登录态、插件钩子或生产数据已经正确运行。
-- MacCMS 主题和当前 React `SiteHeader` 都已注册液态影院、极光夜幕、海报画廊、敦煌流光与像素蛙五套主题；生产或 staging 的真实首帧、切换、响应式和减少动效验收仍需按发布版本单独记录。
+- MacCMS 主题和当前 React `SiteHeader` 都已注册液态影院、极光夜幕、海报画廊、敦煌流光、数码粒子与像素蛙六套主题；生产或 staging 的真实首帧、切换、响应式和减少动效验收仍需按发布版本单独记录。
 - `preview/qixi.html` 直接加载生产 CSS 与七夕粒子脚本；`npm run verify:preview` 不执行该 Canvas 动画，视觉与交互仍需浏览器验收。
 - Docker 通过 `PINGFANG_PREVIEW_DATA` 显式指向容器内挂载的样例数据；自动路由验证仍以 `npm run verify:preview` 为准，浏览器静态预览需通过 HTTP 服务访问 `/preview/index.html`。
 - `ops/security/gptbot-ip-rules.json` 是独立规则数据文件，仓库内没有自动应用它的脚本；使用前需要在目标防火墙或面板中再次核对格式、来源和有效期。

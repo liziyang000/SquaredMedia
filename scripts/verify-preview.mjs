@@ -83,6 +83,7 @@ for (const [query, expected] of routes) {
   assert.match(html, /<!doctype html>/, `${query} should render a full HTML document`);
   assert.match(html, /<main(?:\s[^>]*)?>/, `${query} should include the main layout`);
   assert.doesNotMatch(html, /class="site-footer"/, `${query} should not render the retired visible footer`);
+  assert.doesNotMatch(html, /data-nav-section="qixi"|href="\/preview\/qixi\.html"/, `${query} should not render the retired Qixi navigation entry`);
   assert.doesNotMatch(html, /Fatal error|Parse error|Warning:/, `${query} should render without PHP runtime errors`);
   assert.match(html, /class="theme-switcher" data-theme-switcher/, `${query} should include the desktop theme switcher`);
   assert.match(html, /class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile/, `${query} should include the mobile theme switcher`);

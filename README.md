@@ -338,10 +338,14 @@ npm run deploy:api -- --check
 npm run deploy:api
 ```
 
-`--check` performs only the SSH safety probe and prints the target and selected
-scope. The actual command installs locked npm dependencies when they are absent,
-then asks the operator to type `deploy`. It selects `backend` when the API is not
-installed or the `pingfangdevice` files/hook need this release, and otherwise
+`--check` performs read-only SSH checks of files/hooks, PHP CLI extensions,
+database connectivity/schema, deployment-user directory access, and free disk
+space. It prints the target, selected scope, and check results without uploading
+files or changing the database. The actual command asks the operator to type `deploy`, then runs the
+backend-only tests and archive checks without installing npm dependencies or
+requiring Next, the theme, player, or game build. It selects `backend` when the API is not
+installed, the `pingfangdevice` files/hook need this release, or the device table
+needs a supported installation/upgrade; otherwise it
 selects `api`. A backend release can update the device-session schema, so confirm
 the current database backup before continuing. After a reviewed plan and backup,
 approved non-interactive automation may use:
@@ -350,15 +354,22 @@ approved non-interactive automation may use:
 npm run deploy:api -- --yes
 ```
 
-If the authoritative database preflight reports an incomplete device baseline,
-back up the database and rerun with `npm run deploy:api -- --backend`. API-only
+Missing Ulog progress columns or unsupported device-table gaps stop the check
+and require a separate migration plan. `npm run deploy:api -- --backend` forces
+a reviewed dependency refresh, not a bypass. The same checker runs again from
+the staged release before installation. PHP-FPM permissions and sufficient
+space for the actual archives/backups still need operator verification. API-only
 deployment uploads only `dist/pingfangapi.tar.gz`, snapshots only the installed
 API addon and application controller, clears the normal MacCMS caches, and runs
 bounded site/API loopback checks: at most five serial requests, ten seconds per
-request and a shared thirty-second network-request budget. The first deployment
-of a workspace fingerprint runs the full release gate; repeated API-only
-deployment of the same fingerprint runs only the production
-API/controller/device-session tests and builds and verifies only the API archive.
+request and a shared thirty-second network-request budget. Both first installs
+and API updates run `npm run test:backend`, including API/device behavior and
+deployment/rollback regression tests. Packaging and verification run directly
+with the selected scope: `api` produces only the API archive, while `backend`
+also produces the device addon. Backend inputs are fingerprinted again before
+upload; unavailable or changed fingerprints stop deployment. Full theme releases
+retain their full validation gate. The local backend tooling needs Node.js, npm,
+PHP, Git, tar, and SSH, but no `node_modules` installation.
 
 `DEPLOY_PATH` must point to the remote MacCMS `template` directory. With the
 default scope, the deploy script runs the full local verification sequence,

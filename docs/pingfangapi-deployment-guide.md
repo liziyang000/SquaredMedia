@@ -1,20 +1,21 @@
 # PingFang API 生产部署指南
 
-最后核验：2026-08-26
+最近更新：2026-08-28（本地部署流程；服务器状态仍需发布当天核验）
 
 自动部署入口：`scripts/deploy-pingfangapi.sh`
 
-对应实现提交：`e5fe291`（分支 `codex/feat_simplify_pingfangapi_deploy`）
+入口最初由 `e5fe291` 引入；本指南还要求包含 `test:backend` 后端独立门禁和
+`addons/pingfangapi/service/DeploymentCheck.php` 共享体检实现。
 
 本文说明如何人工触发并验收 `pingfangapi` 生产发布。优化后，操作员只负责四个
-关口：只读检查、数据库备份、输入一次发布确认、发布后验收；依赖安装、范围判断、
+关口：只读检查、数据库备份、输入一次发布确认、发布后验收；环境检查、范围判断、
 测试门禁、打包、文件快照、上传、安装、缓存清理和回环 smoke 均由脚本完成。
 
 本文是操作手册，不代表插件已经发布。文中记录的服务器状态会变化，发布当天必须
 重新执行只读检查并保存证据。
 
-> **代码要求**：`deploy:api` 入口由上述提交引入。使用本指南前，目标发布源码必须
-> 包含该提交或等价实现；否则 `npm run deploy:api` 不存在。
+> **代码要求**：目标发布源码必须同时包含 `deploy:api`、`test:backend` 和共享体检文件。
+> 只有旧版 `deploy:api` 入口的分支仍会安装前端依赖，不能视为已包含本轮优化。
 
 ## 1. 发布范围
 
@@ -23,7 +24,7 @@
 | 范围      | 使用条件                                  | 会修改的内容                                                                  |
 | --------- | ----------------------------------------- | ----------------------------------------------------------------------------- |
 | `backend` | API 未安装或 `pingfangdevice` 基线不兼容  | `pingfangdevice`、设备控制器、Hook、设备会话结构、`pingfangapi` 和 API 控制器 |
-| `api`     | 已安装的设备服务、Hook 和登记与本发布兼容 | 仅 `pingfangapi` 插件和 API 应用控制器                                        |
+| `api`     | 设备文件、Hook、登记及数据库结构均兼容   | 仅 `pingfangapi` 插件和 API 应用控制器                                        |
 
 两个范围都会按配置清理 MacCMS 缓存并执行有界站点/API smoke。
 
@@ -44,10 +45,11 @@
 
 ### 2.1 进入包含新入口的干净源码
 
-如果尚未把实现提交合入其他发布分支，可直接使用已经验证过的独立 worktree：
+先将本轮实现和测试纳入经过审查的发布分支，再进入该分支的干净 worktree。
+下面路径仅为示例，必须改成实际发布源码位置，不要直接发布仍有未提交修改的优化工作区：
 
 ```bash
-export PFAPI_SOURCE=/Users/bytedance/Documents/SquaredMedia/.worktrees/codex/feat_simplify_pingfangapi_deploy
+export PFAPI_SOURCE=/Users/bytedance/Documents/SquaredMedia
 cd "$PFAPI_SOURCE"
 
 git status --short
@@ -55,21 +57,25 @@ git branch --show-current
 git rev-parse --short HEAD
 
 test -x scripts/deploy-pingfangapi.sh
+test -f addons/pingfangapi/service/DeploymentCheck.php
 node -e '
   const scripts = require("./package.json").scripts;
-  process.exit(scripts["deploy:api"] === "bash scripts/deploy-pingfangapi.sh" ? 0 : 1);
+  const ready = scripts["deploy:api"] === "bash scripts/deploy-pingfangapi.sh"
+    && typeof scripts["test:backend"] === "string"
+    && scripts["test:backend"].includes("npm run test:api");
+  process.exit(ready ? 0 : 1);
 '
 ```
 
 预期：
 
 - `git status --short` 没有输出；
-- 分支为 `codex/feat_simplify_pingfangapi_deploy`；
-- 提交至少包含 `e5fe291`；
+- 分支和提交为本次已审查的发布版本；
+- 源码同时包含专用部署入口、后端独立门禁和共享体检文件；
 - 脚本和 `package.json` 入口检查通过。
 
-如果已经合入其他分支，应改用那个干净发布 worktree，并记录实际提交，不要继续依赖
-本文写死的提交号。
+如果已经合入其他分支，应使用那个分支的干净发布 worktree，并记录实际提交；
+仅检查旧提交 `e5fe291` 是否存在不足以证明部署流程已升级。
 
 ### 2.2 执行只读检查
 
@@ -78,7 +84,8 @@ npm run deploy:api -- --check
 ```
 
 该命令会自动读取 `scripts/deploy-ping2.env`，通过 SSH 检查目标 MacCMS 路径、API
-安装状态、设备服务和 Hook 摘要、API 控制器配对状态及 `app_begin` 登记，然后打印：
+安装状态、设备服务和 Hook 摘要、API 控制器配对状态及 `app_begin` 登记，再检查
+PHP CLI 扩展、数据库连接、必要字段、部署用户目录权限和可用磁盘空间，然后打印：
 
 ```text
 Pingfangapi deployment plan
@@ -86,9 +93,23 @@ Pingfangapi deployment plan
   site: <scheme>://<host>
   scope: backend | api
   reason: <判定原因>
+  check: <PHP CLI、数据库、目录权限及可用空间结果>
 ```
 
-`--check` 不执行 `npm ci`、不打包、不上传，也不修改服务器。
+共享检查代码通过 SSH 标准输入执行，不在服务器落盘。`--check` 不执行 `npm ci`、
+不打包、不上传归档、不创建目录，也不执行建表或改字段 SQL。数据库诊断不会打印
+连接密码；只读取当前配置对应的数据库元数据。
+
+- 缺少 `pdo_mysql`、`json`、`mbstring` 或 `session` 扩展、数据库连接失败、目录
+  不可写或磁盘空间无法读取/耗尽时，检查以非零退出；正常发布也会在确认前停止。
+- 设备表不存在，或已有表仅缺少 `login_check_hash` 时，自动选择 `backend`。
+  只有正式发布完成备份、确认后，才会由已有安装 SQL 创建表或补该列。
+- Ulog 缺少 `ulog_point`/`ulog_duration`，或已有设备表缺少其他必需列时直接停止。
+  需要单独审查迁移方案；不能靠 `--backend` 修复。
+
+目录检查针对 SSH/CLI 部署用户，不能证明 PHP-FPM 用户具有缓存写权限。磁盘结果
+是当前可用 MiB，不是备份容量保证；仍需按实际归档、文件快照和备份大小预留空间。
+数据库检查不替代后续应用 API、登录和播放验收。
 
 截至 2026-08-25 的真实只读结果是：
 
@@ -142,7 +163,7 @@ deploy
 只有已经核对目标、完成备份并获得发布授权时才输入。交互终端不可用时脚本会拒绝
 继续；`--yes` 只允许用于已经审批的自动化发布，不能用来代替备份和范围确认。
 
-当前服务器预期选择 `backend`。成功时必须看到完整结束信息：
+首次安装通常选择 `backend`，已有安装必须以本次检查为准。以下是 `backend` 成功结束信息示例：
 
 ```text
 Deployed pingfangdevice and pingfangapi to root@144.34.184.95 without changing the theme or vodops
@@ -155,40 +176,44 @@ Pingfangapi deployment completed with scope backend.
 
 操作员不再需要手工重复以下步骤。
 
-### 3.1 自动安装本地依赖
+### 3.1 无需安装前端依赖
 
-脚本检查 ESLint、Prettier、Artplayer 和 Next 等发布依赖；缺失时自动执行：
+本地只需仓库支持的 Node.js/npm、PHP CLI、Git、tar 和 SSH。入口检查这些命令是否
+可用，不再检查或安装 ESLint、Prettier、Artplayer、Next，也不要求 `node_modules`。
 
-```bash
-npm ci
-```
+不需要先执行 `npm ci`；正式发布不会为了 API 安装前端依赖或升级锁文件。
+服务器端仍需可运行当前插件的 PHP CLI、`pdo_mysql`、`json`、`mbstring`、`session`
+及已有 MacCMS；体检不会安装扩展或修改 PHP 配置。
 
-它不会执行 `npm audit fix`，也不会修改锁文件来升级依赖。
+`--check` 仍在组包前退出，不会触发后端测试、依赖安装或远端写入。
 
 ### 3.2 自动执行发布门禁
 
-首次发布输入或 `backend` 范围会运行完整门禁：
+首次安装和后续 API 更新都运行独立后端门禁，不再要求先执行一次前端完整门禁：
 
-```text
-npm test
-npm run lint
-npm run lint:template
-npm run verify:compat
-npm run verify:preview
-npm run package
-npm run verify:release
+```bash
+npm run test:backend
+# 以下 scope 由入口自动判断；api 只组包 API，backend 另含设备插件。
+DEPLOY_SCOPE=api node scripts/package-theme.mjs
+DEPLOY_SCOPE=api node scripts/verify-release.mjs
 ```
 
-发布输入指纹已经完成完整验证时，后续 `api` 范围可复用门禁记录，只运行 API、控制器
-和设备会话重点测试，并只重建、验证 API 归档。任一发布源、门禁脚本、测试或工具链
-变化都会使记录失效并恢复完整门禁。
+这些步骤由入口执行，不需要操作员逐条重复。`test:backend` 包括生产 API、控制器、
+设备会话、设备控制器、游戏票据、线路状态及部署/回滚回归；测试使用本地替身，不连接
+生产服务。包校验检查归档结构及设备/API PHP 语法，不会组包主题、播放器或游戏服务。
+
+后端源码、脚本、测试、包配置和工具链会计算内容指纹；指纹不可用或验证期间输入变化，
+会在上传前停止。每次都重新执行后端门禁，不再依赖 `.cache/deploy-gates/v1/`。
+完整主题发布仍有自己的完整门禁，Next 的发布流程和构建缓存不变。
+
+本地 `dist/` 仍是按 scope 重建的临时产物目录，不要在其中保存数据库备份或唯一副本。
 
 ### 3.3 自动执行远端事务
 
 底层 `scripts/deploy-theme.sh` 会：
 
 1. 只上传当前范围需要的受控归档；
-2. 在替换前验证归档、PHP、Ulog 必需字段和设备数据库要求；
+2. 在替换前验证归档和 PHP，并用归档中的同一体检实现复查环境、权限和数据库；
 3. 创建本次事务的远端文件快照；
 4. `backend` 时更新 `pingfangdevice`、保留配置、复制控制器、登记 Hook 并幂等执行
    `install.sql`；
@@ -197,8 +222,8 @@ npm run verify:release
 7. 通过服务器回环执行站点和 API smoke；
 8. 普通失败时自动恢复本次范围的文件快照。
 
-自动范围探测用于选择发布方式，不能替代底层数据库预检；真正写文件前，底层脚本会
-再次校验服务器状态。
+入口和底层预检共用 `DeploymentCheck.php`，避免两套数据库规则漂移。真正写文件
+前仍会再次校验服务器状态；此时不会把已组好的 API-only 包自动升级为 backend。
 
 ### 3.4 自动备份与人工备份的区别
 
@@ -282,11 +307,12 @@ PHP Warning: Module "mbstring" is already loaded
 - 目标不是 `/www/wwwroot/squaredMedia/template`；
 - 自动结果为 `backend`，但数据库备份尚未完成；
 - Ulog 缺少 `ulog_point` 或 `ulog_duration`；
+- 已有设备表缺少安装 SQL 无法补齐的必需列；
 - 远端 API 插件和应用控制器处于无法解释的部分安装状态；
 - 主机指纹变化但没有从可信控制台核对；
 - 发布授权、维护窗口或回滚负责人不明确。
 
-`pingfangdevice/install.sql` 不会补齐 Ulog 的两个进度字段。如果底层预检报告它们缺失，
+`pingfangdevice/install.sql` 不会补齐 Ulog 的两个进度字段。如果体检报告它们缺失，
 必须先制定单独数据库迁移方案，反复执行 `--backend` 不能解决。
 
 ## 6. 发布后验收
@@ -504,15 +530,16 @@ npm run deploy:api -- --check
 npm run deploy:api
 ```
 
-设备依赖基线兼容时，自动选择 `api`。如果自动探测选择 `api`，但底层数据库预检提示
-设备结构不完整，完成数据库备份后才可使用：
+设备文件和数据库基线兼容时自动选择 `api`；缺设备表或可支持的增量列时，体检已经
+会选择 `backend`。如果需要主动刷新兼容的设备依赖，完成数据库备份后可使用：
 
 ```bash
 npm run deploy:api -- --backend
 ```
 
-`--backend` 只用于明确刷新设备依赖基线，不能解决 Ulog 字段缺失、数据库连接失败、
-部分安装状态或未知文件异常。
+`--backend` 只用于明确刷新设备依赖基线，不能绕过体检，也不能解决 Ulog 字段缺失、
+不受支持的设备字段缺失、数据库连接失败、部分安装状态或未知文件异常。底层复检
+发现服务器与先前体检不一致时，停止并重新运行 `--check`，不要盲目重试安装。
 
 已经审批的非交互任务可以执行：
 
@@ -534,10 +561,11 @@ npm run deploy:api -- --yes
 默认入口会把摘要不一致自动判定为 `backend`。确认数据库已备份后按普通流程继续，
 不要伪造摘要或强制使用 API-only。
 
-### 9.3 提示 `artplayer`、Next 或其他依赖缺失
+### 9.3 专用 API 部署仍提示 `artplayer` 或 Next 依赖缺失
 
-入口会自动执行 `npm ci`。检查其原始错误、Node 版本、网络和锁文件，不要手工复制
-单个依赖目录，也不要跳过归档校验。
+先检查是否进入了旧版源码，或误用了根级 `npm run deploy` / `npm run package`。
+执行 2.1 的入口检查，确认存在 `test:backend`，再使用 `npm run deploy:api`。
+新流程只需要本地基础命令，不要求安装前端依赖；不要通过跳过测试或归档校验解决。
 
 ### 9.4 出现 `mbstring is already loaded`
 
@@ -595,6 +623,7 @@ PHP-FPM 日志，不要先修改 MacCMS 核心。
 ## 自动门禁与部署
 
 - 部署命令：
+- 只读体检结果、CLI 身份与可用磁盘空间：
 - 部署退出码：
 - 完整日志位置：
 - 最终成功行：
@@ -621,6 +650,7 @@ PHP-FPM 日志，不要先修改 MacCMS 核心。
 ## 11. 相关文件
 
 - `scripts/deploy-pingfangapi.sh`
+- [`DeploymentCheck.php`](../addons/pingfangapi/service/DeploymentCheck.php)
 - [`scripts/deploy-theme.sh`](../scripts/deploy-theme.sh)
 - [`scripts/rollback-api.sh`](../scripts/rollback-api.sh)
 - [`scripts/deploy-ping2.env`](../scripts/deploy-ping2.env)

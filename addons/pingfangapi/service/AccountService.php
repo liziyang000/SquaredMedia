@@ -280,10 +280,16 @@ class AccountService
                     throw new ApiException(500, '收藏保存失败');
                 }
             } else {
-                Db::name('Ulog')->where('ulog_id', intval($existing['ulog_id']))->update(['ulog_time' => time()]);
+                $updated = Db::name('Ulog')->where('ulog_id', intval($existing['ulog_id']))->update(['ulog_time' => time()]);
+                if ($updated === false) {
+                    throw new ApiException(500, '收藏保存失败');
+                }
             }
         } elseif (!empty($existing)) {
-            Db::name('Ulog')->where($where)->delete();
+            $removed = Db::name('Ulog')->where($where)->delete();
+            if ($removed === false) {
+                throw new ApiException(500, '取消收藏失败');
+            }
         }
 
         return [
@@ -372,11 +378,11 @@ class AccountService
         $excluded = [];
         $videos = [];
         $playLists = [];
-        $offset = 0;
+        $cursor = null;
         $batchSize = self::PRIVATE_LIST_LIMIT;
 
         while (true) {
-            $rows = Db::name('Ulog')
+            $builder = Db::name('Ulog')
                 ->field('ulog_id,ulog_rid,ulog_sid,ulog_nid,ulog_point,ulog_duration,ulog_time')
                 ->where([
                     'user_id' => intval($userId),
@@ -384,9 +390,17 @@ class AccountService
                     'ulog_type' => 4,
                 ])
                 ->where('ulog_sid', 'gt', 0)
-                ->where('ulog_nid', 'gt', 0)
+                ->where('ulog_nid', 'gt', 0);
+            if ($cursor !== null) {
+                $builder = $builder->where('ulog_time', 'elt', $cursor['time'])
+                    ->where(function ($seek) use ($cursor) {
+                        $seek->where('ulog_time', 'lt', $cursor['time'])
+                            ->whereOr('ulog_id', 'lt', $cursor['id']);
+                    });
+            }
+            $rows = $builder
                 ->order('ulog_time desc,ulog_id desc')
-                ->limit($offset, $batchSize)
+                ->limit($batchSize)
                 ->select();
             $rows = $this->rows($rows);
             if (empty($rows)) {
@@ -395,7 +409,7 @@ class AccountService
 
             $unknownVideoIds = [];
             foreach ($this->recordIds($rows) as $vodId) {
-                if (!isset($videos[$vodId]) && !isset($excluded[$vodId])) {
+                if (!isset($seen[$vodId]) && !isset($videos[$vodId]) && !isset($excluded[$vodId])) {
                     $unknownVideoIds[$vodId] = $vodId;
                 }
             }
@@ -408,6 +422,7 @@ class AccountService
                         $excluded[$vodId] = true;
                     }
                 }
+                unset($loadedVideos);
             }
 
             foreach ($rows as $row) {
@@ -430,9 +445,11 @@ class AccountService
                 }
                 $seen[$vodId] = true;
                 $items[] = $this->historyItem($row, $videos[$vodId], $episodeName, [(string) $recordId]);
+                unset($videos[$vodId], $playLists[$vodId]);
             }
 
-            $offset += count($rows);
+            $lastRow = end($rows);
+            $cursor = ['time' => intval($lastRow['ulog_time']), 'id' => intval($lastRow['ulog_id'])];
             if (count($rows) < $batchSize) {
                 break;
             }

@@ -45,6 +45,19 @@ try {
   assert(files.includes("untracked.txt"), "untracked nonignored files must be repository inputs");
   assert(!files.includes("dist/ignored.txt"), "git-ignored files must not be repository inputs");
 
+  const backendInitial = createReleaseFingerprint(root, "backend");
+  writeFileSync(path.join(root, "apps", "web", "page.tsx"), "frontend-v1\n");
+  writeFileSync(path.join(root, "template", "pingfangvideo", "css", "style.css"), "body { color: green; }\n");
+  assert.equal(backendInitial, createReleaseFingerprint(root, "backend"), "frontend source changes must not affect backend release inputs");
+  writeFileSync(path.join(root, "addons", "pingfangdevice", "DeviceSession.php"), "device-v1\n");
+  assert.notEqual(backendInitial, createReleaseFingerprint(root, "backend"), "device changes must affect backend release inputs");
+  const backendWithDevice = createReleaseFingerprint(root, "backend");
+  writeFileSync(path.join(root, "addons", "pingfangapi", "runtime.log"), "runtime-backend\n");
+  assert.notEqual(backendWithDevice, createReleaseFingerprint(root, "backend"), "ignored packaged files must affect backend release inputs");
+  const backendWithAddon = createReleaseFingerprint(root, "backend");
+  writeFileSync(path.join(root, "scripts", "deploy-theme.sh"), "deploy-v1\n");
+  assert.notEqual(backendWithAddon, createReleaseFingerprint(root, "backend"), "deployment changes must affect backend release inputs");
+
   const initial = createReleaseFingerprint(root, "repository");
   writeFileSync(path.join(root, "addons", "pingfangapi", "runtime.log"), "runtime-v2\n");
   const ignoredPackagedChanged = createReleaseFingerprint(root, "repository");
@@ -75,6 +88,11 @@ try {
 
   symlinkSync(path.join(root, "untracked.txt"), path.join(root, "addons", "pingfangapi", "ignored-link"));
   assert.doesNotThrow(() => createReleaseFingerprint(root, "next"), "release-only entries must not affect Next fingerprints");
+  assert.throws(
+    () => createReleaseFingerprint(root, "backend"),
+    /Unsupported release entry type/,
+    "backend fingerprints must reject ignored packaged symlinks"
+  );
   assert.throws(
     () => createReleaseFingerprint(root, "repository"),
     /Unsupported release entry type: addons\/pingfangapi\/ignored-link/,

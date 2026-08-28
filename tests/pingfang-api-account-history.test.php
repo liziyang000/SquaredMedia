@@ -15,6 +15,9 @@ final class PingfangApiAccountHistoryQuery
 {
     private string $table;
     private array $where = [];
+    private array $orWhere = [];
+    private string $order = '';
+    private string $fields = '';
     private bool $joinVod = false;
     private int $offset = 0;
     private ?int $limit = null;
@@ -26,6 +29,7 @@ final class PingfangApiAccountHistoryQuery
 
     public function field($fields)
     {
+        $this->fields = (string) $fields;
         return $this;
     }
 
@@ -45,12 +49,24 @@ final class PingfangApiAccountHistoryQuery
     public function where(...$arguments)
     {
         $GLOBALS['pingfangApiAccountHistoryWhere'][$this->table][] = $arguments;
+        if (($arguments[0] ?? null) instanceof Closure) {
+            $nested = new self($this->table);
+            $arguments[0]($nested);
+            $arguments = [$nested];
+        }
         $this->where[] = $arguments;
+        return $this;
+    }
+
+    public function whereOr(...$arguments)
+    {
+        $this->orWhere[] = $arguments;
         return $this;
     }
 
     public function order($order)
     {
+        $this->order = (string) $order;
         return $this;
     }
 
@@ -68,6 +84,9 @@ final class PingfangApiAccountHistoryQuery
 
     public function select()
     {
+        if ($this->table === 'vod' && !empty($GLOBALS['pingfangApiAccountHistoryPlaybackBytes'])) {
+            $GLOBALS['pingfangApiAccountHistoryMemory'][] = memory_get_usage();
+        }
         $rows = $GLOBALS['pingfangApiAccountHistoryRows'][$this->table] ?? [];
         if ($this->joinVod) {
             $videos = [];
@@ -79,29 +98,63 @@ final class PingfangApiAccountHistoryQuery
                 return $video === null ? null : array_merge($row, $video);
             }, $rows)));
         }
-        $rows = array_values(array_filter($rows, function (array $row): bool {
-            foreach ($this->where as $arguments) {
-                if (count($arguments) === 1 && is_array($arguments[0])) {
-                    foreach ($arguments[0] as $field => $expected) {
-                        if (!$this->matches($row, (string) $field, '=', $expected)) {
-                            return false;
-                        }
+        $rows = array_values(array_filter($rows, [$this, 'matchesWhere']));
+        if ($this->order !== '') {
+            usort($rows, function (array $left, array $right): int {
+                foreach (explode(',', $this->order) as $part) {
+                    [$field, $direction] = explode(' ', trim($part));
+                    $field = preg_replace('/^\w+\./', '', $field);
+                    $comparison = ($left[$field] ?? 0) <=> ($right[$field] ?? 0);
+                    if ($comparison !== 0) {
+                        return $direction === 'desc' ? -$comparison : $comparison;
                     }
-                    continue;
                 }
-                if (count($arguments) === 2 && !$this->matches($row, (string) $arguments[0], '=', $arguments[1])) {
-                    return false;
-                }
-                if (count($arguments) === 3 && !$this->matches($row, (string) $arguments[0], (string) $arguments[1], $arguments[2])) {
+                return 0;
+            });
+        }
+        if ($this->limit !== null) {
+            $rows = array_slice($rows, $this->offset, $this->limit);
+        }
+        if ($this->table === 'vod' && strpos($this->fields, 'vod_play_url') !== false && !empty($GLOBALS['pingfangApiAccountHistoryPlaybackBytes'])) {
+            foreach ($rows as &$row) {
+                $row['vod_play_url'] = str_repeat('x', $GLOBALS['pingfangApiAccountHistoryPlaybackBytes']) . $row['vod_id'];
+            }
+            unset($row);
+        }
+        return $rows;
+    }
+
+    public function matchesWhere(array $row): bool
+    {
+        $matches = true;
+        foreach ($this->where as $arguments) {
+            if (!$this->matchesArguments($row, $arguments)) {
+                $matches = false;
+                break;
+            }
+        }
+        foreach ($this->orWhere as $arguments) {
+            $matches = $matches || $this->matchesArguments($row, $arguments);
+        }
+        return $matches;
+    }
+
+    private function matchesArguments(array $row, array $arguments): bool
+    {
+        if ($arguments[0] instanceof self) {
+            return $arguments[0]->matchesWhere($row);
+        }
+        if (count($arguments) === 1 && is_array($arguments[0])) {
+            foreach ($arguments[0] as $field => $expected) {
+                if (!$this->matches($row, (string) $field, '=', $expected)) {
                     return false;
                 }
             }
             return true;
-        }));
-        if ($this->limit !== null) {
-            $rows = array_slice($rows, $this->offset, $this->limit);
         }
-        return $rows;
+        return count($arguments) === 2
+            ? $this->matches($row, (string) $arguments[0], '=', $arguments[1])
+            : $this->matches($row, (string) $arguments[0], (string) $arguments[1], $arguments[2]);
     }
 
     public function count($field = '*')
@@ -138,6 +191,12 @@ final class PingfangApiAccountHistoryQuery
         if ($operator === 'gt') {
             return $actual > $expected;
         }
+        if ($operator === 'lt') {
+            return $actual < $expected;
+        }
+        if ($operator === 'elt') {
+            return $actual <= $expected;
+        }
         return $actual == $expected;
     }
 
@@ -150,7 +209,13 @@ final class PingfangApiAccountHistoryQuery
     public function insert($data)
     {
         $GLOBALS['pingfangApiAccountHistoryInserts'][$this->table][] = $data;
-        return 1;
+        return $GLOBALS['pingfangApiAccountHistoryInsertResult'] ?? 1;
+    }
+
+    public function delete()
+    {
+        $GLOBALS['pingfangApiAccountHistoryDeletes'][$this->table][] = $this->where;
+        return $GLOBALS['pingfangApiAccountHistoryDeleteResult'] ?? count($this->select());
     }
 }
 
@@ -292,6 +357,40 @@ $assertSame(2, $lastFavoritePage['page'], 'Favorite pages beyond the end must cl
 $emptyFavoritePage = $paginationService->favoritesPage(123, 4, 10);
 $assertSame([[], 1, 10, 0, 0], array_values($emptyFavoritePage), 'Empty favorite pagination must normalize to page one with zero pages.');
 
+foreach ([true, false] as $favorite) {
+    $GLOBALS['pingfangApiAccountHistoryUpdateResult'] = false;
+    $GLOBALS['pingfangApiAccountHistoryDeleteResult'] = false;
+    try {
+        $paginationService->setFavorite(42, 7, $favorite);
+        $fail('A failed favorite database write must not report success.');
+    } catch (\addons\pingfangapi\service\ApiException $error) {
+        $assertSame(500, $error->status(), 'Favorite write failures must return a controlled API failure.');
+    }
+    $assertSame(['7', true], array_values($paginationService->favoriteStatus(42, 7)), 'A failed favorite write must leave the stored favorite unchanged.');
+}
+
+$GLOBALS['pingfangApiAccountHistoryUpdateResult'] = 0;
+$assertSame(['vodId' => '7', 'favorited' => true], $paginationService->setFavorite(42, 7, true), 'An unchanged favorite timestamp must remain an idempotent success.');
+$GLOBALS['pingfangApiAccountHistoryDeleteResult'] = 0;
+$GLOBALS['pingfangApiAccountHistoryDeletes'] = [];
+$assertSame(['vodId' => '7', 'favorited' => false], $paginationService->setFavorite(42, 7, false), 'A concurrent deletion returning zero affected rows must remain an idempotent success.');
+$assertSame(
+    [[[['user_id' => 42, 'ulog_mid' => 1, 'ulog_type' => 2, 'ulog_rid' => 7]]]],
+    $GLOBALS['pingfangApiAccountHistoryDeletes']['ulog'],
+    'Cancelling a favorite must remain scoped to the current user, video, and favorite record type.'
+);
+$GLOBALS['pingfangApiAccountHistoryDeletes'] = [];
+$assertSame(['vodId' => '10', 'favorited' => false], $paginationService->setFavorite(42, 10, false), 'Cancelling an absent favorite must not touch another user favorite.');
+$assertSame([], $GLOBALS['pingfangApiAccountHistoryDeletes'], 'An absent favorite must not issue a delete.');
+$GLOBALS['pingfangApiAccountHistoryInsertResult'] = false;
+try {
+    $paginationService->setFavorite(42, 10, true);
+    $fail('A failed favorite insert must not report success.');
+} catch (\addons\pingfangapi\service\ApiException $error) {
+    $assertSame(500, $error->status(), 'Favorite insertion failures must remain controlled API failures.');
+}
+unset($GLOBALS['pingfangApiAccountHistoryUpdateResult'], $GLOBALS['pingfangApiAccountHistoryDeleteResult'], $GLOBALS['pingfangApiAccountHistoryInsertResult']);
+
 $batchedHistoryRows = [];
 for ($index = 0; $index < 100; $index++) {
     $batchedHistoryRows[] = [
@@ -323,7 +422,45 @@ $GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = $batchedHistoryRows;
 $GLOBALS['pingfangApiAccountHistoryLimits'] = [];
 $batchedHistoryPage = $paginationService->historyPage(42, 2, 1);
 $assertSame('8', $batchedHistoryPage['items'][0]['vodId'], 'History pagination must continue across bounded Ulog batches.');
-$assertSame([[0, 100], [100, 100]], $GLOBALS['pingfangApiAccountHistoryLimits']['ulog'] ?? [], 'History batches must advance by a bounded offset.');
+$assertSame([[0, 100], [0, 100]], $GLOBALS['pingfangApiAccountHistoryLimits']['ulog'] ?? [], 'History batches must use a seek cursor without growing offsets.');
+
+$invalidBatch = array_map(static function (array $row): array {
+    return array_merge($row, ['ulog_nid' => 99]);
+}, array_slice($batchedHistoryRows, 0, 100));
+$invalidBatch[] = $batchedHistoryRows[100];
+$invalidBatch[] = array_merge($batchedHistoryRows[0], ['ulog_id' => 3000, 'ulog_time' => 1721621700]);
+$GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = $invalidBatch;
+$recoveredPage = $paginationService->historyPage(42, 2, 1);
+$assertSame([2, '7', '1', 101], [$recoveredPage['total'], $recoveredPage['items'][0]['vodId'], $recoveredPage['items'][0]['episodeId'], count($recoveredPage['items'][0]['recordIds'])], 'A later batch must still recover an older valid episode and all IDs after a full batch of removed episodes.');
+
+$largeHistory = [];
+for ($index = 1; $index <= 10000; $index++) {
+    $largeHistory[] = array_merge($batchedHistoryRows[0], [
+        'ulog_id' => $index,
+        'ulog_rid' => $index === 1 ? 8 : 7,
+        'ulog_time' => 1721622000,
+    ]);
+}
+$GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = $largeHistory;
+$GLOBALS['pingfangApiAccountHistoryLimits'] = [];
+$largePage = $paginationService->historyPage(42, 2, 1);
+$assertSame([2, '8', ['1']], [$largePage['total'], $largePage['items'][0]['vodId'], $largePage['items'][0]['recordIds']], 'Ten thousand equal-time records must not skip the final video at a batch boundary.');
+$assertSame([[0, 100]], array_values(array_unique($GLOBALS['pingfangApiAccountHistoryLimits']['ulog'], SORT_REGULAR)), 'Large histories must never fall back to deep OFFSET reads.');
+
+$largeVideos = [];
+$largeHistory = [];
+for ($index = 1; $index <= 1000; $index++) {
+    $largeVideos[] = array_merge($GLOBALS['pingfangApiAccountHistoryRows']['vod'][0], ['vod_id' => $index]);
+    $largeHistory[] = array_merge($batchedHistoryRows[0], ['ulog_id' => $index, 'ulog_rid' => $index, 'ulog_time' => 1721622000 + $index]);
+}
+$GLOBALS['pingfangApiAccountHistoryRows'] = ['ulog' => $largeHistory, 'vod' => $largeVideos];
+$GLOBALS['pingfangApiAccountHistoryPlaybackBytes'] = 32768;
+$GLOBALS['pingfangApiAccountHistoryMemory'] = [];
+$largePage = $paginationService->historyPage(42, 99, 24);
+$assertSame([1000, 42, 16], [$largePage['total'], $largePage['page'], count($largePage['items'])], 'Large distinct histories must retain exact totals and last-page clamping.');
+$memorySamples = $GLOBALS['pingfangApiAccountHistoryMemory'];
+$assertSame(true, max($memorySamples) - min($memorySamples) < 8 * 1048576, 'Resolved videos must release large playback fields instead of retaining every playlist until pagination ends.');
+unset($GLOBALS['pingfangApiAccountHistoryPlaybackBytes'], $GLOBALS['pingfangApiAccountHistoryMemory']);
 
 $GLOBALS['pingfangApiAccountHistoryWhere'] = [];
 $GLOBALS['pingfangApiAccountHistoryRows']['ulog'] = [

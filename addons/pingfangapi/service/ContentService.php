@@ -2001,6 +2001,7 @@ class ContentService
         }
         $facetQuery = $this->facetQuery($query, $name);
         $typeId = intval(isset($query['typeId']) ? $query['typeId'] : 0);
+        $configured = $this->configuredFacet($typeId, $typeList, $name);
         $cacheSeconds = $this->configInteger(
             'summary_cache_seconds',
             self::DEFAULT_SUMMARY_CACHE_SECONDS,
@@ -2008,7 +2009,7 @@ class ContentService
             self::MAX_SUMMARY_CACHE_SECONDS
         );
         $cacheKey = 'pingfangapi_facet_' . self::CONTENT_CACHE_VERSION . '_' . $name . '_' . $this->accessCacheKey()
-            . '_' . substr(hash('sha256', serialize($facetQuery)), 0, 24);
+            . '_' . substr(hash('sha256', serialize([$facetQuery, $configured])), 0, 24);
         if ($cacheSeconds > 0 && function_exists('cache')) {
             $cached = cache($cacheKey);
             if (is_array($cached)) {
@@ -2016,18 +2017,6 @@ class ContentService
             }
         }
 
-        $configured = $this->configuredFacet($typeId, $typeList, $name);
-        if (!empty($configured)) {
-            if ($name === 'year') {
-                $configured = array_values(array_filter($configured, function ($value) {
-                    return preg_match('/^[0-9]{4}$/', $value)
-                        && intval($value) >= 1900
-                        && intval($value) <= intval(date('Y'));
-                }));
-                rsort($configured, SORT_STRING);
-            }
-            return array_slice($configured, 0, 80);
-        }
         $builder = $this->baseVodQuery($facetQuery, $typeList);
         if ($this->shouldUsePrimaryScan($facetQuery, $typeList)) {
             $builder = $builder->force('PRIMARY');
@@ -2044,12 +2033,16 @@ class ContentService
             ->select();
         $available = [];
         foreach ($this->rows($rows) as $row) {
-            foreach ($this->csvValues(isset($row['value']) ? $row['value'] : '') as $value) {
-                if ($name === 'year' && (!preg_match('/^[0-9]{4}$/', $value) || intval($value) < 1900 || intval($value) > intval(date('Y')))) {
-                    continue;
-                }
-                $available[$value] = $value;
+            // These dimensions use equality predicates, unlike comma-separated class tags.
+            $value = (string) (isset($row['value']) ? $row['value'] : '');
+            $length = function_exists('mb_strlen') ? mb_strlen($value, 'UTF-8') : strlen($value);
+            if ($value === '' || $value !== trim(strip_tags($value)) || $length > 40 || preg_match('/[\r\n\t]/', $value)) {
+                continue;
             }
+            if ($name === 'year' && (!preg_match('/^[0-9]{4}$/', $value) || intval($value) < 1900 || intval($value) > intval(date('Y')))) {
+                continue;
+            }
+            $available[$value] = $value;
         }
         $options = empty($configured)
             ? array_values($available)

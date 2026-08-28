@@ -8,7 +8,7 @@ usage() {
   cat <<'USAGE'
 Usage: npm run deploy:api -- [--check] [--backend] [--yes]
 
-  --check    Detect the required deployment scope without installing or deploying.
+  --check    Check scope, PHP, database and directory readiness without deploying.
   --backend  Force a backend dependency refresh after the remote safety probe.
   --yes      Confirm the detected production deployment without an interactive prompt.
   --help     Show this help.
@@ -79,7 +79,8 @@ done
 device_session_file="$repo_root/addons/pingfangdevice/service/DeviceSession.php"
 device_hook_file="$repo_root/addons/pingfangdevice/Pingfangdevice.php"
 deploy_script="$repo_root/scripts/deploy-theme.sh"
-for required_file in "$device_session_file" "$device_hook_file" "$deploy_script"; do
+deployment_check_file="$repo_root/addons/pingfangapi/service/DeploymentCheck.php"
+for required_file in "$device_session_file" "$device_hook_file" "$deploy_script" "$deployment_check_file"; do
   if [[ ! -f "$required_file" || -L "$required_file" ]]; then
     echo "Required deployment file is missing or unsafe: $required_file" >&2
     exit 1
@@ -261,16 +262,40 @@ if [[ "$force_backend" == "1" ]]; then
   detected_reason="operator requested backend dependency refresh; ${detected_reason}"
 fi
 
+check_env=(
+  "MACCMS_ROOT=$(printf '%q' "$maccms_root")"
+  "DEPLOY_SCOPE=$(printf '%q' "$detected_scope")"
+  "PFAPI_RUN_DEPLOY_CHECK=1"
+  "PFAPI_DETECT_SCOPE=1"
+)
+check_output="$("${ssh_command[@]}" "$remote" "${check_env[*]} php" < "$deployment_check_file")"
+checked_scope="$(printf '%s\n' "$check_output" | sed -n 's/^PFAPI_DEPLOY_SCOPE=//p')"
+checked_reason="$(printf '%s\n' "$check_output" | sed -n 's/^PFAPI_DEPLOY_REASON=//p')"
+if [[ ( "$checked_scope" != "backend" && "$checked_scope" != "api" ) || -z "$checked_reason" || ( "$detected_scope" == "backend" && "$checked_scope" != "backend" ) ]]; then
+  echo "Remote readiness check did not return a safe deployment plan." >&2
+  exit 1
+fi
+detected_scope="$checked_scope"
+detected_reason+="; ${checked_reason}"
+
 printf '%s\n' \
   "Pingfangapi deployment plan" \
   "  target: ${remote}:${DEPLOY_PATH}" \
   "  site: ${DEPLOY_SITE_SCHEME:-https}://${DEPLOY_SITE_HOST:-not-configured}" \
   "  scope: ${detected_scope}" \
   "  reason: ${detected_reason}"
+printf '%s\n' "$check_output" | sed -n 's/^PFAPI_DEPLOY_CHECK=/  check: /p'
 
 if [[ "$check_only" == "1" ]]; then
   exit 0
 fi
+
+for required_command in node npm git tar; do
+  if ! command -v "$required_command" >/dev/null 2>&1; then
+    echo "$required_command is required for local backend verification and packaging." >&2
+    exit 1
+  fi
+done
 
 if [[ "$detected_scope" == "backend" ]]; then
   echo "首次或依赖升级模式会更新 pingfangdevice、Hook、设备会话结构和 pingfangapi。" >&2
@@ -289,23 +314,6 @@ if [[ "$assume_yes" != "1" ]]; then
     echo "Deployment cancelled." >&2
     exit 1
   fi
-fi
-
-dependencies_ready=1
-for dependency in \
-  "$repo_root/node_modules/.bin/eslint" \
-  "$repo_root/node_modules/.bin/prettier" \
-  "$repo_root/node_modules/artplayer/package.json" \
-  "$repo_root/node_modules/next/package.json"
-do
-  if [[ ! -e "$dependency" ]]; then
-    dependencies_ready=0
-    break
-  fi
-done
-if [[ "$dependencies_ready" != "1" ]]; then
-  echo "Installing locked workspace dependencies with npm ci..."
-  npm ci
 fi
 
 DEPLOY_SCOPE="$detected_scope" \

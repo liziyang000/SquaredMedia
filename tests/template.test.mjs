@@ -2439,6 +2439,7 @@ assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
 assert.equal(packageJson.scripts["deploy:api"], "bash scripts/deploy-pingfangapi.sh");
 assert.match(packageJson.scripts["test:api"], /pingfang-api\.test\.php/);
 assert.match(packageJson.scripts["test:api"], /pingfang-api-controller\.test\.php/);
+assert.match(packageJson.scripts["test:api"], /pingfang-api-facets\.test\.php/);
 assert.match(packageJson.scripts["test:api"], /device-session\.test\.php/);
 for (const releaseTest of [
   "release-scope.test.mjs",
@@ -2655,10 +2656,12 @@ assert.match(deployScript, /npm run lint/);
 assert.match(deployScript, /npm run lint:template/);
 assert.match(deployScript, /npm run verify:compat/);
 assert.match(deployScript, /npm run verify:preview/);
-assert.match(deployScript, /npm run test:api/);
-assert.match(deployScript, /DEPLOY_SCOPE=api npm run package/);
-assert.match(deployScript, /release-input-fingerprint\.mjs repository/);
-assert.match(deployScript, /previously verified release inputs/);
+assert.match(deployScript, /npm run test:backend/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$DEPLOY_SCOPE" node scripts\/package-theme\.mjs/);
+assert.match(deployScript, /DEPLOY_SCOPE="\$DEPLOY_SCOPE" node scripts\/verify-release\.mjs/);
+assert.match(deployScript, /release-input-fingerprint\.mjs "\$fingerprint_kind"/);
+assert.match(deployScript, /fingerprint_kind=backend/);
+assert.doesNotMatch(deployScript, /gate_receipt|DEPLOY_GATE_CACHE_ROOT/, "backend releases must not require an earlier full-repository gate receipt");
 assert.match(deployScript, /Release inputs changed after local verification/);
 assert.match(deployScript, /npm run package/);
 assert.match(deployScript, /npm run verify:release/);
@@ -2728,18 +2731,21 @@ assert.match(deployScript, /validate_remote_archive_path/);
 assert.match(deployScript, /REMOTE_TMP_PREFLIGHT/);
 assert.match(deployScript, /Remote upload target already exists/);
 assert.match(deployScript, /application\/index\/controller\/Pingfangapi\.php/);
-assert.match(deployScript, /ulog_point/);
-assert.match(deployScript, /ulog_duration/);
+const apiDeploymentCheck = readFileSync(path.join(root, "addons/pingfangapi/service/DeploymentCheck.php"), "utf8");
+assert.match(apiDeploymentCheck, /ulog_point/);
+assert.match(apiDeploymentCheck, /ulog_duration/);
+assert.match(deployScript, /PFAPI_RUN_DEPLOY_CHECK=1 PFAPI_DETECT_SCOPE=0/);
+assert.match(deployScript, /php "\$api_addon_source\/service\/DeploymentCheck\.php"/);
 assert.match(deployScript, /DEVICE_SESSION_HASH/);
 assert.match(deployScript, /DEVICE_HOOK_HASH/);
 assert.match(deployScript, /Installed \$ADDON_NAME service is not compatible with this API-only release/);
 assert.match(deployScript, /Installed pingfangdevice app_begin hook is not enabled/);
-assert.match(deployScript, /Installed pingfangdevice database schema is not compatible with API-only deployment/);
+assert.match(apiDeploymentCheck, /Installed pingfangdevice database schema is not compatible with API-only deployment/);
 assert.ok(
   deployScript.indexOf("install_api_addon()") > deployScript.indexOf("PHP_SQL"),
   "The API installer must stay in shell scope after the device installer heredocs"
 );
-for (const marker of ["PHP_CONFIG", "PHP_SQL", "PHP_DEVICE_HOOK", "PHP_API_SCHEMA", "PHP_ADDON_CONFIG"]) {
+for (const marker of ["PHP_CONFIG", "PHP_SQL", "PHP_DEVICE_HOOK", "PHP_ADDON_CONFIG"]) {
   const heredoc = deployScript.match(new RegExp(`<<'${marker}'\\n([\\s\\S]*?)\\n${marker}`));
   assert.ok(heredoc, `${marker} deploy heredoc should exist`);
   const lint = spawnSync("php", ["-l"], { input: heredoc[1], encoding: "utf8" });
@@ -2998,7 +3004,6 @@ try {
     DEPLOY_IDENTITY_FILE: "",
     DEPLOY_PASSWORD: "",
     DEPLOY_SITE_HOST: "",
-    DEPLOY_GATE_CACHE_ROOT: path.join(deployHarnessRoot, "gate-cache"),
     DEPLOY_TEST_FAIL_SCP_MATCH: "",
     DEPLOY_TEST_FAIL_SSH_MATCH: ""
   };
@@ -3024,7 +3029,8 @@ try {
   });
   assert.equal(apiOnlyDeploy.status, 0, apiOnlyDeploy.stderr);
   const apiOnlyDeployLog = readFileSync(deployHarnessLog, "utf8");
-  assert.match(apiOnlyDeployLog, /npm\ttest\n/);
+  assert.match(apiOnlyDeployLog, /npm\trun\ttest:backend\n/);
+  assert.doesNotMatch(apiOnlyDeployLog, /npm\ttest\n/);
   assert.match(apiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
   assert.doesNotMatch(apiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangvideo\.tar\.gz/);
   assert.doesNotMatch(apiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangdevice\.tar\.gz/);
@@ -3041,7 +3047,7 @@ try {
   });
   assert.equal(repeatedApiOnlyDeploy.status, 0, repeatedApiOnlyDeploy.stderr);
   const repeatedApiOnlyDeployLog = readFileSync(deployHarnessLog, "utf8");
-  assert.match(repeatedApiOnlyDeployLog, /npm\trun\ttest:api/);
+  assert.match(repeatedApiOnlyDeployLog, /npm\trun\ttest:backend/);
   assert.doesNotMatch(repeatedApiOnlyDeployLog, /npm\ttest\n/);
   assert.match(repeatedApiOnlyDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
 
@@ -3056,6 +3062,8 @@ try {
   });
   assert.equal(backendDeploy.status, 0, backendDeploy.stderr);
   const backendDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(backendDeployLog, /npm\trun\ttest:backend\n/);
+  assert.doesNotMatch(backendDeployLog, /npm\ttest\n/);
   assert.doesNotMatch(backendDeployLog, /scp[^\n]*\tdist\/pingfangvideo\.tar\.gz/);
   assert.match(backendDeployLog, /scp[^\n]*\tdist\/pingfangdevice\.tar\.gz/);
   assert.match(backendDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
@@ -3418,7 +3426,7 @@ assert.match(apiContentService, /vod_play_url/);
 assert.match(apiContentService, /shouldUsePrimaryScan/);
 assert.match(
   apiContentService,
-  /private function facetOptions[\s\S]*?\$configured = \$this->configuredFacet[\s\S]*?if \(!empty\(\$configured\)\)[\s\S]*?return array_slice\(\$configured, 0, 80\)/
+  /private function facetOptions[\s\S]*?\$configured = \$this->configuredFacet[\s\S]*?serialize\(\[\$facetQuery, \$configured\]\)[\s\S]*?\$this->baseVodQuery[\s\S]*?array_filter\(\$configured/
 );
 assert.doesNotMatch(apiContentService, /preview\/data\.json|demo123/);
 const apiApplicationController = readApiAddonFile("application/index/controller/Pingfangapi.php");

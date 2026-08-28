@@ -25,6 +25,7 @@ const rollbackFunctions = extractBetween("restore_release() {", "\ntrap cleanup_
 const uploadCleanupFunction = extractBetween("cleanup_remote_uploads() {", "\ntrap cleanup_remote_uploads EXIT");
 const remoteDeployExitFunction = extractBetween("remote_deploy_exit() {", "\n\ntrap remote_deploy_exit EXIT");
 const clearCacheFunction = extractBetween("clear_maccms_cache() {", "\n\nvalidate_api_warmup_response() {");
+const warmupValidatorFunction = extractBetween("validate_api_warmup_response() {", "\n\nrequest_api_warmup() {");
 const addonConfigMergeFunction = extractBetween("merge_addon_config_values() {", "\n\ninstall_device_addon() {");
 const vodopsInstallFunction = extractBetween("install_vodops_addon() {", '\n\nif [[ ! -d "$DEPLOY_PATH" ]]');
 
@@ -82,6 +83,36 @@ try {
   assert.equal(existsSync(archives.vodops), true);
 } finally {
   rmSync(remoteExitHarnessRoot, { recursive: true, force: true });
+}
+
+const warmupHarnessRoot = mkdtempSync(path.join(tmpdir(), "pingfang-warmup-validator-test-"));
+try {
+  const home = {
+    code: 1,
+    data: { categories: [], hero: [], ranking: [], latest: [], latestByCategory: [] }
+  };
+  const cases = [
+    { name: "home", httpStatus: "200", payload: home, status: 0 },
+    { name: "regional-policy", httpStatus: "403", payload: { code: 403, msg: "当前地区不可访问" }, status: 2 },
+    { name: "invalid-policy", httpStatus: "403", payload: { code: 403, msg: "Forbidden" }, status: 1, error: /invalid regional policy envelope/ },
+    { name: "invalid-success", httpStatus: "500", payload: home, status: 1, error: /not a valid success envelope/ },
+    { name: "invalid-home", httpStatus: "200", payload: { code: 1, data: {} }, status: 1, error: /not a valid home envelope/ }
+  ];
+  for (const scenario of cases) {
+    const responsePath = path.join(warmupHarnessRoot, `${scenario.name}.json`);
+    writeFileSync(responsePath, JSON.stringify(scenario.payload));
+    // Execute through Bash too: PHP-only syntax checks miss nested shell quotes.
+    const result = spawnSync("bash", ["-c", [
+      "set -euo pipefail",
+      warmupValidatorFunction,
+      `validate_api_warmup_response ${shellQuote(responsePath)} ${shellQuote(scenario.httpStatus)} home_v2`
+    ].join("\n")], { encoding: "utf8" });
+    assert.equal(result.status, scenario.status, `${scenario.name}: ${result.stderr}`);
+    assert.doesNotMatch(result.stderr, /Parse error|Fatal error/);
+    if (scenario.error) assert.match(result.stderr, scenario.error);
+  }
+} finally {
+  rmSync(warmupHarnessRoot, { recursive: true, force: true });
 }
 
 const addonConfigHarnessRoot = mkdtempSync(path.join(tmpdir(), "pingfang-addon-config-test-"));

@@ -569,11 +569,11 @@ validate_api_warmup_response() {
         if ($policyValid) {
             exit(42);
         }
-        file_put_contents('php://stderr', "Production API returned an invalid regional policy envelope.\n");
+        file_put_contents("php://stderr", "Production API returned an invalid regional policy envelope.\n");
         exit(1);
     }
     if ($status !== "200" || !is_array($payload) || (string)($payload["code"] ?? "") !== "1" || !is_array($payload["data"] ?? null)) {
-        file_put_contents('php://stderr', "Production API response is not a valid success envelope.\n");
+        file_put_contents("php://stderr", "Production API response is not a valid success envelope.\n");
         exit(1);
     }
 
@@ -626,7 +626,7 @@ validate_api_warmup_response() {
         $message = $kind === "home_v2"
             ? "Production API response is not a valid home envelope.\n"
             : "Production API response is not a valid " . $kind . " envelope.\n";
-        file_put_contents('php://stderr', $message);
+        file_put_contents("php://stderr", $message);
         exit(1);
     }
   '; then

@@ -3423,10 +3423,10 @@ assert.doesNotMatch(apiContentService, /url\('vod\/player'/);
 assert.match(apiContentService, /vod_recycle_time/);
 assert.match(apiContentService, /mac_get_popedom_filter/);
 assert.match(apiContentService, /vod_play_url/);
-assert.match(apiContentService, /shouldUsePrimaryScan/);
+assert.match(apiContentService, /\$this->catalogIndexAvailable \? \$builder->force\('idx_pfapi_catalog'\) : \$builder/);
 assert.match(
   apiContentService,
-  /private function facetOptions[\s\S]*?\$configured = \$this->configuredFacet[\s\S]*?serialize\(\[\$facetQuery, \$configured\]\)[\s\S]*?\$this->baseVodQuery[\s\S]*?array_filter\(\$configured/
+  /private function facetOptions[\s\S]*?\$configured = \$this->configuredFacet[\s\S]*?serialize\(\[\$facetQuery, \$configured\]\)[\s\S]*?\$this->summaryVodQuery[\s\S]*?array_filter\(\$configured/
 );
 assert.doesNotMatch(apiContentService, /preview\/data\.json|demo123/);
 const apiApplicationController = readApiAddonFile("application/index/controller/Pingfangapi.php");

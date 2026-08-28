@@ -13,16 +13,30 @@ final class PingfangFacetDatabase
         if ($table !== 'Vod') {
             throw new RuntimeException('Facets must read only Vod.');
         }
-        return new PingfangFacetQuery();
+        $query = new PingfangFacetQuery();
+        $GLOBALS['pingfangFacetQueries'][] = $query;
+        return $query;
+    }
+
+    public static function query($sql, $bind = [])
+    {
+        if ($sql !== 'SHOW INDEX FROM `mac_vod` WHERE Key_name = :name' || $bind !== ['name' => 'idx_pfapi_catalog']) {
+            throw new RuntimeException('Catalog index discovery must use the actual table and a bound index name.');
+        }
+        $GLOBALS['pingfangFacetIndexReads'] = ($GLOBALS['pingfangFacetIndexReads'] ?? 0) + 1;
+        return $GLOBALS['pingfangFacetIndexes'] ?? [];
     }
 }
 
 final class PingfangFacetQuery
 {
-    private array $where = [];
+    public array $where = [];
+    public string $fields = '';
+    public string $forcedIndex = '';
     private string $group = '';
     private string $order = '';
-    private int $limit = 200;
+    private int $limit = PHP_INT_MAX;
+    private int $offset = 0;
 
     public function where($field, $operator = null, $value = null)
     {
@@ -36,11 +50,19 @@ final class PingfangFacetQuery
         return $this;
     }
 
-    public function field($field) { return $this; }
-    public function force($index) { return $this; }
+    public function field($field) { $this->fields = $field; return $this; }
+    public function getTable() { return $GLOBALS['pingfangFacetTable'] ?? 'mac_vod'; }
+    public function force($index)
+    {
+        if ($index !== 'idx_pfapi_catalog') { throw new RuntimeException('Catalog queries must not force the non-covering index ' . $index . '.'); }
+        $this->forcedIndex = $index;
+        return $this;
+    }
     public function group($field) { $this->group = $field; return $this; }
     public function order($order) { $this->order = $order; return $this; }
     public function limit($limit) { $this->limit = $limit; return $this; }
+    public function page($page, $limit) { $this->offset = ($page - 1) * $limit; $this->limit = $limit; return $this; }
+    public function count() { return count($this->select()); }
 
     public function select()
     {
@@ -57,7 +79,19 @@ final class PingfangFacetQuery
             return true;
         }));
         if ($this->group === '') {
-            return $rows;
+            if ($this->order !== '') {
+                usort($rows, function (array $left, array $right): int {
+                    foreach (explode(',', $this->order) as $order) {
+                        [$field, $direction] = explode(' ', trim($order));
+                        $difference = ($left[$field] ?? 0) <=> ($right[$field] ?? 0);
+                        if ($difference !== 0) {
+                            return $direction === 'desc' ? -$difference : $difference;
+                        }
+                    }
+                    return 0;
+                });
+            }
+            return array_slice($rows, $this->offset, $this->limit);
         }
         $counts = [];
         foreach ($rows as $row) {
@@ -66,10 +100,13 @@ final class PingfangFacetQuery
         }
         $rows = [];
         foreach ($counts as $value => $total) {
-            $rows[] = ['value' => (string) $value, 'total' => $total];
+            $key = strpos($this->fields, ' as value') !== false ? 'value' : $this->group;
+            $rows[] = [$key => (string) $value, 'total' => $total];
         }
-        $key = $this->order === 'total desc' ? 'total' : 'value';
-        usort($rows, static function (array $left, array $right) use ($key): int { return $right[$key] <=> $left[$key]; });
+        if ($this->order !== '') {
+            $key = $this->order === 'total desc' ? 'total' : 'value';
+            usort($rows, static function (array $left, array $right) use ($key): int { return $right[$key] <=> $left[$key]; });
+        }
         return array_slice($rows, 0, $this->limit);
     }
 }
@@ -156,5 +193,93 @@ $builder = $queryMethod->invoke(new ContentService(static function () { return [
 $assertSame(1, count($builder->select()), 'Every emitted compound value must remain selectable with the real equality-filter builder.');
 $GLOBALS['pingfangFacetRows'] = [$row(12, '中国大陆', $year + 1, '国语'), $row(13, '中国大陆', 1899, '国语'), $row(14, '中国大陆', $year, '国语')];
 $assertSame([(string) $year], $facet('year', ['typeId' => 42, 'scope' => 'library']), 'Available but invalid or future configured years must still be excluded.');
+
+$GLOBALS['pingfangFacetCache'] = [];
+$GLOBALS['pingfangFacetRows'] = [
+    $row(1, '中国大陆', $year, '国语', ['vod_time' => 200, 'vod_hits' => 10, 'vod_score' => 8]),
+    $row(2, '美国', $year - 1, '英语', ['vod_time' => 100, 'vod_hits' => 20, 'vod_score' => 9]),
+    $row(3, '中国大陆', $year, '国语', ['vod_time' => 200, 'vod_hits' => 10, 'vod_score' => 8, 'type_id' => 420]),
+    $row(4, '日本', $year, '日语', ['type_id' => 47]),
+    $row(5, '法国', $year, '法语', ['vod_status' => 0]),
+    $row(6, '法国', $year, '法语', ['vod_recycle_time' => 100]),
+    $row(7, '日本', $year, '日语', ['type_id' => 999]),
+];
+$GLOBALS['config']['app']['popedom_filter'] = 1;
+$GLOBALS['pingfangFacetBlocked'] = '47';
+$service = new ContentService(static function () { return ['code' => 1]; });
+$invoke = static function (string $name, ...$args) use (&$service) {
+    $method = new ReflectionMethod(ContentService::class, $name);
+    $method->setAccessible(true);
+    return $method->invoke($service, ...$args);
+};
+$GLOBALS['pingfangFacetQueries'] = [];
+$assertSame(3, $invoke('queryTotal', ['scope' => 'library'], $types), 'Exact totals must exclude blocked, disabled, recycled and out-of-scope rows without forcing a full scan.');
+$assertSame(['vod_status', '=', 1], $GLOBALS['pingfangFacetQueries'][0]->where[0], 'Exact totals must retain the enabled predicate.');
+$assertSame(['vod_recycle_time', '=', 0], $GLOBALS['pingfangFacetQueries'][0]->where[1], 'Exact totals must retain the recycle predicate.');
+$assertSame(['type_id', 'not in', [47]], $GLOBALS['pingfangFacetQueries'][0]->where[2], 'Exact totals must retain the permission predicate.');
+$reads = $GLOBALS['pingfangFacetReads'];
+$assertSame(3, $invoke('queryTotal', ['scope' => 'library', 'page' => 2], $types), 'Pagination must reuse the same exact total cache.');
+$assertSame($reads, $GLOBALS['pingfangFacetReads'], 'Repeated totals must not read the database.');
+$assertSame(2, $invoke('queryTotal', ['scope' => 'library', 'year' => (string) $year], $types), 'Filtered totals must keep their exact conditions and separate cache.');
+foreach (['latest' => [3, 1, 2], 'hot' => [2, 3, 1], 'score' => [2, 3, 1]] as $sort => $expected) {
+    foreach ([1, 2] as $page) {
+        $GLOBALS['pingfangFacetQueries'] = [];
+        $rows = $invoke('pageRows', ['scope' => 'library'], $types, $sort, $page, 2, 0, false);
+        $assertSame(array_slice($expected, ($page - 1) * 2, 2), array_column($rows, 'vod_id'), 'Paging must preserve ' . $sort . ' order and descending ID ties on page ' . $page . '.');
+        $assertSame('vod_id', $GLOBALS['pingfangFacetQueries'][0]->fields, 'Paging must still select IDs before fetching display fields.');
+        $assertSame(false, strpos($GLOBALS['pingfangFacetQueries'][1]->fields, 'vod_play_') !== false, 'Catalog rows must not load playback source fields.');
+    }
+}
+$categoryCounts = array_column($invoke('categories', $types), 'total', 'id');
+$assertSame([42 => 3, 999 => 1], $categoryCounts, 'Category totals must remain exact and permission-scoped without forcing the time index.');
+$assertSame(['剧情'], $invoke('classOptions', ['scope' => 'library'], $types), 'Class aggregation must preserve available values without forcing a primary scan.');
+$assertSame(0, $invoke('queryTotal', ['scope' => 'library', 'typeId' => 999], $types), 'Out-of-scope categories must still produce an exact empty result.');
+
+$catalogIndex = [];
+foreach (['vod_status', 'vod_recycle_time', 'type_id', 'vod_area', 'vod_year', 'vod_lang', 'vod_class'] as $offset => $column) {
+    $catalogIndex[] = ['Seq_in_index' => $offset + 1, 'Column_name' => $column, 'Sub_part' => null, 'Index_type' => 'BTREE', 'Visible' => 'YES'];
+}
+$GLOBALS['pingfangFacetIndexes'] = $catalogIndex;
+$GLOBALS['pingfangFacetCache'] = [];
+$GLOBALS['pingfangFacetQueries'] = [];
+$GLOBALS['pingfangFacetIndexReads'] = 0;
+$service = new ContentService(static function () { return ['code' => 1]; });
+$assertSame(3, $invoke('queryTotal', ['scope' => 'library'], $types), 'A covering index must preserve the exact permission-scoped total.');
+$assertSame('idx_pfapi_catalog', $GLOBALS['pingfangFacetQueries'][0]->forcedIndex, 'Available covering indexes must keep summary queries away from the non-covering time index.');
+$invoke('facetOptions', 'area', ['scope' => 'library'], $types);
+$invoke('classOptions', ['scope' => 'library'], $types);
+$assertSame(1, $GLOBALS['pingfangFacetIndexReads'], 'One request must inspect the covering index only once for totals and all facets.');
+foreach ($GLOBALS['pingfangFacetQueries'] as $builder) {
+    $assertSame('idx_pfapi_catalog', $builder->forcedIndex, 'Exact totals and every facet must use the verified covering index.');
+}
+$prefixIndex = $catalogIndex;
+$prefixIndex[6]['Sub_part'] = 32;
+$wrongIndex = $catalogIndex;
+$wrongIndex[2]['Column_name'] = 'vod_time';
+$invisibleIndex = $catalogIndex;
+$invisibleIndex[0]['Visible'] = 'NO';
+foreach (['missing' => [], 'prefix' => $prefixIndex, 'wrong columns' => $wrongIndex, 'invisible' => $invisibleIndex] as $case => $indexes) {
+    $GLOBALS['pingfangFacetIndexes'] = $indexes;
+    $GLOBALS['pingfangFacetCache'] = [];
+    $GLOBALS['pingfangFacetQueries'] = [];
+    $service = new ContentService(static function () { return ['code' => 1]; });
+    $assertSame(3, $invoke('queryTotal', ['scope' => 'library'], $types), 'A ' . $case . ' index must not prevent older installations from querying.');
+    $assertSame('', $GLOBALS['pingfangFacetQueries'][0]->forcedIndex, 'A ' . $case . ' index must never be forced.');
+}
+$GLOBALS['pingfangFacetIndexes'] = $catalogIndex;
+foreach ([['keyword' => ''], ['letter' => '0'], ['playableOnly' => true], ['typeId' => 999]] as $filter) {
+    $GLOBALS['pingfangFacetIndexReads'] = 0;
+    $service = new ContentService(static function () { return ['code' => 1]; });
+    $builder = $invoke('summaryVodQuery', $filter + ['scope' => 'library'], $types);
+    $assertSame('', $builder->forcedIndex, 'Queries with non-covered or impossible predicates must keep their selective plan.');
+    $assertSame(0, $GLOBALS['pingfangFacetIndexReads'], 'Non-covered queries must not inspect the summary index.');
+}
+$GLOBALS['pingfangFacetTable'] = 'mac_vod; unexpected';
+$GLOBALS['pingfangFacetIndexReads'] = 0;
+$service = new ContentService(static function () { return ['code' => 1]; });
+$builder = $invoke('summaryVodQuery', ['scope' => 'library'], $types);
+$assertSame('', $builder->forcedIndex, 'Unsafe table identifiers must disable optional index discovery.');
+$assertSame(0, $GLOBALS['pingfangFacetIndexReads'], 'Index discovery must never interpolate an unsafe table identifier.');
+unset($GLOBALS['pingfangFacetTable']);
 
 echo "Pingfangapi available facet tests passed.\n";

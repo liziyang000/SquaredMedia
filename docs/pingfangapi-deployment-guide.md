@@ -593,6 +593,68 @@ PHP location 和 `/www/wwwroot/squaredMediaOnline/current`，不要再次覆盖�
 先检查 `runtime/cache`、`runtime/temp` 和视图缓存的属主与 Web 用户写权限，再检查
 PHP-FPM 日志，不要先修改 MacCMS 核心。
 
+### 9.9 目录冷缓存请求超过部署验收上限
+
+不要增大超时、删掉权限或回收条件，也不要把缓存命中当作冷启动通过。
+2026-08-28 对 `squaredmedia.mac_vod` 的只读诊断显示：约 18.9 万行的 MyISAM 表上，
+包含游客分类权限的目录精确计数耗时约 7.8 秒；现有 `idx_vod_status_type_time`
+不覆盖 `vod_recycle_time`，`vod_time` 单列索引也不覆盖稳定排序的 `vod_id`。
+去掉 `FORCE INDEX` 后的代表统计、分页和筛选聚合仍触发了 3 秒诊断中断。
+
+2026-08-28 已在该服务器经授权完成下列两个索引，耗时约 61 秒；条目数仍为 189,249，
+原有索引、字段定义和引擎不变。游客精确计数从本轮变更前约 9.1 秒降至约 0.12 秒，
+最新分页约 6 毫秒，四类筛选约 0.20～0.64 秒。这些是 SQL 诊断，不代替正式发布后的
+HTTP 验收或真实账号权限验收。
+
+本轮还发现优化器会误选最新排序索引来执行筛选聚合。代码因此仅对被覆盖的计数和
+聚合条件选用经结构检查的 `idx_pfapi_catalog`；缺失、前缀截断、不可见或字段不匹配
+时回退普通查询，搜索、字母和可播放条件不使用该提示。每个请求最多检查一次索引。
+
+下面保留独立索引变更流程，其他实例仍须重新审批和实测。`deploy:api`、`--check`
+和插件安装均不会执行索引迁移，已有同名索引时不要重复执行。
+
+1. 先确认实际数据库、表前缀、引擎、列字符集和现有索引。下列例子只针对上述生产表，
+   不能直接用于其他实例：
+
+   ```sql
+   SHOW CREATE TABLE squaredmedia.mac_vod;
+   SHOW INDEX FROM squaredmedia.mac_vod;
+   ```
+
+2. 获得维护窗口确认，完成并校验新的完整数据库备份及文件备份，记录原表定义、索引、
+   精确总数和代表查询结果；确认数据库磁盘容纳表副本、新索引和临时开销。MyISAM
+   的表复制会阻塞写入，切换时也会短暂阻塞读取，不能承诺无停机或固定耗时。
+   [MySQL ALTER TABLE 并发说明](https://dev.mysql.com/doc/refman/8.0/en/alter-table.html)
+
+3. 审查两个非唯一索引：`idx_pfapi_catalog` 覆盖状态、回收、分类和四种筛选聚合；
+   `idx_pfapi_latest` 覆盖最新分页及 ID 并列排序。当前相关文本列为 `utf8mb3`，
+   长度分别是地区 20、年份 10、语言 10、剧情 255；若定义或字符集不同，必须重新
+   计算键长，不能截断剧情前缀冒充完整覆盖索引。MyISAM 常规键长上限为 1000 字节。
+   [MySQL MyISAM 限制](https://dev.mysql.com/doc/refman/8.0/en/myisam-storage-engine.html)
+
+   仅在两个索引名均不存在、结构和维护授权已确认后执行一次：
+
+   ```sql
+   SET SESSION lock_wait_timeout = 5;
+   ALTER TABLE squaredmedia.mac_vod
+     ADD INDEX idx_pfapi_catalog
+       (vod_status, vod_recycle_time, type_id, vod_area, vod_year, vod_lang, vod_class),
+     ADD INDEX idx_pfapi_latest
+       (vod_status, vod_recycle_time, vod_time, vod_id, type_id),
+     ALGORITHM = COPY, LOCK = SHARED;
+   ```
+
+   `lock_wait_timeout` 只限制元数据锁等待，不限制索引构建时间。若指定算法或锁级别
+   不被支持，停止核实，不降级为排他锁后盲目重试；原有索引、影片数据和表引擎均保留。
+
+4. 串行执行带真实权限谓词的 `EXPLAIN` 和限时查询，比较精确总数、分页 ID 及筛选值。
+   需分别验证无筛选、父/子分类、地区/年份/语言/剧情组合，以及不同权限组；热门、评分、
+   搜索和深分页不能仅凭这两个索引宣称已优化。通过后再按第 2 节部署并执行冷/热缓存验收。
+
+5. 若性能或结果未通过，停止发布，保留证据。API 文件回滚不负责撤销索引；需回退数据库
+   索引时，先确认新索引确为本次创建且无人依赖，再单独审批删除这两个索引。删除索引
+   同样可能锁表；不要恢复整库去覆盖变更后的正常业务写入。
+
 ## 10. 发布记录模板
 
 ```md

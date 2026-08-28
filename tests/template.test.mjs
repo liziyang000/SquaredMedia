@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Script } from "node:vm";
 
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
@@ -17,10 +18,12 @@ const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
 const bambooCicadaVersionPlaceholder = "__PINGFANG_BAMBOO_CICADA_VERSION__";
 const multiplayerVersionPlaceholder = "__PINGFANG_MULTIPLAYER_VERSION__";
 const qixiVersionPlaceholder = "__PINGFANG_QIXI_VERSION__";
+const qixiStyleVersionPlaceholder = "__PINGFANG_QIXI_STYLE_VERSION__";
 
 const requiredFiles = [
   "info.ini",
   "css/style.css",
+  "css/qixi-bouquet.css",
   "images/brand/favicon.ico",
   "images/brand/favicon.png",
   "images/brand/ios_fav.png",
@@ -68,6 +71,15 @@ const requiredFiles = [
   "js/app.js",
   "js/multiplayer-games.js",
   "js/qixi-particle-rose.js",
+  "js/qixi-particle-bouquet.js",
+  "js/third-party/three/three.module.min.js",
+  "js/third-party/three/three.core.min.js",
+  "js/third-party/three/GLTFLoader.js",
+  "js/third-party/three/MeshSurfaceSampler.js",
+  "js/third-party/three/BufferGeometryUtils.js",
+  "js/third-party/three/LICENSE.txt",
+  "images/qixi/qixi-bouquet.glb",
+  "images/qixi/LICENSE.md",
   "player/preload.html",
   "player/buffering.html",
   "player/prompt.css",
@@ -510,49 +522,127 @@ assert.match(comicsPage, /\{include file="public\/foot" \/\}/);
 const qixiPage = readThemeFile("html/label/qixi.html");
 assert.match(qixiPage, /seo_title="七夕粒子玫瑰"/);
 assert.match(qixiPage, /document\.documentElement\.classList\.add\("qixi-immersive"\)/);
+assert.match(qixiPage, /viewport-fit=cover/);
+assert.match(qixiPage, /meta\[name="theme-color"\]/);
+assert.match(qixiPage, /themeColor\.content = "#100611"/);
 assert.match(qixiPage, /class="qixi-rose-page" data-qixi-rose/);
 assert.match(qixiPage, /data-qixi-canvas/);
 assert.match(qixiPage, /data-qixi-bloom/);
 assert.match(qixiPage, /data-qixi-share/);
 assert.match(qixiPage, /折成一束玫瑰|不会凋谢/);
-assert.match(qixiPage, new RegExp(`js/qixi-particle-rose\\.js\\?v=${qixiVersionPlaceholder}`));
+assert.match(qixiPage, /粉色与蓝色星光粒子从下向上聚成3D玫瑰花束/);
+assert.doesNotMatch(qixiPage, /qixi-rose-gesture|拖动花束，让玫瑰随你转身/);
+assert.doesNotMatch(qixiPage, /data-qixi-model|qixi-rose-model/);
+assert.match(qixiPage, /3D Flower Bouquet by/);
+assert.match(qixiPage, /sketchfab\.com\/3d-models\/flower-bouquet-48e92013548247a9ad486dc13110c9b4/);
+assert.match(qixiPage, new RegExp(`type="module" src="\\{\\$maccms\\.path_tpl\\}js/qixi-particle-bouquet\\.js\\?v=${qixiVersionPlaceholder}"`));
+assert.match(qixiPage, new RegExp(`href="\\{\\$maccms\\.path_tpl\\}css/qixi-bouquet\\.css\\?v=${qixiStyleVersionPlaceholder}"`));
+assert.doesNotMatch(qixiPage, /src="[^"]*qixi-particle-rose\.js/);
 assert.match(qixiPage, /\{include file="public\/foot" \/\}/);
 
-const qixiScript = readThemeFile("js/qixi-particle-rose.js");
-assert.match(qixiScript, /createRoseDome/);
-assert.match(qixiScript, /ringCounts = \[1, 7, 13, 20\]/);
-assert.match(qixiScript, /createRoseBasis/);
-assert.match(qixiScript, /transformRosePoint/);
-assert.match(qixiScript, /addRoseCalyx/);
-assert.match(qixiScript, /roseSurfacePoint/);
-assert.match(qixiScript, /petalEnvelope/);
-assert.match(qixiScript, /petalSurfacePoint/);
-assert.match(qixiScript, /rosePetalBands/);
-assert.match(qixiScript, /roseRimShare/);
-assert.match(qixiScript, /openness:/);
-assert.match(qixiScript, /petalWidth:/);
-assert.match(qixiScript, /irregularity:/);
-assert.match(qixiScript, /petalShift:/);
-assert.doesNotMatch(qixiScript, /addPetalLayer|petalLayers = \[/);
-assert.match(qixiScript, /addWrappingParticles/);
-assert.match(qixiScript, /addWrappingCollar/);
-assert.match(qixiScript, /depthBuckets/);
-assert.match(qixiScript, /shadeColor/);
-assert.match(qixiScript, /entryDuration = 2800/);
-assert.match(qixiScript, /startEntrance/);
-assert.match(qixiScript, /completeEntrance/);
-assert.match(qixiScript, /entryDelay/);
+const legacyQixiScript = readThemeFile("js/qixi-particle-rose.js");
+assert.doesNotThrow(() => new Script(legacyQixiScript), "The Qixi script shared with Next must remain a classic script");
+assert.match(legacyQixiScript, /getContext\("2d"\)/);
+assert.match(legacyQixiScript, /createRoseDome/);
+assert.match(legacyQixiScript, /ringCounts = \[1, 7, 13, 20\]/);
+assert.match(legacyQixiScript, /createRoseBasis/);
+assert.match(legacyQixiScript, /transformRosePoint/);
+assert.match(legacyQixiScript, /addRoseCalyx/);
+assert.match(legacyQixiScript, /roseSurfacePoint/);
+assert.match(legacyQixiScript, /petalEnvelope/);
+assert.match(legacyQixiScript, /petalSurfacePoint/);
+assert.match(legacyQixiScript, /rosePetalBands/);
+assert.match(legacyQixiScript, /roseRimShare/);
+assert.match(legacyQixiScript, /openness:/);
+assert.match(legacyQixiScript, /petalWidth:/);
+assert.match(legacyQixiScript, /irregularity:/);
+assert.match(legacyQixiScript, /petalShift:/);
+assert.doesNotMatch(legacyQixiScript, /addPetalLayer|petalLayers = \[/);
+assert.match(legacyQixiScript, /addWrappingParticles/);
+assert.match(legacyQixiScript, /addWrappingCollar/);
+assert.match(legacyQixiScript, /depthBuckets/);
+assert.match(legacyQixiScript, /shadeColor/);
+assert.match(legacyQixiScript, /entryDuration = 2800/);
+assert.match(legacyQixiScript, /startEntrance/);
+assert.match(legacyQixiScript, /completeEntrance/);
+assert.match(legacyQixiScript, /entryDelay/);
+assert.match(legacyQixiScript, /is-entering/);
+assert.match(legacyQixiScript, /is-entered/);
+assert.match(legacyQixiScript, /easeOutQuint/);
+assert.doesNotMatch(legacyQixiScript, /createWrappingPanels|drawWrapping|drawRoseBases/);
+assert.doesNotMatch(legacyQixiScript, /globalCompositeOperation = "lighter"/);
+assert.match(legacyQixiScript, /requestAnimationFrame/);
+assert.match(legacyQixiScript, /pointerdown/);
+assert.match(legacyQixiScript, /IntersectionObserver/);
+assert.match(legacyQixiScript, /prefers-reduced-motion/);
+assert.match(legacyQixiScript, /navigator\.share/);
+assert.doesNotMatch(legacyQixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
+
+const qixiScript = readThemeFile("js/qixi-particle-bouquet.js");
+assert.match(qixiScript, /import \* as THREE from "\.\/third-party\/three\/three\.module\.min\.js"/);
+assert.match(qixiScript, /import \{ GLTFLoader \} from "\.\/third-party\/three\/GLTFLoader\.js"/);
+assert.match(qixiScript, /import \{ MeshSurfaceSampler \} from "\.\/third-party\/three\/MeshSurfaceSampler\.js"/);
+assert.match(qixiScript, /import \{ mergeGeometries \} from "\.\/third-party\/three\/BufferGeometryUtils\.js"/);
+assert.match(qixiScript, /new URL\("\.\.\/images\/qixi\/qixi-bouquet\.glb\?v=a931cafa7bfe", import\.meta\.url\)/);
+assert.match(qixiScript, /const sourceBouquet = sourceScene/);
+assert.match(qixiScript, /function toFloatAttribute/);
+assert.match(qixiScript, /attribute\.getComponent/);
+assert.match(qixiScript, /mergeGeometries/);
+assert.match(qixiScript, /new MeshSurfaceSampler/);
+assert.match(qixiScript, /function isPetalMaterial/);
+assert.match(qixiScript, /function isLeafMaterial/);
+assert.match(qixiScript, /function texturePixelsForMaterial/);
+assert.match(qixiScript, /function textureShadeAt/);
+assert.match(qixiScript, /getImageData/);
+assert.match(qixiScript, /texture\.transformUv\(uv\)/);
+assert.match(qixiScript, /const petalPalette = \["#ff76b3", "#ffacce", "#7295ff", "#a4c2ff"\]/);
+assert.match(qixiScript, /function samplingWeightForMaterial/);
+assert.match(qixiScript, /if \(isPetalMaterial\(material\)\) return 1\.4/);
+assert.match(qixiScript, /weight: samplingWeightForMaterial\(entry\.sourceMaterial\)/);
+assert.match(qixiScript, /isPetal: isPetalMaterial\(entry\.sourceMaterial\)/);
+assert.match(qixiScript, /entry\.sourceMaterial\.name === "Leaves6"/);
+assert.match(qixiScript, /particleCount = isLowPowerDevice \? 60000 : 112000/);
+assert.match(qixiScript, /sizes\[particleIndex\] = \(1\.4 \+ Math\.pow\(Math\.random\(\), 1\.8\) \* 1\.25\) \* 1\.1/);
+assert.match(qixiScript, /sampler\.sample\(target, normal, undefined, uv\)/);
+assert.match(qixiScript, /textureShadeAt\(allocation\.surface\.texturePixels, uv, allocation\.surface\.isPetal\)/);
+assert.match(qixiScript, /geometry\.setAttribute\("aNormal", new THREE\.Float32BufferAttribute\(normals, 3\)\)/);
+assert.match(qixiScript, /geometry\.setAttribute\("aPetal", new THREE\.Float32BufferAttribute\(petals, 1\)\)/);
+assert.match(qixiScript, /geometry\.setAttribute\("aSpin", new THREE\.Float32BufferAttribute\(spins, 1\)\)/);
+assert.match(qixiScript, /surface\.area \* surface\.weight/);
+assert.match(qixiScript, /attribute vec3 aNormal/);
+assert.match(qixiScript, /attribute float aPetal/);
+assert.match(qixiScript, /attribute float aSpin/);
+assert.match(qixiScript, /normalMatrix \* aNormal/);
+assert.match(qixiScript, /blending: THREE\.NormalBlending/);
+assert.doesNotMatch(qixiScript, /THREE\.AdditiveBlending/);
+assert.match(qixiScript, /delays\[particleIndex\] = 0\.05 \+ height \* 0\.43/);
+assert.match(qixiScript, /particleSystem\.points\.visible = true/);
+assert.doesNotMatch(qixiScript, /uSolidProgress|solidReveal|prepareMaterial|bouquetRoot\.add\(bouquet\.group\)/);
+assert.match(qixiScript, /startBloom/);
+assert.match(qixiScript, /finishBloom/);
 assert.match(qixiScript, /is-entering/);
 assert.match(qixiScript, /is-entered/);
-assert.match(qixiScript, /easeOutQuint/);
-assert.doesNotMatch(qixiScript, /createWrappingPanels|drawWrapping|drawRoseBases/);
-assert.doesNotMatch(qixiScript, /globalCompositeOperation = "lighter"/);
 assert.match(qixiScript, /requestAnimationFrame/);
+assert.match(qixiScript, /webglcontextlost/);
+assert.match(qixiScript, /ratioLimit = width < 700 \? 1\.35 : 1\.8/);
 assert.match(qixiScript, /pointerdown/);
+assert.match(qixiScript, /setPointerCapture/);
 assert.match(qixiScript, /IntersectionObserver/);
 assert.match(qixiScript, /prefers-reduced-motion/);
 assert.match(qixiScript, /navigator\.share/);
-assert.doesNotMatch(qixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
+assert.doesNotMatch(qixiScript, /getContext\("webgl"|unpkg|jsdelivr|createSolidBouquetRenderer|createRoseDome/);
+
+const qixiModel = readFileSync(path.join(themeRoot, "images/qixi/qixi-bouquet.glb"));
+assert.equal(qixiModel.subarray(0, 4).toString("ascii"), "glTF");
+assert.ok(qixiModel.length < 4.5 * 1024 * 1024, "Qixi bouquet should stay below the mobile delivery budget");
+const qixiLicense = readThemeFile("images/qixi/LICENSE.md");
+assert.match(qixiLicense, /icecool/);
+assert.match(qixiLicense, /flower-bouquet-48e92013548247a9ad486dc13110c9b4/);
+assert.match(qixiLicense, /Creative Commons Attribution 4\.0/);
+const qixiGltfLoader = readThemeFile("js/third-party/three/GLTFLoader.js");
+assert.match(qixiGltfLoader, /from '\.\/three\.module\.min\.js'/);
+assert.match(qixiGltfLoader, /from '\.\/BufferGeometryUtils\.js'/);
+assert.doesNotMatch(qixiGltfLoader, /\.\.\/utils\/BufferGeometryUtils\.js/);
 
 const gamesPage = readThemeFile("html/label/games.html");
 assert.match(gamesPage, /seo_title="游戏大厅"/);
@@ -2238,12 +2328,18 @@ assert.match(style, /\.drawguess-canvas-frame/);
 assert.match(style, /\.interaction-panel/);
 assert.match(style, /\.qixi-rose-page/);
 assert.match(style, /\.qixi-rose-canvas/);
+assert.doesNotMatch(style, /\.qixi-rose-model|is-model-materializing|is-model-visible/);
+const qixiBouquetStyle = readThemeFile("css/qixi-bouquet.css");
+assert.match(qixiBouquetStyle, /\.qixi-rose-credit/);
 assert.match(style, /\.qixi-bloom-button/);
 assert.match(style, /html\.qixi-immersive \.site-header/);
 assert.match(style, /html\.qixi-immersive \.qixi-rose-page[\s\S]*min-height: max\(720px, 100svh\)/);
+assert.match(qixiBouquetStyle, /\.qixi-rose-page[\s\S]*env\(safe-area-inset-top, 0px\)[\s\S]*env\(safe-area-inset-bottom, 0px\)/);
 assert.match(style, /\.qixi-rose-page\.is-entering \.qixi-rose-kicker/);
 assert.match(style, /\.qixi-rose-page\.is-entering\.is-entered \.qixi-rose-copy/);
 assert.match(style, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.qixi-rose-page\.is-entering/);
+assert.match(style, /\.qixi-rose-gesture/, "Keep legacy gesture styling for the independent Next page");
+assert.doesNotMatch(qixiBouquetStyle, /\.qixi-rose-gesture/);
 assert.match(style, /\.star-meter/);
 assert.doesNotMatch(style, /border(?:-color)?: [^;]*rgba\(40, 199, 167/);
 
@@ -2270,6 +2366,8 @@ assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
 assert.match(packageScript, /__PINGFANG_BAMBOO_CICADA_VERSION__/);
 assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
 assert.match(packageScript, /__PINGFANG_QIXI_VERSION__/);
+assert.match(packageScript, /__PINGFANG_QIXI_VERSION__: "js\/qixi-particle-bouquet\.js"/);
+assert.match(packageScript, /__PINGFANG_QIXI_STYLE_VERSION__: "css\/qixi-bouquet\.css"/);
 assert.match(packageScript, /excludedThemePackageFiles/);
 assert.doesNotMatch(packageScript, /rank-react|pingfang-player|react\.production|hls\.min/);
 assert.match(packageScript, /"player\/prompt\.css"/);
@@ -2974,6 +3072,8 @@ assert.match(releaseVerifier, /assetVersionPlaceholders/);
 assert.match(releaseVerifier, /assetVersionPattern/);
 assert.match(releaseVerifier, /html\/label\/qixi\.html/);
 assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
+assert.match(releaseVerifier, /js\/qixi-particle-bouquet\.js/);
+assert.match(releaseVerifier, /css\/qixi-bouquet\.css/);
 assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /requiredVodopsEntries/);
@@ -2993,8 +3093,16 @@ assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 3
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");
 assert.match(qixiPreview, /class="qixi-rose-page" data-qixi-rose/);
+assert.doesNotMatch(qixiPreview, /data-qixi-model|qixi-rose-model/);
 assert.match(qixiPreview, /template\/pingfangvideo\/css\/style\.css/);
-assert.match(qixiPreview, /template\/pingfangvideo\/js\/qixi-particle-rose\.js/);
+assert.match(qixiPreview, /type="module" src="\.\.\/template\/pingfangvideo\/js\/qixi-particle-bouquet\.js"/);
+assert.match(qixiPreview, /href="\.\.\/template\/pingfangvideo\/css\/qixi-bouquet\.css"/);
+assert.doesNotMatch(qixiPreview, /src="[^"]*qixi-particle-rose\.js/);
+assert.match(qixiPreview, /3D Flower Bouquet by/);
+assert.match(qixiPreview, /粉色与蓝色星光粒子从下向上聚成3D玫瑰花束/);
+assert.match(qixiPreview, /viewport-fit=cover/);
+assert.match(qixiPreview, /meta name="theme-color" content="#100611"/);
+assert.doesNotMatch(qixiPreview, /qixi-rose-gesture|拖动花束，让玫瑰随你转身/);
 assert.doesNotMatch(preview, /\bskip-link\b/);
 assert.doesNotMatch(preview, /class="site-footer"/);
 assert.doesNotMatch(preview, /让每一次打开/);

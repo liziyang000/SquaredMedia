@@ -17,7 +17,8 @@ const assetVersionInputs = {
   __PINGFANG_GAME_VERSION__: "games/init.js",
   __PINGFANG_BAMBOO_CICADA_VERSION__: "games/bamboo-cicada.js",
   __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js",
-  __PINGFANG_QIXI_VERSION__: "js/qixi-particle-rose.js",
+  __PINGFANG_QIXI_VERSION__: "js/qixi-particle-bouquet.js",
+  __PINGFANG_QIXI_STYLE_VERSION__: "css/qixi-bouquet.css",
 };
 const excludedThemePackageFiles = new Set([
   "games/blockrain/jquery-1.11.1.min.js",

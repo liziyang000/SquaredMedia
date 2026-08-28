@@ -19,6 +19,12 @@ export default [
     }
   },
   {
+    files: ["template/pingfangvideo/js/qixi-particle-bouquet.js"],
+    languageOptions: {
+      sourceType: "module"
+    }
+  },
+  {
     files: ["services/game-server/**/*.mjs"],
     languageOptions: {
       ecmaVersion: "latest",

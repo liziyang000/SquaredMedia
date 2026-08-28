@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { Script } from "node:vm";
 
 const root = process.cwd();
 const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
@@ -15,11 +16,13 @@ const assetVersionPlaceholders = [
   "__PINGFANG_BAMBOO_CICADA_VERSION__",
   "__PINGFANG_MULTIPLAYER_VERSION__",
   "__PINGFANG_QIXI_VERSION__",
+  "__PINGFANG_QIXI_STYLE_VERSION__",
 ];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
   "pingfangvideo/info.ini",
   "pingfangvideo/css/style.css",
+  "pingfangvideo/css/qixi-bouquet.css",
   "pingfangvideo/games/2048/LICENSE.txt",
   "pingfangvideo/games/2048/js/application.js",
   "pingfangvideo/games/2048/js/game_manager.js",
@@ -33,6 +36,15 @@ const requiredEntries = [
   "pingfangvideo/js/app.js",
   "pingfangvideo/js/multiplayer-games.js",
   "pingfangvideo/js/qixi-particle-rose.js",
+  "pingfangvideo/js/qixi-particle-bouquet.js",
+  "pingfangvideo/js/third-party/three/three.module.min.js",
+  "pingfangvideo/js/third-party/three/three.core.min.js",
+  "pingfangvideo/js/third-party/three/GLTFLoader.js",
+  "pingfangvideo/js/third-party/three/MeshSurfaceSampler.js",
+  "pingfangvideo/js/third-party/three/BufferGeometryUtils.js",
+  "pingfangvideo/js/third-party/three/LICENSE.txt",
+  "pingfangvideo/images/qixi/qixi-bouquet.glb",
+  "pingfangvideo/images/qixi/LICENSE.md",
   "pingfangvideo/images/site-logo.png",
   "pingfangvideo/player/preload.html",
   "pingfangvideo/player/buffering.html",
@@ -260,7 +272,22 @@ assert.match(gomokuHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPatt
 const drawguessHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-drawguess.html"], { encoding: "utf8" });
 assert.match(drawguessHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
 const qixiHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/qixi.html"], { encoding: "utf8" });
-assert.match(qixiHtml, new RegExp(`js/qixi-particle-rose\\.js${assetVersionPattern.source}`));
+assert.match(qixiHtml, new RegExp(`js/qixi-particle-bouquet\\.js${assetVersionPattern.source}`));
+assert.match(qixiHtml, new RegExp(`css/qixi-bouquet\\.css${assetVersionPattern.source}`));
+const legacyQixiJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/qixi-particle-rose.js"], { encoding: "utf8" });
+assert.doesNotThrow(() => new Script(legacyQixiJs), "The packaged legacy Qixi entry must remain a classic script");
+const qixiJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/qixi-particle-bouquet.js"], { encoding: "utf8" });
+assert.match(qixiJs, /\.\/third-party\/three\/three\.module\.min\.js/);
+assert.match(qixiJs, /\.\.\/images\/qixi\/qixi-bouquet\.glb/);
+const qixiModel = execFileSync("tar", ["-xOf", archive, "pingfangvideo/images/qixi/qixi-bouquet.glb"], {
+  maxBuffer: 5 * 1024 * 1024
+});
+assert.equal(qixiModel.subarray(0, 4).toString("ascii"), "glTF");
+assert.ok(qixiModel.length < 4.5 * 1024 * 1024, "Packaged Qixi bouquet should stay below the mobile delivery budget");
+const qixiLicense = execFileSync("tar", ["-xOf", archive, "pingfangvideo/images/qixi/LICENSE.md"], { encoding: "utf8" });
+assert.match(qixiLicense, /icecool/);
+assert.match(qixiLicense, /flower-bouquet-48e92013548247a9ad486dc13110c9b4/);
+assert.match(qixiLicense, /Creative Commons Attribution 4\.0/);
 const styleVersion = includeHtml.match(/css\/style\.css\?v=([a-f0-9]{12})/)?.[1];
 const appVersion = footHtml.match(/js\/app\.js\?v=([a-f0-9]{12})/)?.[1];
 assert.ok(styleVersion && appVersion, "Active assets should include generated versions");

@@ -169,8 +169,7 @@
         <p>名称支持模糊查询；影片分类和数据年份为精确匹配。本地视频 ID 也可直接输入。</p>
       </div>
     </div>
-    <form id="doubanQuickSearchForm" method="get" action="{:url('vodops/index')}" class="search-form">
-      <input type="hidden" name="workspace" value="douban">
+    <form id="doubanQuickSearchForm" method="get" action="{:url('vodops/douban')}" class="search-form">
       <input type="hidden" name="task_status" value="{$task_status}">
       <label>影片名称或本地视频 ID
         <input type="text" name="q" value="{$q}" maxlength="100" autofocus placeholder="例如：霸王别姬 或 217553">
@@ -373,8 +372,7 @@
           {volist name="audit_stats" id="auditStat"}<span>{$auditStat.issue_label}：{:intval($auditStat['total'] ?? 0)}</span>{/volist}
         </div>
         {/if}
-        <form method="get" action="{:url('vodops/index')}" class="audit-filter">
-          <input type="hidden" name="workspace" value="douban">
+        <form method="get" action="{:url('vodops/douban')}" class="audit-filter">
           <input type="hidden" name="status" value="{$status}">
           <input type="hidden" name="task_status" value="{$task_status}">
           <input type="hidden" name="q" value="{$q}">
@@ -480,8 +478,7 @@
 
       <section class="system-box">
         <h3>待执行任务明细</h3>
-        <form method="get" action="{:url('vodops/index')}" class="tool-form">
-          <input type="hidden" name="workspace" value="douban">
+        <form method="get" action="{:url('vodops/douban')}" class="tool-form">
           <input type="hidden" name="status" value="{$status}">
           <input type="hidden" name="q" value="{$q}">
           <input type="hidden" name="type_id" value="{$type_id}">

@@ -86,7 +86,7 @@
 - `tests/vod-source-quality.test.php`：覆盖指定集数跨源映射、HLS/直链多样本中位速度、健康线路排序和唯一推荐、过期分片容错、主清单分辨率排序与回退、异常/未知分辨率、样本不足、超时、伪媒体内容、失败/缺集/解析型地址状态、私网拒绝和响应地址脱敏。
 - 仓库的 `npm test` 会执行以上 PHP 测试。
 
-## `vodops` 统一视频数据中心
+## `vodops` 视频数据中心
 
 ### 扫描边界与显式修复
 
@@ -115,11 +115,11 @@
 ### 后台入口与安全
 
 - 后台控制器位于 `application/admin/controller/Vodops.php` 载荷中，继承 MacCMS 原生 `Base`，因此沿用后台登录和 `controller/action` 权限检查；未单独授予路由时只有超级管理员可访问。
-- 唯一工作台位于 `application/admin/view_new/vodops/index.html`，通过 `workspace=quality|douban` 在同一原生页面壳层切换“数据质量与修复”和“豆瓣匹配与同步”；插件内 `view/index/index.html` 只是由该页面按需包含的豆瓣模块片段，不再拥有独立 HTML 页面或第二套导航。`application/extra/quickmenu.php` 只保留“视频数据中心”快捷入口，插件不声明前台 URL，也不包含公开插件控制器。
-- `application/admin/controller/Douban.php` 继续保留原 `admin/douban/*` 后台动作，实际控制器继承 MacCMS 原生 `Base`；旧 `admin/douban/index` 会跳转到统一工作台的豆瓣模块，其余动作 URL 不变，登录与 `controller/action` 权限检查不会被插件控制器绕过。
+- 后台提供三个独立入口：`vodops/videos`“视频管理”、`vodops/quality`“数据质量与修复”和 `vodops/douban`“豆瓣匹配与同步”。三者共用 `application/admin/view_new/vodops/index.html` 原生页面壳层，但不再依靠页内标签切换；视频列表和豆瓣模块分别由插件内 `view/videos/index.html`、`view/index/index.html` 按路由包含。旧 `vodops/index?workspace=...` 会跳转到对应新地址。插件不声明前台 URL，也不包含公开插件控制器。
+- `application/admin/controller/Douban.php` 继续保留原 `admin/douban/*` 后台动作，实际控制器继承 MacCMS 原生 `Base`；旧 `admin/douban/index` 会跳转到 `vodops/douban`，其余动作 URL 不变，登录与 `controller/action` 权限检查不会被插件控制器绕过。
 - CLI Worker 只处理标记为 `worker` 的进行中任务，并兼容旧版本的 `traffic` 值。认领使用条件更新和 180 秒租约，失败批次等待 30 秒再试；进程异常遗留的租约到期后可被下一次 Cron 自动恢复。部署的外层 `flock` 防止同一服务器重叠启动，数据库租约负责第二层并发保护。
 - 插件主类不再注册 `response_end`，因此普通前台响应不会为 VodOps 查询任务表或执行扫描。Worker 每次调用最多处理指定批次数和时间预算，空闲时不输出日志。
-- 启动、续跑、结束扫描、删除审计结果、加载修复信息、应用修复、复检和回滚只接受同源 Ajax POST；统一工作台的两个模块都会在后台提供令牌时转发 `X-CSRF-Token`。结束任务只改变插件任务状态，不删除已生成结果。底层数据库或文件异常只写入服务端日志，页面、豆瓣任务 `last_error` 和体检任务 `error_message` 统一保存可公开的重试提示。
+- 启动、续跑、结束扫描、删除审计结果、加载修复信息、应用修复、复检和回滚只接受同源 Ajax POST；相应后台页面会在后台提供令牌时转发 `X-CSRF-Token`。结束任务只改变插件任务状态，不删除已生成结果。底层数据库或文件异常只写入服务端日志，页面、豆瓣任务 `last_error` 和体检任务 `error_message` 统一保存可公开的重试提示。
 - 豆瓣数据接口默认固定为插件内置 `internal` 网关。管理员保留的自定义 HTTP(S) 接口只允许公网 IPv4 和标准 80/443 端口；请求前会校验全部 DNS 结果并用 cURL 固定选中的公网地址，禁用代理与重定向、启用 TLS 校验，并把响应体限制为 1 MiB，避免把后台接口变成私网探测入口。
 - 已有任务进行时，只能恢复相同根分类的任务；选择其他范围会返回明确冲突提示，不能静默扩大或替换原任务范围。历史下拉框、进度区域和分类化 CSV 文件名都会保留任务范围。
 - 只有已完成或已结束的任务可由管理员确认后删除；该操作仅删除对应的 `vodops_issue`、`vodops_fingerprint` 和 `vodops_scan` 记录，不触碰视频、分类或其他 MacCMS 表，已经形成的 `vodops_repair_log` 继续保留，并以管理员 ID、任务 ID、状态和异常数写入服务端日志。插件不自动执行历史保留期清理，页面可选择最近 50 次任务。
@@ -143,7 +143,7 @@
 
 ### 安装、发布与测试
 
-`npm run package` 只生成一个 `dist/vodops.tar.gz`，不再生成 `douban.tar.gz`。`npm run deploy` 会先检查 Cron 命令、现有 crontab 的读取权限和旧 `douban_*` 表结构，全部通过后才把原 VodOps/豆瓣插件目录、两个后台控制器、质量后台视图、旧公开豆瓣桥接、快捷菜单、Hook 配置和 crontab 保存到同一个 `vodops.backup.*` 迁移快照；快照成功后才停用独立 `addons/douban` 和旧公开桥接。随后脚本保留旧 VodOps 配置中仍存在的同名设置，安装完整豆瓣模块、`application/admin/view_new` 与 CLI Worker 载荷，执行并校验五张 `vodops_*` 和七张 `douban_*` 表、幂等补充扫描范围与 Worker 字段并写入两个固定互斥行；旧 VodOps/豆瓣快捷菜单会归并为一个入口，旧版 `response_end` 注册会被移除，并安装、复核每分钟一次且由 `flock` 保证单实例的 Cron。VodOps 安装阶段在文件替换后失败时，退出处理器会自动恢复上述文件与 Cron，并把失败版本保留为 `vodops.failed.*`/`douban.failed.*`；增量数据库变化不会被反向删除。服务器没有 `crontab` 或 `flock` 时会在替换插件前停止；明确由其他调度器接管时可设置 `VODOPS_INSTALL_CRON=0`。
+`npm run package` 只生成一个 `dist/vodops.tar.gz`，不再生成 `douban.tar.gz`。`npm run deploy` 会先检查 Cron 命令、现有 crontab 的读取权限和旧 `douban_*` 表结构，全部通过后才把原 VodOps/豆瓣插件目录、两个后台控制器、后台页面壳层、旧公开豆瓣桥接、快捷菜单、Hook 配置和 crontab 保存到同一个 `vodops.backup.*` 迁移快照；快照成功后才停用独立 `addons/douban` 和旧公开桥接。随后脚本保留旧 VodOps 配置中仍存在的同名设置，安装完整豆瓣模块、`application/admin/view_new` 与 CLI Worker 载荷，执行并校验五张 `vodops_*` 和七张 `douban_*` 表、幂等补充扫描范围与 Worker 字段并写入两个固定互斥行；旧 VodOps/豆瓣快捷菜单会归并为“视频管理”“数据质量与修复”“豆瓣匹配与同步”三个入口，旧版 `response_end` 注册会被移除，并安装、复核每分钟一次且由 `flock` 保证单实例的 Cron。VodOps 安装阶段在文件替换后失败时，退出处理器会自动恢复上述文件与 Cron，并把失败版本保留为 `vodops.failed.*`/`douban.failed.*`；增量数据库变化不会被反向删除。服务器没有 `crontab` 或 `flock` 时会在替换插件前停止；明确由其他调度器接管时可设置 `VODOPS_INSTALL_CRON=0`。
 
 插件设置中的 `scheduled_scan_hours` 控制定时新建任务，`0` 为默认值并表示关闭，`1`～`720` 表示间隔小时数；`scheduled_scope_type_id` 和 `scheduled_batch_size` 分别控制分类范围与每批 100～1000 条。定时器在 `scan_start` 互斥锁内重新检查进行中任务和上次自动任务时间，因此并发 Cron 不会重复创建任务；即使定时新建关闭，Cron 仍会继续管理员明确启用 Worker 的任务。
 
@@ -167,4 +167,4 @@
 - `docs/superpowers/specs/2026-07-10-douban-rating-integration-design.md`
 - `docs/superpowers/plans/2026-07-10-douban-rating-integration.md`
 
-当前实现位于 `addons/vodops/**`：豆瓣后台桥接控制器、服务和嵌入式模块均由同一个 VodOps 归档发布，并继续使用原 `douban_*` 数据表和 `admin/douban/*` 动作；可见后台只保留 `vodops/index` 这一套工作台。判断现状时以上文和代码为准。
+当前实现位于 `addons/vodops/**`：视频列表、豆瓣后台桥接控制器、服务和嵌入式模块均由同一个 VodOps 归档发布，并继续使用原 `douban_*` 数据表和 `admin/douban/*` 动作；可见后台入口为 `vodops/videos`、`vodops/quality` 和 `vodops/douban`。判断现状时以上文和代码为准。

@@ -207,10 +207,12 @@ const requiredRootFiles = [
   "addons/vodops/service/DoubanData.php",
   "addons/vodops/service/DoubanGateway.php",
   "addons/vodops/service/DoubanMatcher.php",
+  "addons/vodops/service/VodLibrary.php",
   "addons/vodops/service/VodQualityAnalyzer.php",
   "addons/vodops/service/VodQualityRepair.php",
   "addons/vodops/service/VodQualityScanner.php",
   "addons/vodops/view/index/index.html",
+  "addons/vodops/view/videos/index.html",
   "preview/data.json",
   "preview/qixi.html",
   "scripts/lint-template.mjs",
@@ -2495,9 +2497,10 @@ assert.match(deployScript, /rm -rf "\$legacy_douban_dir"/);
 assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
 assert.match(deployScript, /rm -f "\$legacy_index_controller_target"/);
 assert.match(deployScript, /application\/extra\/quickmenu\.php/);
-assert.match(deployScript, /\$singleWorkbenchRoutes[\s\S]*?vodops\/index[\s\S]*?admin\/vodops\/index[\s\S]*?douban\/index[\s\S]*?admin\/douban\/index/);
+assert.match(deployScript, /\$managedRoutes[\s\S]*?vodops\/videos[\s\S]*?vodops\/quality[\s\S]*?vodops\/douban[\s\S]*?douban\/index/);
+assert.match(deployScript, /视频管理,vodops\/videos[\s\S]*?数据质量与修复,vodops\/quality[\s\S]*?豆瓣匹配与同步,vodops\/douban/);
 assert.match(deployScript, /count\(array_keys\(\$verified, \$entry, true\)\) !== 1/);
-assert.match(deployScript, /workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/index\/index[\s\S]*?Vodops single-workbench verification failed/);
+assert.match(deployScript, /workspace eq 'videos'[\s\S]*?workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/videos\/index[\s\S]*?Vodops admin page verification failed/);
 assert.match(deployScript, /vodops_lock/);
 assert.match(deployScript, /vodops_scan/);
 assert.match(deployScript, /vodops_issue/);
@@ -2875,6 +2878,15 @@ assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
 assert.match(vodopsView, /workspace/);
 assert.match(vodopsView, /addons\/vodops\/view\/index\/index/);
+assert.match(vodopsView, /addons\/vodops\/view\/videos\/index/);
+const vodLibrary = readFileSync(path.join(vodopsAddonRoot, "service/VodLibrary.php"), "utf8");
+assert.match(vodLibrary, /v\.vod_id,v\.vod_name,v\.vod_status[\s\S]*?v\.vod_play_from/);
+assert.doesNotMatch(vodLibrary, /->field\(["']\*["']\)|->count\(\)/);
+const vodLibraryView = readFileSync(path.join(vodopsAddonRoot, "view/videos/index.html"), "utf8");
+assert.match(vodLibraryView, /data-vod-library/);
+assert.match(vodLibraryView, /history\.pushState/);
+assert.match(vodLibraryView, /AI_CONCURRENCY = 2/);
+assert.doesNotMatch(vodLibraryView, /location\.reload/);
 const doubanBridge = readFileSync(path.join(vodopsAddonRoot, "application/admin/controller/Douban.php"), "utf8");
 assert.match(doubanBridge, /addons\\vodops\\backend\\DoubanController/);
 assert.doesNotMatch(doubanBridge, /->route\(/);
@@ -2883,7 +2895,7 @@ assert.match(doubanBackend, /namespace addons\\vodops\\backend/);
 assert.match(doubanBackend, /class DoubanController extends Base/);
 assert.match(doubanBackend, /public function startAudit\(\)/);
 assert.match(doubanBackend, /public function calibrateByType\(\)/);
-assert.match(doubanBackend, /redirect\(url\('vodops\/index'/);
+assert.match(doubanBackend, /redirect\(url\('vodops\/douban'/);
 assert.doesNotMatch(doubanBackend, /fetch\(['"]index\/index/);
 assert.doesNotMatch(doubanBackend, /view_path/);
 const doubanData = readFileSync(path.join(vodopsAddonRoot, "service/DoubanData.php"), "utf8");

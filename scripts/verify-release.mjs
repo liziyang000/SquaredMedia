@@ -173,11 +173,13 @@ const requiredVodopsEntries = [
   "vodops/service/DoubanData.php",
   "vodops/service/DoubanGateway.php",
   "vodops/service/DoubanMatcher.php",
+  "vodops/service/VodLibrary.php",
   "vodops/service/VodPosterCandidate.php",
   "vodops/service/VodQualityAnalyzer.php",
   "vodops/service/VodQualityRepair.php",
   "vodops/service/VodQualityScanner.php",
   "vodops/view/index/index.html",
+  "vodops/view/videos/index.html",
 ];
 
 function assertBalanced(content, openPattern, closePattern, label, file) {
@@ -363,7 +365,7 @@ assert.doesNotMatch(doubanBridge, /->route\(/);
 const doubanController = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/backend/DoubanController.php"], { encoding: "utf8" });
 assert.match(doubanController, /class DoubanController extends Base/);
 assert.match(doubanController, /豆瓣操作失败，请查看服务端日志/);
-assert.match(doubanController, /redirect\(url\('vodops\/index',[\s\S]*?workspace[\s\S]*?douban/);
+assert.match(doubanController, /redirect\(url\('vodops\/douban'\)\)/);
 assert.doesNotMatch(doubanController, /fetch\(['"]index\/index/);
 assert.doesNotMatch(doubanController, /view_path/);
 for (const action of [
@@ -418,6 +420,17 @@ assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
 assert.match(vodopsView, /workspace/);
 assert.match(vodopsView, /addons\/vodops\/view\/index\/index/);
+assert.match(vodopsView, /addons\/vodops\/view\/videos\/index/);
+const vodLibrary = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodLibrary.php"], { encoding: "utf8" });
+assert.match(vodLibrary, /v\.vod_id,v\.vod_name,v\.vod_status[\s\S]*?v\.vod_play_from/);
+assert.doesNotMatch(vodLibrary, /->field\(["']\*["']\)|->count\(\)/);
+assert.match(vodLibrary, /\$limit \+ 1/);
+const vodLibraryView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/videos/index.html"], { encoding: "utf8" });
+assert.match(vodLibraryView, /data-vod-library/);
+assert.match(vodLibraryView, /vodops\/videosData/);
+assert.match(vodLibraryView, /history\.pushState/);
+assert.match(vodLibraryView, /AI_CONCURRENCY = 2/);
+assert.doesNotMatch(vodLibraryView, /location\.reload/);
 const doubanView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/index/index.html"], { encoding: "utf8" });
 assert.match(doubanView, /豆瓣匹配与同步/);
 assert.doesNotMatch(doubanView, /<!doctype|<html|<body|豆瓣匹配工作台/i);

@@ -8,9 +8,6 @@
   .vodops-workspace-header { margin-bottom: 14px; }
   .vodops-workspace-kicker { display: block; margin-bottom: 4px; color: #175cd3; font-size: 12px; font-weight: 700; letter-spacing: .1em; }
   .vodops-workspace-title { margin: 0; font-size: 26px; font-weight: 680; }
-  .vodops-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid #e4e7ec; }
-  .vodops-tab { padding: 9px 13px; border-bottom: 2px solid transparent; color: #667085; text-decoration: none; }
-  .vodops-tab.is-active { border-color: #2563eb; color: #175cd3; font-weight: 650; }
   .vodops-title { margin: 0; font-size: 22px; font-weight: 650; }
   .vodops-subtitle, .vodops-muted { color: #667085; }
   .vodops-panel { margin-bottom: 14px; padding: 16px; border: 1px solid #e4e7ec; border-radius: 8px; background: #fff; }
@@ -67,16 +64,14 @@
 
 <main class="vodops-page">
   <header class="vodops-workspace-header">
-    <span class="vodops-workspace-kicker">VOD OPERATIONS</span>
-    <h1 class="vodops-workspace-title">视频数据中心</h1>
-    <div class="vodops-subtitle">在同一个工作台完成数据质量扫描、异常修复与豆瓣资料同步。</div>
+    <span class="vodops-workspace-kicker">视频数据中心</span>
+    <h1 class="vodops-workspace-title">{$page_title|htmlspecialchars}</h1>
+    <div class="vodops-subtitle">{$page_subtitle|htmlspecialchars}</div>
   </header>
-  <nav class="vodops-tabs" aria-label="视频数据中心功能">
-    <a class="vodops-tab {if condition="$workspace eq 'quality'"}is-active{/if}" href="{:url('vodops/index',['workspace'=>'quality'])}">数据质量与修复</a>
-    <a class="vodops-tab {if condition="$workspace eq 'douban'"}is-active{/if}" href="{:url('vodops/index',['workspace'=>'douban'])}">豆瓣匹配与同步</a>
-  </nav>
 
-  {if condition="$workspace eq 'douban'"}
+  {if condition="$workspace eq 'videos'"}
+  {include file="../../../addons/vodops/view/videos/index" /}
+  {elseif condition="$workspace eq 'douban'"/}
   {include file="../../../addons/vodops/view/index/index" /}
   {else/}
   <section class="vodops-quality-workspace" aria-labelledby="vodopsQualityTitle">
@@ -114,7 +109,7 @@
   <section class="vodops-panel">
     <div class="vodops-header" style="margin-bottom:0">
       <strong>扫描记录</strong>
-      <select id="vodopsRunSelect" class="vodops-select" data-index-url="{:url('vodops/index')}">
+      <select id="vodopsRunSelect" class="vodops-select" data-index-url="{:url('vodops/quality')}">
         {if condition="empty($scans)"}
         <option value="">暂无扫描</option>
         {else/}
@@ -179,12 +174,12 @@
       </div>
     </div>
     <div class="vodops-grid">
-      <a class="vodops-stat {if condition="$issue_type eq ''"}is-active{/if}" href="{:url('vodops/index')}?run_id={$scan.run_id}">
+      <a class="vodops-stat {if condition="$issue_type eq ''"}is-active{/if}" href="{:url('vodops/quality')}?run_id={$scan.run_id}">
         全部异常
         <strong>{:intval($scan['issue_count'] ?? 0)}</strong>
       </a>
       {foreach name="issue_types" item="label" key="key"}
-      <a class="vodops-stat {if condition="$issue_type eq $key"}is-active{/if}" href="{:url('vodops/index')}?run_id={$scan.run_id}&issue_type={$key}">
+      <a class="vodops-stat {if condition="$issue_type eq $key"}is-active{/if}" href="{:url('vodops/quality')}?run_id={$scan.run_id}&issue_type={$key}">
         {$label}
         <strong>{:intval($summary[$key] ?? 0)}</strong>
       </a>
@@ -194,7 +189,7 @@
   </section>
 
   <section class="vodops-panel">
-    <form class="vodops-filters" method="get" action="{:url('vodops/index')}">
+    <form class="vodops-filters" method="get" action="{:url('vodops/quality')}">
       <input type="hidden" name="run_id" value="{$scan.run_id}">
       <select class="vodops-select" name="issue_type">
         <option value="">全部异常</option>
@@ -204,7 +199,7 @@
       </select>
       <input class="vodops-input" type="search" name="q" value="{$q|htmlspecialchars}" maxlength="80" placeholder="视频名称或完整视频 ID">
       <button class="vodops-button" type="submit">筛选</button>
-      <a class="vodops-button" href="{:url('vodops/index')}?run_id={$scan.run_id}">重置</a>
+      <a class="vodops-button" href="{:url('vodops/quality')}?run_id={$scan.run_id}">重置</a>
       <span class="vodops-muted">当前命中 {:intval($pagination['total'] ?? 0)} 条</span>
     </form>
 
@@ -261,11 +256,11 @@
 
     <nav class="vodops-pager" aria-label="异常列表分页">
       {if condition="$pagination['page'] gt 1"}
-      <a class="vodops-button" href="{:url('vodops/index')}?run_id={$scan.run_id}&issue_type={:urlencode($issue_type)}&q={:urlencode($q)}&page={:$pagination['page']-1}">上一页</a>
+      <a class="vodops-button" href="{:url('vodops/quality')}?run_id={$scan.run_id}&issue_type={:urlencode($issue_type)}&q={:urlencode($q)}&page={:$pagination['page']-1}">上一页</a>
       {/if}
       <span>第 {:intval($pagination['page'] ?? 1)} / {:max(1, intval($pagination['pagecount'] ?? 0))} 页</span>
       {if condition="$pagination['page'] lt $pagination['pagecount']"}
-      <a class="vodops-button" href="{:url('vodops/index')}?run_id={$scan.run_id}&issue_type={:urlencode($issue_type)}&q={:urlencode($q)}&page={:$pagination['page']+1}">下一页</a>
+      <a class="vodops-button" href="{:url('vodops/quality')}?run_id={$scan.run_id}&issue_type={:urlencode($issue_type)}&q={:urlencode($q)}&page={:$pagination['page']+1}">下一页</a>
       {/if}
     </nav>
     {/if}
@@ -801,7 +796,7 @@
           window.setTimeout(function () { runLoop(runId); }, 80);
           return;
         }
-        window.location.href = "{:url('vodops/index')}?run_id=" + encodeURIComponent(runId);
+        window.location.href = "{:url('vodops/quality')}?run_id=" + encodeURIComponent(runId);
       }).catch(function (error) {
         setBusy(false);
         alert(error.message || "扫描失败，请稍后重试");
@@ -871,7 +866,7 @@
         var deleteData = new FormData();
         deleteData.append("run_id", runId);
         post("{:url('vodops/deleteScan')}", deleteData).then(function () {
-          window.location.href = "{:url('vodops/index')}";
+          window.location.href = "{:url('vodops/quality')}";
         }).catch(function (error) {
           button.disabled = false;
           alert(error.message || "删除审计结果失败");

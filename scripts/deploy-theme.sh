@@ -784,23 +784,35 @@ if (!is_array($menu)) {
     file_put_contents('php://stderr', "Vodops quick menu config is not an array.\n");
     exit(1);
 }
-$entry = '视频数据中心,vodops/index';
-$singleWorkbenchRoutes = [
+$entries = [
+    '视频管理,vodops/videos',
+    '数据质量与修复,vodops/quality',
+    '豆瓣匹配与同步,vodops/douban',
+];
+$managedRoutes = [
     'vodops/index',
     'admin/vodops/index',
+    'vodops/videos',
+    'admin/vodops/videos',
+    'vodops/quality',
+    'admin/vodops/quality',
+    'vodops/douban',
+    'admin/vodops/douban',
     'douban/index',
     'admin/douban/index',
 ];
-$menu = array_values(array_filter($menu, static function ($item) use ($singleWorkbenchRoutes) {
+$menu = array_values(array_filter($menu, static function ($item) use ($managedRoutes) {
     if (!is_string($item)) {
         return true;
     }
     $parts = explode(',', $item, 2);
     $route = strtolower(trim((string) ($parts[1] ?? '')));
     $route = explode('?', $route, 2)[0];
-    return !in_array($route, $singleWorkbenchRoutes, true);
+    return !in_array($route, $managedRoutes, true);
 }));
-$menu[] = $entry;
+foreach ($entries as $entry) {
+    $menu[] = $entry;
+}
 $content = "<?php\nreturn " . var_export(array_values($menu), true) . ";\n";
 $tempPath = $path . '.tmp.' . getmypid();
 if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
@@ -816,18 +828,25 @@ if (function_exists('opcache_invalidate')) {
     opcache_invalidate($path, true);
 }
 $verified = include $path;
-if (!is_array($verified) || count(array_keys($verified, $entry, true)) !== 1) {
+if (!is_array($verified)) {
     file_put_contents('php://stderr', "Vodops quick menu verification failed.\n");
     exit(1);
 }
+foreach ($entries as $entry) {
+    if (count(array_keys($verified, $entry, true)) !== 1) {
+        file_put_contents('php://stderr', "Vodops quick menu verification failed.\n");
+        exit(1);
+    }
+}
+$entryLookup = array_fill_keys($entries, true);
 foreach ($verified as $item) {
-    if (!is_string($item) || $item === $entry) {
+    if (!is_string($item) || isset($entryLookup[$item])) {
         continue;
     }
     $parts = explode(',', $item, 2);
     $route = strtolower(trim((string) ($parts[1] ?? '')));
     $route = explode('?', $route, 2)[0];
-    if (in_array($route, $singleWorkbenchRoutes, true)) {
+    if (in_array($route, $managedRoutes, true)) {
         file_put_contents('php://stderr', "Legacy Vodops or Douban quick menu entry remains.\n");
         exit(1);
     }
@@ -980,16 +999,21 @@ PHP_VODOPS_HOOK
   php -l "$addon_dir/bin/vodops-worker.php" >/dev/null
   php -l "$addon_dir/backend/DoubanController.php" >/dev/null
   php -l "$addon_dir/service/DoubanData.php" >/dev/null
+  php -l "$addon_dir/service/VodLibrary.php" >/dev/null
   php -l "$addon_dir/service/VodQualityScanner.php" >/dev/null
   grep -Fq 'X-CSRF-Token' "$view_target"
+  grep -Fq "workspace eq 'videos'" "$view_target"
   grep -Fq "workspace eq 'douban'" "$view_target"
+  grep -Fq 'addons/vodops/view/videos/index' "$view_target"
   grep -Fq 'addons/vodops/view/index/index' "$view_target"
-  grep -Fq "redirect(url('vodops/index'" "$addon_dir/backend/DoubanController.php"
+  grep -Fq "redirect(url('vodops/douban'" "$addon_dir/backend/DoubanController.php"
+  grep -Fq 'data-vod-library' "$addon_dir/view/videos/index.html"
+  grep -Fq "url('vodops/videosData')" "$addon_dir/view/videos/index.html"
   grep -Fq 'X-CSRF-Token' "$addon_dir/view/index/index.html"
   grep -Fq '同步不会修改现有图片' "$addon_dir/view/index/index.html"
   if grep -Eqi '<!doctype|<html|<body|豆瓣匹配工作台' "$addon_dir/view/index/index.html" \
     || grep -Eq "fetch\\(['\"]index/index|view_path" "$addon_dir/backend/DoubanController.php"; then
-    echo "Vodops single-workbench verification failed." >&2
+    echo "Vodops admin page verification failed." >&2
     return 1
   fi
   install_vodops_worker_cron

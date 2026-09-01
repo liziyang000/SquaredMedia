@@ -10,7 +10,7 @@ class DoubanController extends Base
 {
     public function index()
     {
-        return redirect(url('vodops/index', ['workspace' => 'douban']));
+        return redirect(url('vodops/douban'));
     }
 
     public function saveConfig()

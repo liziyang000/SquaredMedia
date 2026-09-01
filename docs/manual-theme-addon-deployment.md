@@ -36,7 +36,7 @@
 - [ ] 目标 SSH 主机、端口和 MacCMS 根目录已经二次确认；
 - [ ] 数据库完整备份和必要文件备份已完成，备份位置与时间已记录；
 - [ ] `pingfangdevice` 原有配置值未丢失，`app_begin` Hook 和兼容控制器有效；
-- [ ] `vodops` 原有配置与 `douban_*` 数据未丢失，后台控制器、统一工作台、菜单、Hook 和表结构有效；
+- [ ] `vodops` 原有配置与 `douban_*` 数据未丢失，后台控制器、三个独立入口、菜单、Hook 和表结构有效；
 - [ ] VodOps Worker 只存在一条计划任务，并以确认过的 Web 用户运行；
 - [ ] 主题已启用，模板 HTML 目录为真实的 `html` 目录；
 - [ ] 四组 MacCMS 缓存已清理并仍可由 Web 用户写入；
@@ -325,7 +325,7 @@ ps -ef | grep '[v]odops-worker.php'
 - 为 `pingfangdevice` 复制兼容控制器、登记 Hook、执行和验证 SQL；
 - 对旧 `douban_*` 表做只读兼容预检；
 - 为 VodOps、旧 Douban、应用载荷、菜单、Hook 和 Cron 建立迁移快照；
-- 复制 VodOps/Douban 后台控制器和统一工作台；
+- 复制 VodOps/Douban 后台控制器和共用后台页面壳层；
 - 执行并验证 VodOps/Douban 增量表结构；
 - 归并快捷菜单并移除旧 `response_end` Hook；
 - 备份并替换主题；
@@ -494,8 +494,8 @@ test -f "$PFV_CMS_ROOT/application/admin/view_new/vodops/index.html"
 
 检查 `application/extra/quickmenu.php`：
 
-- 恰好有一个 `视频数据中心,vodops/index`；
-- 不再保留旧 `douban/index` 或重复 VodOps 入口；
+- `视频管理,vodops/videos`、`数据质量与修复,vodops/quality`、`豆瓣匹配与同步,vodops/douban` 各恰好一个；
+- 不再保留旧 `vodops/index`、`douban/index` 或重复入口；
 - 其他快捷菜单项未被删除。
 
 可以用 PHP 只读显示：
@@ -612,9 +612,9 @@ grep -F '/template/pingfangvideo/' /tmp/pfv-public-home.html
 - 打开“登录设备管理”，确认列表可见，并只用测试设备验证撤销流程；
 - 分类页动态年份/地区/语言接口正常；
 - 详情页线路检测接口不暴露播放地址；
-- 超级管理员能从唯一的“视频数据中心”入口打开 VodOps；
-- VodOps 的质量与豆瓣两个工作区都在同一后台页面壳层中；
-- 旧 `admin/douban/index` 能按当前实现进入统一工作台；
+- 超级管理员能分别从“视频管理”“数据质量与修复”“豆瓣匹配与同步”三个入口打开对应页面；
+- 三个页面的 URL、标题和内容一致，筛选或翻页后不会跳到另一个入口；
+- 旧 `vodops/index?workspace=...` 和 `admin/douban/index` 能跳转到对应的新页面；
 - 未授权数据写入时，只查看页面、配置、历史和预览，不执行同步、校准、修复、回滚或批量任务。
 
 浏览器验收时同时查看 Network 和 Console。PHP/Nginx 日志、浏览器控制台和业务功能应分别记录，不能用其中一项代替其他项。
@@ -659,7 +659,7 @@ grep -F '/template/pingfangvideo/' /tmp/pfv-public-home.html
 4. 对已有七张 `douban_*` 表先按 `vodops/schema.php` 检查 InnoDB 和必要字段；
 5. 在同一份快照中备份旧 VodOps、旧 Douban、两个后台控制器、后台视图、旧前台 Douban 控制器、菜单、Hook 和 crontab；
 6. 兼容检查通过后才停用 `addons/douban` 和 `application/index/controller/Douban.php`；
-7. 把 VodOps/Douban 快捷入口归并为唯一 `视频数据中心,vodops/index`；
+7. 把旧 VodOps/Douban 快捷菜单归并为 `视频管理,vodops/videos`、`数据质量与修复,vodops/quality`、`豆瓣匹配与同步,vodops/douban` 三个入口；
 8. 从 `response_end` 中只移除 `vodops`，不能删除其他 Hook；
 9. 验证 13 张插件表、必要列、引擎和两个互斥行；
 10. 按第 10 节以 Web 用户安装唯一 Cron；
@@ -731,9 +731,9 @@ VodOps 回滚会恢复插件目录和应用控制器/视图，但不会反向修
 
 检查 `application/index/controller/Pingfangdevice.php` 是否来自本次包，以及 `application/extra/addons.php` 中 `app_begin` 是否包含 `pingfangdevice`。
 
-### VodOps 菜单不存在或出现两个入口
+### VodOps 菜单缺失或出现重复入口
 
-检查 `application/extra/quickmenu.php` 是否只保留一个 `视频数据中心,vodops/index`，再清后台视图缓存。不要删除其他插件菜单。
+检查 `application/extra/quickmenu.php` 中三个新入口是否各保留一次、旧 `vodops/index` 和 `douban/index` 是否已移除，再清后台视图缓存。不要删除其他插件菜单。
 
 ### VodOps 后台页 500
 

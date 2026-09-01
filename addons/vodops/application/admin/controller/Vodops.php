@@ -4,6 +4,7 @@ namespace app\admin\controller;
 
 use addons\vodops\service\DoubanData;
 use addons\vodops\service\VodPosterCandidate;
+use addons\vodops\service\VodLibrary;
 use addons\vodops\service\VodQualityActionException;
 use addons\vodops\service\VodQualityExportException;
 use addons\vodops\service\VodQualityRepair;
@@ -20,16 +21,63 @@ class Vodops extends Base
 
     public function index()
     {
-        $workspace = trim((string) input('workspace/s', 'quality'));
-        if ($workspace !== 'douban') {
-            $workspace = 'quality';
+        $params = input();
+        $params = is_array($params) ? $params : [];
+        $workspace = trim((string) ($params['workspace'] ?? 'videos'));
+        unset($params['workspace']);
+        $routes = [
+            'videos' => 'vodops/videos',
+            'quality' => 'vodops/quality',
+            'douban' => 'vodops/douban',
+        ];
+        return redirect(url($routes[$workspace] ?? $routes['videos'], $params));
+    }
+
+    public function videos()
+    {
+        $this->assignPage('videos', '视频管理', '快速筛选、检查和编辑视频；复杂字段仍使用 MacCMS 原生编辑页。');
+        $library = $this->videoLibraryData();
+        $this->assign('video_library', $library);
+        $this->assign('video_rows', $library['data']);
+        $this->assign('video_filters', $library['filters']);
+        $this->assign('video_pagination', $library);
+        $this->assign('video_statuses', VodLibrary::statusOptions());
+        $this->assign('categories', VodQualityScanner::categoryOptions());
+        return $this->fetch('vodops/index');
+    }
+
+    public function videosData()
+    {
+        if (!request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
         }
-        $this->assign('workspace', $workspace);
-        $this->assign('title', '视频数据中心');
-        if ($workspace === 'douban') {
-            $this->assignDoubanWorkspace();
-            return $this->fetch('vodops/index');
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '视频列表已更新',
+                'data' => $this->videoLibraryData(),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson('刷新视频列表', $e);
         }
+    }
+
+    public function quality()
+    {
+        $this->assignPage('quality', '数据质量与修复', '扫描视频数据问题，并在明确预览后逐条修复。');
+        $this->assignQualityWorkspace();
+        return $this->fetch('vodops/index');
+    }
+
+    public function douban()
+    {
+        $this->assignPage('douban', '豆瓣匹配与同步', '匹配豆瓣 ID，同步资料并查看任务与审计记录。');
+        $this->assignDoubanWorkspace();
+        return $this->fetch('vodops/index');
+    }
+
+    private function assignQualityWorkspace()
+    {
 
         $runId = max(0, intval(input('run_id/d', 0)));
         $scan = VodQualityScanner::getScan($runId);
@@ -68,7 +116,6 @@ class Vodops extends Base
         $this->assign('categories', VodQualityScanner::categoryOptions());
         $this->assign('issue_type', $issueType);
         $this->assign('q', $query);
-        return $this->fetch('vodops/index');
     }
 
     public function startScan()
@@ -279,6 +326,48 @@ class Vodops extends Base
         }
     }
 
+    private function assignPage($workspace, $title, $subtitle)
+    {
+        $this->assign('workspace', $workspace);
+        $this->assign('page_title', $title);
+        $this->assign('page_subtitle', $subtitle);
+        $this->assign('title', $title . ' - 视频数据中心');
+    }
+
+    private function videoLibraryData()
+    {
+        $library = VodLibrary::listVideos([
+            'q' => input('q/s', ''),
+            'type_id' => intval(input('type_id/d', 0)),
+            'status' => input('status/s', 'all'),
+            'isend' => input('isend/s', 'all'),
+            'source' => input('source/s', ''),
+            'seo' => input('seo/s', 'all'),
+            'pic' => input('pic/s', 'all'),
+            'limit' => intval(input('limit/d', 30)),
+            'page' => intval(input('page/d', 1)),
+        ]);
+        $filters = $library['filters'];
+        $page = intval($library['page']);
+        $pageQuery = [
+            'q' => $filters['q'],
+            'type_id' => $filters['type_id'],
+            'status' => $filters['status'],
+            'isend' => $filters['isend'],
+            'source' => $filters['source'],
+            'seo' => $filters['seo'],
+            'pic' => $filters['pic'],
+            'limit' => $filters['limit'],
+        ];
+        $library['prev_url'] = !empty($library['has_prev'])
+            ? url('vodops/videos', array_merge($pageQuery, ['page' => $page - 1]))
+            : '';
+        $library['next_url'] = !empty($library['has_next'])
+            ? url('vodops/videos', array_merge($pageQuery, ['page' => $page + 1]))
+            : '';
+        return $library;
+    }
+
     private function guardAjaxPost()
     {
         if (!request()->isPost() || !request()->isAjax()) {
@@ -312,7 +401,6 @@ class Vodops extends Base
         $audit = DoubanData::auditDashboard($auditScanId, $auditCode, $auditPage, 20, $auditQ);
         $currentPage = (int) ($videos['page'] ?? 1);
         $pageQuery = [
-            'workspace' => 'douban',
             'status' => $status,
             'task_status' => $taskStatus,
             'q' => $q,
@@ -321,10 +409,10 @@ class Vodops extends Base
             'limit' => $limit,
         ];
         $videos['prev_url'] = !empty($videos['has_prev'])
-            ? url('vodops/index', array_merge($pageQuery, ['page' => $currentPage - 1]))
+            ? url('vodops/douban', array_merge($pageQuery, ['page' => $currentPage - 1]))
             : '';
         $videos['next_url'] = !empty($videos['has_next'])
-            ? url('vodops/index', array_merge($pageQuery, ['page' => $currentPage + 1]))
+            ? url('vodops/douban', array_merge($pageQuery, ['page' => $currentPage + 1]))
             : '';
         $auditPagination = $audit['pagination'];
         $auditCurrentPage = (int) ($auditPagination['page'] ?? 1);
@@ -335,10 +423,10 @@ class Vodops extends Base
             'audit_q' => (string) ($audit['filters']['q'] ?? ''),
         ]);
         $auditPagination['prev_url'] = !empty($auditPagination['has_prev'])
-            ? url('vodops/index', array_merge($auditQuery, ['audit_page' => $auditCurrentPage - 1]))
+            ? url('vodops/douban', array_merge($auditQuery, ['audit_page' => $auditCurrentPage - 1]))
             : '';
         $auditPagination['next_url'] = !empty($auditPagination['has_next'])
-            ? url('vodops/index', array_merge($auditQuery, ['audit_page' => $auditCurrentPage + 1]))
+            ? url('vodops/douban', array_merge($auditQuery, ['audit_page' => $auditCurrentPage + 1]))
             : '';
 
         $this->assign('config', $dashboard['config']);
@@ -366,7 +454,7 @@ class Vodops extends Base
                 'code' => (string) ($audit['filters']['code'] ?? ''),
             ])
             : '');
-        $this->assign('current_url', url('vodops/index', ['workspace' => 'douban']));
+        $this->assign('current_url', url('vodops/douban'));
     }
 
     private function adminId()

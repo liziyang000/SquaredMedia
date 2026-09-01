@@ -87,6 +87,7 @@ namespace {
         'setDoubanId',
         'lock',
         'ignore',
+        'restore',
         'startAudit',
         'runAuditBatch',
         'pauseAudit',

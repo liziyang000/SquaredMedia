@@ -80,6 +80,22 @@ vodops_contract_match('/instanceof DoubanActionException[\s\S]*?409/', $doubanCo
 vodops_contract_match('/logFailure\(\'豆瓣操作\'[\s\S]*?豆瓣操作失败，请查看服务端日志/', $doubanController, 'Unexpected Douban failures must remain server-log only.');
 vodops_contract_match('/trace\(/', $doubanController, 'Unexpected Douban failures must be written to the server log.');
 vodops_contract_match('/public function index\(\)[\s\S]*?redirect\(url\(\'vodops\/douban\'/', $doubanController, 'The legacy Douban index must redirect to the dedicated Vodops route.');
+vodops_contract_match('/public function fetchVod\(\)[\s\S]*?DoubanData::fetchVod[\s\S]*?appendWorkspaceState/', $doubanController, 'Single-video matching must return the latest workspace state in the same response.');
+vodops_contract_match('/public function sync\(\)[\s\S]*?DoubanData::syncVod[\s\S]*?appendWorkspaceState/', $doubanController, 'Single-video synchronization must return the latest workspace state in the same response.');
+foreach ([
+    'rollbackPic' => 'rollbackPicture',
+    'setDoubanId' => 'setDoubanId',
+    'lock' => 'setLock',
+    'ignore' => 'ignore',
+    'restore' => 'restoreIgnored',
+] as $action => $serviceMethod) {
+    if (!preg_match('/public function ' . $action . '\(\)([\s\S]*?)(?=\n    (?:public|private) function)/', $doubanController, $singleActionMatch)
+        || strpos($singleActionMatch[1], 'DoubanData::' . $serviceMethod) === false
+        || strpos($singleActionMatch[1], 'appendWorkspaceState') === false) {
+        vodops_contract_fail('Single-video action must return fresh workspace state without a reload: ' . $action);
+    }
+}
+vodops_contract_match('/private function appendWorkspaceState[\s\S]*?DoubanData::videoState[\s\S]*?DoubanData::collectionState/', $doubanController, 'Workspace refreshes must include the row, active-filter counts, statistics, and tasks.');
 if (preg_match('/fetch\([\'"]index\/index/', $doubanController)) {
     vodops_contract_fail('The integrated addon must not render a second standalone Douban workbench.');
 }
@@ -127,6 +143,53 @@ if (preg_match('/->field\([\'\"]\*[\'\"]\)|->count\(\)/', $library)) {
 vodops_contract_match('/\$limit \+ 1/', $library, 'The video manager should detect the next page without a full count.');
 $doubanView = file_get_contents($root . '/addons/vodops/view/index/index.html');
 vodops_contract_match('/X-CSRF-Token/', $doubanView, 'Douban Ajax requests should forward the native admin CSRF token when available.');
+vodops_contract_match('/\{volist name="videos" id="vo"\}\s*<tr data-douban-vod-id="\{\$vo\.vod_id\}"/', $doubanView, 'Each video result row must have a stable target for in-place updates.');
+vodops_contract_match('/function renderVideoState\(video\)[\s\S]*?data-douban-review-status[\s\S]*?data-douban-last-sync[\s\S]*?data-douban-primary-action/', $doubanView, 'Fresh video state must update the current row without reloading the page.');
+vodops_contract_match('/function renderVideoState\(video\)[\s\S]*?data-video-title[\s\S]*?data-video-type[\s\S]*?data-video-year/', $doubanView, 'Fresh video state must update every local field visible in the result row.');
+vodops_contract_match('/data-douban-row-feedback[\s\S]*?role="status"[\s\S]*?aria-live="polite"/', $doubanView, 'Each video row must expose accessible local operation feedback.');
+vodops_contract_match('/function setRowFeedback\(button, state, message\)[\s\S]*?data-douban-row-feedback/', $doubanView, 'Single-video requests must report progress and results next to the active row.');
+vodops_contract_match('/function post\([\s\S]*?setRowFeedback\(button, "running"/', $doubanView, 'Row feedback must show pending state immediately.');
+vodops_contract_match('/function post\([\s\S]*?setRowFeedback\(button, state/', $doubanView, 'Row feedback must show the completed operation state.');
+vodops_contract_match('/\.catch\(function \(error\)[\s\S]*?setRowFeedback\(button, "error"/', $doubanView, 'Row feedback must show network and response failures next to the active row.');
+vodops_contract_match('/function doubanSubjectUrl\(doubanId\)[\s\S]*?movie\.douban\.com\/subject\//', $doubanView, 'Douban verification links must use the official subject URL.');
+if (strpos($doubanView, '/^\d+$/') === false) {
+    vodops_contract_fail('Douban verification links must only be built from numeric subject IDs.');
+}
+vodops_contract_match('/data-douban-link[\s\S]*?target="_blank"[\s\S]*?rel="noopener noreferrer"/', $doubanView, 'Bound Douban IDs must provide a safe one-click verification link.');
+vodops_contract_match('/data-douban-candidate-link[\s\S]*?target="_blank"[\s\S]*?rel="noopener noreferrer"/', $doubanView, 'Every saved candidate must be verifiable before it is adopted.');
+vodops_contract_match('/<label class="douban-id-field">\s*<span>豆瓣 ID<\/span>[\s\S]*?inputmode="numeric"/', $doubanView, 'Manual Douban ID entry must have a visible label and a numeric mobile keyboard hint.');
+vodops_contract_match('/function reviewStatusLabel\(status\)[\s\S]*?CONFIRMED[\s\S]*?已确认[\s\S]*?IGNORED[\s\S]*?已忽略/', $doubanView, 'Review states must use consistent Chinese labels before and after an action.');
+vodops_contract_match('/querySelectorAll\("\[data-douban-review-status\]"\)[\s\S]*?reviewStatusLabel/', $doubanView, 'Initial review badges must be localized without waiting for the first action.');
+vodops_contract_match('/data-douban-action="\{if condition="!empty\(\$vo\[\'is_ignored\'\]\)"\}restore\{else\/\}ignore\{\/if\}"[\s\S]*?恢复处理（已忽略至/', $doubanView, 'An ignored video must expose its recovery action on initial render.');
+vodops_contract_match('/action === "ignore"[\s\S]*?window\.confirm/', $doubanView, 'Ignoring a video must require explicit confirmation before changing task state.');
+vodops_contract_match('/data-douban-action="restore"[\s\S]*?恢复处理/', $doubanView, 'Ignored videos must expose an explicit restore action.');
+vodops_contract_match('/option value="ignored"[\s\S]*?已忽略/', $doubanView, 'Operators must be able to filter ignored videos for recovery.');
+vodops_contract_match('/class="search-actions"[\s\S]*?url\(\'vodops\/douban\'\)[\s\S]*?清空筛选/', $doubanView, 'Operators must be able to clear all Douban search filters in one click.');
+vodops_contract_match('/<details class="search-more" \{if condition="\$status neq \'all\'"\}open\{\/if\}>/', $doubanView, 'An active status filter must remain visible instead of being hidden in a closed disclosure.');
+if (!preg_match('/action === "fetch-vod"([\s\S]*?)action === "sync"/', $doubanView, $fetchVodUiMatch)) {
+    vodops_contract_fail('The single-video fetch action is missing from the Douban workbench.');
+}
+if (strpos($fetchVodUiMatch[1], 'reloadWithFeedback') !== false || strpos($fetchVodUiMatch[1], 'location.reload') !== false) {
+    vodops_contract_fail('Fetching one video must not reload the whole workbench.');
+}
+if (strpos($doubanView, 'data-sync-refresh') !== false) {
+    vodops_contract_fail('Sync results must not ask for a page reload after the current row has already been updated.');
+}
+vodops_contract_match('/\.douban-id-form[\s\S]*?reload:\s*false[\s\S]*?renderWorkspaceResult/', $doubanView, 'Manually saving a Douban ID must update the workspace in place.');
+foreach (['rollback-pic', 'select-candidate', 'lock-id', 'ignore', 'restore'] as $singleAction) {
+    vodops_contract_match('/action === "' . preg_quote($singleAction, '/') . '"[\s\S]*?renderWorkspaceResult/', $doubanView, 'Single-video UI action must update the workspace in place: ' . $singleAction);
+}
+vodops_contract_match('/function renderCollectionState[\s\S]*?row_matches[\s\S]*?data-douban-result-total/', $doubanView, 'Single-video actions must reconcile active filters and result counts without a reload.');
+vodops_contract_match('/function renderTaskList[\s\S]*?collection\.tasks/', $doubanView, 'Single-video actions must refresh the visible task list in place.');
+vodops_contract_match('/data-douban-manual-dirty[\s\S]*?manualId\.value/', $doubanView, 'Unsaved manual Douban IDs must survive unrelated row updates.');
+vodops_contract_match('/var activeWorkspaceFilters[\s\S]*?function appendWorkspaceFilters\(data\)[\s\S]*?Object\.keys\(activeWorkspaceFilters\)/', $doubanView, 'Row actions must use the submitted filter snapshot instead of unsaved search-form edits.');
+if (preg_match('/function renderSyncResult\(result\)([\s\S]*?)function post\(/', $doubanView, $syncResultMatch)
+    && strpos($syncResultMatch[1], 'scrollIntoView') !== false) {
+    vodops_contract_fail('Rendering one sync result must not move the user away from the active video row.');
+}
+if (strpos($doubanView, 'videoState.vod_name || data.vod_name') === false) {
+    vodops_contract_fail('Sync result headings must prefer the fresh row title returned after synchronization.');
+}
 if (preg_match('/<!doctype|<html|<body|豆瓣匹配工作台/i', $doubanView)) {
     vodops_contract_fail('The Douban module must be an embedded partial, not a second HTML workbench.');
 }
@@ -204,6 +267,12 @@ foreach ($schema as $table => $requiredColumns) {
 }
 
 $doubanData = file_get_contents($root . '/addons/vodops/service/DoubanData.php');
+vodops_contract_match('/public static function listVideos\([\s\S]*?is_ignored[\s\S]*?douban_ignore_until_label/', $doubanData, 'Initial rows must expose the active ignore state using the same labels as live updates.');
+vodops_contract_match('/public static function videoState\(int \$vodId\)[\s\S]*?candidatesForVodIds/', $doubanData, 'Single-video actions must return a fresh row snapshot instead of relying on a page reload.');
+vodops_contract_match('/public static function videoState\(int \$vodId\)[\s\S]*?vod_name[\s\S]*?type_name[\s\S]*?vod_year[\s\S]*?douban_id_locked[\s\S]*?intro_locked[\s\S]*?douban_ignore_until[\s\S]*?can_rollback_pic/', $doubanData, 'Fresh row state must cover every visible field and control changed by single-video actions.');
+vodops_contract_match('/public static function collectionState\([\s\S]*?row_matches[\s\S]*?task_stats[\s\S]*?listTasks/', $doubanData, 'Single-video actions must return fresh collection, statistics, and task-list state.');
+vodops_contract_match('/private static function normalizeCandidateRows[\s\S]*?preg_match\(\'\/\^\\\\d\+\$\//', $doubanData, 'Custom candidate IDs must be strictly numeric before ranking or persistence.');
+vodops_contract_match('/public static function restoreIgnored[\s\S]*?withEnqueueLock[\s\S]*?prepareTaskRows/', $doubanData, 'Restoring an ignored video must reuse the guarded task deduplication path.');
 vodops_contract_match('/ACTION_AUTO_SYNC_PENDING/', $doubanData, 'Douban source writes must create a pending audit first.');
 vodops_contract_match('/conditionalVodUpdate\(\$vodId, \$oldValues, \$updates\)/', $doubanData, 'Douban source writes must use audited old values as optimistic guards.');
 vodops_contract_match('/ACTION_AUTO_SYNC_CONFLICT/', $doubanData, 'Rejected stale Douban writes must remain auditable.');

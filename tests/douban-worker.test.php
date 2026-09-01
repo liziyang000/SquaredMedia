@@ -499,6 +499,36 @@ namespace {
     DoubanData::ignore(400, 30, 9);
     $assertSame('SKIP', $task(5)['status'] ?? '', 'Ignoring a video should immediately skip its pending tasks');
 
+    Db::$tables['vodops_lock'] = [['lock_name' => 'douban_enqueue']];
+    $restored = DoubanData::restoreIgnored(400, 9);
+    $restoredTasks = array_values(array_filter(Db::$tables['douban_task'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 400;
+    }));
+    $restoredPending = array_values(array_filter($restoredTasks, static function ($row) {
+        return ($row['status'] ?? '') === 'PENDING';
+    }));
+    $assertSame(1, $restored['created_task'] ?? 0, 'Restoring an ignored video should enqueue one fresh task');
+    $assertSame('SKIP', $task(5)['status'] ?? '', 'Restoring must preserve the ignored task as audit history');
+    $assertSame(1, count($restoredPending), 'Restoring should create exactly one pending replacement task');
+    $assertSame('MATCH_DOUBAN_ID', $restoredPending[0]['task_type'] ?? '', 'A restored video without an ID should enqueue matching');
+
+    DoubanData::ignore(400, 30, 9);
+    Db::$tables['douban_task'][] = [
+        'task_id' => 6,
+        'vod_id' => 400,
+        'task_type' => 'MATCH_DOUBAN_ID',
+        'status' => 'RUNNING',
+        'priority' => 5,
+        'run_after' => 0,
+        'attempts' => 1,
+        'last_error' => '',
+        'payload' => '{}',
+        'created_at' => 1,
+        'updated_at' => time(),
+    ];
+    $deduplicatedRestore = DoubanData::restoreIgnored(400, 9);
+    $assertSame(0, $deduplicatedRestore['created_task'] ?? -1, 'Restoring must not duplicate an active task for the same video and type');
+
     Db::$tables = [
         'douban_config' => [
             ['config_key' => 'request_per_minute', 'config_value' => '300'],

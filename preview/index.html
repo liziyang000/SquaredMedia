@@ -3,9 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070913">
   <title>PingFang Video Preview</title>
   <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/base.css?v=__PINGFANG_BASE_STYLE_VERSION__">
+  <link data-theme-foundation-stylesheet data-href="../template/pingfangvideo/css/themes-foundation.css?v=__PINGFANG_THEME_FOUNDATION_VERSION__">
   <link rel="stylesheet" href="../template/pingfangvideo/css/style.css?v=__PINGFANG_STYLE_VERSION__">
+  <link data-theme-stylesheet data-href="../template/pingfangvideo/css/themes.css?v=__PINGFANG_THEMES_VERSION__">
+  <link data-game-stylesheet data-href="../template/pingfangvideo/css/games.css?v=__PINGFANG_GAMES_STYLE_VERSION__">
+  <link rel="stylesheet" href="../template/pingfangvideo/css/responsive.css?v=__PINGFANG_RESPONSIVE_STYLE_VERSION__">
+  <link data-ink-theme-stylesheet data-href="../template/pingfangvideo/css/ink-wash.css?v=__PINGFANG_INK_WASH_VERSION__">
+  <script>
+  (function(){
+    try {
+      var theme = window.localStorage.getItem("pingfang_theme");
+      var validTheme = theme === "blue-pink-purple" || theme === "poster-magazine" || theme === "dunhuang-caisson" || theme === "digital-particles" || theme === "pixel-frog" || theme === "ink-wash";
+      var foundationTheme = theme === "blue-pink-purple" || theme === "poster-magazine";
+      var activate = function(selector) {
+        var stylesheet = document.querySelector(selector);
+        if (!stylesheet) return;
+        stylesheet.setAttribute("rel", "stylesheet");
+        stylesheet.setAttribute("href", stylesheet.getAttribute("data-href"));
+      };
+      if (validTheme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        if (foundationTheme) activate("[data-theme-foundation-stylesheet]");
+        activate(theme === "ink-wash" ? "[data-ink-theme-stylesheet]" : "[data-theme-stylesheet]");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+      var route = new URLSearchParams(window.location.search).get("route") || "home";
+      if (route === "games" || route.indexOf("game-") === 0) activate("[data-game-stylesheet]");
+    } catch (error) {}
+  })();
+  </script>
 </head>
 <body>
 <header class="site-header">
@@ -13,7 +44,6 @@
     <a class="brand" href="?route=home" data-route="home" aria-label="平方影视">
       <span class="brand-emblem" aria-hidden="true"></span>
       <span class="brand-wordmark"><strong>平方影视</strong><small>STREAMING EDITION</small></span>
-      <img class="brand-logo" src="../template/pingfangvideo/images/site-logo.png" alt="" width="58" height="58" decoding="async" hidden aria-hidden="true">
     </a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer">
       <span></span><span></span><span></span>
@@ -52,6 +82,10 @@
         <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
           <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
           <span>像素蛙</span>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
+          <span>水墨映画</span>
         </button>
       </div>
     </div>
@@ -107,6 +141,10 @@
         <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
         <span>像素蛙</span>
       </button>
+      <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
+        <span>水墨映画</span>
+      </button>
     </div>
   </div>
   <div class="mobile-drawer-section">
@@ -127,8 +165,7 @@
   <span data-route="detail"></span>
   <span data-route="play"></span>
 </template>
-<script src="../template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
-<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_APP_VERSION__"></script>
+<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="../template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -138,6 +175,9 @@ const mobileDrawerCats = document.querySelector("#mobileDrawerCats");
 const searchForms = document.querySelectorAll("form");
 const categoryPageSize = 12;
 const videoPageSize = 4;
+const gameStylesheet = document.querySelector("[data-game-stylesheet]");
+let gameStylePromise = null;
+let renderSequence = 0;
 
 function url(route, params = {}) {
   const next = new URL(window.location.href);
@@ -156,6 +196,28 @@ function previewMemberEnabled() {
 }
 
 const gameScriptPromises = new Map();
+
+function ensureGameStyles(route) {
+  if (route !== "games" && !route.startsWith("game-")) return Promise.resolve();
+  if (!gameStylesheet || gameStylesheet.sheet) return Promise.resolve();
+  if (gameStylePromise) return gameStylePromise;
+
+  const href = gameStylesheet.getAttribute("data-href");
+  if (!href) return Promise.resolve();
+
+  gameStylePromise = new Promise((resolve) => {
+    const timer = window.setTimeout(resolve, 5000);
+    const finish = () => {
+      window.clearTimeout(timer);
+      resolve();
+    };
+    gameStylesheet.addEventListener("load", finish, { once: true });
+    gameStylesheet.addEventListener("error", finish, { once: true });
+    gameStylesheet.setAttribute("rel", "stylesheet");
+    gameStylesheet.setAttribute("href", href);
+  });
+  return gameStylePromise;
+}
 
 function loadGameScript(source) {
   if (gameScriptPromises.has(source)) return gameScriptPromises.get(source);
@@ -306,9 +368,12 @@ function bannerSlide(video, index) {
   const backdrop = video.backdrop || video.poster;
   const duration = video.duration || "时长待定";
   const version = video.version || video.remark || "高清";
+  const priorityImage = index === 0
+    ? `<img class="banner-priority-image" src="${escapeHtml(backdrop)}" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>`
+    : "";
   return `
-    <article class="hero-slide${active}" data-carousel-slide data-banner-bg="${escapeHtml(backdrop)}">
-      <span class="banner-bg"></span>
+    <article class="hero-slide${active}${index === 0 ? " has-priority-image" : ""}" data-carousel-slide data-banner-bg="${escapeHtml(backdrop)}">
+      <span class="banner-bg">${priorityImage}</span>
       <span class="banner-content">
         <span class="banner-copy">
           <em class="eyebrow">热播推荐</em>
@@ -386,7 +451,7 @@ function renderCategoriesPage(page = 1) {
   const start = (currentPage - 1) * categoryPageSize;
   const pagedCategories = store.categories.slice(start, start + categoryPageSize);
   app.innerHTML = `
-    <section class="wrap page-title">
+    <section class="wrap page-title filter-page-title">
       <span class="eyebrow">视频</span>
       <h1>视频分类</h1>
       <p>从这里进入当前站点的全部视频分类。</p>
@@ -953,7 +1018,7 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
       <h1>${escapeHtml(name || "影片库")}</h1>
       <p>按分类、地区、年份和排序方式查找内容。</p>
     </section>
-    <section class="wrap filter-panel category-filter">
+    <section class="wrap filter-panel category-filter" data-filter-drawer>
       <div class="filter-row filter-search-row">
         <strong>搜索</strong>
         <form class="channel-search" method="get" action="${url("search")}" role="search">
@@ -1044,12 +1109,12 @@ function renderSearch(keyword, type = "", genre = "") {
     return true;
   });
   app.innerHTML = `
-    <section class="wrap page-title">
+    <section class="wrap page-title filter-page-title">
       <span class="eyebrow">搜索结果</span>
       <h1>${escapeHtml(wd || "全部内容")}</h1>
       <p>找到 ${list.length} 条相关内容。</p>
     </section>
-    <section class="wrap filter-panel category-filter search-filter-panel">
+    <section class="wrap filter-panel category-filter search-filter-panel" data-filter-drawer>
       <div class="filter-row">
         <strong>频道</strong>
         <div class="filter-options">
@@ -1092,24 +1157,26 @@ function renderDetail(id) {
   const video = videoById(id);
   app.innerHTML = `
     <section class="detail-hero">
-      <span class="detail-backdrop" aria-hidden="true"><img src="${escapeHtml(video.poster)}" alt=""></span>
+      <span class="detail-backdrop" aria-hidden="true"><img src="${escapeHtml(video.poster)}" alt="" width="380" height="570" decoding="async"></span>
       <div class="wrap detail-grid">
         <div class="detail-poster">
-          <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="eager" decoding="async" width="380" height="570" sizes="(max-width: 760px) 44vw, 250px">
+          <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="eager" decoding="async" width="380" height="570" sizes="(max-width: 760px) 116px, 250px">
           <span>${escapeHtml(video.remark)}</span>
         </div>
         <div class="detail-main detail-panel">
-          <span class="eyebrow">${escapeHtml(video.category)}</span>
-          <div class="detail-title-row">
-            <h1>${escapeHtml(video.title)}</h1>
-            <span class="score-badge">${escapeHtml(video.score)}</span>
+          <div class="detail-primary">
+            <span class="eyebrow">${escapeHtml(video.category)}</span>
+            <div class="detail-title-row">
+              <h1>${escapeHtml(video.title)}</h1>
+              <span class="score-badge">${escapeHtml(video.score)}</span>
+            </div>
+            <p class="meta">${escapeHtml(video.year)} / ${escapeHtml(video.area)} / ${escapeHtml(video.category)}</p>
+            <div class="detail-actions">
+              <a class="primary-btn" href="${url("play", { id: video.id, episode: 1 })}" data-route="play">立即播放</a>
+              <a class="ghost-btn" href="${url("category", { name: video.category })}">同类影片</a>
+            </div>
           </div>
-          <p class="meta">${escapeHtml(video.year)} / ${escapeHtml(video.area)} / ${escapeHtml(video.category)}</p>
           <p class="summary">${escapeHtml(video.summary)}</p>
-          <div class="detail-actions">
-            <a class="primary-btn" href="${url("play", { id: video.id, episode: 1 })}" data-route="play">立即播放</a>
-            <a class="ghost-btn" href="${url("category", { name: video.category })}">同类影片</a>
-          </div>
           <dl class="detail-data">
             <div><dt>导演</dt><dd>${escapeHtml(video.director)}</dd></div>
             <div><dt>主演</dt><dd>${escapeHtml(video.actor)}</dd></div>
@@ -1156,13 +1223,17 @@ function renderPlay(id, episodeNo) {
           <span>${escapeHtml(video.title)} / ${escapeHtml(episode.name)}</span>
           <div class="player-toolbar-actions">
             ${previousEpisode ? `<a class="ghost-btn player-step-link" href="${url("play", { id: video.id, episode: previousEpisode.no })}" data-route="play" rel="prev">上一集</a>` : ""}
-            <a class="ghost-btn" href="#episodeList">选集</a>
+            <a class="ghost-btn" href="#episodeList" data-episode-drawer-toggle aria-controls="episodeList" aria-expanded="false">选集</a>
             ${nextEpisode ? `<a class="ghost-btn player-step-link" href="${url("play", { id: video.id, episode: nextEpisode.no })}" data-route="play" rel="next">下一集</a>` : ""}
           </div>
         </div>
       </div>
     </section>
-    <section class="wrap content-section" id="episodeList" aria-label="选集列表">
+    <section class="wrap content-section" id="episodeList" aria-label="选集列表" data-episode-drawer>
+      <div class="episode-drawer-head">
+        <div><span>正在播放</span><h2 id="episodeDrawerTitle">选择剧集</h2></div>
+        <button type="button" data-episode-drawer-close aria-label="关闭选集">×</button>
+      </div>
       <div class="episode-box">
         <div class="section-head compact">
           <h2>在线播放</h2>
@@ -1175,9 +1246,12 @@ function renderPlay(id, episodeNo) {
     </section>`;
 }
 
-function render() {
+async function render() {
+  const sequence = ++renderSequence;
   const params = new URLSearchParams(window.location.search);
   const route = params.get("route") || "home";
+  await ensureGameStyles(route);
+  if (sequence !== renderSequence) return;
   if (route === "categories") renderCategoriesPage(params.get("page"));
   else if (route === "videos") renderCategory(null, params.get("sort"), params.get("area"), params.get("year"), params.get("class"), params.get("page"), params.get("lang"), params.get("letter"), "videos");
   else if (route === "comics") renderComicsPage();
@@ -1204,6 +1278,9 @@ function render() {
   window.PingFangVideo?.initHomeContinueWatching?.(app);
   window.PingFangVideo?.initLoginControls?.(app);
   window.PingFangVideo?.initLoginGlass?.(app);
+  window.PingFangVideo?.initFilterDrawers?.(app);
+  window.PingFangVideo?.initEpisodeDrawer?.(app);
+  window.PingFangVideo?.initDynamicVodFilters?.(app);
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initMediaFallbacks?.(app);
   window.PingFangVideo?.initHomeMotion?.(app);

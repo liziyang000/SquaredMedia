@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="320" height="176" viewBox="0 0 320 176" role="img" aria-labelledby="iwf-title iwf-desc">
+  <title id="iwf-title">朱砂疏梅</title>
+  <desc id="iwf-desc">浅墨细枝与五朵朱砂色梅花。透明背景，适合少量用于页尾留白。</desc>
+  <defs>
+    <g id="iwf-blossom">
+      <g fill="#ad463c" opacity=".52">
+        <path d="M.3-.8C-5.6-2.7-4.5-7.4-1.2-7.5C2.3-8 3.4-3.4.3-.8Z"/>
+        <path d="M.6-.6C1.7-5.5 6.5-6.7 7.9-3.4C9.4.1 5.4 2.1.6-.6Z"/>
+        <path d="M.9.2C6-1 9.1 2.6 7 5.5C4.9 8.5 1.2 5.5.9.2Z"/>
+        <path d="M.1.5C3.4 4.3 1.6 8.4-1.8 7.8C-5.5 7.5-5.1 2.6.1.5Z"/>
+        <path d="M-.5.2C-3.9 4.1-8.2 2.9-7.8-.8C-7.6-4.3-3.5-4.3-.5.2Z"/>
+      </g>
+      <path fill="none" stroke="#ad463c" stroke-width=".55" stroke-linecap="round" opacity=".65" d="M0 0L-2.4-3.7M0 0L3.7-1.9M0 0L3.2 3M0 0L-1.2 4M0 0L-4-.8"/>
+      <circle cx="0" cy="0" r="1.1" fill="#645f54" opacity=".65"/>
+    </g>
+  </defs>
+  <g fill="#252c29" opacity=".2">
+    <path d="M15 163C37 151 56 143 71 132L100 113L113 96L137 86L153 67L175 60L198 42L213 39L239 24L265 15L244 25L216 42L200 45L177 64L155 70L140 89L116 99L103 117L74 136C58 147 39 156 18 166Z"/>
+    <path d="M83 126L90 111L93 86L106 67L111 42L113 40L108 68L96 87L94 112L88 127Z"/>
+    <path d="M137 89L153 93L176 83L194 82L216 69L237 67L219 72L196 85L177 86L155 97L135 93Z"/>
+    <path d="M177 63L181 44L177 26L179 23L184 44L181 62Z"/>
+    <path d="M212 41L229 46L253 38L269 39L291 28L295 27L271 42L254 41L229 49L208 44Z"/>
+    <path d="M70 135L73 152L89 160L106 158L92 163L70 155L67 138Z"/>
+  </g>
+  <g fill="none" stroke="#252c29" stroke-linecap="round" opacity=".23">
+    <path stroke-width=".8" d="M96 87L81 77L75 65M107 68L122 59L128 44M193 83L195 97L208 105M237 67L251 57M253 39L259 25L271 17M176 29L164 19M229 47L235 58"/>
+    <path stroke-width=".5" d="M154 70L145 52L146 43M197 43L207 26L218 20M89 160L88 168"/>
+  </g>
+  <use xlink:href="#iwf-blossom" transform="translate(112 42) rotate(-14) scale(.9)"/>
+  <use xlink:href="#iwf-blossom" transform="translate(178 25) rotate(18) scale(.83)"/>
+  <use xlink:href="#iwf-blossom" transform="translate(237 67) rotate(-24) scale(.88)"/>
+  <use xlink:href="#iwf-blossom" transform="translate(266 15) rotate(8) scale(.68)"/>
+  <use xlink:href="#iwf-blossom" transform="translate(92 163) rotate(32) scale(.7)"/>
+  <g fill="#ad463c" opacity=".4">
+    <path d="M124 46C121 42 124 38 127 40C130 43 128 46 124 46Z"/>
+    <path d="M250 58C249 53 254 51 256 54C257 58 254 60 250 58Z"/>
+    <path d="M292 29C290 26 293 23 296 25C298 28 295 30 292 29Z"/>
+    <path d="M75 67C71 65 72 61 75 61C79 62 79 65 75 67Z"/>
+  </g>
+</svg>

@@ -1,0 +1,913 @@
+/* Ink wash: painted shan shui landscapes, paper surfaces, and quiet controls. */
+html[data-theme="ink-wash"] {
+  color-scheme: light;
+  --bg: #f3f1e9;
+  --panel: #faf9f5;
+  --panel-soft: #eeede6;
+  --text: #252c29;
+  --muted: #626962;
+  --line: rgba(37, 44, 41, 0.16);
+  --line-hairline: rgba(37, 44, 41, 0.07);
+  --line-soft: rgba(37, 44, 41, 0.09);
+  --line-muted: rgba(37, 44, 41, 0.12);
+  --line-strong: rgba(37, 44, 41, 0.28);
+  --line-accent-soft: rgba(83, 105, 94, 0.2);
+  --line-accent: rgba(83, 105, 94, 0.3);
+  --line-accent-strong: rgba(83, 105, 94, 0.5);
+  --line-warm: rgba(173, 70, 60, 0.3);
+  --line-warm-strong: rgba(173, 70, 60, 0.45);
+  --line-gold: rgba(134, 99, 36, 0.3);
+  --accent: #ad463c;
+  --accent-2: #53695e;
+  --gold: #866324;
+  --surface: rgba(37, 44, 41, 0.025);
+  --surface-strong: rgba(37, 44, 41, 0.045);
+  --surface-elevated: #faf9f5;
+  --selected-bg: rgba(83, 105, 94, 0.07);
+  --selected-bg-strong: rgba(83, 105, 94, 0.11);
+  --selected-compact-shadow: inset 0 0 0 1px rgba(83, 105, 94, 0.1);
+  --selected-shadow: none;
+  --focus-field-shadow: 0 0 0 2px rgba(83, 105, 94, 0.18);
+  --focus-ring: 0 0 0 2px rgba(83, 105, 94, 0.3);
+  --shadow: 0 6px 20px rgba(37, 44, 41, 0.07);
+  --shadow-soft: 0 2px 8px rgba(37, 44, 41, 0.04);
+  --radius: 8px;
+  --radius-sm: 4px;
+  --cinema-canvas: var(--bg);
+  --cinema-glass: var(--panel);
+  --cinema-glass-soft: #f5f4ee;
+  --cinema-glass-shadow: none;
+  --cinema-header-wash: var(--bg);
+  --cinema-glass-border: var(--line);
+  --cinema-glass-border-left: var(--line);
+  --cinema-glass-border-right: var(--line);
+  --cinema-header-shadow: none;
+  --login-canvas: var(--bg);
+  --ink-heading-font: "Songti SC", "Noto Serif CJK SC", "STSong", serif;
+  --ink-landscape: url("../images/ink-wash/shan-shui-landscape.e17b1e76e079.webp");
+}
+
+html[data-theme="ink-wash"] body {
+  background: var(--bg) url("../images/ink-wash/rice-paper.svg") repeat;
+  background-attachment: scroll;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+html[data-theme="ink-wash"].theme-transitioning::before,
+html[data-theme="ink-wash"] .hero::before,
+html[data-theme="ink-wash"] .hero-carousel::before,
+html[data-theme="ink-wash"] .hero-carousel::after,
+html[data-theme="ink-wash"] .hero-rank::before,
+html[data-theme="ink-wash"] .hero-rank::after,
+html[data-theme="ink-wash"] .brand-emblem::after,
+html[data-theme="ink-wash"] .banner-bg::after,
+html[data-theme="ink-wash"] .detail-backdrop,
+html[data-theme="ink-wash"] .detail-hero::after,
+html[data-theme="ink-wash"] .player-page::after {
+  display: none;
+  animation: none;
+}
+
+html[data-theme="ink-wash"] body::before {
+  inset: auto 0 0;
+  height: min(45vw, 500px);
+  background: var(--ink-landscape) right bottom / min(1500px, 100vw) auto no-repeat;
+  opacity: 0.06;
+  transform: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+  animation: none;
+}
+
+html[data-theme="ink-wash"] body:has(.hero, .login-page)::before {
+  display: none;
+}
+
+html[data-theme="ink-wash"] :is(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .site-header {
+  border-bottom: 1px solid var(--line);
+  background: rgba(243, 241, 233, 0.97);
+  padding: 0;
+}
+
+html[data-theme="ink-wash"] .header-inner {
+  min-height: 64px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 8px 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] .brand-emblem {
+  flex-basis: 32px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--text);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .brand-emblem::before {
+  width: 10px;
+  height: 13px;
+  background: var(--panel);
+  filter: none;
+}
+
+html[data-theme="ink-wash"] .brand-wordmark strong {
+  color: var(--text);
+  font-family: var(--ink-heading-font);
+  font-weight: 600;
+}
+
+html[data-theme="ink-wash"] :is(.brand-wordmark small, .rank-meta, .rank-refresh, .home-shelf-more, .home-shelf-body small, .home-continue-body small, .vod-card .card-meta span, .genre-chip small) {
+  color: var(--muted);
+}
+
+html[data-theme="ink-wash"] :is(.site-nav a, .history-link, .theme-switcher-trigger) {
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] :is(.site-nav a:hover, .site-nav a[aria-current="page"], .history-link:hover) {
+  background: var(--surface);
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] .site-nav a::after {
+  height: 1px;
+  background: var(--accent);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .header-search {
+  border-color: var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .header-search input {
+  min-height: 38px;
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] :is(.header-search button, .channel-search button, .hero-search button) {
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] :is(.theme-switcher-trigger, .history-link) {
+  min-height: 38px;
+  border-color: transparent;
+  font-size: 13px;
+}
+
+html[data-theme="ink-wash"] .user-avatar {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel-soft);
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] :is(.theme-switcher-menu, .user-dropdown) {
+  border-color: var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+html[data-theme="ink-wash"] .theme-option {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] :is(.theme-option:hover, .theme-option.is-active) {
+  border-color: var(--line-soft);
+  background: var(--selected-bg);
+  box-shadow: none;
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] .theme-option[data-theme-option="ink-wash"].is-active {
+  color: var(--accent);
+}
+
+html[data-theme="ink-wash"] .mobile-drawer {
+  background: var(--panel) url("../images/ink-wash/rice-paper.svg") repeat;
+  box-shadow: -6px 0 24px rgba(37, 44, 41, 0.1);
+}
+
+html[data-theme="ink-wash"] .mobile-drawer-backdrop {
+  background: rgba(37, 44, 41, 0.3);
+}
+
+html[data-theme="ink-wash"] :is(.mobile-drawer-links a, .mobile-drawer-user a, .mobile-drawer-cats a, .mobile-drawer-login) {
+  background: transparent;
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] :is(.site-header .nav-toggle, .mobile-drawer-close) {
+  border-color: var(--line);
+  border-radius: 5px;
+  background: transparent;
+}
+
+html[data-theme="ink-wash"] .hero-grid {
+  gap: 18px;
+  padding: 20px 0;
+}
+
+html[data-theme="ink-wash"] :is(.hero-carousel, .hero-slide) {
+  min-height: clamp(380px, 30vw, 460px);
+}
+
+html[data-theme="ink-wash"] .hero-carousel {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--panel) var(--ink-landscape) right bottom / contain no-repeat;
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .hero-slide {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 36px clamp(28px, 4vw, 58px) 68px;
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] .banner-bg {
+  display: none;
+}
+
+html[data-theme="ink-wash"] .banner-content {
+  max-width: min(520px, 49%);
+  gap: 14px;
+}
+
+html[data-theme="ink-wash"] .banner-copy {
+  gap: 12px;
+}
+
+html[data-theme="ink-wash"] .banner-copy strong {
+  color: var(--text);
+  font-family: var(--ink-heading-font);
+  font-size: clamp(30px, 3.2vw, 46px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  text-shadow: none;
+}
+
+html[data-theme="ink-wash"] .banner-copy small {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+html[data-theme="ink-wash"] .hero-carousel .eyebrow {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  color: var(--muted);
+  font-weight: 500;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] .banner-meta i {
+  border-color: var(--line-soft);
+  border-radius: 3px;
+  background: rgba(250, 249, 245, 0.88);
+  color: var(--muted);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] :is(.primary-btn, .banner-actions .primary-btn, .detail-actions .primary-btn, .favorite-card-actions .primary-btn, .login-submit) {
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent);
+  box-shadow: none;
+  color: #fff;
+  font-weight: 600;
+}
+
+html[data-theme="ink-wash"] :is(.ghost-btn, .detail-actions .ghost-btn) {
+  border-color: var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  box-shadow: none;
+  color: var(--text);
+  font-weight: 500;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] .banner-actions .ghost-btn {
+  border-color: var(--line);
+  border-radius: 5px;
+  background: rgba(250, 249, 245, 0.92);
+  color: var(--text);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] :is(.primary-btn:hover, .login-submit:hover) {
+  background: #963c33;
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+
+html[data-theme="ink-wash"] .banner-controls::before {
+  border-color: var(--line-soft);
+  border-radius: 5px;
+  background: rgba(250, 249, 245, 0.88);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] :is(.banner-autoplay-toggle, .banner-arrow) {
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+html[data-theme="ink-wash"] .hero-carousel :is(a, button):focus-visible {
+  outline-color: var(--accent-2);
+}
+
+html[data-theme="ink-wash"] .banner-dot::after {
+  background: var(--line-strong);
+}
+
+html[data-theme="ink-wash"] .banner-dot.is-active::after {
+  background: var(--text);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.hero-rank, .filter-panel, .episode-box, .detail-panel, .system-box, .device-panel, .favorite-toolbar, .record-toolbar, .player-toolbar, .source-quality-panel, .game-login-gate, .game-hub-hero, .game-stage-panel) {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] :is(.rank-item, .category-tile, .timeline-card, .list-item, .download-list a, .comment-item, .plot-item, .device-card, .record-item, .favorite-card, .game-card, .genre-chip, .home-continue-card) {
+  border-color: var(--line-soft);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] :is(.rank-item:hover, .category-tile:hover, .game-card:hover, .genre-chip:hover, .genre-chip:focus-visible, .home-continue-card:hover, .home-continue-card:focus-visible) {
+  border-color: var(--line-strong);
+  background: var(--panel-soft);
+  box-shadow: none;
+  transform: none;
+}
+
+html[data-theme="ink-wash"] :is(.rank-index, .hero-rank .rank-item:first-of-type .rank-index) {
+  border-color: var(--line-soft);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] .hero-rank .rank-item:first-of-type .rank-index {
+  color: var(--accent);
+}
+
+html[data-theme="ink-wash"] .genre-chip {
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 60px;
+  gap: 3px;
+  padding: 10px 14px;
+}
+
+html[data-theme="ink-wash"] .genre-chip::before {
+  display: none;
+}
+
+html[data-theme="ink-wash"] .genre-chip span {
+  color: var(--text);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] .genre-chip-featured span {
+  color: var(--accent);
+}
+
+html[data-theme="ink-wash"] :is(.rank-list, .genre-dock, .home-continue-rail, .home-shelf-tabs) {
+  scrollbar-color: rgba(83, 105, 94, 0.36) transparent;
+}
+
+html[data-theme="ink-wash"] :is(.rank-list, .genre-dock, .home-continue-rail, .home-shelf-tabs)::-webkit-scrollbar-thumb {
+  background: rgba(83, 105, 94, 0.36);
+}
+
+html[data-theme="ink-wash"] :is(.rank-heading, .shelf-title h2, .page-title h1, .detail-main h1, .player-head h1, .system-box h1, .game-login-gate h1, .game-hub-hero h1, .game-play-head h1) {
+  font-family: var(--ink-heading-font);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+html[data-theme="ink-wash"] :is(.rank-heading, .shelf-title h2) {
+  font-size: 22px;
+}
+
+html[data-theme="ink-wash"] :is(.rank-heading small, .shelf-title small) {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] .home-shelf-head {
+  border-bottom: 0;
+  background: url("../images/ink-wash/dry-brush-divider.svg") center bottom / 100% 10px no-repeat;
+  padding-bottom: 14px;
+}
+
+html[data-theme="ink-wash"] .home-shelf-tabs {
+  border-color: transparent;
+  border-radius: 4px;
+  background: transparent;
+}
+
+html[data-theme="ink-wash"] .home-shelf-tabs button {
+  min-height: 36px;
+  border-radius: 4px;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 6px 10px;
+}
+
+html[data-theme="ink-wash"] :is(.home-shelf-tabs button:hover, .home-shelf-tabs button.is-active) {
+  border-color: var(--line-soft);
+  background: var(--selected-bg);
+  box-shadow: none;
+  color: var(--accent);
+}
+
+html[data-theme="ink-wash"] :is(.home-shelf-poster, .home-continue-poster, .vod-card .poster, .detail-poster, .rank-thumb) {
+  border-color: var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.vod-card:hover, .vod-card:focus-visible, .home-shelf-card:hover, .home-shelf-card:focus-visible) {
+  box-shadow: none;
+  transform: none;
+}
+
+html[data-theme="ink-wash"] :is(.vod-card:hover .poster, .vod-card:focus-visible .poster, .home-shelf-card:hover .home-shelf-poster, .home-shelf-card:focus-visible .home-shelf-poster) {
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.home-shelf-body strong, .home-continue-body strong, .home-empty-state strong, .content-empty-state strong) {
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] .vod-card .card-meta span + span::before {
+  color: var(--line-strong);
+}
+
+html[data-theme="ink-wash"] :is(.home-shelf-score, .rank-score, .poster .score-badge) {
+  color: var(--accent);
+}
+
+html[data-theme="ink-wash"] .poster .score-badge {
+  background: var(--panel);
+}
+
+html[data-theme="ink-wash"] :is(.rank-thumb.is-image-missing, .home-shelf-poster.is-image-missing, .poster.is-image-missing, .detail-poster.is-image-missing, .list-item.is-image-missing) {
+  background: var(--panel-soft) url("../images/ink-wash/rice-paper.svg") repeat;
+}
+
+html[data-theme="ink-wash"] .page-title {
+  background: var(--ink-landscape) right center / min(520px, 42%) auto no-repeat;
+  padding: 34px 0 24px;
+}
+
+html[data-theme="ink-wash"] .page-title::after {
+  background: var(--line-soft);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.page-title h1, .game-login-gate h1, .game-hub-hero h1, .game-play-head h1) {
+  font-size: clamp(28px, 3vw, 38px);
+  line-height: 1.35;
+}
+
+html[data-theme="ink-wash"] :is(.filter-panel a, .episode-grid a, .paging a, .page-state) {
+  border-radius: 4px;
+  background: transparent;
+}
+
+html[data-theme="ink-wash"] :is(.filter-panel a.is-active, .episode-grid a.is-active, .page-state) {
+  border-color: var(--line-warm);
+  background: rgba(173, 70, 60, 0.065);
+  color: var(--accent);
+}
+
+html[data-theme="ink-wash"] .detail-grid {
+  padding-top: 32px;
+  padding-bottom: 36px;
+}
+
+html[data-theme="ink-wash"] .detail-panel {
+  padding: clamp(20px, 2.5vw, 32px);
+}
+
+html[data-theme="ink-wash"] .detail-main h1 {
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.35;
+}
+
+html[data-theme="ink-wash"] .detail-data div {
+  border-color: var(--line-soft);
+  border-radius: 4px;
+  background: transparent;
+}
+
+html[data-theme="ink-wash"] .player-page {
+  padding-top: 16px;
+}
+
+html[data-theme="ink-wash"] .player-head h1 {
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+
+html[data-theme="ink-wash"] .player-shell {
+  border-color: var(--line);
+  border-radius: 6px;
+  background: #161d19;
+  box-shadow: none;
+  color: #faf9f5;
+}
+
+html[data-theme="ink-wash"] :is(.home-empty-state, .content-empty-state) {
+  border-color: var(--line);
+  border-radius: 6px;
+  background: var(--panel) url("../images/ink-wash/water-ripples.svg") right 18px bottom 12px / 160px auto no-repeat;
+  color: var(--muted);
+}
+
+html[data-theme="ink-wash"] .game-card-art {
+  background: var(--panel-soft);
+}
+
+html[data-theme="ink-wash"] .game-login-gate {
+  width: min(560px, 100%);
+  padding: 32px 24px;
+}
+
+html[data-theme="ink-wash"] .game-hub-hero {
+  min-height: 0;
+  padding: 24px;
+}
+
+html[data-theme="ink-wash"] .game-lock-orbit {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .game-lock-orbit::before {
+  width: 20px;
+  height: 18px;
+  border-width: 2px;
+  border-radius: 3px;
+  box-shadow: none;
+  transform: translateY(6px);
+}
+
+html[data-theme="ink-wash"] .game-lock-orbit::after {
+  top: 8px;
+  width: 16px;
+  height: 15px;
+  border-width: 2px;
+}
+
+html[data-theme="ink-wash"] .game-lock-orbit i {
+  display: none;
+  animation: none;
+}
+
+html[data-theme="ink-wash"] .game-card-art-2048 span {
+  border-radius: 5px;
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] .game-card-copy h2 {
+  font-family: var(--ink-heading-font);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+html[data-theme="ink-wash"] .login-page {
+  min-height: calc(100svh - 72px);
+  padding: 36px 20px 48px;
+}
+
+html[data-theme="ink-wash"] .login-page::before {
+  inset: 0;
+  z-index: -1;
+  background: var(--ink-landscape) right bottom / max(1080px, 100%) auto no-repeat;
+  opacity: 0.8;
+  transform: none;
+  -webkit-mask-image: linear-gradient(#000 80%, transparent);
+  mask-image: linear-gradient(#000 80%, transparent);
+  animation: none;
+}
+
+html[data-theme="ink-wash"] .login-page::after,
+html[data-theme="ink-wash"] .login-panel::before,
+html[data-theme="ink-wash"] .login-panel::after,
+html[data-theme="ink-wash"] .login-edge-glow,
+html[data-theme="ink-wash"] .login-glass-highlight {
+  display: none;
+  animation: none;
+}
+
+html[data-theme="ink-wash"] .login-panel {
+  width: min(420px, 100%);
+  min-height: 0;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow-soft);
+  padding: 28px;
+  animation: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-theme="ink-wash"] .login-panel h1 {
+  color: var(--text);
+  font-family: var(--ink-heading-font);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.login-kicker, .login-heading p, .login-field-icon, .login-options, .login-register) {
+  color: var(--muted);
+}
+
+html[data-theme="ink-wash"] .login-panel.verify-form .login-label {
+  color: var(--text);
+  font-weight: 500;
+}
+
+html[data-theme="ink-wash"] .login-fields {
+  gap: 18px;
+  margin-top: 24px;
+}
+
+html[data-theme="ink-wash"] .login-control {
+  min-height: 44px;
+  border-color: var(--line);
+  border-radius: 4px;
+  background: #fffefa;
+  box-shadow: none;
+  padding: 0 12px;
+}
+
+html[data-theme="ink-wash"] .login-control:focus-within {
+  border-color: var(--accent-2);
+  background: #fffefa;
+  box-shadow: var(--focus-field-shadow);
+}
+
+html[data-theme="ink-wash"] .login-panel.verify-form .login-control input {
+  min-height: 42px;
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] .login-panel.verify-form .login-control input::placeholder {
+  color: #747970;
+}
+
+html[data-theme="ink-wash"] .login-panel.verify-form .login-control input:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+}
+
+html[data-theme="ink-wash"] :is(.login-password-toggle, .login-captcha-refresh) {
+  border-color: var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+}
+
+html[data-theme="ink-wash"] :is(.login-password-toggle:hover, .login-captcha-refresh:hover) {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+html[data-theme="ink-wash"] :is(.login-captcha-image, .login-captcha-preview, .login-captcha-refresh) {
+  min-height: 44px;
+  height: 44px;
+  border-color: var(--line);
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.login-captcha-image, .login-captcha-preview) {
+  background: var(--panel-soft);
+  color: var(--accent-2);
+  text-shadow: none;
+}
+
+html[data-theme="ink-wash"] .login-captcha-image img {
+  height: 42px;
+}
+
+html[data-theme="ink-wash"] .login-options {
+  margin: 18px 0 24px;
+}
+
+html[data-theme="ink-wash"] .login-options span::before {
+  background: var(--accent-2);
+  box-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.login-options a, .login-register a) {
+  color: var(--accent-2);
+  font-weight: 500;
+  text-shadow: none;
+}
+
+html[data-theme="ink-wash"] :is(.login-options a:hover, .login-register a:hover) {
+  color: var(--accent);
+  text-shadow: none;
+}
+
+html[data-theme="ink-wash"] .login-submit {
+  min-height: 44px;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+html[data-theme="ink-wash"] .login-register {
+  margin-top: 26px;
+}
+
+html[data-theme="ink-wash"] .login-register::before,
+html[data-theme="ink-wash"] .login-register::after {
+  background: var(--line);
+}
+
+@media (min-width: 761px) {
+  html[data-theme="ink-wash"] .login-captcha-row {
+    grid-template-columns: minmax(0, 1fr) 92px auto;
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-theme="ink-wash"] .filter-panel.is-filter-drawer-ready .filter-mobile-toolbar {
+    border-color: var(--line);
+    border-radius: 6px;
+    background: var(--panel);
+    box-shadow: none;
+  }
+
+  html[data-theme="ink-wash"] .filter-panel.is-filter-drawer-ready .filter-drawer-sheet,
+  html[data-theme="ink-wash"] .content-section.is-episode-drawer-ready {
+    border-color: var(--line);
+    border-radius: 8px 8px 0 0;
+    background: var(--panel);
+    box-shadow: 0 -8px 24px rgba(37, 44, 41, 0.12);
+    opacity: 1;
+  }
+
+  html[data-theme="ink-wash"] .filter-panel.is-filter-drawer-ready .filter-drawer-head,
+  html[data-theme="ink-wash"] .episode-drawer-head,
+  html[data-theme="ink-wash"] .filter-panel.is-filter-drawer-ready .filter-actions {
+    border-color: var(--line);
+    background: var(--panel);
+  }
+
+  html[data-theme="ink-wash"] :is(.filter-mobile-trigger, .filter-drawer-head button, .episode-drawer-head button, .filter-panel .filter-reset, .filter-view-results) {
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  html[data-theme="ink-wash"] .filter-panel.is-filter-drawer-ready .filter-drawer-backdrop,
+  html[data-theme="ink-wash"] .episode-drawer-backdrop {
+    background: rgba(37, 44, 41, 0.3);
+  }
+
+  html[data-theme="ink-wash"] .header-inner {
+    min-height: 60px;
+    padding: 7px 0;
+  }
+
+  html[data-theme="ink-wash"] body::before {
+    height: 260px;
+    background-size: 780px auto;
+    opacity: 0.055;
+  }
+
+  html[data-theme="ink-wash"] .hero-grid {
+    padding-top: 14px;
+  }
+
+  html[data-theme="ink-wash"] :is(.hero-carousel, .hero-slide) {
+    min-height: 360px;
+  }
+
+  html[data-theme="ink-wash"] .hero-carousel {
+    background-position: right bottom;
+    background-size: auto 190px;
+  }
+
+  html[data-theme="ink-wash"] .hero-slide {
+    align-items: start;
+    padding: 26px 22px 88px;
+  }
+
+  html[data-theme="ink-wash"] .banner-content {
+    max-width: 100%;
+  }
+
+  html[data-theme="ink-wash"] .banner-copy strong {
+    font-size: 29px;
+  }
+
+  html[data-theme="ink-wash"] .banner-copy small {
+    display: none;
+  }
+
+  html[data-theme="ink-wash"] :is(.rank-heading, .shelf-title h2) {
+    font-size: 20px;
+  }
+
+  html[data-theme="ink-wash"] .home-shelf-tabs button {
+    min-height: 42px;
+  }
+
+  html[data-theme="ink-wash"] .page-title {
+    background-position: right 6px top 12px;
+    background-size: 170px auto;
+    padding: 24px 0 18px;
+  }
+
+  html[data-theme="ink-wash"] .page-title h1 {
+    font-size: 28px;
+  }
+
+  html[data-theme="ink-wash"] .detail-grid {
+    padding-top: 22px;
+    padding-bottom: 24px;
+  }
+
+  html[data-theme="ink-wash"] .detail-panel {
+    padding: 20px 18px;
+  }
+
+  html[data-theme="ink-wash"] .detail-main h1 {
+    font-size: 28px;
+  }
+
+  html[data-theme="ink-wash"] .login-page {
+    min-height: calc(100svh - 60px);
+    padding: 26px 16px 36px;
+  }
+
+  html[data-theme="ink-wash"] .login-page::before {
+    display: none;
+  }
+
+  html[data-theme="ink-wash"] .login-panel {
+    padding: 26px 22px;
+  }
+}

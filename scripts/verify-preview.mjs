@@ -80,6 +80,7 @@ function assertBefore(html, first, second, route) {
 
 for (const [query, expected] of routes) {
   const html = render(query);
+  const route = new URLSearchParams(query).get("route") || "home";
   assert.match(html, /<!doctype html>/, `${query} should render a full HTML document`);
   assert.match(html, /<main(?:\s[^>]*)?>/, `${query} should include the main layout`);
   assert.doesNotMatch(html, /class="site-footer"/, `${query} should not render the retired visible footer`);
@@ -92,6 +93,17 @@ for (const [query, expected] of routes) {
   assert.equal((html.match(/data-theme-option="poster-magazine"/g) || []).length, 2, `${query} should include both poster theme options`);
   assert.equal((html.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2, `${query} should include both Dunhuang theme options`);
   assert.equal((html.match(/data-theme-option="pixel-frog"/g) || []).length, 2, `${query} should include both pixel frog theme options`);
+  assert.equal((html.match(/data-theme-option="ink-wash"/g) || []).length, 2, `${query} should include both ink wash theme options`);
+  assert.match(html, /css\/ink-wash\.css/, `${query} should load ink wash styles`);
+  assert.match(html, /data-theme-foundation-stylesheet/, `${query} should include the optional theme foundation hook`);
+  assert.match(html, /data-theme-stylesheet/, `${query} should include the optional theme hook`);
+  assert.match(html, /css\/style\.css/, `${query} should load base styles`);
+  assert.match(html, /css\/responsive\.css/, `${query} should load responsive styles`);
+  if (route === "games" || route.startsWith("game-")) {
+    assert.match(html, /css\/games\.css/, `${query} should load game styles`);
+  } else {
+    assert.doesNotMatch(html, /css\/games\.css/, `${query} should not load game styles`);
+  }
 
   for (const marker of expected) {
     assert.ok(html.includes(marker), `${query} should include ${marker}`);

@@ -28,17 +28,18 @@
 - `html/user/`、`comment/`、`gbook/`、`book/`：用户和反馈相关页面。
 - `html/art/`、`topic/`、`actor/`、`role/`、`plot/`、`website/`：标准模块的页面或兜底页面。
 - `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、七夕粒子页、站点地图和订阅输出。
-- `css/style.css`：全站样式、语义 token、六套主题和响应式规则；像素主题标题和控件使用本地 Fusion Pixel Font 12px 比例简体中文字形，字体及其 OFL-1.1 许可证位于 `css/fonts/`。
+- `css/ink-wash.css`：独立且按需加载的水墨映画主题，使用宣纸浅底、墨灰文字、少量朱砂选中态和轻量 SVG；页面样式限定在 `html[data-theme="ink-wash"]` 下；菜单色样位于 `base.css`。
+- `css/`：`base.css`、`style.css` 和 `responsive.css` 按原级联顺序组成全站基础样式；`themes-foundation.css` 与 `themes.css` 按原有主题按需加载，`games.css` 只在游戏路由加载。像素主题标题和控件使用本地 Fusion Pixel Font 12px 比例简体中文字形，字体及其 OFL-1.1 许可证位于 `css/fonts/`。
 - `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；像素主题切换时复用本地 `canvas-confetti` 1.9.4 浏览器构建生成一次性方形边缘粒子，ISC 许可证随文件保留；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间；`js/qixi-particle-rose.js` 负责七夕 Canvas 点云花束及重播、分享和拖动交互。
 - `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证，以及一方实现的竹知了三阶段节奏玩法；竹知了包含指针/键盘操作、动态共鸣区、竹风与反向事件、分项评级和 Web Audio 合成声音，不提供可匿名打开的独立 `index.html`。五子棋和你画我猜也是一方实现，浏览器协议位于 `js/multiplayer-games.js`。游戏模板同时保留会员、游客与延迟脚本标记，`app.js` 读取 `user_id` Cookie 后切换可见区块并按需加载脚本；真实联机票据仍由服务端接口校验登录态后签发。
-- `images/`：站点、品牌及敦煌/像素主题 SVG；生产模板通过 `{$maccms.path_tpl}` 或主题 CSS 相对路径引用。
+- `images/`：站点、品牌及敦煌/像素/水墨主题 SVG；生产模板通过 `{$maccms.path_tpl}` 或主题 CSS 相对路径引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
 
 ## 关键入口与共享约定
 
 ### 公共骨架
 
-- `html/public/include.html` 在 CSS 前读取 `localStorage` 中的 `pingfang_theme`，并加载主题 CSS、jQuery、MacCMS `maccms` 配置和 `home.js`。
+- `html/public/include.html` 在首屏绘制前读取 `localStorage` 中的 `pingfang_theme`、设置根主题并激活所需主题 CSS；游戏模板通过页面标记额外请求 `games.css`。随后加载 jQuery、MacCMS `maccms` 配置和 `home.js`。
 - `html/public/head.html` 输出页面头部、搜索、用户状态、主题切换器和移动抽屉，并打开 `<main>`。
 - `html/public/foot.html` 关闭页面结构、保留隐藏计时钩子并加载共享 `app.js`；前台不再输出可见页脚。
 - 普通页面通过 `{include file="public/head" /}` 与 `{include file="public/foot" /}` 复用骨架；修改公共 include 后，生产环境需要清理 MacCMS 模板缓存。
@@ -65,9 +66,10 @@
 ## 当前视觉与动效
 
 - 默认主题使用深夜蓝黑星空底色、紫蓝液态玻璃表面和高亮青色状态色；首页以全宽海报舞台和横向内容货架为主要视觉结构。
-- `blue-pink-purple`、`poster-magazine`、`dunhuang-caisson`、`digital-particles` 和 `pixel-frog` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
+- `blue-pink-purple`、`poster-magazine`、`dunhuang-caisson`、`digital-particles`、`pixel-frog` 和 `ink-wash` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
 - `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，登录页使用左对齐的杂志排版、硬边色块和偏移阴影；默认主题不共用这套重排。
-- 六套主题共用登录表单结构和交互，但视觉按主题适配：默认主题保留紫蓝液态玻璃，`blue-pink-purple` 使用青粉双辉光玻璃，`poster-magazine` 使用编辑设计，敦煌和像素青蛙延续各自既有样式，`digital-particles` 使用蓝色网格终端面板。
+- 七套主题共用登录表单结构和交互，但视觉按主题适配：默认主题保留紫蓝液态玻璃，`blue-pink-purple` 使用青粉双辉光玻璃，`poster-magazine` 使用编辑设计，敦煌和像素青蛙延续各自既有样式，`digital-particles` 使用蓝色网格终端面板。
+- `ink-wash` 显示为「水墨映画」：以国画山水长卷为主视觉，首页用有皴纹、松树和云雾层次的山水画衬托左侧标题，影片海报保留在内容列表中。分类页标题、登录背景和页面底部沿用山水画面，宣纸和枯笔 SVG 补充质感；正文使用系统字体，标题适度使用系统宋体。移动端将山水收在主视觉下半部，省略轮播简介以维持原有高度。绘画资源为带透明通道的 WebP，文件名含内容摘要，仅选择水墨主题后加载；原有 6 个 SVG 保留。播放、搜索、关闭等继续沿用通用图标，主题切换保持辅助入口。
 - `pixel-frog` 使用深森林绿、亮青蛙绿、奶油白和少量珊瑚红，复用原创像素 SVG；标题、导航、按钮和标签使用本地中文像素字体，播放/搜索/关闭等功能符号使用独立像素 SVG。徽章跳动和四边向内的方形粒子只在用户主动切换时触发，并遵循 `prefers-reduced-motion`。
 - `digital-particles` 使用近黑蓝画布、4–10px 微圆角和冷蓝辉光表面；方块粒子按远、中、近三组使用不同尺寸与漂移距离，移动端减少粒子密度，粒子层不接收指针事件，并在 `prefers-reduced-motion` 下停止漂浮。
 - `gsap.min.js` 仅在首页、桌面精细指针且未启用 `prefers-reduced-motion` 时由 `app.js` 按需加载。GSAP 负责首页入场时间线和轮播切换；其他设备使用 CSS 轮播回退，卡片 hover 保持为 CSS。
@@ -97,9 +99,9 @@ HTTP GET /preview/index.html
   -> 重新调用首页标签页、轮播和动效初始化器
 ```
 
-静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只模拟会员视觉。2048、俄罗斯方块和竹知了可本地操作，联机页面因没有真实 MacCMS 登录票据会显示未连接，不能把该参数当作联机鉴权。
+静态预览复用生产 CSS、`app.js` 和 `gsap.min.js`，但页面标记由 `preview/index.html` 自己生成。它会在主题或游戏路由切换时先加载对应可选 CSS，再提交本轮渲染，避免快速切换时应用过期结果。它不会解析 MacCMS 标签，也不加载 `home.js`、真实用户态、线路检测插件接口或原生播放器数据。游戏路由默认展示未登录拦截；追加 `member=1` 只模拟会员视觉。2048、俄罗斯方块和竹知了可本地操作，联机页面因没有真实 MacCMS 登录票据会显示未连接，不能把该参数当作联机鉴权。
 
-七夕专项预览是独立链路：`preview/qixi.html` 直接加载生产 `style.css` 和 `qixi-particle-rose.js`，不经过 `preview/index.html` 的路由渲染，也不经过 PHP `render_page()`。`preview/game-ticket.json` 只为静态游戏预览返回固定失败结果，不代表生产票据接口。
+七夕专项预览是独立链路：`preview/qixi.html` 依次加载生产 `base.css`、`style.css`、`responsive.css`、七夕专项 CSS 和 `qixi-particle-bouquet.js`，不经过 `preview/index.html` 的路由渲染，也不经过 PHP `render_page()`。`preview/game-ticket.json` 只为静态游戏预览返回固定失败结果，不代表生产票据接口。
 
 ### PHP 预览链
 
@@ -120,7 +122,7 @@ PHP 预览是独立渲染器，不会读取 `template/pingfangvideo/html/**`。�
 - 播放相关修改不得移除 `{$player_data}`、`{$player_js}` 或原生回退链。
 - 改动共享 CSS/JS 标记时，要同时检查生产模板、静态预览和 PHP renderer，但不要把预览标记直接复制到生产模板。
 - `preview/data.json` 使用远程图片和演示视频，离线或受限网络下媒体加载失败不代表生产主题故障。
-- `__PINGFANG_STYLE_VERSION__`、`__PINGFANG_APP_VERSION__`、`__PINGFANG_PROMPT_VERSION__`、`__PINGFANG_GAME_VERSION__`、`__PINGFANG_MULTIPLAYER_VERSION__` 和 `__PINGFANG_QIXI_VERSION__` 由打包流程按文件内容处理，不应在源码中手工替换为一次性版本号。
+- `__PINGFANG_*_VERSION__` 资源占位符由打包流程按各 CSS/JS 文件内容处理，不应在源码中手工替换为一次性版本号。
 
 ## 本地使用与验证
 

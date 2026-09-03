@@ -12,7 +12,7 @@ function path_for(string $route, array $params = []): string
     return '/index.php?' . $query;
 }
 
-function render_layout(array $data, string $title, string $content): string
+function render_layout(array $data, string $title, string $content, bool $loadGameStyles = false): string
 {
     $nav = '<a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>';
@@ -21,21 +21,50 @@ function render_layout(array $data, string $title, string $content): string
         static fn (string $category): string => '<a href="' . e(path_for('category', ['name' => $category])) . '">' . e($category) . '</a>',
         array_slice($data['categories'], 0, 12),
     ));
+    $gameStylesheet = $loadGameStyles ? '  <link rel="stylesheet" href="/template/pingfangvideo/css/games.css">' . "\n" : '';
 
     return '<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070913">
   <title>' . e($title) . ' - ' . e($data['siteName']) . '</title>
   <link rel="icon" href="/template/pingfangvideo/images/brand/favicon.ico">
   <link rel="icon" type="image/png" sizes="64x64" href="/template/pingfangvideo/images/brand/favicon.png">
+  <link rel="stylesheet" href="/template/pingfangvideo/css/base.css">
+  <link data-theme-foundation-stylesheet data-href="/template/pingfangvideo/css/themes-foundation.css">
   <link rel="stylesheet" href="/template/pingfangvideo/css/style.css">
+  <link data-theme-stylesheet data-href="/template/pingfangvideo/css/themes.css">
+' . $gameStylesheet . '  <link rel="stylesheet" href="/template/pingfangvideo/css/responsive.css">
+' . $gameStylesheet . '  <link data-ink-theme-stylesheet data-href="/template/pingfangvideo/css/ink-wash.css">
+  <script>
+  (function(){
+    try {
+      var theme = window.localStorage.getItem("pingfang_theme");
+      var validTheme = theme === "blue-pink-purple" || theme === "poster-magazine" || theme === "dunhuang-caisson" || theme === "digital-particles" || theme === "pixel-frog" || theme === "ink-wash";
+      var foundationTheme = theme === "blue-pink-purple" || theme === "poster-magazine";
+      var activate = function(selector) {
+        var stylesheet = document.querySelector(selector);
+        if (!stylesheet) return;
+        stylesheet.setAttribute("rel", "stylesheet");
+        stylesheet.setAttribute("href", stylesheet.getAttribute("data-href"));
+      };
+      if (validTheme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        if (foundationTheme) activate("[data-theme-foundation-stylesheet]");
+        activate(theme === "ink-wash" ? "[data-ink-theme-stylesheet]" : "[data-theme-stylesheet]");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+    } catch (error) {}
+  })();
+  </script>
 </head>
 <body>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><span class="brand-emblem" aria-hidden="true"></span><span class="brand-wordmark"><strong>' . e($data['siteName']) . '</strong><small>STREAMING EDITION</small></span><img class="brand-logo" src="/template/pingfangvideo/images/site-logo.png" alt="" width="58" height="58" decoding="async" hidden aria-hidden="true"></a>
+    <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><span class="brand-emblem" aria-hidden="true"></span><span class="brand-wordmark"><strong>' . e($data['siteName']) . '</strong><small>STREAMING EDITION</small></span></a>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer"><span></span><span></span><span></span></button>
     <nav class="site-nav" aria-label="主导航">' . $nav . '</nav>
     <div class="header-search-wrap">
@@ -72,6 +101,10 @@ function render_layout(array $data, string $title, string $content): string
         <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
           <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
           <span>像素蛙</span>
+        </button>
+        <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
+          <span>水墨映画</span>
         </button>
       </div>
     </div>
@@ -120,13 +153,16 @@ function render_layout(array $data, string $title, string $content): string
         <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
         <span>像素蛙</span>
       </button>
+      <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
+        <span>水墨映画</span>
+      </button>
     </div>
   </div>
   <div class="mobile-drawer-section"><span>影片分类</span><div class="mobile-drawer-cats">' . $drawerCategories . '</div></div>
 </aside>
 <main id="mainContent" tabindex="-1">' . $content . '</main>
-<script src="/template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
-<script src="/template/pingfangvideo/js/app.js"></script>
+<script src="/template/pingfangvideo/js/app.js" data-pixel-confetti-src="/template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
 </body>
 </html>';
 }
@@ -135,7 +171,7 @@ function render_cards(array $videos): string
 {
     return implode('', array_map(static function (array $video): string {
         return '<a class="vod-card" href="' . e(path_for('detail', ['id' => $video['id']])) . '">
-  <span class="poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy"><em class="quality-badge">' . e($video['remark']) . '</em><span class="score-badge">' . e($video['score']) . '</span></span>
+  <span class="poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px"><em class="quality-badge">' . e($video['remark']) . '</em><span class="score-badge">' . e($video['score']) . '</span></span>
   <strong>' . e($video['title']) . '</strong>
   <span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span></span>
 </a>';
@@ -203,8 +239,12 @@ function render_hero_carousel(array $data, array $videos): string
         $backdrop = $video['backdrop'] ?? $video['poster'];
         $duration = $video['duration'] ?? '时长待定';
         $version = $video['version'] ?? ($video['remark'] ?? '高清');
-        $slides .= '<article class="hero-slide' . $active . '" data-carousel-slide data-banner-bg="' . e($backdrop) . '">
-  <span class="banner-bg"></span>
+        $priorityImage = $index === 0
+            ? '<img class="banner-priority-image" src="' . e($backdrop) . '" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>'
+            : '';
+        $priorityClass = $index === 0 ? ' has-priority-image' : '';
+        $slides .= '<article class="hero-slide' . $active . $priorityClass . '" data-carousel-slide data-banner-bg="' . e($backdrop) . '">
+  <span class="banner-bg">' . $priorityImage . '</span>
   <span class="banner-content">
     <span class="banner-copy">
       <em class="eyebrow">热播推荐</em>
@@ -284,7 +324,7 @@ function render_player_preview(array $data, array $video, array $episode, string
         if ($previousEpisode !== null) {
             $actions .= '<a class="ghost-btn player-step-link" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $previousEpisode['no']])) . '" rel="prev">上一集</a>';
         }
-        $actions .= '<a class="ghost-btn" href="#episodeList">选集</a>';
+        $actions .= '<a class="ghost-btn" href="#episodeList" data-episode-drawer-toggle aria-controls="episodeList" aria-expanded="false">选集</a>';
         if ($nextEpisode !== null) {
             $actions .= '<a class="ghost-btn player-step-link" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $nextEpisode['no']])) . '" rel="next">下一集</a>';
         }
@@ -293,7 +333,7 @@ function render_player_preview(array $data, array $video, array $episode, string
             $active = (int) $item['no'] === (int) $episode['no'] ? ' class="is-active" aria-current="page"' : '';
             return '<a' . $active . ' href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $item['no']])) . '">' . e($item['name']) . '</a>';
         }, $video['episodes']));
-        $episodeSection = '<section class="wrap content-section" id="episodeList" aria-label="选集列表"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodeLinks . '</div></div></section>';
+        $episodeSection = '<section class="wrap content-section" id="episodeList" aria-label="选集列表" data-episode-drawer><div class="episode-drawer-head"><div><span>正在播放</span><h2 id="episodeDrawerTitle">选择剧集</h2></div><button type="button" data-episode-drawer-close aria-label="关闭选集">×</button></div><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodeLinks . '</div></div></section>';
     }
 
     $content = '<section class="player-page"><div class="wrap"><div class="player-head"><div><span class="eyebrow">' . e($eyebrow) . '</span><h1>' . e($video['title']) . ' - ' . e($episode['name']) . '</h1></div><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">返回详情</a></div><div class="player-shell" role="region" aria-label="' . $playerLabel . '"><video controls preload="metadata" playsinline poster="' . e($video['poster']) . '"><source src="' . e($episode['src']) . '" type="video/mp4"></video></div><div class="player-toolbar" role="group" aria-label="播放控制"><span>' . e($video['title']) . ' / ' . e($episode['name']) . '</span><div class="player-toolbar-actions">' . $actions . '</div></div></div></section>' . $episodeSection;
@@ -572,7 +612,7 @@ function render_page(array $data, string $route, array $query): string
         foreach ($groups as $date => $items) {
             $timeline .= '<div class="timeline-date">' . e($date) . '</div>';
             foreach ($items as $item) {
-                $timeline .= '<article class="timeline-item"><span class="timeline-dot"></span><div class="timeline-time">' . e($item['time']) . '</div><a class="timeline-card" href="' . e(path_for('play', ['id' => $item['video']['id'], 'episode' => $item['episode']['no']])) . '"><img src="' . e($item['video']['poster']) . '" alt="' . e($item['video']['title']) . '" loading="lazy"><span><strong>' . e($item['video']['title']) . ' - ' . e($item['episode']['name']) . '</strong><small>' . e($item['video']['category']) . ' / ' . e($item['video']['year']) . '</small><em>' . e($item['entry']['progress']) . '</em></span></a></article>';
+                $timeline .= '<article class="timeline-item"><span class="timeline-dot"></span><div class="timeline-time">' . e($item['time']) . '</div><a class="timeline-card" href="' . e(path_for('play', ['id' => $item['video']['id'], 'episode' => $item['episode']['no']])) . '"><img src="' . e($item['video']['poster']) . '" alt="' . e($item['video']['title']) . '" loading="lazy" decoding="async" width="76" height="114" sizes="76px"><span><strong>' . e($item['video']['title']) . ' - ' . e($item['episode']['name']) . '</strong><small>' . e($item['video']['category']) . ' / ' . e($item['video']['year']) . '</small><em>' . e($item['entry']['progress']) . '</em></span></a></article>';
             }
         }
 
@@ -600,42 +640,42 @@ function render_page(array $data, string $route, array $query): string
         $content = preview_member_enabled($query)
             ? render_game_hub_preview()
             : render_game_login_gate('phpGameLoginTitle', '登录后开启游戏大厅', '小游戏仅向已登录会员开放。本地预览可在地址后加入 member=1 查看登录状态。');
-        return render_layout($data, '游戏大厅', $content);
+        return render_layout($data, '游戏大厅', $content, true);
     }
 
     if ($route === 'game-2048') {
         $content = preview_member_enabled($query)
             ? render_game_2048_preview()
             : render_game_login_gate('phpGame2048LoginTitle', '登录后才能开始游戏', '登录会员账号后即可进入 2048，未登录状态不会加载游戏脚本。');
-        return render_layout($data, '2048', $content);
+        return render_layout($data, '2048', $content, true);
     }
 
     if ($route === 'game-blockrain') {
         $content = preview_member_enabled($query)
             ? render_game_blockrain_preview()
             : render_game_login_gate('phpGameBlockrainLoginTitle', '登录后才能开始游戏', '登录会员账号后即可进入俄罗斯方块，未登录状态不会加载游戏脚本。');
-        return render_layout($data, '俄罗斯方块', $content);
+        return render_layout($data, '俄罗斯方块', $content, true);
     }
 
     if ($route === 'game-bamboo-cicada') {
         $content = preview_member_enabled($query)
             ? render_game_bamboo_cicada_preview()
             : render_game_login_gate('phpBambooCicadaLoginTitle', '登录后才能摇响竹知了', '登录会员账号后即可游玩竹知了，未登录状态不会加载游戏脚本或声音模块。');
-        return render_layout($data, '竹知了', $content);
+        return render_layout($data, '竹知了', $content, true);
     }
 
     if ($route === 'game-gomoku') {
         $content = preview_member_enabled($query)
             ? render_game_gomoku_preview()
             : render_game_login_gate('phpGomokuLoginTitle', '登录后才能联机对弈', '五子棋房间仅向已登录会员开放，未登录状态不会请求联机票据或加载游戏脚本。');
-        return render_layout($data, '联机五子棋', $content);
+        return render_layout($data, '联机五子棋', $content, true);
     }
 
     if ($route === 'game-drawguess') {
         $content = preview_member_enabled($query)
             ? render_game_drawguess_preview()
             : render_game_login_gate('phpDrawGuessLoginTitle', '登录后才能加入画室', '你画我猜房间仅向已登录会员开放，未登录状态不会请求联机票据或加载游戏脚本。');
-        return render_layout($data, '联机你画我猜', $content);
+        return render_layout($data, '联机你画我猜', $content, true);
     }
 
     if ($route === 'comics') {
@@ -697,7 +737,7 @@ function render_page(array $data, string $route, array $query): string
         $sortLinks = '<a' . ($sort === 'latest' ? ' class="is-active"' : '') . ' href="' . e(path_for($routeName, ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'latest'])) . '">最新</a>';
         $sortLinks .= '<a' . ($sort === 'hot' ? ' class="is-active"' : '') . ' href="' . e(path_for($routeName, ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'hot'])) . '">最热</a>';
         $sortLinks .= '<a' . ($sort === 'score' ? ' class="is-active"' : '') . ' href="' . e(path_for($routeName, ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'score'])) . '">评分</a>';
-        $filter = '<section class="wrap filter-panel category-filter">' . $channelSearch
+        $filter = '<section class="wrap filter-panel category-filter" data-filter-drawer>' . $channelSearch
             . '<div class="filter-row"><strong>类型</strong><div class="filter-options">' . $typeLinks . '</div></div>'
             . '<div class="filter-row"><strong>地区</strong><div class="filter-options">' . $areaLinks . '</div></div>'
             . '<div class="filter-row"><strong>年份</strong><div class="filter-options">' . $yearLinks . '</div></div>'
@@ -709,7 +749,7 @@ function render_page(array $data, string $route, array $query): string
         $pagination = render_pagination($routeName, ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort], $page, $totalPages);
         $pageTitle = $name !== '' ? $name : $defaultTitle;
         $emptyState = '<div class="content-empty-state" data-empty-state hidden role="status"><strong>暂无符合条件的影片</strong><span>试试清除筛选条件，或浏览其他频道。</span><a href="' . e(path_for($routeName, $name !== '' ? ['name' => $name] : [])) . '">重置筛选</a></div>';
-        return render_layout($data, $pageTitle, '<section class="wrap page-title"><span class="eyebrow">分类浏览</span><h1>' . e($pageTitle) . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . $totalCount . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid" data-empty-container data-empty-item=".vod-card">' . render_cards($pagedVideos) . $emptyState . '</div>' . $pagination . '</section>');
+        return render_layout($data, $pageTitle, '<section class="wrap page-title filter-page-title"><span class="eyebrow">分类浏览</span><h1>' . e($pageTitle) . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . $totalCount . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid" data-empty-container data-empty-item=".vod-card">' . render_cards($pagedVideos) . $emptyState . '</div>' . $pagination . '</section>');
     }
 
     if ($route === 'search') {
@@ -736,7 +776,7 @@ function render_page(array $data, string $route, array $query): string
             $active = $category === $type ? ' class="is-active"' : '';
             return '<a' . $active . ' href="' . e(path_for('search', ['wd' => $keyword, 'type' => $category])) . '">' . e($category) . '</a>';
         }, $data['categories']));
-        $filter = '<section class="wrap filter-panel category-filter search-filter-panel"><div class="filter-row"><strong>频道</strong><div class="filter-options">' . $filterLinks . '</div></div>';
+        $filter = '<section class="wrap filter-panel category-filter search-filter-panel" data-filter-drawer><div class="filter-row"><strong>频道</strong><div class="filter-options">' . $filterLinks . '</div></div>';
         if ($type !== '' && $searchClasses !== []) {
             $classFilterLinks = '<a' . ($class === '' ? ' class="is-active"' : '') . ' href="' . e(path_for('search', ['wd' => $keyword, 'type' => $type])) . '">全部</a>';
             $classFilterLinks .= implode('', array_map(static function (string $item) use ($keyword, $type, $class): string {
@@ -747,11 +787,11 @@ function render_page(array $data, string $route, array $query): string
         }
         $filter .= '</section>';
         $list = implode('', array_map(static function (array $video): string {
-            return '<a class="list-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy"><span><strong>' . e($video['title']) . '</strong><small>' . e($video['actor']) . '</small><span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span><span>' . e($video['score']) . ' 分</span></span><em>' . e($video['summary']) . '</em></span></a>';
+            return '<a class="list-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="96" height="144" sizes="96px"><span><strong>' . e($video['title']) . '</strong><small>' . e($video['actor']) . '</small><span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span><span>' . e($video['score']) . ' 分</span></span><em>' . e($video['summary']) . '</em></span></a>';
         }, $videos));
         $sectionHead = $type !== '' ? '<div class="section-head compact"><h2>' . e($type) . '</h2><span>搜索结果</span></div>' : '';
         $emptyState = '<div class="content-empty-state" data-empty-state hidden role="status"><strong>没有找到相关影片</strong><span>换个关键词或清除频道筛选后再试。</span><a href="' . e(path_for('videos')) . '">浏览影片库</a></div>';
-        return render_layout($data, '搜索', '<section class="wrap page-title"><span class="eyebrow">搜索结果</span><h1>' . e($keyword !== '' ? $keyword : '全部内容') . '</h1><p>找到 ' . count($videos) . ' 条相关内容。</p></section>' . $filter . '<section class="wrap content-section">' . $sectionHead . '<div class="vod-list" data-empty-container data-empty-item=".list-item">' . $list . $emptyState . '</div></section>');
+        return render_layout($data, '搜索', '<section class="wrap page-title filter-page-title"><span class="eyebrow">搜索结果</span><h1>' . e($keyword !== '' ? $keyword : '全部内容') . '</h1><p>找到 ' . count($videos) . ' 条相关内容。</p></section>' . $filter . '<section class="wrap content-section">' . $sectionHead . '<div class="vod-list" data-empty-container data-empty-item=".list-item">' . $list . $emptyState . '</div></section>');
     }
 
     if ($route === 'detail') {
@@ -760,7 +800,7 @@ function render_page(array $data, string $route, array $query): string
             return '<a href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $episode['no']])) . '">' . e($episode['name']) . '</a>';
         }, $video['episodes']));
 
-        return render_layout($data, $video['title'], '<section class="detail-hero"><span class="detail-backdrop" aria-hidden="true"><img src="' . e($video['poster']) . '" alt=""></span><div class="wrap detail-grid"><div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '"><span>' . e($video['remark']) . '</span></div><div class="detail-main detail-panel"><span class="eyebrow">' . e($video['category']) . '</span><div class="detail-title-row"><h1>' . e($video['title']) . '</h1><span class="score-badge">' . e($video['score']) . '</span></div><p class="meta">' . e($video['year']) . ' / ' . e($video['area']) . ' / ' . e($video['category']) . '</p><p class="summary">' . e($video['summary']) . '</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div></div></section><section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>');
+        return render_layout($data, $video['title'], '<section class="detail-hero"><span class="detail-backdrop" aria-hidden="true"><img src="' . e($video['poster']) . '" alt="" width="380" height="570" decoding="async"></span><div class="wrap detail-grid"><div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 116px, 250px"><span>' . e($video['remark']) . '</span></div><div class="detail-main detail-panel"><div class="detail-primary"><span class="eyebrow">' . e($video['category']) . '</span><div class="detail-title-row"><h1>' . e($video['title']) . '</h1><span class="score-badge">' . e($video['score']) . '</span></div><p class="meta">' . e($video['year']) . ' / ' . e($video['area']) . ' / ' . e($video['category']) . '</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div><p class="summary">' . e($video['summary']) . '</p></div></div></section><section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>');
     }
 
     if ($route === 'copyright') {

@@ -41,7 +41,14 @@ const requiredThemeDirs = [
 
 const requiredThemeFiles = [
   "info.ini",
+  "css/base.css",
+  "css/themes-foundation.css",
   "css/style.css",
+  "css/ink-wash.css",
+  "images/ink-wash/shan-shui-landscape.e17b1e76e079.webp",
+  "css/themes.css",
+  "css/games.css",
+  "css/responsive.css",
   "css/qixi-bouquet.css",
   "games/2048/LICENSE.txt",
   "games/2048/js/application.js",
@@ -180,6 +187,14 @@ const include = readThemeFile("html/public/include.html");
 assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/home\.js/);
 assert.match(include, /var maccms=/);
+assert.match(include, /css\/base\.css\?v=__PINGFANG_BASE_STYLE_VERSION__/);
+assert.match(include, /css\/themes-foundation\.css\?v=__PINGFANG_THEME_FOUNDATION_VERSION__/);
+assert.match(include, /css\/style\.css\?v=__PINGFANG_STYLE_VERSION__/);
+assert.match(include, /css\/themes\.css\?v=__PINGFANG_THEMES_VERSION__/);
+assert.match(include, /css\/games\.css\?v=__PINGFANG_GAMES_STYLE_VERSION__/);
+assert.match(include, /css\/responsive\.css\?v=__PINGFANG_RESPONSIVE_STYLE_VERSION__/);
+assert.match(include, /data-theme-foundation-stylesheet/);
+assert.match(include, /data-theme-stylesheet/);
 
 const head = readThemeFile("html/public/head.html");
 assert.match(head, /\[seo_title\]/);

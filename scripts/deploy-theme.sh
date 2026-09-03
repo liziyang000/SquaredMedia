@@ -29,8 +29,8 @@ if [[ -n "$DEPLOY_SITE_HOST" && ! "$DEPLOY_SITE_HOST" =~ ^[A-Za-z0-9.-]+$ ]]; th
   echo "DEPLOY_SITE_HOST must be a hostname without a scheme or path." >&2
   exit 1
 fi
-if [[ "$DEPLOY_SCOPE" != "all" && "$DEPLOY_SCOPE" != "vodops" ]]; then
-  echo "DEPLOY_SCOPE must be all or vodops." >&2
+if [[ "$DEPLOY_SCOPE" != "all" && "$DEPLOY_SCOPE" != "theme" && "$DEPLOY_SCOPE" != "vodops" ]]; then
+  echo "DEPLOY_SCOPE must be all, theme, or vodops." >&2
   exit 1
 fi
 if [[ "$VODOPS_INSTALL_CRON" != "0" && "$VODOPS_INSTALL_CRON" != "1" ]]; then
@@ -76,11 +76,17 @@ npm run verify:preview
 npm run package
 npm run verify:release
 
-if [[ "$DEPLOY_SCOPE" == "all" ]]; then
+THEME_ARCHIVE_SHA="$(node -e 'const fs=require("node:fs"),crypto=require("node:crypto"); process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"));' "$ARCHIVE")"
+
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "theme" ]]; then
   "${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
+fi
+if [[ "$DEPLOY_SCOPE" == "all" ]]; then
   "${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
 fi
-"${scp_command[@]}" "$VODOPS_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_VODOPS_ADDON_TMP}"
+if [[ "$DEPLOY_SCOPE" != "theme" ]]; then
+  "${scp_command[@]}" "$VODOPS_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_VODOPS_ADDON_TMP}"
+fi
 
 remote_env=(
   "DEPLOY_PATH=$(printf "%q" "$DEPLOY_PATH")"
@@ -88,6 +94,7 @@ remote_env=(
   "REMOTE_ADDON_TMP=$(printf "%q" "$REMOTE_ADDON_TMP")"
   "REMOTE_VODOPS_ADDON_TMP=$(printf "%q" "$REMOTE_VODOPS_ADDON_TMP")"
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
+  "THEME_ARCHIVE_SHA=$(printf "%q" "$THEME_ARCHIVE_SHA")"
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
   "VODOPS_ADDON_NAME=$(printf "%q" "$VODOPS_ADDON_NAME")"
   "DEPLOY_SCOPE=$(printf "%q" "$DEPLOY_SCOPE")"
@@ -102,6 +109,8 @@ remote_env=(
 set -euo pipefail
 
 deploy_tmp_dir=""
+theme_auto_rollback_backup=""
+theme_candidate_dir=""
 vodops_auto_rollback_backup=""
 vodops_auto_rollback_root=""
 vodops_auto_rollback_addon=""
@@ -242,6 +251,15 @@ remote_deploy_exit() {
   local status=$?
 
   trap - EXIT
+  if [[ "$status" != "0" && -n "$theme_auto_rollback_backup" && -d "$theme_auto_rollback_backup" ]]; then
+    echo "Theme verification failed; restoring ${theme_auto_rollback_backup}." >&2
+    if { [[ ! -e "$DEPLOY_PATH/$THEME_NAME" ]] || mv "$DEPLOY_PATH/$THEME_NAME" "$DEPLOY_PATH/${THEME_NAME}.failed.$(date +%Y%m%d%H%M%S).$$"; } \
+      && cp -a "$theme_auto_rollback_backup" "$DEPLOY_PATH/$THEME_NAME"; then
+      clear_maccms_cache || true
+    else
+      echo "Theme automatic rollback failed; restore the preserved backup manually." >&2
+    fi
+  fi
   if [[ "$status" != "0" && -n "$vodops_auto_rollback_backup" ]]; then
     echo "VodOps deployment failed after replacement; starting automatic file rollback." >&2
     if ! restore_vodops_deploy_snapshot \
@@ -256,6 +274,9 @@ remote_deploy_exit() {
   fi
   if [[ -n "$deploy_tmp_dir" ]]; then
     rm -rf "$deploy_tmp_dir" || true
+  fi
+  if [[ -n "$theme_candidate_dir" ]]; then
+    rm -rf "$theme_candidate_dir" || true
   fi
   rm -rf "$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP" || true
   exit "$status"
@@ -326,6 +347,29 @@ verify_deployed_site() {
 
   bytes="$(wc -c < "$verify_file")"
   echo "Verified deployed site ${verify_url}: HTTP ${status}, ${bytes} bytes"
+}
+
+install_theme_only() {
+  local actual_sha backup
+  actual_sha="$(sha256sum "$REMOTE_TMP" | cut -d' ' -f1)"
+  if [[ "$actual_sha" != "$THEME_ARCHIVE_SHA" ]]; then
+    echo "Uploaded theme archive SHA-256 mismatch." >&2
+    return 1
+  fi
+  if [[ ! -d "$DEPLOY_PATH/$THEME_NAME" || -L "$DEPLOY_PATH/$THEME_NAME" ]]; then
+    echo "Theme-only deployment requires an existing regular theme directory." >&2
+    return 1
+  fi
+  theme_candidate_dir="$(mktemp -d "$DEPLOY_PATH/.${THEME_NAME}.candidate.XXXXXX")"
+  tar -xzf "$REMOTE_TMP" -C "$theme_candidate_dir"
+  test -f "$theme_candidate_dir/$THEME_NAME/info.ini"
+  backup="$DEPLOY_PATH/pingfangvideo.backup.$(date +%Y%m%d%H%M%S).$$"
+  test ! -e "$backup"
+  theme_auto_rollback_backup="$backup"
+  mv "$DEPLOY_PATH/$THEME_NAME" "$backup"
+  mv "$theme_candidate_dir/$THEME_NAME" "$DEPLOY_PATH/$THEME_NAME"
+  echo "Theme backup: $backup"
+  echo "Theme archive SHA-256: $actual_sha"
 }
 
 install_device_addon() {
@@ -1037,6 +1081,8 @@ deploy_tmp_dir="$(mktemp -d)"
 
 if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
   install_vodops_addon
+elif [[ "$DEPLOY_SCOPE" == "theme" ]]; then
+  install_theme_only
 else
   install_device_addon
   install_vodops_addon
@@ -1074,6 +1120,7 @@ if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
   vodops_auto_rollback_addon=""
   vodops_auto_rollback_cron="0"
 fi
+theme_auto_rollback_backup=""
 REMOTE_SCRIPT
 
 if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then

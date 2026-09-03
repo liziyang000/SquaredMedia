@@ -11,10 +11,16 @@ const addonRoot = path.join(root, "addons", "pingfangdevice");
 const vodopsAddonRoot = path.join(root, "addons", "vodops");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
+const baseStyleVersionPlaceholder = "__PINGFANG_BASE_STYLE_VERSION__";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
+const themeFoundationVersionPlaceholder = "__PINGFANG_THEME_FOUNDATION_VERSION__";
+const themesVersionPlaceholder = "__PINGFANG_THEMES_VERSION__";
+const gamesStyleVersionPlaceholder = "__PINGFANG_GAMES_STYLE_VERSION__";
+const responsiveStyleVersionPlaceholder = "__PINGFANG_RESPONSIVE_STYLE_VERSION__";
 const appVersionPlaceholder = "__PINGFANG_APP_VERSION__";
 const promptVersionPlaceholder = "__PINGFANG_PROMPT_VERSION__";
 const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
+const blockrainVersionPlaceholder = "__PINGFANG_BLOCKRAIN_VERSION__";
 const bambooCicadaVersionPlaceholder = "__PINGFANG_BAMBOO_CICADA_VERSION__";
 const multiplayerVersionPlaceholder = "__PINGFANG_MULTIPLAYER_VERSION__";
 const qixiVersionPlaceholder = "__PINGFANG_QIXI_VERSION__";
@@ -22,7 +28,13 @@ const qixiStyleVersionPlaceholder = "__PINGFANG_QIXI_STYLE_VERSION__";
 
 const requiredFiles = [
   "info.ini",
+  "css/base.css",
   "css/style.css",
+  "css/ink-wash.css",
+  "css/themes-foundation.css",
+  "css/themes.css",
+  "css/games.css",
+  "css/responsive.css",
   "css/qixi-bouquet.css",
   "images/brand/favicon.ico",
   "images/brand/favicon.png",
@@ -323,12 +335,31 @@ const include = readThemeFile("html/public/include.html");
 assert.match(include, /<link rel="icon" href="\{\$maccms\.path_tpl\}images\/brand\/favicon\.ico">/);
 assert.match(include, /<link rel="icon" type="image\/png" sizes="64x64" href="\{\$maccms\.path_tpl\}images\/brand\/favicon\.png">/);
 assert.match(include, /<link rel="apple-touch-icon" sizes="512x512" href="\{\$maccms\.path_tpl\}images\/brand\/ios_fav\.png">/);
+assert.match(include, /<meta name="theme-color" content="#070913">/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/home\.js/);
 assert.match(include, /css\/style\.css\?v=/);
 assert.match(include, /"path":"\{:\s*rtrim\(\$maccms\['path'\], '\/'\)\}"/);
 assert.match(include, /"aid":"\{\$maccms\.aid\}"/);
+assert.match(include, new RegExp(`css/base\\.css\\?v=${baseStyleVersionPlaceholder}`));
 assert.match(include, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/themes-foundation\\.css\\?v=${themeFoundationVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/themes\\.css\\?v=${themesVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/games\\.css\\?v=${gamesStyleVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/responsive\\.css\\?v=${responsiveStyleVersionPlaceholder}`));
+assert.match(include, /data-theme-foundation-stylesheet/);
+assert.match(include, /data-theme-stylesheet/);
+assert.match(include, /\{if condition="isset\(\$pingfang_page_style\) and \$pingfang_page_style eq 'games'"\}/);
+assert.match(include, /foundationTheme = theme === "blue-pink-purple" \|\| theme === "poster-magazine"/);
+assert.match(include, /stylesheet\.setAttribute\("rel", "stylesheet"\)/);
+assert.ok(
+  include.indexOf("base.css") < include.indexOf("themes-foundation.css") &&
+    include.indexOf("themes-foundation.css") < include.indexOf("style.css") &&
+    include.indexOf("style.css") < include.indexOf("themes.css") &&
+    include.indexOf("themes.css") < include.indexOf("games.css") &&
+    include.indexOf("games.css") < include.indexOf("responsive.css"),
+  "Theme, base, game, and responsive stylesheets must keep their cascade order",
+);
 assert.match(include, /window\.localStorage\.getItem\("pingfang_theme"\)/);
 assert.match(include, /theme === "poster-magazine"/);
 assert.match(include, /theme === "dunhuang-caisson"/);
@@ -365,13 +396,9 @@ function assertRuntimeSeo(page, values) {
 assert.match(head, /\[seo_title\]/);
 assert.match(head, /\[seo_keywords\]/);
 assert.match(head, /\[seo_description\]/);
-assert.match(head, /site-logo\.png/);
-assert.match(head, /brand-logo/);
-assert.match(head, /class="brand-logo"[^>]*width="58"[^>]*height="58"/);
-assert.match(head, /class="brand-logo"[^>]*decoding="async"/);
 assert.match(head, /class="brand-emblem" aria-hidden="true"/);
 assert.match(head, /class="brand-wordmark"><strong>\{\$maccms\.site_name\}<\/strong><small>STREAMING EDITION<\/small>/);
-assert.match(head, /class="brand-logo"[^>]*hidden aria-hidden="true"/);
+assert.doesNotMatch(head, /class="brand-logo"|site-logo\.png/);
 assert.doesNotMatch(head, /brand-mark">PF/);
 assert.doesNotMatch(head, /brand-text/);
 assert.match(head, /class="theme-switcher" data-theme-switcher/);
@@ -463,7 +490,8 @@ assert.doesNotMatch(foot, /mac_url\('gbook\/index'\)/);
 assert.doesNotMatch(foot, /mac_url\('map\/rss'\)/);
 assert.match(foot, /class="mac_timming"/);
 assert.doesNotMatch(foot, /js\/gsap\.min\.js/);
-assert.match(foot, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.match(foot, /js\/app\.js\?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="\{\$maccms\.path_tpl\}js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
+assert.doesNotMatch(foot, /<script src="[^\"]*canvas-confetti\.min\.js/);
 assert.doesNotMatch(foot, /https?:\/\/[^"']*canvas-confetti/);
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260621/);
 assert.match(foot, new RegExp(`js/app\\.js\\?v=${appVersionPlaceholder}`));
@@ -684,6 +712,22 @@ assert.match(gamesPage, /登录后开启游戏大厅/);
 assert.match(gamesPage, /mac_url\('user\/login'\)/);
 assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
 
+for (const file of [
+  "html/label/games.html",
+  "html/label/game-2048.html",
+  "html/label/game-blockrain.html",
+  "html/label/game-bamboo-cicada.html",
+  "html/label/game-gomoku.html",
+  "html/label/game-drawguess.html",
+]) {
+  const page = readThemeFile(file);
+  const styleAssignment = '{assign name="pingfang_page_style" value="games" /}';
+  assert.ok(
+    page.indexOf(styleAssignment) >= 0 && page.indexOf(styleAssignment) < page.indexOf('{include file="public/head"'),
+    `${file} should request game styles before rendering the shared head`,
+  );
+}
+
 const game2048Page = readThemeFile("html/label/game-2048.html");
 assert.match(game2048Page, /seo_title="2048"/);
 assert.doesNotMatch(game2048Page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
@@ -705,7 +749,7 @@ assert.match(gameBlockrainPage, /class="blockrain-shell"/);
 assert.match(gameBlockrainPage, /data-blockrain-next/);
 assert.equal((gameBlockrainPage.match(/data-blockrain-action=/g) || []).length, 5);
 assert.match(gameBlockrainPage, /data-blockrain-action="drop"/);
-assert.match(gameBlockrainPage, /data-auth-script="\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js"/);
+assert.match(gameBlockrainPage, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/blockrain/blockrain\\.jquery\\.min\\.js\\?v=${blockrainVersionPlaceholder}"`));
 assert.match(gameBlockrainPage, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}"`));
 assert.doesNotMatch(gameBlockrainPage, /jquery-1\.11\.1\.min\.js/);
 assert.doesNotMatch(gameBlockrainPage, /<script[^>]+games\/(?:blockrain|init)/);
@@ -860,7 +904,7 @@ assert.match(userLoginPage, /mac_url\('user\/findpass'\)/);
 assert.match(userLoginPage, /mac_url\('user\/reg'\)/);
 assert.match(userLoginPage, /login_verify/);
 assert.match(userLoginPage, /name="verify"/);
-assert.match(userLoginPage, /class="mac_verify_img"[^>]*src="\{:url\('verify\/index'\)\}"/);
+assert.match(userLoginPage, /class="mac_verify_img"[^>]*src="\{:url\('verify\/index'\)\}"[^>]*width="126"[^>]*height="54"[^>]*decoding="async"/);
 assert.match(userLoginPage, /type="hidden" name="openid"/);
 assert.match(userLoginPage, /type="hidden" name="col"/);
 
@@ -994,6 +1038,7 @@ assert.doesNotMatch(index, /data-gradient-strips?/);
 assert.match(index, /hero-slide/);
 assert.match(index, /banner-content/);
 assert.match(index, /data-banner-bg="\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}"/);
+assert.match(index, /\{if condition="\$key eq 1"\}\s*\{if condition="\$vo\.vod_pic_slide neq ''"\}\s*<img class="banner-priority-image" src="\{\$vo\.vod_pic_slide\|mac_url_img\}"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image>\s*\{else\/\}\s*<img class="banner-priority-image" src="\{\$vo\.vod_pic\|mac_url_img\}"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image>\s*\{\/if\}\s*\{\/if\}/);
 assert.doesNotMatch(index, /style="--banner-bg:/);
 assert.match(index, /class="primary-btn" href="\{:mac_url_vod_play\(\$vo\)\}">立即播放<\/a>/);
 assert.match(index, /class="ghost-btn" href="\{:mac_url_vod_detail\(\$vo\)\}">详情介绍<\/a>/);
@@ -1092,12 +1137,14 @@ assert.doesNotMatch(index, /<a href="\{:mac_url\('vod\/show'\)\}">全部影片<\
 const detail = readThemeFile("html/vod/detail.html");
 assertRuntimeSeo(detail, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(detail, /\{\$obj\.vod_pic\|mac_url_img\}/);
-assert.match(detail, /class="detail-backdrop" aria-hidden="true"><img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="">/);
-assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/);
+assert.match(detail, /class="detail-backdrop" aria-hidden="true"><img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="" width="380" height="570" decoding="async">/);
+assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 116px, 250px">/);
 assert.match(detail, /mac_url_vod_play/);
 assert.match(detail, /mac_history_set/);
 assert.match(detail, /obj\.vod_play_list/);
 assert.match(detail, /detail-panel/);
+assert.match(detail, /class="detail-primary"[\s\S]*class="detail-title-row"[\s\S]*class="detail-actions"/);
+assert.ok(detail.indexOf('class="detail-primary"') < detail.indexOf('class="summary"'), "detail primary actions should precede secondary copy on mobile");
 assert.match(detail, /detail-title-row/);
 assert.match(detail, /include file="public\/score"/);
 assert.match(detail, /include file="public\/star"/);
@@ -1140,9 +1187,10 @@ assert.match(play, /data-source-quality-sid="\{\$vo\.sid\}"/);
 assert.match(play, /player-toolbar/);
 assert.match(play, /class="player-shell" role="region" aria-label="视频播放器"[\s\S]*class="player-toolbar" role="group" aria-label="播放控制"/);
 assert.match(play, /\{if condition="\$param\.nid gt 1"\}[\s\S]*\{\$obj\.player_info\.link_pre\}[\s\S]*上一集/);
-assert.match(play, /href="#episodeList">选集<\/a>/);
+assert.match(play, /href="#episodeList" data-episode-drawer-toggle aria-controls="episodeList" aria-expanded="false">选集<\/a>/);
 assert.match(play, /\$obj\.player_info\.link_next[\s\S]*下一集/);
-assert.match(play, /id="episodeList" aria-label="选集列表"/);
+assert.match(play, /id="episodeList" aria-label="选集列表" data-episode-drawer/);
+assert.match(play, /class="episode-drawer-head"[\s\S]*id="episodeDrawerTitle"[\s\S]*data-episode-drawer-close/);
 assert.match(play, /\$vo\.sid eq \$param\.sid and \$vo2\.nid eq \$param\.nid/);
 assert.match(play, /aria-current="page"/);
 assert.doesNotMatch(play, /data-player-fullscreen/);
@@ -1252,6 +1300,8 @@ assert.match(typePage, /\{maccms:vod num="24" paging="yes"/);
 assert.match(typePage, /pageurl="vod\/type"/);
 assert.doesNotMatch(typePage, /\$param\['by'\]/);
 assert.match(typePage, /filter-panel category-filter/);
+assert.match(typePageSource, /class="wrap page-title filter-page-title"/);
+assert.match(typePageSource, /data-filter-drawer/);
 assert.match(typePage, /data-dynamic-vod-filters/);
 assert.match(typePage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
 assert.match(typePage, /data-filter-type-id="\{\$obj\.type_id\}"/);
@@ -1337,6 +1387,8 @@ assert.match(showPageSource, new RegExp(`\\{include file="public/vod_grid_result
 assert.match(vodGridResultsPartial, /pageurl="\[pageurl\]"/);
 assert.match(vodGridResultsPartial, /type="\[vod_type\]"/);
 assert.match(showPage, /data-dynamic-vod-filters/);
+assert.match(showPageSource, /class="wrap page-title filter-page-title"/);
+assert.match(showPageSource, /data-filter-drawer/);
 assert.match(showPage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
 assert.match(showPage, /data-filter-type-id="\{\$obj\.type_id\}"/);
 assert.match(showPage, /data-current-area="\{\$param\.area\}"/);
@@ -1435,11 +1487,43 @@ assert.doesNotMatch(searchPage, /class="hot-search-panel search-hot-panel"/);
 assert.doesNotMatch(searchPage, /\$maccms\.search_hot/);
 assert.doesNotMatch(searchPage, /mac_url\('vod\/search',\['wd'=>\$vo2\]\)/);
 
-const performanceStyle = readThemeFile("css/style.css");
+const baseFoundationStyle = readThemeFile("css/base.css");
+const coreStyle = readThemeFile("css/style.css");
+const baseStyle = `${baseFoundationStyle}\n${coreStyle}`;
+const themeFoundationStyle = readThemeFile("css/themes-foundation.css");
+const optionalThemeStyle = readThemeFile("css/themes.css");
+const gamesStyle = readThemeFile("css/games.css");
+const responsiveStyle = readThemeFile("css/responsive.css");
+const performanceStyle = `${baseStyle}\n${responsiveStyle}`;
 assert.match(performanceStyle, /@supports \(content-visibility: auto\)/);
 assert.match(performanceStyle, /content-visibility: auto;/);
 assert.match(performanceStyle, /contain-intrinsic-size: auto 520px;/);
+assert.match(performanceStyle, /\.banner-priority-image\s*\{/);
+assert.match(performanceStyle, /min-height: clamp\(420px, 58dvh, 460px\)/);
+assert.match(performanceStyle, /\.filter-drawer-sheet/);
+assert.match(performanceStyle, /\.episode-drawer-head/);
+assert.match(performanceStyle, /body\.filter-drawer-open/);
+assert.match(performanceStyle, /body\.episode-drawer-open/);
+assert.match(performanceStyle, /grid-template-columns: 116px minmax\(0, 1fr\)/);
+assert.doesNotMatch(performanceStyle, /transition:\s*all/);
+assert.doesNotMatch(baseStyle, /\/\* Member game hub \*\//);
+assert.doesNotMatch(baseStyle, /\/\* Theme-specific login treatments \*\//);
+assert.doesNotMatch(baseStyle, /:where\(html\[data-theme="blue-pink-purple"\]/);
+assert.doesNotMatch(baseStyle, /\/\* Core mobile experience: compact first screens and progressive drawers\. \*\//);
+assert.match(themeFoundationStyle, /html\[data-theme="poster-magazine"\]/);
+assert.match(themeFoundationStyle, /html\[data-theme="blue-pink-purple"\]/);
+assert.match(optionalThemeStyle, /html\[data-theme="dunhuang-caisson"\]/);
+assert.match(optionalThemeStyle, /html\[data-theme="digital-particles"\]/);
+assert.match(optionalThemeStyle, /html\[data-theme="pixel-frog"\]/);
+assert.match(optionalThemeStyle, /Fusion Pixel PFV/);
+assert.match(gamesStyle, /\/\* Member game hub \*\//);
+assert.match(gamesStyle, /\.game-2048/);
+assert.match(gamesStyle, /\.blockrain-shell/);
+assert.match(gamesStyle, /\.bamboo-cicada-arena/);
+assert.match(responsiveStyle, /\/\* Core mobile experience: compact first screens and progressive drawers\. \*\//);
 assert.match(searchPage, /class="wrap filter-panel category-filter search-filter-panel"/);
+assert.match(searchPage, /class="wrap page-title filter-page-title"/);
+assert.match(searchPage, /data-filter-drawer/);
 assert.match(searchPage, /<strong>频道<\/strong>/);
 assert.match(searchPage, /mac_url\('vod\/search',\['wd'=>\$param\['wd'\]\]\)/);
 assert.match(searchPage, /\{maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"\}/);
@@ -1480,7 +1564,7 @@ assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
 assert.match(starPartial, /豆瓣/);
 
-const style = readThemeFile("css/style.css");
+const style = [baseFoundationStyle, themeFoundationStyle, coreStyle, optionalThemeStyle, gamesStyle, responsiveStyle].join("\n");
 assert.match(style, /\.multiplayer-page \[hidden\]\s*\{\s*display: none !important;/);
 const appScript = readThemeFile("js/app.js");
 const dunhuangAssets = [
@@ -1518,22 +1602,22 @@ const headerSearchInputFocusRule = extractCssRule(style, ".header-search input:f
 const filterOptionsRule = extractCssRule(style, ".filter-options");
 const dynamicFilterOptionsRule = extractCssRule(style, '.filter-row[data-filter-kind] .filter-options');
 const sharedGlassSurfaceRule = style.match(/\.filter-panel,\n\.episode-box,\n\.detail-panel,\n\.system-box,\n\.device-panel,\n\.favorite-toolbar,\n\.record-toolbar,\n\.comment-layout \.system-box\s*\{[^}]*\}/)?.[0] || "";
-const auroraCinemaRule = style.match(/html\[data-theme="blue-pink-purple"\],\nhtml\[data-theme="aurora-glass"\]\s*\{[^}]*\}/)?.[0] || "";
-const posterRootRule = extractCssRule(style, 'html[data-theme="poster-magazine"]');
-const posterHeroGridRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-grid');
-const posterHeroCarouselRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-carousel');
-const posterHeroRankRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-rank');
-const posterHeroRankBeforeRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-rank::before');
-const posterRankListRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .rank-list');
-const posterShelfRailRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-rail');
-const posterShelfCardRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-card');
-const posterShelfFirstCardRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-card:first-child');
-const posterShelfPosterRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-poster');
-const auroraLoginPanelRule = extractCssRule(style, 'html[data-theme="blue-pink-purple"] .login-panel');
-const posterLoginPanelRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .login-panel');
-const digitalRootRule = extractCssRule(style, 'html[data-theme="digital-particles"]');
-const digitalLoginPanelRule = extractCssRule(style, 'html[data-theme="digital-particles"] .login-panel');
-const digitalBodyParticlesRule = extractCssRule(style, 'html[data-theme="digital-particles"] body::after');
+const auroraCinemaRule = optionalThemeStyle.match(/html\[data-theme="blue-pink-purple"\],\nhtml\[data-theme="aurora-glass"\]\s*\{[^}]*\}/)?.[0] || "";
+const posterRootRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"]');
+const posterHeroGridRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-grid');
+const posterHeroCarouselRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-carousel');
+const posterHeroRankRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-rank');
+const posterHeroRankBeforeRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-rank::before');
+const posterRankListRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .rank-list');
+const posterShelfRailRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-rail');
+const posterShelfCardRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-card');
+const posterShelfFirstCardRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-card:first-child');
+const posterShelfPosterRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-poster');
+const auroraLoginPanelRule = extractCssRule(optionalThemeStyle, 'html[data-theme="blue-pink-purple"] .login-panel');
+const posterLoginPanelRule = extractCssRule(optionalThemeStyle, 'html[data-theme="poster-magazine"] .login-panel');
+const digitalRootRule = extractCssRule(optionalThemeStyle, 'html[data-theme="digital-particles"]');
+const digitalLoginPanelRule = extractCssRule(optionalThemeStyle, 'html[data-theme="digital-particles"] .login-panel');
+const digitalBodyParticlesRule = extractCssRule(optionalThemeStyle, 'html[data-theme="digital-particles"] body::after');
 const playerShellRule = [...style.matchAll(/(?:^|\n)\.player-shell\s*\{[^}]*\}/g)].map((match) => match[0]).find((rule) => /aspect-ratio/.test(rule)) || "";
 const playerMediaRule = style.match(/\.player-shell #MacPlayer,[\s\S]*?\.player-shell object\s*\{[^}]*\}/)?.[0] || "";
 const playerMacRule = extractCssRule(style, ".player-shell #MacPlayer");
@@ -1586,6 +1670,8 @@ const vodCardMetaChipRule = style.match(/\.card-meta span\s*\{[\s\S]*?\}/)?.[0] 
 const posterRemarkRule = style.match(/\.poster em,[\s\S]*?\.detail-poster span\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryMainTitleRule = style.match(/\.category-main span\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryChildLinkRule = style.match(/\.category-children a\s*\{[\s\S]*?\}/)?.[0] || "";
+const loginTouchLinkRule = style.match(/\.login-options a,\n\.login-register a\s*\{[\s\S]*?\}/)?.[0] || "";
+const gameSourceLinkRule = extractCssRule(style, ".game-source-link");
 const timelineTitleRule = style.match(/\.timeline-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const episodeLinkRule = style.match(/\.episode-grid a\s*\{[\s\S]*?\}/)?.[0] || "";
 const episodeActiveRule = style.match(/\.episode-grid a:hover,[\s\S]*?\.episode-grid a\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1618,6 +1704,10 @@ const mobilePlayerToolbarButtonRule = [...style.matchAll(/\.player-toolbar-actio
   .map((match) => match[0])
   .find((rule) => /text-align: center/.test(rule)) || "";
 assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
+assert.match(appScript, /function ensureThemeStyles\(theme\)/);
+assert.match(appScript, /data-theme-foundation-stylesheet/);
+assert.match(appScript, /data-theme-stylesheet/);
+assert.match(appScript, /ensureThemeStyles\(theme\)\.then\(function \(\) \{[\s\S]*applyTheme\(theme, true\)/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
 assert.match(appScript, /"dunhuang-caisson": true/);
@@ -1629,6 +1719,10 @@ assert.match(appScript, /document\.documentElement\.removeAttribute\("data-theme
 assert.match(appScript, /window\.localStorage\.setItem\(themeStorageKey, theme\)/);
 assert.match(appScript, /window\.localStorage\.removeItem\(themeStorageKey\)/);
 assert.match(appScript, /window\.confetti/);
+assert.match(appScript, /data-pixel-confetti-src/);
+assert.match(appScript, /function loadPixelThemeConfetti\(\)/);
+assert.match(appScript, /document\.createElement\("script"\)/);
+assert.match(appScript, /loadPixelThemeConfetti\(\)\.then/);
 assert.match(appScript, /shapes: \["square"\]/);
 assert.match(appScript, /disableForReducedMotion: true/);
 assert.match(appScript, /gravity: 0/);
@@ -2048,6 +2142,13 @@ assert.doesNotMatch(playerShellRule, /min-height: 500px/);
 assert.doesNotMatch(playerMacChildrenRule, /min-height: 500px/);
 assert.match(mobilePlayerToolbarButtonRule, /flex: 1 1 0/);
 assert.match(mobilePlayerToolbarButtonRule, /min-width: 0/);
+assert.match(categoryChildLinkRule, /display: inline-flex/);
+assert.match(categoryChildLinkRule, /min-height: 40px/);
+assert.match(loginTouchLinkRule, /display: inline-flex/);
+assert.match(loginTouchLinkRule, /min-height: 40px/);
+assert.match(gameSourceLinkRule, /display: inline-flex/);
+assert.match(gameSourceLinkRule, /min-height: 40px/);
+assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.player-head > \.ghost-btn\s*\{[\s\S]*min-height: 40px/);
 assert.doesNotMatch(style, /\.pf-player/);
 assert.match(style, /\.download-list/);
 assert.match(style, /\.download-list a[\s\S]*transition: border-color/);
@@ -2285,7 +2386,7 @@ assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.user-menu\s*\{[\s\S]*di
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.nav-toggle\s*\{[\s\S]*display: block/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.site-header \.brand img\s*\{[\s\S]*width: 48px/);
 assert.doesNotMatch(style, /\.hero-carousel \.hero-stats/);
-assert.doesNotMatch(style, /@media \(max-width: 760px\)[\s\S]*\.banner-copy small\s*\{[\s\S]*-webkit-line-clamp/);
+assert.doesNotMatch(extractCssRule(responsiveStyle, ".hero .banner-copy small"), /-webkit-line-clamp/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.banner-copy strong\s*\{[\s\S]*-webkit-line-clamp: unset/);
 assert.doesNotMatch(style, /@media \(max-width: 760px\)[\s\S]*\.hero-carousel \.hero-stats/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.banner-controls\s*\{[\s\S]*min-height: 0/);
@@ -2382,10 +2483,16 @@ assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionInputs/);
+assert.match(packageScript, /__PINGFANG_BASE_STYLE_VERSION__: "css\/base\.css"/);
 assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
+assert.match(packageScript, /__PINGFANG_THEME_FOUNDATION_VERSION__: "css\/themes-foundation\.css"/);
+assert.match(packageScript, /__PINGFANG_THEMES_VERSION__: "css\/themes\.css"/);
+assert.match(packageScript, /__PINGFANG_GAMES_STYLE_VERSION__: "css\/games\.css"/);
+assert.match(packageScript, /__PINGFANG_RESPONSIVE_STYLE_VERSION__: "css\/responsive\.css"/);
 assert.match(packageScript, /__PINGFANG_APP_VERSION__/);
 assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
 assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
+assert.match(packageScript, /__PINGFANG_BLOCKRAIN_VERSION__/);
 assert.match(packageScript, /__PINGFANG_BAMBOO_CICADA_VERSION__/);
 assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
 assert.match(packageScript, /__PINGFANG_QIXI_VERSION__/);
@@ -2719,7 +2826,7 @@ const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
   },
 });
 assert.notEqual(invalidDeployScope.status, 0);
-assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all or vodops/);
+assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, theme, or vodops/);
 
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
@@ -3051,6 +3158,10 @@ assert.match(templateLinter, /Template lint passed/);
 
 const compatVerifier = readFileSync(path.join(root, "scripts/verify-compat.mjs"), "utf8");
 assert.match(compatVerifier, /requiredThemeDirs/);
+assert.match(
+  compatVerifier,
+  /const requiredThemeFiles = \[[\s\S]*"css\/base\.css"[\s\S]*"css\/themes-foundation\.css"[\s\S]*"css\/style\.css"[\s\S]*"css\/themes\.css"[\s\S]*"css\/games\.css"[\s\S]*"css\/responsive\.css"/
+);
 assert.match(compatVerifier, /html\/label\/comics\.html/);
 assert.match(compatVerifier, /html\/label\/qixi\.html/);
 assert.match(compatVerifier, /html\/comment\/index\.html/);
@@ -3066,6 +3177,17 @@ assert.match(compatVerifier, /html\/vod\/plot\.html/);
 assert.match(compatVerifier, /href="#"/);
 assert.match(compatVerifier, /javascript:history/);
 assert.match(compatVerifier, /Compatibility verification passed/);
+
+const figmaBaselineValidator = readFileSync(path.join(root, "scripts/figma-product-baseline/validate-plan.mjs"), "utf8");
+assert.match(
+  figmaBaselineValidator,
+  /const cssFiles = \[[\s\S]*"base\.css"[\s\S]*"themes-foundation\.css"[\s\S]*"style\.css"[\s\S]*"themes\.css"[\s\S]*"games\.css"[\s\S]*"responsive\.css"/
+);
+assert.match(figmaBaselineValidator, /function readProjectSource\(relativePath\)/);
+assert.match(
+  figmaBaselineValidator,
+  /interactionEvidenceCache\.set\(sourceFile, await readProjectSource\(sourceFile\)\)/
+);
 
 const previewVerifier = readFileSync(path.join(root, "scripts/verify-preview.mjs"), "utf8");
 assert.match(previewVerifier, /php/);
@@ -3103,11 +3225,21 @@ assert.match(releaseVerifier, /assertSafeAssetReference/);
 assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholders/);
 assert.match(releaseVerifier, /assetVersionPattern/);
+assert.match(releaseVerifier, /__PINGFANG_BASE_STYLE_VERSION__/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/base\.css/);
 assert.match(releaseVerifier, /html\/label\/qixi\.html/);
 assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
 assert.match(releaseVerifier, /js\/qixi-particle-bouquet\.js/);
 assert.match(releaseVerifier, /css\/qixi-bouquet\.css/);
 assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_THEME_FOUNDATION_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_THEMES_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_GAMES_STYLE_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_RESPONSIVE_STYLE_VERSION__/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/themes-foundation\.css/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/themes\.css/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/games\.css/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/responsive\.css/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /requiredVodopsEntries/);
 assert.match(releaseVerifier, /vodops\/application\/admin\/view_new\/vodops\/index\.html/);
@@ -3127,7 +3259,10 @@ const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");
 assert.match(qixiPreview, /class="qixi-rose-page" data-qixi-rose/);
 assert.doesNotMatch(qixiPreview, /data-qixi-model|qixi-rose-model/);
-assert.match(qixiPreview, /template\/pingfangvideo\/css\/style\.css/);
+assert.match(
+  qixiPreview,
+  /template\/pingfangvideo\/css\/base\.css[\s\S]*template\/pingfangvideo\/css\/style\.css[\s\S]*template\/pingfangvideo\/css\/responsive\.css[\s\S]*template\/pingfangvideo\/css\/qixi-bouquet\.css/
+);
 assert.match(qixiPreview, /type="module" src="\.\.\/template\/pingfangvideo\/js\/qixi-particle-bouquet\.js"/);
 assert.match(qixiPreview, /href="\.\.\/template\/pingfangvideo\/css\/qixi-bouquet\.css"/);
 assert.doesNotMatch(qixiPreview, /src="[^"]*qixi-particle-rose\.js/);
@@ -3143,12 +3278,22 @@ assert.doesNotMatch(preview, /href="#"/);
 assert.match(preview, /class="filter-options letter-options"/);
 assert.match(preview, /class="filter-row"[\s\S]*class="filter-options"/);
 assert.match(preview, /css\/style\.css\?v=/);
+assert.match(preview, new RegExp(`css/base\\.css\\?v=${baseStyleVersionPlaceholder}`));
 assert.match(preview, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/themes-foundation\\.css\\?v=${themeFoundationVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/themes\\.css\\?v=${themesVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/games\\.css\\?v=${gamesStyleVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/responsive\\.css\\?v=${responsiveStyleVersionPlaceholder}`));
+assert.match(preview, /data-game-stylesheet/);
+assert.match(preview, /function ensureGameStyles\(route\)/);
+assert.match(preview, /async function render\(\)[\s\S]*await ensureGameStyles\(route\)/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260621/);
 assert.match(preview, /js\/app\.js\?v=/);
-assert.match(preview, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.match(preview, /js\/app\.js\?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="\.\.\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
+assert.doesNotMatch(preview, /<script src="[^\"]*canvas-confetti\.min\.js/);
 assert.doesNotMatch(preview, /https?:\/\/[^"']*canvas-confetti/);
+assert.match(preview, /<meta name="theme-color" content="#070913">/);
 assert.match(preview, /data-home-gsap-src="\.\.\/template\/pingfangvideo\/js\/gsap\.min\.js\?v=3\.15\.0"/);
 assert.doesNotMatch(preview, /<script src="\.\.\/template\/pingfangvideo\/js\/gsap\.min\.js/);
 assert.doesNotMatch(preview, /js\/react\.production\.min\.js\?v=18\.3\.1/);
@@ -3160,6 +3305,8 @@ assert.match(preview, /sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30
 assert.match(preview, /class="rank-thumb"[\s\S]*sizes="72px"/);
 assert.match(preview, /class="rank-score"/);
 assert.match(preview, /data-banner-bg="\$\{escapeHtml\(backdrop\)\}"/);
+assert.match(preview, /class="banner-priority-image"[\s\S]*loading="eager"[\s\S]*fetchpriority="high"[\s\S]*data-banner-priority-image/);
+assert.match(preview, /class="detail-backdrop" aria-hidden="true"><img src="\$\{escapeHtml\(video\.poster\)\}" alt="" width="380" height="570" decoding="async">/);
 assert.doesNotMatch(preview, /bannerBgStyle/);
 assert.doesNotMatch(preview, /banner-poster/);
 assert.match(preview, /sizes="96px"/);
@@ -3180,7 +3327,7 @@ assert.match(preview, /aria-controls="mobileDrawer"/);
 assert.match(preview, /class="theme-switcher" data-theme-switcher/);
 assert.match(preview, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
 assert.match(preview, /class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile/);
-assert.match(preview, /class="brand-logo"[^>]*width="58"[^>]*height="58"[^>]*decoding="async"/);
+assert.doesNotMatch(preview, /class="brand-logo"|site-logo\.png/);
 assert.match(preview, /<nav class="site-nav" id="siteNav" aria-label="主导航">/);
 assert.match(preview, /data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu"/);
 assert.match(preview, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
@@ -3269,8 +3416,8 @@ assert.doesNotMatch(preview, /<div class="vod-grid">\$\{latest\.map\(card\)\.joi
 const previewCardFunction = preview.match(/function card\(video\) \{[\s\S]*?function rankItem/)?.[0] || "";
 assert.doesNotMatch(previewCardFunction, /<small>\$\{escapeHtml\(video\.actor\)\}<\/small>/);
 assert.match(preview, /detail-panel/);
-assert.match(preview, /class="detail-backdrop" aria-hidden="true"><img src="\$\{escapeHtml\(video\.poster\)\}" alt="">/);
-assert.match(preview, /site-logo\.png/);
+assert.match(preview, /class="detail-primary"/);
+assert.match(preview, /class="detail-backdrop" aria-hidden="true"><img src="\$\{escapeHtml\(video\.poster\)\}" alt="" width="380" height="570" decoding="async">/);
 assert.match(preview, /class="brand-emblem"/);
 assert.match(preview, /class="brand-wordmark"/);
 assert.doesNotMatch(preview, /brand-text/);
@@ -3283,7 +3430,9 @@ assert.match(preview, /route === "history"/);
 assert.match(preview, /route === "login"/);
 assert.match(preview, /function renderPlay\(id, episodeNo\)/);
 assert.match(preview, /<video controls preload="metadata" playsinline/);
-assert.match(preview, /id="episodeList" aria-label="选集列表"/);
+assert.match(preview, /id="episodeList" aria-label="选集列表" data-episode-drawer/);
+assert.match(preview, /data-episode-drawer-toggle/);
+assert.match(preview, /data-episode-drawer-close/);
 assert.match(preview, /aria-current="\$\{item\.no === episode\.no \? "page" : "false"\}"/);
 assert.match(preview, /if \(next\.hash && next\.pathname === window\.location\.pathname && next\.search === window\.location\.search\) return/);
 assert.match(preview, /function renderLoginPage/);
@@ -3369,6 +3518,13 @@ assert.match(phpEntry, /render_page/);
 assert.match(phpEntry, /PHP_VERSION_ID/);
 
 const phpRender = readFileSync(path.join(root, "server/lib/render.php"), "utf8");
+assert.match(phpRender, /function render_layout\(array \$data, string \$title, string \$content, bool \$loadGameStyles = false\): string/);
+assert.match(phpRender, /css\/base\.css/);
+assert.match(phpRender, /css\/themes-foundation\.css/);
+assert.match(phpRender, /css\/themes\.css/);
+assert.match(phpRender, /css\/responsive\.css/);
+assert.match(phpRender, /\$loadGameStyles \? '[^']*css\/games\.css/);
+assert.match(phpRender, /render_layout\(\$data, '游戏大厅', \$content, true\)/);
 assert.doesNotMatch(phpRender, /\bskip-link\b/);
 assert.doesNotMatch(phpRender, /class="site-footer"/);
 assert.doesNotMatch(phpRender, /让每一次打开/);
@@ -3423,7 +3579,8 @@ assert.match(phpMobileDrawerLinksSnippet, /path_for\('games'\)[\s\S]*>游戏<\/a
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, /qixi|七夕花束/);
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.match(phpRender, /class="theme-switcher" data-theme-switcher/);
-assert.match(phpRender, /class="brand-logo"[^>]*width="58"[^>]*height="58"[^>]*decoding="async"/);
+assert.match(phpRender, /<meta name="theme-color" content="#070913">/);
+assert.doesNotMatch(phpRender, /class="brand-logo"|site-logo\.png/);
 assert.match(phpRender, /<nav class="site-nav" aria-label="主导航">/);
 assert.match(phpRender, /data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu"/);
 assert.match(phpRender, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
@@ -3439,7 +3596,8 @@ assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
 assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /data-home-gsap-src="\/template\/pingfangvideo\/js\/gsap\.min\.js\?v=3\.15\.0"/);
-assert.match(phpRender, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.match(phpRender, /js\/app\.js" data-pixel-confetti-src="\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
+assert.doesNotMatch(phpRender, /<script src="\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js/);
 assert.doesNotMatch(phpRender, /https?:\/\/[^"']*canvas-confetti/);
 assert.doesNotMatch(phpRender, /<script src="\/template\/pingfangvideo\/js\/gsap\.min\.js/);
 assert.match(phpRender, /banner-dots/);
@@ -3450,6 +3608,10 @@ assert.match(phpRender, /function render_home_shelf_card\(array \$video, bool \$
 assert.match(phpRender, /title="' \. e\(\$video\['title'\]\) \. '"/);
 assert.match(phpRender, /\$image = \$featured \? \(\$video\['backdrop'\] \?\? \$video\['poster'\]\) : \$video\['poster'\]/);
 assert.match(phpRender, /width="300" height="450"/);
+assert.match(phpRender, /loading="lazy" decoding="async" width="76" height="114" sizes="76px"/);
+assert.match(phpRender, /loading="lazy" decoding="async" width="96" height="144" sizes="96px"/);
+assert.match(phpRender, /class="detail-backdrop" aria-hidden="true"><img[^>]*width="380" height="570" decoding="async">/);
+assert.match(phpRender, /class="detail-poster"><img[^>]*width="380" height="570" loading="eager" decoding="async" fetchpriority="high"/);
 assert.match(phpRender, /\$homeTabs = \[/);
 assert.match(phpRender, /\$tabRails \.= render_home_latest_panel\(\$tab\['key'\], \$tab\['videos'\], \$index === 0\)/);
 assert.match(phpRender, /\$tabLinks \.= '<button type="button" data-home-tab="' \. e\(\$tab\['key'\]\)/);
@@ -3467,7 +3629,6 @@ assert.match(phpRender, /detail-panel/);
 assert.match(phpRender, /class="detail-backdrop" aria-hidden="true"><img src="/);
 const phpRenderCardsFunction = phpRender.match(/function render_cards\(array \$videos\): string[\s\S]*?function hero_slides/)?.[0] || "";
 assert.doesNotMatch(phpRenderCardsFunction, /<small>' \. e\(\$video\['actor'\]\) \. '<\/small>/);
-assert.match(phpRender, /site-logo\.png/);
 assert.match(phpRender, /images\/brand\/favicon\.ico/);
 assert.match(phpRender, /images\/brand\/favicon\.png/);
 assert.match(phpRender, /class="brand-emblem"/);
@@ -3720,6 +3881,13 @@ assert.match(appJs, /option\.query/);
 assert.match(appJs, /option\.label/);
 assert.match(appJs, /__PINGFANG_FILTER_VALUE__/);
 assert.match(appJs, /limit: "1000"/);
+assert.match(appJs, /function initFilterDrawers/);
+assert.match(appJs, /data-filter-drawer-toggle/);
+assert.match(appJs, /data-filter-drawer-sheet/);
+assert.match(appJs, /function initEpisodeDrawer/);
+assert.match(appJs, /data-episode-drawer-toggle/);
+assert.match(appJs, /data-episode-drawer-close/);
+assert.match(appJs, /data-banner-priority-image/);
 const dynamicFilterHelperStart = appJs.indexOf("  function normalizeFilterOptions");
 const dynamicFilterHelperEnd = appJs.indexOf("  function applyDynamicVodFilters", dynamicFilterHelperStart);
 assert.ok(dynamicFilterHelperStart >= 0 && dynamicFilterHelperEnd > dynamicFilterHelperStart);
@@ -3851,6 +4019,8 @@ assert.match(videosPreview, /\/index\.php\?route=videos[^"]*sort=hot/);
 assert.doesNotMatch(videosPreview, /<title>全部影片 - 平方影视<\/title>/);
 assert.doesNotMatch(videosPreview, /<h1>全部影片<\/h1>/);
 assert.doesNotMatch(videosPreviewMain, /\/index\.php\?route=category(?:&amp;|")/);
+assert.match(videosPreview, /class="wrap page-title filter-page-title"/);
+assert.match(videosPreview, /data-filter-drawer/);
 
 const categoryIndexPreview = renderPreview("route=category");
 assert.match(categoryIndexPreview, /<title>影片库 - 平方影视<\/title>/);
@@ -3892,6 +4062,7 @@ assert.doesNotMatch(emptyCategoryPreview, /<div><strong>地区<\/strong>/);
 const emptySearchPreview = renderPreview("route=search&wd=不存在的影片关键词");
 assert.match(emptySearchPreview, /data-empty-container data-empty-item="\.list-item"/);
 assert.match(emptySearchPreview, /没有找到相关影片/);
+assert.match(emptySearchPreview, /data-filter-drawer/);
 
 const homePreview = renderPreview("route=home");
 const homeShelfImage = homePreview.match(/<span class="home-shelf-poster"><img[^>]+>/)?.[0] || "";
@@ -3901,6 +4072,7 @@ assert.match(homeShelfImage, /width="300" height="450"/);
 assert.match(homePreview, /class="wrap genre-dock" aria-label="频道快捷入口"/);
 assert.doesNotMatch(homePreview, /liquid-lens/);
 assert.match(homePreview, /data-carousel-autoplay-toggle/);
+assert.match(homePreview, /class="banner-priority-image"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image/);
 assert.match(homePreview, /NEW THIS YEAR/);
 assert.match(homePreview, /本年最新上线/);
 const yearlyHomeContent = homePreview.slice(homePreview.indexOf("data-rank-react-list"), homePreview.indexOf("</main>"));
@@ -3913,9 +4085,10 @@ assert.ok(playPreview.indexOf('class="player-shell"') < playPreview.indexOf('cla
 assert.match(playPreview, /class="player-shell" role="region" aria-label="视频播放器"/);
 assert.match(playPreview, /<video controls preload="metadata" playsinline/);
 assert.match(playPreview, /rel="prev">上一集<\/a>/);
-assert.match(playPreview, /href="#episodeList">选集<\/a>/);
+assert.match(playPreview, /href="#episodeList" data-episode-drawer-toggle aria-controls="episodeList" aria-expanded="false">选集<\/a>/);
 assert.match(playPreview, /rel="next">下一集<\/a>/);
-assert.match(playPreview, /id="episodeList" aria-label="选集列表"/);
+assert.match(playPreview, /id="episodeList" aria-label="选集列表" data-episode-drawer/);
+assert.match(playPreview, /data-episode-drawer-close/);
 assert.match(playPreview, /class="is-active" aria-current="page"[^>]*>第2集<\/a>/);
 
 const firstEpisodePreview = renderPreview("route=play&id=2&episode=1");
@@ -3931,3 +4104,40 @@ assert.ok(trialPreview.indexOf('class="player-shell"') < trialPreview.indexOf('c
 assert.match(trialPreview, /class="player-shell" role="region" aria-label="试看播放器"/);
 assert.match(trialPreview, />完整播放<\/a>/);
 assert.doesNotMatch(trialPreview, /id="episodeList"/);
+
+
+// Every render surface must restore the same theme before its styles are painted.
+for (const [surface, markup, bootstrapSource] of [
+  ["production", head, include],
+  ["static preview", preview, preview],
+  ["PHP preview", phpRender, phpRender],
+]) {
+  assert.equal((markup.match(/data-theme-option="ink-wash"/g) || []).length, 2, `${surface} must offer ink wash on desktop and mobile`);
+  const bootstrap = bootstrapSource.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(bootstrap, `${surface} must include theme initialization`);
+  for (const storedTheme of ["ink-wash", "pixel-frog", "blue-pink-purple", null, "unknown-theme"]) {
+    let appliedTheme = null;
+    const activatedStyles = [];
+    new Script(bootstrap).runInNewContext({
+      window: { localStorage: { getItem: () => storedTheme }, location: { search: "?route=home" } },
+      URLSearchParams,
+      document: {
+        querySelector: (selector) => ({
+          getAttribute: () => "theme.css",
+          setAttribute: (name) => { if (name === "href") activatedStyles.push(selector); },
+        }),
+        documentElement: {
+          setAttribute: (name, value) => { if (name === "data-theme") appliedTheme = value; },
+          removeAttribute: () => { appliedTheme = null; },
+        },
+      },
+    });
+    assert.equal(appliedTheme, storedTheme === "unknown-theme" ? null : storedTheme, `${surface} should restore ${storedTheme}`);
+    assert.deepEqual(activatedStyles, storedTheme === "ink-wash" ? ["[data-ink-theme-stylesheet]"] :
+      storedTheme === "blue-pink-purple" ? ["[data-theme-foundation-stylesheet]", "[data-theme-stylesheet]"] :
+      storedTheme === "pixel-frog" ? ["[data-theme-stylesheet]"] : [], `${surface} should load only the selected theme styles`);
+  }
+  assert.doesNotThrow(() => new Script(bootstrap).runInNewContext({
+    window: { localStorage: { getItem: () => { throw new Error("Storage unavailable"); } } },
+  }), `${surface} should tolerate unavailable local storage`);
+}

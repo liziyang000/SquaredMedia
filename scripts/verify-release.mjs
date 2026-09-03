@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -9,10 +10,17 @@ const archive = path.join(root, "dist", "pingfangvideo.tar.gz");
 const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
 const vodopsArchive = path.join(root, "dist", "vodops.tar.gz");
 const assetVersionPlaceholders = [
+  "__PINGFANG_BASE_STYLE_VERSION__",
   "__PINGFANG_STYLE_VERSION__",
+  "__PINGFANG_INK_WASH_VERSION__",
+  "__PINGFANG_THEME_FOUNDATION_VERSION__",
+  "__PINGFANG_THEMES_VERSION__",
+  "__PINGFANG_GAMES_STYLE_VERSION__",
+  "__PINGFANG_RESPONSIVE_STYLE_VERSION__",
   "__PINGFANG_APP_VERSION__",
   "__PINGFANG_PROMPT_VERSION__",
   "__PINGFANG_GAME_VERSION__",
+  "__PINGFANG_BLOCKRAIN_VERSION__",
   "__PINGFANG_BAMBOO_CICADA_VERSION__",
   "__PINGFANG_MULTIPLAYER_VERSION__",
   "__PINGFANG_QIXI_VERSION__",
@@ -21,7 +29,20 @@ const assetVersionPlaceholders = [
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
   "pingfangvideo/info.ini",
+  "pingfangvideo/css/base.css",
   "pingfangvideo/css/style.css",
+  "pingfangvideo/css/ink-wash.css",
+  "pingfangvideo/images/ink-wash/bamboo-corner.svg",
+  "pingfangvideo/images/ink-wash/dry-brush-divider.svg",
+  "pingfangvideo/images/ink-wash/mist-mountains.svg",
+  "pingfangvideo/images/ink-wash/plum-sprig.svg",
+  "pingfangvideo/images/ink-wash/rice-paper.svg",
+  "pingfangvideo/images/ink-wash/water-ripples.svg",
+  "pingfangvideo/images/ink-wash/shan-shui-landscape.e17b1e76e079.webp",
+  "pingfangvideo/css/themes-foundation.css",
+  "pingfangvideo/css/themes.css",
+  "pingfangvideo/css/games.css",
+  "pingfangvideo/css/responsive.css",
   "pingfangvideo/css/qixi-bouquet.css",
   "pingfangvideo/games/2048/LICENSE.txt",
   "pingfangvideo/games/2048/js/application.js",
@@ -263,9 +284,14 @@ assert.match(includeHtml, /"path":"\{:\s*rtrim\(\$maccms\['path'\], '\/'\)\}"/);
 assert.match(includeHtml, /"aid":"\{\$maccms\.aid\}"/);
 assert.match(includeHtml, new RegExp(`css/style\\.css${assetVersionPattern.source}`));
 
+assert.match(includeHtml, /css\/ink-wash\.css\?v=[a-f0-9]{12}/);
+
 const footHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/public/foot.html"], { encoding: "utf8" });
 assert.match(footHtml, new RegExp(`js/app\\.js${assetVersionPattern.source}`));
 const blockrainHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-blockrain.html"], { encoding: "utf8" });
+const blockrainJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/games/blockrain/blockrain.jquery.min.js"]);
+const blockrainVersion = createHash("sha256").update(blockrainJs).digest("hex").slice(0, 12);
+assert.ok(blockrainHtml.includes(`games/blockrain/blockrain.jquery.min.js?v=${blockrainVersion}"`));
 assert.match(blockrainHtml, new RegExp(`games/init\\.js${assetVersionPattern.source}`));
 const bambooCicadaHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-bamboo-cicada.html"], { encoding: "utf8" });
 assert.match(bambooCicadaHtml, new RegExp(`games/bamboo-cicada\\.js${assetVersionPattern.source}`));

@@ -95,7 +95,7 @@ dist/
 - `pingfangvideo` 来自 `template/pingfangvideo/`，两个插件分别来自 `addons/pingfangdevice/` 和 `addons/vodops/`。
 - 两个插件的 `application/` 都保留 MacCMS 标准应用载荷结构；SSH 部署会把设备兼容控制器，以及 `vodops` 内的 VodOps/Douban 两个后台控制器和 `view_new` 后台页面壳层复制到对应 CMS 应用目录，视频列表与豆瓣模块片段随插件目录发布。
 - 任意层级以 `.` 开头的文件或目录不会进入包。
-- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块初始化器、竹知了交互、联机游戏脚本和七夕粒子脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
+- 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块库及初始化器、竹知了交互、联机游戏脚本和七夕粒子脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
 - `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
 - `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
@@ -144,6 +144,15 @@ source scripts/deploy-ping2.env
 npm run deploy
 ```
 
+仅更新现有主题时，使用主题范围：
+
+```bash
+source scripts/deploy-ping2.env
+DEPLOY_SCOPE=theme bash scripts/deploy-theme.sh
+```
+
+该范围会执行完整本地发布校验，但只上传主题归档。服务器核对归档 SHA-256 后，在模板目录内解压候选版本，将旧主题保留为 `pingfangvideo.backup.<时间戳>.<进程号>`，再切换主题并清理 MacCMS 缓存。缓存清理或站点回环验证失败时，自动恢复备份并保留失败版本。它不安装插件、不修改数据库、Cron、独立播放器或游戏服务；发布后仍需从公网检查主题切换、桌面和手机页面，并记录备份目录。
+
 只发布合并后的视频数据中心时使用专用范围，不要执行上面的全量命令：
 
 ```bash
@@ -153,7 +162,7 @@ npm run deploy:vodops
 
 `deploy:vodops` 仍会在本地执行完整发布门禁并重建、校验归档，但远端只上传和安装一个 `vodops`：先只读检查现有七张 `douban_*` 表的 InnoDB 引擎和必要字段，兼容后才把 VodOps/豆瓣目录、应用载荷、快捷菜单、Hook 配置和 crontab 写入同一个 `vodops.backup.*` 迁移快照；随后停用独立 `addons/douban` 和旧公开豆瓣桥接，保留旧 VodOps 配置值，增量创建并校验五张 `vodops_*` 和七张兼容保留的 `douban_*` 表，幂等补充并验证 `vodops_scan` 的分类范围、执行模式、租约和下次重试字段，归并旧快捷菜单、移除旧版 `response_end` hook，安装并验证单实例 CLI Worker Cron，最后清理 MacCMS 缓存并执行站点回环检查。文件替换后发生错误时会自动恢复快照内的文件和 Cron、保留失败版本并保持非零退出；数据库增量不做反向删除。它不会上传或替换主题、`pingfangdevice`、游戏服务和独立播放器，也不会删除旧豆瓣数据；旧表引擎或字段不兼容时会在替换任何插件文件前停止并列出缺口。
 
-发布顺序如下：
+全量发布顺序如下：
 
 1. 在本地重新执行测试、模板检查、兼容验证和预览验证。
 2. 重建 `dist/`，验证主题、两个插件、播放器和联机游戏服务五个发布归档。
@@ -186,7 +195,7 @@ VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`�
 - 专用部署密钥不是默认 SSH Identity 时，通过 `DEPLOY_IDENTITY_FILE` 传入本机私钥路径；脚本会同时为 SSH 和 SCP 启用 `IdentitiesOnly`，但不会读取或复制私钥内容。
 - `DEPLOY_SITE_HOST` 只填写主机名，不带协议或路径；协议由 `DEPLOY_SITE_SCHEME` 指定。`DEPLOY_SITE_MARKER` 应选择只有正确站点页面会出现的稳定片段，当前 ping2 配置使用主题资源路径。
 - 回环请求使用 `curl -k`，只用于绕过服务器本机访问虚拟主机时的证书信任问题；它不修改证书配置，也不能代替从公网检查 TLS、DNS 和 CDN。
-- 发布脚本会替换远端目录、修改 `application/extra/addons.php` 与 `application/extra/quickmenu.php` 并执行数据库 DDL。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
+- 全量和 VodOps 发布会替换远端目录、修改 `application/extra/addons.php` 与 `application/extra/quickmenu.php` 并执行数据库 DDL；主题范围只替换主题和清理缓存。运行前必须再次核对主机、账号和 `DEPLOY_PATH`。
 - 插件安装先于主题替换，文件系统、配置与数据库之间没有统一事务。中途失败可能形成“插件已更新、主题未更新”的部分发布状态，应根据终端输出逐项核对，而不是直接重复运行。
 - 站点回环验证发生在文件、hook 和数据库更新之后。`deploy:vodops` 在缓存清理和该验证完成前一直保持文件回滚保护；验证失败会恢复 VodOps 文件与 Cron，但保留已完成的增量数据库变化。完整部署中该保护只覆盖 VodOps 安装阶段，不会把后续主题或其他服务发布合并成一个跨组件事务。
 - 脚本会为插件目录、两个后台控制器、`vodops` 后台视图、旧公开豆瓣桥接、hook、快捷菜单配置和 crontab 创建同一份迁移快照。VodOps 安装阶段失败时会自动恢复这些非数据库载荷，并保留失败版本供排查；显式执行 `ROLLBACK_SCOPE=vodops` 仍是人工选定备份的另一条回退路径，不修改数据库。

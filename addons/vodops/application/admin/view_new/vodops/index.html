@@ -33,6 +33,9 @@
   .vodops-link { color: #2563eb; text-decoration: none; }
   .vodops-pager { justify-content: flex-end; margin-top: 12px; }
   .vodops-error { margin-top: 8px; color: #b42318; }
+  .vodops-quality-feedback { min-height: 22px; margin-top: 10px; color: #667085; font-size: 13px; }
+  .vodops-quality-feedback[data-state="success"] { color: #027a48; }
+  .vodops-quality-feedback[data-state="warning"] { color: #b54708; }
   .vodops-status { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #f2f4f7; color: #475467; white-space: nowrap; }
   .vodops-status.is-fixed { background: #ecfdf3; color: #027a48; }
   .vodops-repair-layer { position: fixed; inset: 0; z-index: 9999; display: none; justify-content: flex-end; background: rgba(15, 23, 42, .42); }
@@ -202,6 +205,7 @@
       <a class="vodops-button" href="{:url('vodops/quality')}?run_id={$scan.run_id}">重置</a>
       <span class="vodops-muted">当前命中 {:intval($pagination['total'] ?? 0)} 条</span>
     </form>
+    <div class="vodops-quality-feedback" data-vodops-quality-feedback data-state="idle" role="status" aria-live="polite"></div>
 
     {if condition="empty($issues)"}
     <p class="vodops-muted" style="margin:16px 0 0">当前筛选条件下没有异常记录。</p>
@@ -223,7 +227,7 @@
         </thead>
         <tbody>
           {volist name="issues" id="issue"}
-          <tr>
+          <tr data-vodops-issue-id="{$issue.issue_id}">
             <td>#{$issue.issue_id}</td>
             <td>
               #{$issue.vod_id}<br>
@@ -232,15 +236,15 @@
             </td>
             <td>{$issue.type_id}</td>
             <td>{$issue.issue_label}</td>
-            <td class="vodops-value"><strong>{$issue.field_name|htmlspecialchars}</strong><br>{$issue.current_value|default='-'|htmlspecialchars}</td>
+            <td class="vodops-value"><strong>{$issue.field_name|htmlspecialchars}</strong><br><span data-vodops-current-value>{$issue.current_value|default='-'|htmlspecialchars}</span></td>
             <td class="vodops-value">
               {$issue.message|htmlspecialchars}
               {if condition="!empty($issue['detail_label'])"}<br><span class="vodops-muted">{$issue.detail_label|htmlspecialchars}</span>{/if}
             </td>
-            <td><span class="vodops-status {if condition="$issue['repair_status'] eq 'fixed'"}is-fixed{/if}">{$issue.repair_status_label|htmlspecialchars}</span></td>
+            <td><span class="vodops-status {if condition="$issue['repair_status'] eq 'fixed'"}is-fixed{/if}" data-vodops-repair-status>{$issue.repair_status_label|htmlspecialchars}</span></td>
             <td>
               {if condition="!empty($issue['repair_allowed'])"}
-              <button class="vodops-button" type="button" data-vodops-action="repair" data-issue-id="{$issue.issue_id}">{if condition="$issue['repair_status'] eq 'fixed'"}查看修复{else/}修复{/if}</button>
+              <button class="vodops-button" type="button" data-vodops-action="repair" data-vodops-repair-button data-issue-id="{$issue.issue_id}">{if condition="$issue['repair_status'] eq 'fixed'"}查看修复{else/}修复{/if}</button>
               {elseif condition="!empty($issue['repair_supported']) and $scan['status'] eq 'running'"/}
               <span class="vodops-muted">扫描结束后可修复</span>
               {else/}
@@ -357,6 +361,7 @@
     var candidateProviderOptions = document.getElementById("vodopsCandidateProviderOptions");
     var candidateStatus = document.getElementById("vodopsCandidateStatus");
     var candidateList = document.getElementById("vodopsCandidateList");
+    var qualityFeedback = document.querySelector("[data-vodops-quality-feedback]");
     var activeRepair = null;
     var selectedCandidate = null;
     var manualRepairValue = "";
@@ -430,6 +435,40 @@
           input.disabled = disabled;
         });
       }
+    }
+
+    function setQualityFeedback(state, message) {
+      if (!qualityFeedback) return;
+      qualityFeedback.dataset.state = state || "idle";
+      qualityFeedback.textContent = message || "";
+    }
+
+    function renderIssueResult(result) {
+      var issueId = Number(result && result.issue_id);
+      if (!issueId) return;
+      var row = document.querySelector('[data-vodops-issue-id="' + issueId + '"]');
+      if (!row) return;
+      var currentValue = row.querySelector("[data-vodops-current-value]");
+      var repairStatus = row.querySelector("[data-vodops-repair-status]");
+      var repairButton = row.querySelector("[data-vodops-repair-button]");
+      var fixed = result.result_status === "fixed";
+      if (currentValue) currentValue.textContent = result.current_value === "" ? "-" : String(result.current_value || "-");
+      if (repairStatus) {
+        repairStatus.textContent = fixed ? "已复检通过" : "待处理";
+        repairStatus.classList.toggle("is-fixed", fixed);
+      }
+      if (repairButton) repairButton.textContent = fixed ? "查看修复" : "修复";
+    }
+
+    function finishRepairAction(result, actionLabel) {
+      if (!activeRepair || Number(result && result.issue_id) !== Number(activeRepair.issue_id)) {
+        throw new Error("修复结果与当前异常不一致，请重新打开后核对");
+      }
+      renderIssueResult(result);
+      setRepairBusy(false);
+      closeRepair();
+      var fixed = result.result_status === "fixed";
+      setQualityFeedback(fixed ? "success" : "warning", actionLabel + "：" + (result.status_label || (fixed ? "已复检通过" : "异常仍存在")));
     }
 
     function updateRepairDiff() {
@@ -929,8 +968,7 @@
         data.append("candidate_context", selectedCandidate.context_token);
       }
       post("{:url('vodops/applyRepair')}", data).then(function (result) {
-        if (repairMessage) repairMessage.textContent = result.status_label || "修改已完成";
-        window.setTimeout(function () { window.location.reload(); }, 350);
+        finishRepairAction(result, "修改已保存并复检");
       }).catch(function (error) {
         setRepairBusy(false);
         if (repairMessage) {
@@ -946,8 +984,7 @@
       var data = new FormData();
       data.append("issue_id", String(activeRepair.issue_id));
       post("{:url('vodops/recheckIssue')}", data).then(function (result) {
-        if (repairMessage) repairMessage.textContent = result.status_label || "复检完成";
-        window.setTimeout(function () { window.location.reload(); }, 350);
+        finishRepairAction(result, "复检完成");
       }).catch(function (error) {
         setRepairBusy(false);
         if (repairMessage) {
@@ -964,8 +1001,7 @@
       var data = new FormData();
       data.append("repair_id", repairId);
       post("{:url('vodops/rollbackRepair')}", data).then(function (result) {
-        if (repairMessage) repairMessage.textContent = result.status_label || "回滚完成";
-        window.setTimeout(function () { window.location.reload(); }, 350);
+        finishRepairAction(result, "回滚完成并复检");
       }).catch(function (error) {
         setRepairBusy(false);
         if (repairMessage) {

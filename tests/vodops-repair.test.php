@@ -383,6 +383,8 @@ namespace {
     $result = VodQualityRepair::apply(1, '2024', 'manual', 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('2024', \think\Db::$tables['vod'][0]['vod_year'], 'Applying a reviewed repair should update only the target row.');
     vodops_repair_assert_same('fixed', $result['result_status'] ?? null, 'A successful repair should be rechecked immediately.');
+    vodops_repair_assert_same('vod_year', $result['field_name'] ?? null, 'Repair responses should identify the field that can be updated in place.');
+    vodops_repair_assert_same('2024', $result['current_value'] ?? null, 'Repair responses should return the fresh field value without a page reload.');
     vodops_repair_assert_same('pending', \think\Db::$events[0][2]['operation_status'] ?? null, 'The original value must be persisted before touching MyISAM source data.');
     vodops_repair_assert_same('vodops_repair_log', \think\Db::$events[0][1] ?? null, 'The first write must target the repair audit table.');
     vodops_repair_assert_same('vod', \think\Db::$events[1][1] ?? null, 'The source update may run only after the audit insert succeeds.');
@@ -391,6 +393,7 @@ namespace {
     $rolledBack = VodQualityRepair::rollback($repairId, 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('0', \think\Db::$tables['vod'][0]['vod_year'], 'Rollback should restore the exact audited original value.');
     vodops_repair_assert_same('open', $rolledBack['result_status'] ?? null, 'Rollback should reopen an issue when the original value is still invalid.');
+    vodops_repair_assert_same('0', $rolledBack['current_value'] ?? null, 'Rollback responses should return the restored value for the current row.');
 
     \think\Db::$tables['vod'][0]['vod_year'] = '0';
     \think\Db::$beforeVodUpdate = static function () {
@@ -535,6 +538,7 @@ namespace {
     $rechecked = VodQualityRepair::recheck(2, 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('fixed', $rechecked['result_status'] ?? null, 'Restoring the original local file should resolve the issue without changing vod_pic.');
     vodops_repair_assert_same('upload/vod/restored.jpg', \think\Db::$tables['vod'][1]['vod_pic'], 'A file-only repair must not rewrite the source field.');
+    vodops_repair_assert_same('upload/vod/restored.jpg', $rechecked['current_value'] ?? null, 'Recheck responses should return the current value for an in-place row refresh.');
 
     @unlink($siteRoot . '/upload/vod/restored.jpg');
     @rmdir($siteRoot . '/upload/vod');

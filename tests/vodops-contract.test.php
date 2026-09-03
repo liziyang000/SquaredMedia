@@ -123,6 +123,15 @@ vodops_contract_match('/scope_label/', $view, 'Scan history and progress should 
 vodops_contract_match('/history\.scope_label\|htmlspecialchars/', $view, 'Persisted category labels must be escaped in scan history.');
 vodops_contract_match('/id="vodopsWorkerMode"[\s\S]*?worker_mode/', $view, 'The administrator must explicitly control CLI worker continuation.');
 vodops_contract_match('/runner_state_label/', $view, 'The admin page should expose worker heartbeat and recovery state.');
+vodops_contract_match('/\{volist name="issues" id="issue"\}\s*<tr data-vodops-issue-id="\{\$issue\.issue_id\}"/', $view, 'Each quality issue must expose a stable row target for in-place repair updates.');
+vodops_contract_match('/data-vodops-quality-feedback[\s\S]*?aria-live="polite"/', $view, 'Quality repairs must report their result without navigating away from the current list.');
+vodops_contract_match('/function renderIssueResult\(result\)[\s\S]*?data-vodops-current-value[\s\S]*?data-vodops-repair-status/', $view, 'A repair response must update the current value and status in the active issue row.');
+foreach (['applyRepair', 'recheckIssue', 'rollbackRepair'] as $repairAction) {
+    vodops_contract_match('/url\(\'vodops\/' . $repairAction . '\'\)[\s\S]*?finishRepairAction/', $view, 'Single-issue actions must finish in place without a full reload: ' . $repairAction);
+}
+if (strpos($view, 'window.setTimeout(function () { window.location.reload(); }, 350);') !== false) {
+    vodops_contract_fail('Single-issue repairs must not reload the full quality workspace.');
+}
 vodops_contract_match('/workspace eq \'videos\'[\s\S]*?addons\/vodops\/view\/videos\/index/', $view, 'The native admin shell should include the video manager only on its route.');
 vodops_contract_match('/workspace eq \'douban\'[\s\S]*?addons\/vodops\/view\/index\/index/', $view, 'The native admin shell should include the Douban page only on its route.');
 $videoView = file_get_contents($root . '/addons/vodops/view/videos/index.html');
@@ -359,6 +368,7 @@ vodops_contract_match('/createAudit\([\s\S]*?conditionalVodUpdate/', $repair, 'T
 vodops_contract_match('/conditionalVodUpdate[\s\S]*?foreach \(\$expected as \$field => \$value\)[\s\S]*?->where\(\$field, \$value\)[\s\S]*?->update\(\$updates\)/', $repair, 'Every source write must use audited old values as an optimistic guard.');
 vodops_contract_match('/latestMutationForIssue[\s\S]*?不能覆盖后续结果/', $repair, 'Rollback must refuse to overwrite a later repair.');
 vodops_contract_match('/hasIssue\([\s\S]*?即时复检/', $repair, 'A successful source write must be rechecked with the analyzer.');
+vodops_contract_match('/private static function result[\s\S]*?fieldForIssue[\s\S]*?current_value/', $repair, 'Repair responses must include the fresh writable field value for in-place UI updates.');
 preg_match('/private const EXTERNAL_CANDIDATE_ISSUES = \[([\s\S]*?)\];/', $repair, $candidateIssueMatch);
 $candidateIssueBlock = $candidateIssueMatch[1] ?? '';
 foreach ([

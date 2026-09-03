@@ -737,10 +737,13 @@ class VodQualityRepair
 
     private static function result($repairId, array $issue, $resultStatus, array $vod)
     {
+        $field = self::fieldForIssue((string) ($issue['issue_type'] ?? ''));
         return [
             'repair_id' => intval($repairId),
             'issue_id' => intval($issue['issue_id'] ?? 0),
             'vod_id' => intval($vod['vod_id'] ?? 0),
+            'field_name' => $field,
+            'current_value' => $field === '' ? '' : (string) ($vod[$field] ?? ''),
             'result_status' => (string) $resultStatus,
             'status_label' => $resultStatus === 'fixed' ? '已复检通过' : '异常仍存在',
         ];

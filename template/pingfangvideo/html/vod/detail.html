@@ -12,11 +12,13 @@
     <div class="detail-main detail-panel">
       <div class="detail-primary">
         <span class="eyebrow">{$obj.type.type_name}</span>
-        <div class="detail-title-row">
-          <h1>{$obj.vod_name}</h1>
-          <span class="score-badge">{$obj.vod_score|mac_default='0.0'}</span>
-        </div>
-        <p class="meta">{$obj.vod_year|mac_default='年份未知'} / {$obj.vod_area|mac_default='地区未知'} / {$obj.vod_class|mac_default='类型待更新'}</p>
+        <h1>{$obj.vod_name}</h1>
+        <p class="detail-meta" aria-label="影片信息">
+          <span>{$obj.vod_year|mac_default='年份未知'}</span>
+          <span>{$obj.vod_area|mac_default='地区未知'}</span>
+          <span>{$obj.vod_class|mac_default='类型待更新'}</span>
+          <span>{$obj.vod_lang|mac_default='语言未知'}</span>
+        </p>
         <div class="detail-actions">
           {maccms:foreach name="obj.vod_play_list" id="vo" key="key"}
           {if condition="$key eq 1"}
@@ -29,14 +31,23 @@
         </div>
       </div>
       <p class="summary">{$obj.vod_content|mac_filter_html|mac_substring=180}</p>
-      <div class="detail-interactions">
+      <div class="detail-interactions" aria-label="评分与反馈">
         {include file="public/score" /}
-        {include file="public/star" /}
         {include file="public/digg" /}
       </div>
       <dl class="detail-data">
         <div><dt>导演</dt><dd>{$obj.vod_director|mac_default='待更新'}</dd></div>
-        <div><dt>主演</dt><dd>{$obj.vod_actor|mac_default='待更新'}</dd></div>
+        <div class="detail-data-cast">
+          <dt>主演</dt>
+          <dd>
+            {if condition="strlen($obj.vod_actor) gt 90"}
+            <details class="detail-cast">
+              <summary aria-label="展开或收起主演名单"><span class="detail-cast-preview">{$obj.vod_actor|mac_default='待更新'}</span><span class="detail-cast-toggle" aria-hidden="true"></span></summary>
+              <p>{$obj.vod_actor|mac_default='待更新'}</p>
+            </details>
+            {else/}{$obj.vod_actor|mac_default='待更新'}{/if}
+          </dd>
+        </div>
         <div><dt>热度</dt><dd>{$obj.vod_hits|mac_default='0'} 次</dd></div>
         <div><dt>更新</dt><dd>{$obj.vod_time|mac_day}</dd></div>
       </dl>

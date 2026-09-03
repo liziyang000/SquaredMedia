@@ -330,20 +330,14 @@ body.episode-drawer-open {
     line-height: 1.02;
   }
 
-  .detail-primary .detail-title-row {
-    gap: 8px;
-  }
-
-  .detail-primary .detail-title-row .score-badge {
-    margin-top: 5px;
-    padding: 5px 7px;
-    font-size: 12px;
-  }
-
-  .detail-primary .meta {
+  .detail-primary .detail-meta {
     margin: 8px 0 0;
     font-size: 12px;
     line-height: 1.45;
+  }
+
+  .detail-meta span + span::before {
+    margin: 0 6px;
   }
 
   .detail-primary .detail-actions {
@@ -369,24 +363,24 @@ body.episode-drawer-open {
 
   .detail-main > .summary {
     margin: 6px 0 0;
-    color: rgba(238, 241, 255, 0.76);
+    color: var(--muted);
     font-size: 14px;
     line-height: 1.7;
   }
 
   .detail-interactions {
-    grid-template-columns: 1fr;
     margin-top: 14px;
+    padding: 12px 0;
   }
 
   .detail-data {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 14px 16px;
     margin-top: 12px;
   }
 
   .detail-data div {
-    padding: 10px;
+    padding: 0;
   }
 
   .detail-backdrop {

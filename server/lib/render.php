@@ -800,7 +800,26 @@ function render_page(array $data, string $route, array $query): string
             return '<a href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $episode['no']])) . '">' . e($episode['name']) . '</a>';
         }, $video['episodes']));
 
-        return render_layout($data, $video['title'], '<section class="detail-hero"><span class="detail-backdrop" aria-hidden="true"><img src="' . e($video['poster']) . '" alt="" width="380" height="570" decoding="async"></span><div class="wrap detail-grid"><div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 116px, 250px"><span>' . e($video['remark']) . '</span></div><div class="detail-main detail-panel"><div class="detail-primary"><span class="eyebrow">' . e($video['category']) . '</span><div class="detail-title-row"><h1>' . e($video['title']) . '</h1><span class="score-badge">' . e($video['score']) . '</span></div><p class="meta">' . e($video['year']) . ' / ' . e($video['area']) . ' / ' . e($video['category']) . '</p><div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div><p class="summary">' . e($video['summary']) . '</p></div></div></section><section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>');
+        $actor = (string) ($video['actor'] ?? '') ?: '待更新';
+        $actorDetail = strlen($actor) > 90
+            ? '<details class="detail-cast"><summary aria-label="展开或收起主演名单"><span class="detail-cast-preview">' . e($actor) . '</span><span class="detail-cast-toggle" aria-hidden="true"></span></summary><p>' . e($actor) . '</p></details>'
+            : e($actor);
+        $detailHero = '<section class="detail-hero">'
+            . '<span class="detail-backdrop" aria-hidden="true"><img src="' . e($video['poster']) . '" alt="" width="380" height="570" decoding="async"></span>'
+            . '<div class="wrap detail-grid">'
+            . '<div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 116px, 250px"><span>' . e($video['remark']) . '</span></div>'
+            . '<div class="detail-main detail-panel"><div class="detail-primary">'
+            . '<span class="eyebrow">' . e($video['category']) . '</span>'
+            . '<h1>' . e($video['title']) . '</h1>'
+            . '<p class="detail-meta" aria-label="影片信息"><span>' . e($video['year']) . '</span><span>' . e($video['area']) . '</span><span>' . e($video['class']) . '</span><span>' . e($video['lang']) . '</span></p>'
+            . '<div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div>'
+            . '<p class="summary">' . e($video['summary']) . '</p>'
+            . '<div class="detail-interactions" aria-label="评分与反馈"><div class="interaction-panel score-panel"><span class="interaction-label">豆瓣评分</span><strong>' . e($video['score']) . '</strong><em>/ 10</em></div><div class="interaction-panel digg-panel"><span class="interaction-label">影片反馈</span><button class="ghost-btn" type="button">顶 <em aria-live="polite">' . e($video['up'] ?? 0) . '</em></button><button class="ghost-btn" type="button">踩 <em aria-live="polite">' . e($video['down'] ?? 0) . '</em></button></div></div>'
+            . '<dl class="detail-data"><div><dt>导演</dt><dd>' . e($video['director']) . '</dd></div><div class="detail-data-cast"><dt>主演</dt><dd>' . $actorDetail . '</dd></div><div><dt>热度</dt><dd>' . e($video['hits']) . ' 次</dd></div><div><dt>更新</dt><dd>' . e($video['updated']) . '</dd></div></dl>'
+            . '</div></div></section>';
+        $episodeSection = '<section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>';
+
+        return render_layout($data, $video['title'], $detailHero . $episodeSection);
     }
 
     if ($route === 'copyright') {

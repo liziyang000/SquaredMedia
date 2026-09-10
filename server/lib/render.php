@@ -65,6 +65,7 @@ function render_layout(array $data, string $title, string $content, bool $loadGa
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="' . e(path_for('home')) . '" aria-label="' . e($data['siteName']) . '"><span class="brand-emblem" aria-hidden="true"></span><span class="brand-wordmark"><strong>' . e($data['siteName']) . '</strong><small>STREAMING EDITION</small></span></a>
+    <button class="mobile-search-toggle" type="button" data-mobile-search-open aria-label="打开站内搜索" aria-expanded="false" aria-controls="mobileDrawer"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg></button>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer"><span></span><span></span><span></span></button>
     <nav class="site-nav" aria-label="主导航">' . $nav . '</nav>
     <div class="header-search-wrap">

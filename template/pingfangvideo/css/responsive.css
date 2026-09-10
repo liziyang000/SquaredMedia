@@ -4,6 +4,7 @@
 }
 
 .filter-mobile-toolbar,
+.mobile-search-toggle,
 .filter-drawer-backdrop,
 .filter-drawer-head,
 .filter-view-results,
@@ -27,6 +28,91 @@ body.episode-drawer-open {
 }
 
 @media (max-width: 760px) {
+  .site-header .header-inner {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .mobile-search-toggle {
+    display: grid;
+    grid-column: 2;
+    grid-row: 1;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--surface-strong);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .mobile-search-toggle:focus-visible {
+    outline: 2px solid var(--accent-2);
+    outline-offset: 3px;
+  }
+
+  .site-header .nav-toggle {
+    grid-column: 3;
+  }
+
+  .hero-rank .section-head {
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+  }
+
+  .hero-rank .rank-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .hero-rank .rank-heading h2 {
+    color: var(--text);
+    font-size: 18px;
+  }
+
+  .home-shelf-tabs button,
+  .rank-refresh,
+  .home-shelf-more {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .page-title {
+    padding: 28px 0 18px;
+  }
+
+  .page-title h1 {
+    font-size: clamp(28px, 8vw, 36px);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .list-item > span > strong,
+  .list-item > span > small,
+  .list-item > span > em {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .list-item > span > strong {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .list-item > span > small {
+    margin: 5px 0 8px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .list-item > span > em {
+    margin-top: 6px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
   .filter-page-title {
     padding: 28px 0 14px;
   }
@@ -81,7 +167,7 @@ body.episode-drawer-open {
 
   .filter-mobile-trigger {
     display: inline-flex;
-    min-height: 42px;
+    min-height: 44px;
     align-items: center;
     gap: 8px;
     border: 1px solid var(--line-accent-strong);
@@ -215,8 +301,8 @@ body.episode-drawer-open {
   .filter-drawer-head button,
   .episode-drawer-head button {
     display: grid;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     flex: 0 0 auto;
     place-items: center;
     border: 1px solid var(--line);
@@ -256,7 +342,7 @@ body.episode-drawer-open {
   }
 
   .filter-panel.is-filter-drawer-ready .filter-options a {
-    min-height: 38px;
+    min-height: 44px;
     padding: 8px 12px;
   }
 
@@ -349,7 +435,7 @@ body.episode-drawer-open {
 
   .detail-primary .detail-actions > * {
     min-width: 0;
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 10px;
     font-size: 13px;
     text-align: center;
@@ -395,28 +481,35 @@ body.episode-drawer-open {
     padding: 8px 0 12px;
   }
 
-  .player-head {
+  .player-page .player-head {
+    flex-direction: row;
     align-items: center;
     gap: 10px;
     margin-bottom: 0;
     padding: 8px 0 10px;
   }
 
+  .player-head > div {
+    min-width: 0;
+    text-align: left;
+  }
+
   .player-head .eyebrow {
     display: none;
   }
 
-  .player-head h1 {
+  .player-page .player-head h1 {
     display: block;
     overflow: hidden;
     max-height: 2.36em;
     margin: 0;
     font-size: clamp(18px, 5.2vw, 22px);
     line-height: 1.18;
+    overflow-wrap: anywhere;
   }
 
   .player-head > .ghost-btn {
-    min-height: 40px;
+    min-height: 44px;
     flex: 0 0 auto;
     padding: 8px 10px;
     font-size: 12px;
@@ -464,7 +557,7 @@ body.episode-drawer-open {
 
   .player-toolbar-actions .ghost-btn {
     min-width: 0;
-    min-height: 40px;
+    min-height: 44px;
     flex: 1 1 0;
     padding: 8px 9px;
     font-size: 13px;
@@ -524,7 +617,7 @@ body.episode-drawer-open {
   }
 
   .content-section.is-episode-drawer-ready .episode-grid a {
-    min-height: 42px;
+    min-height: 44px;
     padding: 8px 6px;
     font-size: 13px;
   }
@@ -533,15 +626,31 @@ body.episode-drawer-open {
 @media (max-width: 760px) and (orientation: portrait) {
   .hero .hero-carousel,
   .hero .hero-slide {
-    min-height: clamp(420px, 58dvh, 460px);
+    min-height: clamp(360px, 48svh, 400px);
   }
 
   .hero .hero-slide {
-    padding: 34px 18px 60px;
+    position: relative;
+    padding: 34px 18px 84px;
+  }
+
+  .hero .banner-bg::after {
+    background: linear-gradient(180deg, rgba(5, 7, 13, 0.04) 10%, rgba(5, 7, 13, 0.5) 45%, rgba(5, 7, 13, 0.94) 100%);
   }
 
   .hero .banner-content {
     min-height: 0;
+    gap: 14px;
+  }
+
+  .hero .banner-copy {
+    gap: 12px;
+  }
+
+  .hero .banner-copy strong {
+    font-size: clamp(30px, 9vw, 40px);
+    line-height: 1.12;
+    overflow-wrap: anywhere;
   }
 
   .hero .banner-copy small {
@@ -552,6 +661,12 @@ body.episode-drawer-open {
 
   .hero .banner-priority-image {
     object-position: center top;
+  }
+}
+
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  .site-header .header-search-wrap {
+    display: none;
   }
 }
 

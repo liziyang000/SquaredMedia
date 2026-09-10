@@ -1,6 +1,8 @@
 (function () {
   var appScriptElement = document.currentScript;
   var toggle = document.querySelector(".nav-toggle");
+  var searchToggle = document.querySelector("[data-mobile-search-open]");
+  var navReturnFocus = toggle;
   var drawer = document.querySelector(".mobile-drawer");
   var backdrop = document.querySelector(".mobile-drawer-backdrop");
   var siteHeader = document.querySelector(".site-header");
@@ -198,6 +200,7 @@
     drawer.setAttribute("aria-hidden", isOpen ? "false" : "true");
     toggle.classList.toggle("is-open", isOpen);
     toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    if (searchToggle) searchToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
     document.body.classList.toggle("mobile-nav-open", isOpen);
     if (backdrop) {
       clearBackdropHideTimer();
@@ -215,7 +218,7 @@
       }
     }
     if (!isOpen && shouldRestoreFocus) {
-      toggle.focus();
+      navReturnFocus.focus();
     }
   }
 
@@ -634,6 +637,7 @@
     }
 
     toggle.addEventListener("click", function () {
+      navReturnFocus = toggle;
       var isOpen = !toggle.classList.contains("is-open");
       setNavOpen(isOpen);
       if (isOpen) {
@@ -641,6 +645,15 @@
         if (firstLink) firstLink.focus();
       }
     });
+
+    if (searchToggle) {
+      searchToggle.addEventListener("click", function () {
+        setNavOpen(true);
+        navReturnFocus = searchToggle;
+        var searchInput = drawer.querySelector('input[name="wd"]');
+        if (searchInput) searchInput.focus();
+      });
+    }
 
     document.querySelectorAll("[data-mobile-nav-close]").forEach(function (control) {
       control.addEventListener("click", function () {

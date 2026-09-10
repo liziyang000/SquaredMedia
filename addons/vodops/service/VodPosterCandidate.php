@@ -12,6 +12,7 @@ class VodPosterCandidate
     private const MAX_CANDIDATES_PER_PROVIDER = 3;
     private const MAX_CANDIDATES = 12;
     private const PROVIDER_CONCURRENCY = 8;
+    private const STORED_IMAGE_CONCURRENCY = 16;
     private const REQUEST_TIMEOUT_SECONDS = 6;
     private const JSON_MAX_BYTES = 1048576;
     private const IMAGE_MAX_BYTES = 262144;
@@ -178,6 +179,34 @@ class VodPosterCandidate
         $results = [];
         foreach (array_chunk(array_values(array_unique($urls)), self::PROVIDER_CONCURRENCY) as $chunk) {
             $results += self::probeImageChunk($chunk);
+        }
+        return $results;
+    }
+
+    public static function probeStoredImages(array $urls): array
+    {
+        $urls = array_values(array_unique(array_filter(array_map(static function ($url) {
+            return trim((string) $url);
+        }, $urls), static function ($url) {
+            return $url !== '';
+        })));
+        if (!function_exists('curl_multi_init')) {
+            $results = [];
+            foreach ($urls as $url) {
+                $results[$url] = [
+                    'ok' => false,
+                    'state' => 'unknown',
+                    'reason' => 'runtime_unavailable',
+                    'http_code' => 0,
+                    'content_type' => '',
+                ];
+            }
+            return $results;
+        }
+
+        $results = [];
+        foreach (array_chunk($urls, self::STORED_IMAGE_CONCURRENCY) as $chunk) {
+            $results += self::probeImageChunk($chunk, true);
         }
         return $results;
     }
@@ -590,7 +619,7 @@ class VodPosterCandidate
                 CURLOPT_ENCODING => '',
                 CURLOPT_PROXY => '',
                 CURLOPT_HTTPHEADER => ['Accept: application/json'],
-                CURLOPT_USERAGENT => 'SquaredMedia-VodOps/1.2',
+                CURLOPT_USERAGENT => 'SquaredMedia-VodOps/1.3',
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_RESOLVE => [$target['resolve']],
@@ -624,7 +653,7 @@ class VodPosterCandidate
         return $results;
     }
 
-    private static function probeImageChunk(array $urls)
+    private static function probeImageChunk(array $urls, $stored = false)
     {
         $multi = curl_multi_init();
         $handles = [];
@@ -632,16 +661,35 @@ class VodPosterCandidate
         $tooLarge = [];
         $results = [];
 
-        foreach ($urls as $url) {
-            $url = self::normalizePosterUrl($url);
-            $target = $url === '' ? null : self::publicTarget($url, true);
+        foreach ($urls as $sourceUrl) {
+            $sourceUrl = trim((string) $sourceUrl);
+            $url = $stored ? self::normalizeStoredPosterUrl($sourceUrl) : self::normalizePosterUrl($sourceUrl);
+            $target = $url === '' ? null : self::publicTarget($url, !$stored);
             if ($target === null) {
+                if ($stored && $sourceUrl !== '') {
+                    $results[$sourceUrl] = [
+                        'ok' => false,
+                        'state' => 'unknown',
+                        'reason' => 'invalid_target',
+                        'http_code' => 0,
+                        'content_type' => '',
+                    ];
+                }
                 continue;
             }
-            $buffers[$url] = '';
-            $tooLarge[$url] = false;
+            $buffers[$sourceUrl] = '';
+            $tooLarge[$sourceUrl] = false;
             $handle = curl_init($url);
             if ($handle === false) {
+                if ($stored) {
+                    $results[$sourceUrl] = [
+                        'ok' => false,
+                        'state' => 'unknown',
+                        'reason' => 'runtime_unavailable',
+                        'http_code' => 0,
+                        'content_type' => '',
+                    ];
+                }
                 continue;
             }
             curl_setopt_array($handle, [
@@ -656,39 +704,41 @@ class VodPosterCandidate
                 CURLOPT_PROXY => '',
                 CURLOPT_RANGE => '0-' . (self::IMAGE_MAX_BYTES - 1),
                 CURLOPT_HTTPHEADER => ['Accept: image/avif,image/webp,image/png,image/jpeg,image/gif'],
-                CURLOPT_USERAGENT => 'Mozilla/5.0 SquaredMedia-VodOps/1.2',
+                CURLOPT_USERAGENT => 'Mozilla/5.0 SquaredMedia-VodOps/1.3',
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_RESOLVE => [$target['resolve']],
-                CURLOPT_WRITEFUNCTION => static function ($curl, $chunk) use (&$buffers, &$tooLarge, $url) {
-                    $remaining = self::IMAGE_MAX_BYTES - strlen($buffers[$url]);
+                CURLOPT_WRITEFUNCTION => static function ($curl, $chunk) use (&$buffers, &$tooLarge, $sourceUrl) {
+                    $remaining = self::IMAGE_MAX_BYTES - strlen($buffers[$sourceUrl]);
                     if ($remaining <= 0) {
-                        $tooLarge[$url] = true;
+                        $tooLarge[$sourceUrl] = true;
                         return 0;
                     }
-                    $buffers[$url] .= substr($chunk, 0, $remaining);
+                    $buffers[$sourceUrl] .= substr($chunk, 0, $remaining);
                     if (strlen($chunk) > $remaining) {
-                        $tooLarge[$url] = true;
+                        $tooLarge[$sourceUrl] = true;
                         return 0;
                     }
                     return strlen($chunk);
                 },
             ]);
             curl_multi_add_handle($multi, $handle);
-            $handles[$url] = $handle;
+            $handles[$sourceUrl] = $handle;
         }
 
         self::runMulti($multi);
-        foreach ($handles as $url => $handle) {
+        foreach ($handles as $sourceUrl => $handle) {
             $status = intval(curl_getinfo($handle, CURLINFO_HTTP_CODE));
             $contentType = strtolower(trim((string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE)));
             $contentType = trim(explode(';', $contentType)[0]);
-            $curlOk = curl_errno($handle) === 0 || !empty($tooLarge[$url]);
-            $ok = $curlOk && in_array($status, [200, 206], true)
-                && self::allowedImageType($contentType)
-                && self::matchesImageMagic($contentType, $buffers[$url]);
-            $results[$url] = [
-                'ok' => $ok,
+            $result = self::classifyProbeResult(
+                $status,
+                curl_errno($handle),
+                !empty($tooLarge[$sourceUrl]),
+                $contentType,
+                $buffers[$sourceUrl]
+            );
+            $results[$sourceUrl] = $result + [
                 'http_code' => $status,
                 'content_type' => $contentType,
             ];
@@ -697,6 +747,33 @@ class VodPosterCandidate
         }
         curl_multi_close($multi);
         return $results;
+    }
+
+    private static function classifyProbeResult($status, $curlError, $tooLarge, $contentType, $body)
+    {
+        $status = intval($status);
+        $contentType = strtolower(trim((string) $contentType));
+        $transportOk = intval($curlError) === 0 || !empty($tooLarge);
+        if (!$transportOk) {
+            return ['ok' => false, 'state' => 'unknown', 'reason' => 'transport_error'];
+        }
+        if (in_array($status, [200, 206], true)) {
+            if (self::detectedImageType($body) !== '') {
+                return ['ok' => true, 'state' => 'healthy', 'reason' => 'image'];
+            }
+            if (self::allowedImageType($contentType)
+                || ($contentType !== '' && $contentType !== 'application/octet-stream' && strpos($contentType, 'image/') !== 0)) {
+                return ['ok' => false, 'state' => 'broken', 'reason' => 'invalid_content'];
+            }
+            return ['ok' => false, 'state' => 'unknown', 'reason' => 'unsupported_content'];
+        }
+        if (in_array($status, [404, 410], true)) {
+            return ['ok' => false, 'state' => 'broken', 'reason' => 'not_found'];
+        }
+        if ($status === 204) {
+            return ['ok' => false, 'state' => 'broken', 'reason' => 'empty_response'];
+        }
+        return ['ok' => false, 'state' => 'unknown', 'reason' => 'http_unconfirmed'];
     }
 
     private static function runMulti($multi)
@@ -838,6 +915,22 @@ class VodPosterCandidate
         return preg_match('/[\x00-\x20\x7F]/', $url) ? '' : $url;
     }
 
+    private static function normalizeStoredPosterUrl($value)
+    {
+        $url = trim(html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if (strpos($url, '//') === 0) {
+            $url = 'https:' . $url;
+        }
+        if (strlen($url) > 2048 || !preg_match('#^https?://#i', $url) || preg_match('/[\x00-\x20\x7F]/', $url)) {
+            return '';
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts) || empty($parts['host']) || isset($parts['user']) || isset($parts['pass']) || isset($parts['fragment'])) {
+            return '';
+        }
+        return $url;
+    }
+
     private static function normalizeTitle($value)
     {
         $value = html_entity_decode(strip_tags((string) $value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -889,6 +982,16 @@ class VodPosterCandidate
             return substr($body, 0, 4) === 'RIFF' && substr($body, 8, 4) === 'WEBP';
         }
         return false;
+    }
+
+    private static function detectedImageType($body)
+    {
+        foreach (['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as $contentType) {
+            if (self::matchesImageMagic($contentType, $body)) {
+                return $contentType;
+            }
+        }
+        return '';
     }
 
     private static function singleLine($value, $limit)

@@ -32,6 +32,11 @@
     .douban-workspace .sync-change { display: grid; grid-template-columns: minmax(100px, 150px) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
     .douban-workspace .sync-change-name { margin: 0; font-size: 13px; }
     .douban-workspace .sync-change-heading button { width: 100%; min-height: 32px; margin-top: 8px; padding: 5px 8px; font-size: 12px; }
+    .douban-workspace .manual-field-choice { display: flex; gap: 7px; align-items: flex-start; cursor: pointer; }
+    .douban-workspace .manual-field-choice input { flex: 0 0 auto; margin-top: 3px; }
+    .douban-workspace .manual-sync-actions { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .douban-workspace .manual-sync-actions[hidden] { display: none; }
+    .douban-workspace .manual-sync-actions span { margin-right: auto; color: var(--muted); font-size: 12px; }
     .douban-workspace .sync-value-label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 11px; }
     .douban-workspace .sync-value pre { max-height: 180px; margin: 0; overflow: auto; color: var(--ink); font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
     .douban-workspace .sync-value-after { padding-left: 10px; border-left: 2px solid #b9ddc8; }
@@ -159,7 +164,7 @@
   <header class="workbench-header">
     <span class="workbench-kicker">DOUBAN METADATA</span>
     <h2 id="doubanWorkspaceTitle">豆瓣匹配与同步</h2>
-    <p>先找到本地影片，再一键搜索豆瓣 ID 并同步资料；同步不会修改现有图片。批量任务设置和校准工具已收进高级区域。</p>
+    <p>先找到本地影片，再搜索豆瓣 ID；可同步全部资料，也可预览差异后只更新手动勾选的字段。同步不会修改现有图片。</p>
   </header>
 
   <div id="doubanOperationStatus" class="operation-status" data-state="idle" role="status" aria-live="polite" aria-atomic="true">
@@ -178,9 +183,14 @@
         <h2 id="doubanSyncResultTitle" data-sync-title>同步结果</h2>
         <p data-sync-summary></p>
       </div>
-      <span class="sync-result-kicker">当前行已实时更新</span>
+      <span class="sync-result-kicker" data-sync-state>当前行已实时更新</span>
     </div>
     <div class="sync-changes" data-sync-changes></div>
+    <div class="manual-sync-actions" data-manual-sync-actions hidden>
+      <span>字段默认均未选择，只有勾选项会写入。</span>
+      <button class="ghost-btn" type="button" data-douban-action="cancel-manual-sync">取消</button>
+      <button class="primary-btn" type="button" data-douban-action="apply-manual-sync" disabled>确认更新所选字段</button>
+    </div>
   </section>
 
   <section class="search-panel" aria-labelledby="quick-search-title">
@@ -286,6 +296,7 @@
               {else/}
               <button class="primary-btn" type="button" data-douban-primary-action data-douban-action="sync" data-vod-id="{$vo.vod_id}">重新同步</button>
               {/if}
+              <button class="ghost-btn" type="button" data-douban-action="manual-sync" data-manual-sync-button data-vod-id="{$vo.vod_id}" {if condition="empty($vo['display_douban_id'])"}hidden{/if}>选择字段更新</button>
               <details class="row-tools">
                 <summary>更多操作</summary>
                 <div class="row-tools-body">
@@ -569,6 +580,10 @@
     var syncResultTitle = syncResult.querySelector("[data-sync-title]");
     var syncResultSummary = syncResult.querySelector("[data-sync-summary]");
     var syncChanges = syncResult.querySelector("[data-sync-changes]");
+    var syncState = syncResult.querySelector("[data-sync-state]");
+    var manualSyncActions = syncResult.querySelector("[data-manual-sync-actions]");
+    var manualSyncApply = syncResult.querySelector('[data-douban-action="apply-manual-sync"]');
+    var manualSyncState = null;
     var feedbackTimer = null;
     var feedbackStartedAt = 0;
     var activeButton = null;
@@ -797,6 +812,8 @@
         primaryAction.setAttribute("data-douban-action", doubanId ? "sync" : "fetch-vod");
         primaryAction.textContent = doubanId ? "重新同步" : "搜索豆瓣ID";
       }
+      var manualSyncButton = row.querySelector("[data-manual-sync-button]");
+      if (manualSyncButton) manualSyncButton.hidden = doubanId === "";
       var manualId = row.querySelector('.douban-id-form input[name="douban_id"]');
       if (manualId && manualId.getAttribute("data-douban-manual-dirty") !== "1") {
         manualId.value = doubanId;
@@ -906,6 +923,10 @@
     function renderSyncResult(result) {
       var data = result && result.data ? result.data : {};
       var videoState = data.video_state || {};
+      manualSyncState = null;
+      manualSyncActions.hidden = true;
+      manualSyncApply.disabled = true;
+      syncState.textContent = "当前行已实时更新";
       renderVideoState(videoState);
       renderCollectionState(result);
       var changes = Array.isArray(data.changes) ? data.changes : [];
@@ -946,6 +967,49 @@
       }
       renderSyncWarnings(warnings);
       syncResult.hidden = false;
+    }
+
+    function renderManualSyncPreview(result) {
+      var data = result && result.data ? result.data : {};
+      var changes = Array.isArray(data.changes) ? data.changes : [];
+      var warnings = Array.isArray(data.warnings) ? data.warnings : [];
+      manualSyncState = {
+        vodId: Number(data.vod_id || 0),
+        contextToken: String(data.context_token || "")
+      };
+      syncResultTitle.textContent = (data.vod_name || "未命名影片") + " · 本地视频 #" + manualSyncState.vodId;
+      syncResultSummary.textContent = changes.length
+        ? "发现 " + changes.length + " 个可更新字段，请核对前后值并手动勾选。"
+        : "豆瓣资料与本地一致，没有可更新字段。";
+      syncState.textContent = "预览阶段 · 尚未写入";
+      syncChanges.textContent = "";
+      changes.forEach(function (change) {
+        var item = document.createElement("article");
+        item.className = "sync-change";
+        var heading = document.createElement("div");
+        heading.className = "sync-change-heading";
+        var choice = document.createElement("label");
+        choice.className = "manual-field-choice";
+        var checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = String(change.field || "");
+        checkbox.setAttribute("data-manual-sync-field", "");
+        checkbox.checked = false;
+        var name = document.createElement("strong");
+        name.textContent = change.label || change.field || "未命名字段";
+        choice.appendChild(checkbox);
+        choice.appendChild(name);
+        heading.appendChild(choice);
+        item.appendChild(heading);
+        item.appendChild(createSyncValue("当前值", change.before, ""));
+        item.appendChild(createSyncValue("豆瓣值", change.after, "sync-value-after"));
+        syncChanges.appendChild(item);
+      });
+      renderSyncWarnings(warnings);
+      manualSyncActions.hidden = changes.length === 0;
+      manualSyncApply.disabled = true;
+      syncResult.hidden = false;
+      syncResult.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     function post(url, data, button, options) {
@@ -1210,6 +1274,11 @@
       }
     });
 
+    document.addEventListener("change", function (event) {
+      if (!event.target.matches("[data-manual-sync-field]")) return;
+      manualSyncApply.disabled = !syncChanges.querySelector("[data-manual-sync-field]:checked");
+    });
+
     document.addEventListener("submit", function (event) {
       var form = event.target.closest("#doubanConfigForm, .douban-id-form");
       if (!form) return;
@@ -1235,7 +1304,51 @@
       var url = "";
       var pending = "正在处理";
       var updatesVideoRow = false;
-      if (action === "start-audit") {
+      if (action === "cancel-manual-sync") {
+        manualSyncState = null;
+        manualSyncActions.hidden = true;
+        syncResult.hidden = true;
+        syncChanges.textContent = "";
+        return;
+      } else if (action === "manual-sync") {
+        formData.append("vod_id", button.getAttribute("data-vod-id"));
+        post("{:url('douban/previewManualSync')}", formData, button, {
+          pending: "正在读取最新豆瓣资料并生成字段预览",
+          pendingDetail: "此步骤只读取数据，不会修改本地视频。",
+          reload: false,
+          detail: "预览已生成，字段默认均未选择。",
+          onSuccess: renderManualSyncPreview
+        });
+        return;
+      } else if (action === "apply-manual-sync") {
+        if (!manualSyncState || manualSyncState.vodId < 1 || !manualSyncState.contextToken) {
+          missingSelection("字段预览已失效，请从视频行重新打开。");
+          return;
+        }
+        var selectedFields = Array.prototype.slice.call(syncChanges.querySelectorAll("[data-manual-sync-field]:checked"));
+        if (selectedFields.length === 0) {
+          missingSelection("请至少勾选一个要更新的字段。");
+          return;
+        }
+        if (!window.confirm("将只更新已勾选的 " + selectedFields.length + " 个字段，其他字段保持不变。确认继续？")) return;
+        formData.append("vod_id", String(manualSyncState.vodId));
+        selectedFields.forEach(function (field) { formData.append("fields[]", field.value); });
+        formData.append("context_token", manualSyncState.contextToken);
+        formData.append("confirm", "1");
+        var manualVodId = manualSyncState.vodId;
+        post("{:url('douban/applyManualSync')}", formData, button, {
+          pending: "正在更新已选择的字段",
+          pendingDetail: "提交前会重新校验预览快照，数据变化时不会覆盖。",
+          reload: false,
+          detail: "只有勾选字段已更新，未选择字段保持不变。",
+          onSuccess: function (result) {
+            renderSyncResult(result);
+            var rowButton = document.querySelector('[data-douban-vod-id="' + manualVodId + '"] [data-manual-sync-button]');
+            setRowFeedback(rowButton, "success", result.msg || "所选字段已更新");
+          }
+        });
+        return;
+      } else if (action === "start-audit") {
         if (!window.confirm("体检会分批读取全库视频，只生成报告，不修改视频数据。确认开始？")) return;
         var batchInput = document.getElementById("doubanAuditBatchSize");
         formData.append("batch_size", batchInput ? batchInput.value : "100");

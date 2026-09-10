@@ -24,6 +24,8 @@ class VodQualityRepair
         'lang_missing' => '补充语言',
         'poster_missing' => '补充海报',
         'poster_file_missing' => '更换或复检海报',
+        'poster_remote_unavailable' => '更换或复检远程海报',
+        'poster_remote_unverified' => '核验或更换远程海报',
     ];
 
     private const EXTERNAL_CANDIDATE_ISSUES = [
@@ -33,6 +35,8 @@ class VodQualityRepair
         'lang_missing' => 'vod_lang',
         'poster_missing' => 'vod_pic',
         'poster_file_missing' => 'vod_pic',
+        'poster_remote_unavailable' => 'vod_pic',
+        'poster_remote_unverified' => 'vod_pic',
     ];
 
     private const SOURCES = [
@@ -88,6 +92,8 @@ class VodQualityRepair
                 break;
             case 'poster_missing':
             case 'poster_file_missing':
+            case 'poster_remote_unavailable':
+            case 'poster_remote_unverified':
                 $updates = ['vod_pic' => self::posterValue($newValue, $context)];
                 break;
             default:
@@ -131,7 +137,7 @@ class VodQualityRepair
             }
         } elseif ($issueType === 'year_invalid') {
             $suggestedValue = self::yearSuggestion((string) ($vod['vod_year'] ?? ''));
-        } elseif ($issueType === 'poster_file_missing') {
+        } elseif (in_array($issueType, ['poster_file_missing', 'poster_remote_unavailable', 'poster_remote_unverified'], true)) {
             $suggestedValue = (string) ($vod[$field] ?? '');
         }
 
@@ -155,7 +161,7 @@ class VodQualityRepair
             'external_candidates_supported' => $supported && isset(self::EXTERNAL_CANDIDATE_ISSUES[$issueType]),
             'candidate_title' => (VodQualityAnalyzer::issueTypes()[$issueType] ?? '数据') . '候选',
             'poster_candidates_supported' => $supported
-                && in_array($issueType, ['poster_missing', 'poster_file_missing'], true),
+                && in_array($issueType, ['poster_missing', 'poster_file_missing', 'poster_remote_unavailable', 'poster_remote_unverified'], true),
             'can_rollback' => !empty($latestMutation)
                 && ($latestMutation['action'] ?? '') === 'update'
                 && ($latestMutation['result_status'] ?? '') === 'fixed',
@@ -167,7 +173,7 @@ class VodQualityRepair
     {
         $candidate = self::candidateContext($issueId, $context);
         $issueType = (string) ($candidate['issue_type'] ?? '');
-        if (!in_array($issueType, ['poster_missing', 'poster_file_missing'], true)) {
+        if (!in_array($issueType, ['poster_missing', 'poster_file_missing', 'poster_remote_unavailable', 'poster_remote_unverified'], true)) {
             throw new VodQualityRepairException('仅海报异常支持搜索外部候选。');
         }
         return $candidate;
@@ -268,7 +274,7 @@ class VodQualityRepair
 
             $freshVod = self::loadVod(intval($vod['vod_id'] ?? 0));
             $freshTypeMap = self::typeMap();
-            $freshContext = self::context($context);
+            $freshContext = self::issueContext($issue, $freshVod, self::context($context));
             if (self::hasIssue($issueType, $freshVod, $freshTypeMap, $freshContext)) {
                 self::conditionalVodUpdate(
                     intval($vod['vod_id'] ?? 0),
@@ -303,7 +309,11 @@ class VodQualityRepair
         }
         $field = self::fieldForIssue($issueType);
         $snapshot = $field === '' ? [] : [$field => $record['vod'][$field] ?? ''];
-        $resultStatus = self::hasIssue($issueType, $record['vod'], $record['type_map'], $record['context']) ? 'open' : 'fixed';
+        $issuePresent = self::hasIssue($issueType, $record['vod'], $record['type_map'], $record['context']);
+        if ($issuePresent && in_array($issueType, ['poster_remote_unavailable', 'poster_remote_unverified'], true)) {
+            $issuePresent = self::remotePosterState((string) ($record['vod']['vod_pic'] ?? ''), $record['context']) !== 'healthy';
+        }
+        $resultStatus = $issuePresent ? 'open' : 'fixed';
         $repairId = self::createAudit($issue, 'recheck', $snapshot, $snapshot, [], 'recheck', $adminId, 0);
         self::finishAudit($repairId, 'applied', $resultStatus);
         return self::result($repairId, $issue, $resultStatus, $record['vod']);
@@ -350,7 +360,8 @@ class VodQualityRepair
             }
             $freshVod = self::loadVod($vodId);
             $typeMap = self::typeMap();
-            $actualContext = self::context($context);
+            $storedIssue = self::rowToArray(Db::name(self::ISSUE_TABLE)->where('issue_id', intval($repair['issue_id'] ?? 0))->find());
+            $actualContext = self::issueContext($storedIssue, $freshVod, self::context($context));
             $resultStatus = self::hasIssue((string) $repair['issue_type'], $freshVod, $typeMap, $actualContext) ? 'open' : 'fixed';
             self::finishAudit($rollbackId, 'applied', $resultStatus);
             self::clearVodCaches($vod, $freshVod);
@@ -385,12 +396,60 @@ class VodQualityRepair
             }
         }
         $vod = self::loadVod(intval($issue['vod_id'] ?? 0));
+        $actualContext = self::issueContext($issue, $vod, self::context($context));
         return [
             'issue' => $issue,
             'vod' => $vod,
             'type_map' => self::typeMap(),
-            'context' => self::context($context),
+            'context' => $actualContext,
         ];
+    }
+
+    private static function issueContext(array $issue, array $vod, array $context)
+    {
+        $issueType = (string) ($issue['issue_type'] ?? '');
+        if (!in_array($issueType, ['poster_remote_unavailable', 'poster_remote_unverified'], true)) {
+            return $context;
+        }
+        $poster = trim((string) ($vod['vod_pic'] ?? ''));
+        $detail = self::jsonMap($issue['detail_json'] ?? '');
+        $posterHash = (string) ($detail['poster_hash'] ?? '');
+        if (!preg_match('/^[a-f0-9]{64}$/D', $posterHash)
+            || !hash_equals($posterHash, hash('sha256', $poster))) {
+            return $context;
+        }
+        $context['remote_poster_probe'] = [
+            'url' => $poster,
+            'state' => $issueType === 'poster_remote_unavailable' ? 'broken' : 'inconclusive',
+            'reason' => (string) ($detail['reason'] ?? ''),
+            'http_code' => intval($detail['http_code'] ?? 0),
+            'content_type' => (string) ($detail['content_type'] ?? ''),
+            'attempts' => intval($detail['attempts'] ?? 1),
+        ];
+        return $context;
+    }
+
+    private static function remotePosterState($url, array $context)
+    {
+        $url = trim((string) $url);
+        if ($url === '') {
+            return 'unknown';
+        }
+        $probeFetcher = $context['poster_probe'] ?? [VodPosterCandidate::class, 'probeStoredImages'];
+        if (!is_callable($probeFetcher)) {
+            return 'unknown';
+        }
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            try {
+                $results = (array) call_user_func($probeFetcher, [$url]);
+                $state = (string) ($results[$url]['state'] ?? 'unknown');
+                if (in_array($state, ['healthy', 'broken'], true)) {
+                    return $state;
+                }
+            } catch (\Throwable $e) {
+            }
+        }
+        return 'unknown';
     }
 
     private static function loadVod($vodId)
@@ -488,6 +547,8 @@ class VodQualityRepair
             'lang_missing' => 'vod_lang',
             'poster_missing' => 'vod_pic',
             'poster_file_missing' => 'vod_pic',
+            'poster_remote_unavailable' => 'vod_pic',
+            'poster_remote_unverified' => 'vod_pic',
         ];
         return $map[$issueType] ?? '';
     }
@@ -614,6 +675,8 @@ class VodQualityRepair
             'lang_missing' => '按实际音轨填写语言，不要根据地区推测。',
             'poster_missing' => '填写 HTTPS 图片地址，或已存在于 upload/ 下的本地文件路径。',
             'poster_file_missing' => '如果原文件已经恢复可仅复检；否则填写新的 HTTPS 地址或已存在的本地路径。',
+            'poster_remote_unavailable' => '当前远程图片已确认失效；可仅复检确认恢复，或从可信候选中选择新的 HTTPS 图片。',
+            'poster_remote_unverified' => '当前远程图片连续检测后仍无法确认；请先人工核验，也可仅复检或从可信候选中选择新图片。',
         ];
         return $map[$issueType] ?? '请在原生编辑页人工处理。';
     }

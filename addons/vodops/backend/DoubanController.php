@@ -161,6 +161,51 @@ class DoubanController extends Base
         }
     }
 
+    public function previewManualSync()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '字段更新预览已生成',
+                'data' => DoubanData::previewManualSync((int) input('vod_id/d', 0)),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function applyManualSync()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+        if ((int) input('confirm/d', 0) !== 1) {
+            return json(['code' => 1001, 'msg' => '请确认更新所选字段']);
+        }
+
+        try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::applyManualSync(
+                $vodId,
+                (array) input('fields/a', []),
+                (string) input('context_token/s', ''),
+                $this->adminId()
+            );
+            $result = $this->appendWorkspaceState($result, $vodId);
+            return json([
+                'code' => 1,
+                'msg' => '所选字段已更新',
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
     public function rollbackPic()
     {
         if (($error = $this->guardPost()) !== null) {

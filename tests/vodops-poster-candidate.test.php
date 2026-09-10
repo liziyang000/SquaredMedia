@@ -148,6 +148,47 @@ namespace {
 
     use addons\vodops\service\VodPosterCandidate;
 
+    $classifyProbe = new \ReflectionMethod(VodPosterCandidate::class, 'classifyProbeResult');
+    $classifyProbe->setAccessible(true);
+    $validJpeg = "\xFF\xD8\xFFfixture";
+    vodops_poster_candidate_assert_same(
+        'healthy',
+        $classifyProbe->invoke(null, 206, 0, false, 'image/jpeg', $validJpeg)['state'] ?? null,
+        'A partial response with matching image bytes should be healthy.'
+    );
+    vodops_poster_candidate_assert_same(
+        'broken',
+        $classifyProbe->invoke(null, 404, 0, false, 'text/html', 'missing')['state'] ?? null,
+        'HTTP 404 should be a definite broken poster.'
+    );
+    vodops_poster_candidate_assert_same(
+        'broken',
+        $classifyProbe->invoke(null, 200, 0, false, 'text/html', '<html>denied</html>')['state'] ?? null,
+        'A successful response containing non-image bytes should be a definite broken poster.'
+    );
+    vodops_poster_candidate_assert_same(
+        'healthy',
+        $classifyProbe->invoke(null, 200, 0, false, 'application/octet-stream', $validJpeg)['state'] ?? null,
+        'Recognizable image bytes should remain healthy when a source sends a generic MIME type.'
+    );
+    vodops_poster_candidate_assert_same(
+        'unknown',
+        $classifyProbe->invoke(null, 200, 0, false, 'image/avif', "\0\0\0\x18ftypavif")['state'] ?? null,
+        'A successful but unsupported image format must remain inconclusive instead of becoming a false failure.'
+    );
+    foreach ([403, 429, 500, 302] as $status) {
+        vodops_poster_candidate_assert_same(
+            'unknown',
+            $classifyProbe->invoke(null, $status, 0, false, 'text/html', '')['state'] ?? null,
+            'Ambiguous HTTP responses must not be treated as definite failures: ' . $status
+        );
+    }
+    vodops_poster_candidate_assert_same(
+        'unknown',
+        $classifyProbe->invoke(null, 0, 28, false, '', '')['state'] ?? null,
+        'A transport timeout must remain inconclusive.'
+    );
+
     $baseVod = [
         'vod_id' => 100,
         'vod_name' => '测试影片',

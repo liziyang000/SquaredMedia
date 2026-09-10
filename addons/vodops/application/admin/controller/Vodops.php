@@ -132,7 +132,8 @@ class Vodops extends Base
                     $this->adminId(),
                     intval(input('batch_size/d', 500)),
                     intval(input('scope_type_id/d', 0)),
-                    intval(input('worker_mode/d', 0)) === 1
+                    intval(input('worker_mode/d', 0)) === 1,
+                    intval(input('check_remote_posters/d', 0)) === 1
                 ),
             ]);
         } catch (VodQualityActionException $e) {

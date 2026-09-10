@@ -80,6 +80,8 @@ namespace {
         'retryFailed',
         'fetchVod',
         'sync',
+        'previewManualSync',
+        'applyManualSync',
         'rollbackPic',
         'calibrate',
         'previewCalibration',

@@ -32,7 +32,25 @@ class DoubanData
     private const ACTION_AUTO_SYNC = 'AUTO_SYNC';
     private const ACTION_AUTO_SYNC_PENDING = 'AUTO_SYNC_PENDING';
     private const ACTION_AUTO_SYNC_CONFLICT = 'AUTO_SYNC_CONFLICT';
+    private const ACTION_MANUAL_FIELD_SYNC = 'MANUAL_FIELD_SYNC';
+    private const ACTION_MANUAL_FIELD_SYNC_PENDING = 'MANUAL_FIELD_SYNC_PENDING';
+    private const ACTION_MANUAL_FIELD_SYNC_CONFLICT = 'MANUAL_FIELD_SYNC_CONFLICT';
     private const ACTION_ROLLBACK_PIC = 'ROLLBACK_PIC';
+    private const MANUAL_SYNC_FIELDS = [
+        'vod_name',
+        'vod_year',
+        'vod_area',
+        'vod_lang',
+        'vod_class',
+        'vod_director',
+        'vod_actor',
+        'vod_content',
+        'vod_douban_score',
+        'vod_score',
+        'vod_total',
+        'vod_remarks',
+        'vod_douban_id',
+    ];
     private static $nextLocalRequestAt = 0.0;
     private static $rateLimitStateReady = false;
 
@@ -1292,6 +1310,67 @@ class DoubanData
         self::forgetStatsCache();
 
         return $result;
+    }
+
+    public static function previewManualSync(int $vodId)
+    {
+        $snapshot = self::manualSyncSnapshot($vodId, self::config());
+
+        return [
+            'vod_id' => $vodId,
+            'vod_name' => (string) ($snapshot['vod']['vod_name'] ?? ''),
+            'douban_id' => (string) $snapshot['douban_id'],
+            'code' => 1,
+            'msg' => empty($snapshot['updates']) ? '资料已一致' : '请选择要更新的字段',
+            'updated_fields' => [],
+            'changes' => self::syncChangesForView($snapshot['old_values'], $snapshot['updates']),
+            'warnings' => $snapshot['warnings'],
+            'context_token' => $snapshot['context_token'],
+        ];
+    }
+
+    public static function applyManualSync(int $vodId, array $fields, string $contextToken, int $operatorId = 0)
+    {
+        $fields = self::normalizeManualSyncFields($fields);
+        $snapshot = self::manualSyncSnapshot($vodId, self::config());
+        if (!hash_equals((string) $snapshot['context_token'], trim($contextToken))) {
+            throw new DoubanActionException('视频或豆瓣数据已变化，请重新预览后再更新。');
+        }
+
+        $unavailable = array_diff($fields, array_keys($snapshot['updates']));
+        if (!empty($unavailable)) {
+            throw new DoubanActionException('所选字段已无可更新内容，请重新预览后再更新。');
+        }
+        $selected = array_fill_keys($fields, true);
+        $updates = array_intersect_key($snapshot['updates'], $selected);
+        $oldValues = array_intersect_key($snapshot['old_values'], $selected);
+        $reason = '管理员手动选择豆瓣字段：' . implode(',', array_keys($updates));
+        $logId = self::recordLog(
+            $vodId,
+            self::ACTION_MANUAL_FIELD_SYNC_PENDING,
+            $oldValues,
+            $updates,
+            '等待写入：' . $reason,
+            0,
+            $operatorId
+        );
+        if (self::conditionalVodUpdate($vodId, $oldValues, $updates) !== 1) {
+            self::finishLog($logId, self::ACTION_MANUAL_FIELD_SYNC_CONFLICT, '视频数据已变化，未执行手动字段更新');
+            throw new DoubanActionException('视频数据已变化，本次更新已停止，请重新预览。');
+        }
+        self::finishLog($logId, self::ACTION_MANUAL_FIELD_SYNC, $reason);
+        self::forgetStatsCache();
+
+        return [
+            'vod_id' => $vodId,
+            'vod_name' => (string) ($snapshot['vod']['vod_name'] ?? ''),
+            'douban_id' => (string) $snapshot['douban_id'],
+            'code' => 1,
+            'msg' => '所选字段已更新',
+            'updated_fields' => array_keys($updates),
+            'changes' => self::syncChangesForView($oldValues, $updates),
+            'warnings' => $snapshot['warnings'],
+        ];
     }
 
     public static function rollbackPicture(int $vodId, int $operatorId = 0)
@@ -3069,6 +3148,73 @@ class DoubanData
         }
 
         return $updates;
+    }
+
+    private static function manualSyncSnapshot(int $vodId, array $config)
+    {
+        if ($vodId < 1) {
+            throw new \InvalidArgumentException('vod_id missing');
+        }
+        $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
+        if (empty($vod)) {
+            throw new DoubanActionException('影片不存在');
+        }
+        $meta = Db::name(self::META_TABLE)->where('vod_id', $vodId)->find();
+        $meta = is_array($meta) ? $meta : [];
+        $doubanId = self::resolveDoubanId($meta, (array) $vod);
+        if ($doubanId === '') {
+            throw new DoubanActionException('请先搜索或填写豆瓣ID');
+        }
+
+        $data = self::fetchDoubanData($doubanId, $config);
+        $warnings = [];
+        $updates = self::buildVodUpdates((array) $vod, $meta, $data, $doubanId, $warnings);
+        $oldValues = [];
+        foreach ($updates as $field => $value) {
+            $oldValues[$field] = $vod[$field] ?? '';
+        }
+
+        return [
+            'vod' => (array) $vod,
+            'douban_id' => $doubanId,
+            'old_values' => $oldValues,
+            'updates' => $updates,
+            'warnings' => $warnings,
+            'context_token' => self::manualSyncContextToken($vodId, $doubanId, $oldValues, $updates),
+        ];
+    }
+
+    private static function normalizeManualSyncFields(array $fields)
+    {
+        $normalized = [];
+        foreach ($fields as $field) {
+            if (!is_string($field) && !is_int($field)) {
+                throw new \InvalidArgumentException('包含不允许手动更新的字段');
+            }
+            $field = trim((string) $field);
+            if (!in_array($field, self::MANUAL_SYNC_FIELDS, true)) {
+                throw new \InvalidArgumentException('包含不允许手动更新的字段');
+            }
+            $normalized[$field] = $field;
+        }
+        if (empty($normalized)) {
+            throw new \InvalidArgumentException('请至少选择一个要更新的字段');
+        }
+
+        return array_values($normalized);
+    }
+
+    private static function manualSyncContextToken(int $vodId, string $doubanId, array $oldValues, array $updates)
+    {
+        ksort($oldValues);
+        ksort($updates);
+
+        return hash('sha256', self::json([
+            'vod_id' => $vodId,
+            'douban_id' => $doubanId,
+            'old_values' => $oldValues,
+            'updates' => $updates,
+        ]));
     }
 
     private static function vodFieldWarning(string $field, string $value)

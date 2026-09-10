@@ -164,13 +164,13 @@ namespace addons\vodops\service {
             return [['type_id' => 10, 'label' => '电影']];
         }
 
-        public static function startScan($adminId, $batchSize, $scopeTypeId, $workerMode)
+        public static function startScan($adminId, $batchSize, $scopeTypeId, $workerMode, $checkRemotePosters)
         {
             if (self::$actionError instanceof \Throwable) {
                 throw self::$actionError;
             }
-            self::$calls[] = ['start', $adminId, $batchSize, $scopeTypeId, $workerMode];
-            return ['run_id' => 13, 'status' => 'running'];
+            self::$calls[] = ['start', $adminId, $batchSize, $scopeTypeId, $workerMode, $checkRemotePosters];
+            return ['run_id' => 13, 'status' => 'running', 'check_remote_posters' => $checkRemotePosters];
         }
 
         public static function runChunk($runId)
@@ -411,16 +411,17 @@ namespace {
     vodops_controller_assert_same(99, $response['data']['data']['data'][0]['vod_id'] ?? null, 'Ajax refreshes should return the same normalized row contract.');
 
     \addons\vodops\service\VodQualityScanner::$calls = [];
-    $vodopsInput = ['batch_size' => 500, 'scope_type_id' => 10, 'worker_mode' => 1];
+    $vodopsInput = ['batch_size' => 500, 'scope_type_id' => 10, 'worker_mode' => 1, 'check_remote_posters' => 1];
     $response = $controller->startScan();
     vodops_controller_assert_same(1, $response['data']['code'], 'A valid scan request should succeed.');
-    vodops_controller_assert_same([['start', 7, 500, 10, true]], \addons\vodops\service\VodQualityScanner::$calls, 'The native admin ID, batch size, category scope, and worker mode must reach the scanner.');
+    vodops_controller_assert_same([['start', 7, 500, 10, true, true]], \addons\vodops\service\VodQualityScanner::$calls, 'The native admin ID, batch size, category scope, worker mode, and remote-poster option must reach the scanner.');
 
     \addons\vodops\service\VodQualityScanner::$calls = [];
     $vodopsInput['worker_mode'] = 0;
+    $vodopsInput['check_remote_posters'] = 0;
     $response = $controller->startScan();
     vodops_controller_assert_same(1, $response['data']['code'], 'An administrator should be able to resume in page-only mode.');
-    vodops_controller_assert_same([['start', 7, 500, 10, false]], \addons\vodops\service\VodQualityScanner::$calls, 'An unchecked worker option must reach the scanner as an explicit disable request.');
+    vodops_controller_assert_same([['start', 7, 500, 10, false, false]], \addons\vodops\service\VodQualityScanner::$calls, 'Unchecked worker and remote-poster options must reach the scanner as explicit disable requests.');
 
     \addons\vodops\service\VodQualityScanner::$actionError = new \addons\vodops\service\VodQualityActionException('已有“全部分类”扫描正在进行，请先继续或结束该任务。');
     $response = $controller->startScan();

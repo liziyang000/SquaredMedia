@@ -551,7 +551,7 @@ namespace {
         ],
     ];
     Db::$columns = [
-        'vod' => ['vod_pic', 'vod_douban_id', 'vod_douban_score', 'vod_score', 'vod_area', 'vod_lang'],
+        'vod' => ['vod_pic', 'vod_douban_id', 'vod_douban_score', 'vod_score', 'vod_year', 'vod_area', 'vod_lang', 'vod_actor'],
     ];
     DoubanGateway::$subjectCalls = [];
     DoubanGateway::$subjectResponses = [];
@@ -742,6 +742,115 @@ namespace {
     $assertSame('国语', $boundedStoredVod['vod_lang'] ?? '', 'An oversized language should preserve the local value');
     $assertSame('8.8', $boundedStoredVod['vod_douban_score'] ?? '', 'Compatible fields should still sync when another field is oversized');
     $assertSame(['vod_area', 'vod_lang'], array_column($boundedVod['warnings'] ?? [], 'field'), 'Skipped oversized fields should be returned as visible warnings');
+
+    Db::$tables['douban_vod_meta'][] = [
+        'vod_id' => 507,
+        'douban_id' => '1290507',
+        'douban_id_locked' => 0,
+        'intro_locked' => 0,
+        'douban_id_source' => 'manual',
+    ];
+    Db::$tables['vod'][] = [
+        'vod_id' => 507,
+        'vod_name' => '手动字段更新影片',
+        'vod_year' => '2020',
+        'vod_area' => '中国',
+        'vod_actor' => '旧演员',
+        'vod_douban_score' => '7.0',
+        'vod_score' => '7.0',
+    ];
+    DoubanGateway::$subjectResponses['1290507'] = [
+        'vod_douban_id' => '1290507',
+        'vod_year' => '2024',
+        'vod_area' => '日本',
+        'vod_actor' => '新演员',
+        'vod_douban_score' => '8.9',
+        'vod_score' => '8.9',
+    ];
+    $manualLogCount = count(Db::$tables['douban_log']);
+    $manualPreview = DoubanData::previewManualSync(507);
+    $manualPreviewFields = array_column($manualPreview['changes'] ?? [], 'field');
+    $assertSame(true, in_array('vod_year', $manualPreviewFields, true), 'Manual preview should include a changed year');
+    $assertSame(true, in_array('vod_actor', $manualPreviewFields, true), 'Manual preview should include changed actors');
+    $assertSame(64, strlen((string) ($manualPreview['context_token'] ?? '')), 'Manual preview should bind changes to a freshness token');
+    $manualVodBefore = array_values(array_filter(Db::$tables['vod'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 507;
+    }))[0] ?? [];
+    $assertSame('2020', $manualVodBefore['vod_year'] ?? '', 'Manual preview must not write video fields');
+    $assertSame($manualLogCount, count(Db::$tables['douban_log']), 'Manual preview must not create a mutation audit');
+
+    $manualResult = DoubanData::applyManualSync(
+        507,
+        ['vod_year', 'vod_actor'],
+        (string) $manualPreview['context_token'],
+        9
+    );
+    $manualVodAfter = array_values(array_filter(Db::$tables['vod'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 507;
+    }))[0] ?? [];
+    $assertSame('2024', $manualVodAfter['vod_year'] ?? '', 'A selected year should be updated');
+    $assertSame('新演员', $manualVodAfter['vod_actor'] ?? '', 'Selected actors should be updated');
+    $assertSame('中国', $manualVodAfter['vod_area'] ?? '', 'An unselected area must preserve its local value');
+    $assertSame('7.0', $manualVodAfter['vod_douban_score'] ?? '', 'An unselected score must preserve its local value');
+    $assertSame(['vod_year', 'vod_actor'], $manualResult['updated_fields'] ?? [], 'The response should report only selected fields');
+    $manualLogs = array_values(array_filter(Db::$tables['douban_log'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 507;
+    }));
+    $assertSame('MANUAL_FIELD_SYNC', end($manualLogs)['action'] ?? '', 'A selected-field update should finalize an explicit audit record');
+
+    $emptyManualSelectionRejected = false;
+    try {
+        DoubanData::applyManualSync(507, [], (string) $manualPreview['context_token'], 9);
+    } catch (InvalidArgumentException $e) {
+        $emptyManualSelectionRejected = $e->getMessage() === '请至少选择一个要更新的字段';
+    }
+    $assertSame(true, $emptyManualSelectionRejected, 'Manual sync should reject an empty field selection');
+
+    $unsafeManualFieldRejected = false;
+    try {
+        DoubanData::applyManualSync(507, ['vod_play_url'], (string) $manualPreview['context_token'], 9);
+    } catch (InvalidArgumentException $e) {
+        $unsafeManualFieldRejected = $e->getMessage() === '包含不允许手动更新的字段';
+    }
+    $assertSame(true, $unsafeManualFieldRejected, 'Manual sync must reject playback and other non-whitelisted fields');
+
+    Db::$tables['douban_vod_meta'][] = [
+        'vod_id' => 508,
+        'douban_id' => '1290508',
+        'douban_id_locked' => 0,
+        'intro_locked' => 0,
+        'douban_id_source' => 'manual',
+    ];
+    Db::$tables['vod'][] = [
+        'vod_id' => 508,
+        'vod_name' => '并发手动更新影片',
+        'vod_year' => '2020',
+        'vod_douban_score' => '7.0',
+        'vod_score' => '7.0',
+    ];
+    DoubanGateway::$subjectResponses['1290508'] = [
+        'vod_douban_id' => '1290508',
+        'vod_year' => '2024',
+        'vod_douban_score' => '8.5',
+        'vod_score' => '8.5',
+    ];
+    $staleManualPreview = DoubanData::previewManualSync(508);
+    foreach (Db::$tables['vod'] as $index => $row) {
+        if ((int) ($row['vod_id'] ?? 0) === 508) {
+            Db::$tables['vod'][$index]['vod_year'] = '2023';
+        }
+    }
+    $staleManualRejected = false;
+    try {
+        DoubanData::applyManualSync(508, ['vod_year'], (string) $staleManualPreview['context_token'], 9);
+    } catch (\addons\vodops\service\DoubanActionException $e) {
+        $staleManualRejected = $e->getMessage() === '视频或豆瓣数据已变化，请重新预览后再更新。';
+    }
+    $assertSame(true, $staleManualRejected, 'Manual sync should reject a stale field preview');
+    $staleManualVod = array_values(array_filter(Db::$tables['vod'], static function ($row) {
+        return (int) ($row['vod_id'] ?? 0) === 508;
+    }))[0] ?? [];
+    $assertSame('2023', $staleManualVod['vod_year'] ?? '', 'A stale manual preview must not overwrite a newer edit');
 
     $invalidVodRejected = false;
     try {

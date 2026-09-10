@@ -48,6 +48,7 @@ foreach ($required as $file) {
 
 $info = file_get_contents($root . '/addons/vodops/info.ini');
 vodops_contract_match('/^name\s*=\s*vodops$/m', $info, 'Vodops info.ini must declare the lowercase addon ID.');
+vodops_contract_match('/^version\s*=\s*1\.3\.0$/m', $info, 'Remote poster diagnostics require the Vodops 1.3.0 release boundary.');
 vodops_contract_match('/^url\s*=\s*$/m', $info, 'Vodops must not declare a public addon route.');
 if (is_file($root . '/addons/vodops/controller/Index.php')) {
     vodops_contract_fail('Vodops must not ship a public addon controller.');
@@ -82,6 +83,8 @@ vodops_contract_match('/trace\(/', $doubanController, 'Unexpected Douban failure
 vodops_contract_match('/public function index\(\)[\s\S]*?redirect\(url\(\'vodops\/douban\'/', $doubanController, 'The legacy Douban index must redirect to the dedicated Vodops route.');
 vodops_contract_match('/public function fetchVod\(\)[\s\S]*?DoubanData::fetchVod[\s\S]*?appendWorkspaceState/', $doubanController, 'Single-video matching must return the latest workspace state in the same response.');
 vodops_contract_match('/public function sync\(\)[\s\S]*?DoubanData::syncVod[\s\S]*?appendWorkspaceState/', $doubanController, 'Single-video synchronization must return the latest workspace state in the same response.');
+vodops_contract_match('/public function previewManualSync\(\)[\s\S]*?DoubanData::previewManualSync/', $doubanController, 'Manual field updates must fetch a server-generated preview before writing.');
+vodops_contract_match('/public function applyManualSync\(\)[\s\S]*?DoubanData::applyManualSync\([\s\S]*?input\(\'fields\/a\'[\s\S]*?input\(\'context_token\/s\'[\s\S]*?appendWorkspaceState/', $doubanController, 'Manual field updates must submit selected field names and a freshness token through the authenticated controller.');
 foreach ([
     'rollbackPic' => 'rollbackPicture',
     'setDoubanId' => 'setDoubanId',
@@ -122,6 +125,8 @@ vodops_contract_match('/id="vodopsScopeTypeId"[\s\S]*?scope_type_id/', $view, 'T
 vodops_contract_match('/scope_label/', $view, 'Scan history and progress should identify their frozen category scope.');
 vodops_contract_match('/history\.scope_label\|htmlspecialchars/', $view, 'Persisted category labels must be escaped in scan history.');
 vodops_contract_match('/id="vodopsWorkerMode"[\s\S]*?worker_mode/', $view, 'The administrator must explicitly control CLI worker continuation.');
+vodops_contract_match('/id="vodopsRemotePosterCheck"[\s\S]*?check_remote_posters/', $view, 'Remote poster detection must remain an explicit scan option.');
+vodops_contract_match('/候选不会自动选中或写入/', $view, 'Remote poster replacement candidates must remain review-only until administrator confirmation.');
 vodops_contract_match('/runner_state_label/', $view, 'The admin page should expose worker heartbeat and recovery state.');
 vodops_contract_match('/\{volist name="issues" id="issue"\}\s*<tr data-vodops-issue-id="\{\$issue\.issue_id\}"/', $view, 'Each quality issue must expose a stable row target for in-place repair updates.');
 vodops_contract_match('/data-vodops-quality-feedback[\s\S]*?aria-live="polite"/', $view, 'Quality repairs must report their result without navigating away from the current list.');
@@ -191,8 +196,12 @@ foreach (['rollback-pic', 'select-candidate', 'lock-id', 'ignore', 'restore'] as
 vodops_contract_match('/function renderCollectionState[\s\S]*?row_matches[\s\S]*?data-douban-result-total/', $doubanView, 'Single-video actions must reconcile active filters and result counts without a reload.');
 vodops_contract_match('/function renderTaskList[\s\S]*?collection\.tasks/', $doubanView, 'Single-video actions must refresh the visible task list in place.');
 vodops_contract_match('/data-douban-manual-dirty[\s\S]*?manualId\.value/', $doubanView, 'Unsaved manual Douban IDs must survive unrelated row updates.');
+vodops_contract_match('/data-douban-action="manual-sync"[\s\S]*?选择字段更新/', $doubanView, 'Each bound search result must expose manual field selection.');
+vodops_contract_match('/function renderManualSyncPreview\(result\)[\s\S]*?type = "checkbox"[\s\S]*?checkbox\.checked = false/', $doubanView, 'Manual sync previews must leave every field unselected by default.');
+vodops_contract_match('/action === "manual-sync"[\s\S]*?douban\/previewManualSync/', $doubanView, 'Manual field selection must load a fresh server-side preview.');
+vodops_contract_match('/action === "apply-manual-sync"[\s\S]*?fields\[\][\s\S]*?context_token[\s\S]*?confirm[\s\S]*?douban\/applyManualSync/', $doubanView, 'Only explicitly selected fields may be submitted for confirmed manual updates.');
 vodops_contract_match('/var activeWorkspaceFilters[\s\S]*?function appendWorkspaceFilters\(data\)[\s\S]*?Object\.keys\(activeWorkspaceFilters\)/', $doubanView, 'Row actions must use the submitted filter snapshot instead of unsaved search-form edits.');
-if (preg_match('/function renderSyncResult\(result\)([\s\S]*?)function post\(/', $doubanView, $syncResultMatch)
+if (preg_match('/function renderSyncResult\(result\)([\s\S]*?)(?=function renderManualSyncPreview|function post\()/', $doubanView, $syncResultMatch)
     && strpos($syncResultMatch[1], 'scrollIntoView') !== false) {
     vodops_contract_fail('Rendering one sync result must not move the user away from the active video row.');
 }
@@ -304,19 +313,29 @@ if (($alterMatches[1] ?? []) !== $allowedAlterColumns) {
 }
 
 $scanner = file_get_contents($root . '/addons/vodops/service/VodQualityScanner.php');
+$analyzer = file_get_contents($root . '/addons/vodops/service/VodQualityAnalyzer.php');
 if (strpos($scanner, 'class VodQualityExportException extends \\RuntimeException') === false) {
     vodops_contract_fail('Expected export validation should use a dedicated safe exception type.');
 }
+foreach (['poster_remote_unavailable', 'poster_remote_unverified'] as $remotePosterIssue) {
+    vodops_contract_match('/\'' . $remotePosterIssue . '\'\s*=>/', $analyzer, 'Remote poster issue type is missing: ' . $remotePosterIssue);
+}
+vodops_contract_match('/remotePosterIssue[\s\S]*?poster_hash[\s\S]*?hash\(\'sha256\'/', $analyzer, 'Remote poster evidence must bind the checked URL without duplicating it in structured detail.');
 vodops_contract_match('/private const LOCK_TABLE = \'vodops_lock\';/', $scanner, 'Vodops should use its own transactional lock table.');
 vodops_contract_match('/public static function startScan[\s\S]*?Db::startTrans\(\)[\s\S]*?self::LOCK_TABLE[\s\S]*?->lock\(true\)/', $scanner, 'Concurrent scan starts should serialize on the plugin lock row.');
+vodops_contract_match('/public static function startScan\([^\n]*\$checkRemotePosters = false\)/', $scanner, 'Remote poster detection must remain opt-in when a scan starts.');
+vodops_contract_match('/\$checkRemotePosters && !\$workerMode[\s\S]*?VodQualityActionException/', $scanner, 'Remote poster detection must require resumable worker execution.');
 vodops_contract_match('/normalizeExecutionMode\(\$active\[\'execution_mode\'\][\s\S]*?!== \$executionMode[\s\S]*?\'execution_mode\' => \$executionMode/', $scanner, 'Resuming the same scope should honor an explicit switch between page-only and worker execution.');
 vodops_contract_match('/public static function runWorker\(\$maxChunks[\s\S]*?runWorkerChunk\(\)/', $scanner, 'The CLI worker should process a bounded number of chunks per invocation.');
 vodops_contract_match('/public static function runWorkerChunk\(\)[\s\S]*?execution_mode[\s\S]*?traffic[\s\S]*?worker[\s\S]*?lease_until[\s\S]*?next_run_at[\s\S]*?->update\(\[[\s\S]*?lease_until/', $scanner, 'Workers should atomically claim new and legacy automatic scans with an expiring lease.');
 vodops_contract_match('/releaseWorkerLease[\s\S]*?where\(\'lease_until\', \$claimedUntil\)/', $scanner, 'Only the worker that owns a lease may release it.');
 vodops_contract_match('/WORKER_LEASE_SECONDS/', $scanner, 'Worker leases must have a bounded stale-recovery timeout.');
 vodops_contract_match('/public static function ensureScheduledScan[\s\S]*?self::LOCK_TABLE[\s\S]*?->lock\(true\)[\s\S]*?execution_mode[\s\S]*?worker/', $scanner, 'Periodic scan creation must recheck due state under the scan-start mutex.');
+vodops_contract_match('/public static function ensureScheduledScan[\s\S]*?\$scope\[\'check_remote_posters\'\]\s*=\s*false/', $scanner, 'Periodic scans must not silently enable outbound poster checks.');
 vodops_contract_match('/class VodQualityActionException extends \\\\RuntimeException/', $scanner, 'Expected category selection failures should use a dedicated safe exception type.');
 vodops_contract_match('/scope_json/', $scanner, 'Every scan must persist its frozen category scope.');
+vodops_contract_match('/REMOTE_POSTER_BATCH_SIZE\s*=\s*48/', $scanner, 'Remote poster network batches must stay explicitly bounded.');
+vodops_contract_match('/private static function remotePosterProbes[\s\S]*?probeStoredImages[\s\S]*?\$retryUrls[\s\S]*?inconclusive/', $scanner, 'Only uncertain remote poster results should be retried and retained as inconclusive after two attempts.');
 vodops_contract_match('/where\(\'type_id\', \'in\', \$scopeTypeIds\)/', $scanner, 'Category scans must filter by resolved type IDs rather than the potentially incorrect parent field.');
 vodops_contract_match('/where\(\'vod_id\', \'\>\', intval\(\$scan\[\'last_vod_id\'\]/', $scanner, 'Vodops should scan by an indexed vod_id cursor.');
 vodops_contract_match('/MAX_BATCH_SIZE = 1000/', $scanner, 'Vodops must bound each scan request.');
@@ -378,6 +397,8 @@ foreach ([
     'lang_missing' => 'vod_lang',
     'poster_missing' => 'vod_pic',
     'poster_file_missing' => 'vod_pic',
+    'poster_remote_unavailable' => 'vod_pic',
+    'poster_remote_unverified' => 'vod_pic',
 ] as $issueType => $fieldName) {
     vodops_contract_match(
         "/'" . preg_quote($issueType, '/') . "'\\s*=>\\s*'" . preg_quote($fieldName, '/') . "'/",
@@ -393,6 +414,8 @@ foreach (['type_parent_mismatch', 'play_source_missing', 'play_group_mismatch', 
 vodops_contract_match('/candidateContext\([\s\S]*?EXTERNAL_CANDIDATE_ISSUES[\s\S]*?hasIssue[\s\S]*?field_name[\s\S]*?context_token/', $repair, 'Only live whitelisted metadata issues should expose a candidate context.');
 vodops_contract_match('/candidateContextToken[\s\S]*?field_name[\s\S]*?vod_name[\s\S]*?vod_year[\s\S]*?\$snapshot\[\$field\]/', $repair, 'Candidate tokens must bind the title, release year, and current target field.');
 vodops_contract_match('/candidateContextToken[\s\S]*?hash_equals[\s\S]*?重新搜索候选/', $repair, 'A selected external candidate must be rejected after its matching snapshot changes.');
+vodops_contract_match('/private static function issueContext[\s\S]*?poster_hash[\s\S]*?hash_equals/', $repair, 'Persisted remote poster evidence must only apply to the exact scanned URL.');
+vodops_contract_match('/public static function recheck[\s\S]*?remotePosterState/', $repair, 'Remote poster rechecks must probe the current URL again before closing an issue.');
 
 $posterCandidate = file_get_contents($root . '/addons/vodops/service/VodPosterCandidate.php');
 vodops_contract_match('/class VodPosterCandidate/', $posterCandidate, 'Poster searches should use a dedicated read-only service.');
@@ -403,8 +426,12 @@ vodops_contract_match('/CURLOPT_PROXY[\s\S]*?CURLOPT_FOLLOWLOCATION[\s\S]*?CURLO
 vodops_contract_match('/publicTarget[\s\S]*?static \$targetCache[\s\S]*?array_key_exists/', $posterCandidate, 'One candidate request should reuse validated DNS results for repeated image hosts.');
 vodops_contract_match('/JSON_MAX_BYTES[\s\S]*?IMAGE_MAX_BYTES/', $posterCandidate, 'Provider JSON and poster probes must have explicit response limits.');
 vodops_contract_match('/matchesImageMagic/', $posterCandidate, 'Poster candidates must verify image bytes instead of trusting Content-Type alone.');
+vodops_contract_match('/STORED_IMAGE_CONCURRENCY\s*=\s*16[\s\S]*?public static function probeStoredImages/', $posterCandidate, 'Stored poster checks must use bounded concurrent batches.');
+vodops_contract_match('/private static function classifyProbeResult[\s\S]*?\[404, 410\][\s\S]*?\'broken\'[\s\S]*?\$status === 204[\s\S]*?\'broken\'[\s\S]*?\'unknown\'/', $posterCandidate, 'Only definite missing or invalid responses may be classified as broken; ambiguous failures must remain unknown.');
+vodops_contract_match('/probeImageChunk[\s\S]*?CURLOPT_PROXY\s*=>\s*\'\'[\s\S]*?CURLOPT_FOLLOWLOCATION\s*=>\s*false[\s\S]*?CURLOPT_RESOLVE/', $posterCandidate, 'Stored poster checks must retain the existing public-target, no-proxy, no-redirect DNS pinning boundary.');
 
 $vodopsController = file_get_contents($root . '/addons/vodops/application/admin/controller/Vodops.php');
+vodops_contract_match('/public function startScan\(\)[\s\S]*?check_remote_posters\/d/', $vodopsController, 'The controller must forward the explicit remote-poster scan option.');
 vodops_contract_match('/function posterCandidates\(\)[\s\S]*?guardAjaxPost[\s\S]*?VodPosterCandidate::search/', $vodopsController, 'Poster candidate lookup must stay behind the native Ajax POST guard.');
 vodops_contract_match('/\$providerIds\s*=\s*\$this->providerIds\(input\(\'provider_ids\/a\',\s*\[\]\)\)/', $vodopsController, 'Candidate lookup must sanitize selected source IDs before invoking the search service.');
 vodops_contract_match('/private function providerSelectionInitialized\([\s\S]*?is_bool\(\$value\)[\s\S]*?return \$value[\s\S]*?\$value === 1 \|\| \$value === \'1\'/', $vodopsController, 'Candidate lookup must normalize only boolean and explicit 0/1 initialization input to a strict boolean.');
@@ -510,6 +537,7 @@ $ci = file_get_contents($root . '/.github/workflows/ci.yml');
 vodops_contract_match('/name: vodops-addon[\s\S]*path: dist\/vodops\.tar\.gz/', $ci, 'CI must publish vodops as a separate artifact.');
 $docs = file_get_contents($root . '/docs/addons.md');
 vodops_contract_match('/`vodops`/', $docs, 'The current addon index must document vodops.');
+vodops_contract_match('/远程海报失效[\s\S]*?远程海报检测待确认[\s\S]*?不会自动选中或写入/', $docs, 'The addon guide must explain remote poster result classes and reviewed replacement boundaries.');
 
 $config = file_get_contents($root . '/addons/vodops/config.php');
 foreach (['scheduled_scan_hours', 'scheduled_scope_type_id', 'scheduled_batch_size'] as $setting) {

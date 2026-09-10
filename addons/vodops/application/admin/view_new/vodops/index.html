@@ -101,12 +101,16 @@
         <input id="vodopsWorkerMode" name="worker_mode" type="checkbox" value="1" checked>
         后台 Worker
       </label>
+      <label title="分批检测 HTTP/HTTPS 海报；确定失效的图片可搜索新候选，403、超时等结果会标记为待确认。必须同时启用后台 Worker。">
+        <input id="vodopsRemotePosterCheck" name="check_remote_posters" type="checkbox" value="1" {if condition="!empty($scan) and !empty($scan['check_remote_posters'])"}checked{/if}>
+        检测远程海报
+      </label>
       <button id="vodopsStart" class="vodops-button is-primary" type="button">开始或恢复扫描</button>
     </div>
   </header>
 
   <section class="vodops-panel vodops-note">
-    父分类会包含扫描开始时的全部后代分类，范围会随任务固化；“全部分类”还会发现无效分类 ID。启用“后台 Worker”后，已配置的服务器 Cron 会独立认领批次，页面关闭、站点零访问也能继续，进程异常留下的租约会自动恢复；未配置 Cron 时仍可回到本页手动继续。扫描不会写入 <code>mac_vod</code>；任务完成或结束后，可对父分类、年份、地区、语言和海报异常逐条预览、确认、复检及条件回滚。年份、地区、语言与海报可从豆瓣及管理员明确勾选的采集源搜索候选，候选不会自动选中或写入。它不会自动修复、删除、合并或优化视频，播放与重复候选仍须使用原生编辑页人工处理。
+    父分类会包含扫描开始时的全部后代分类，范围会随任务固化；“全部分类”还会发现无效分类 ID。启用“后台 Worker”后，已配置的服务器 Cron 会独立认领批次，页面关闭、站点零访问也能继续，进程异常留下的租约会自动恢复；未配置 Cron 时仍可回到本页手动继续。勾选“检测远程海报”会把每批限制为 48 条并进行有界图片请求：404、410、空响应或伪图片记为失效，403、429、跳转、超时和服务端错误连续两次仍不确定时记为待确认。扫描不会写入 <code>mac_vod</code>；任务完成或结束后，可对父分类、年份、地区、语言和海报异常逐条预览、确认、复检及条件回滚。年份、地区、语言与海报可从豆瓣及管理员明确勾选的采集源搜索候选，候选不会自动选中或写入。它不会自动修复、删除、合并或优化视频，播放与重复候选仍须使用原生编辑页人工处理。
   </section>
 
   <section class="vodops-panel">
@@ -134,6 +138,7 @@
       <span>异常：<strong id="vodopsIssueCount">{:intval($scan['issue_count'] ?? 0)}</strong></span>
       <span>扫描上界：#{:intval($scan['max_vod_id'] ?? 0)}</span>
       <span>每批：{:intval($scan['batch_size'] ?? 0)}</span>
+      <span>远程海报：{$scan.remote_poster_check_label}</span>
       <span>执行：{$scan.execution_mode_label}</span>
       <span>Worker：<strong id="vodopsRunnerState">{$scan.runner_state_label}</strong></span>
       <span>用时：<strong id="vodopsDuration">{$scan.duration_label}</strong></span>
@@ -856,9 +861,11 @@
         var batchInput = document.getElementById("vodopsBatchSize");
         var scopeInput = document.getElementById("vodopsScopeTypeId");
         var workerInput = document.getElementById("vodopsWorkerMode");
+        var remotePosterInput = document.getElementById("vodopsRemotePosterCheck");
         data.append("batch_size", batchInput ? batchInput.value : "500");
         data.append("scope_type_id", scopeInput ? scopeInput.value : "0");
         data.append("worker_mode", workerInput && workerInput.checked ? "1" : "0");
+        data.append("check_remote_posters", remotePosterInput && remotePosterInput.checked ? "1" : "0");
         setBusy(true);
         post("{:url('vodops/startScan')}", data).then(function (scan) {
           runLoop(scan.run_id);

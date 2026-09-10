@@ -225,7 +225,7 @@ html[data-theme="ink-wash"] :is(.mobile-drawer-links a, .mobile-drawer-user a, .
   font-weight: 500;
 }
 
-html[data-theme="ink-wash"] :is(.site-header .nav-toggle, .mobile-drawer-close) {
+html[data-theme="ink-wash"] :is(.site-header .nav-toggle, .mobile-search-toggle, .mobile-drawer-close) {
   border-color: var(--line);
   border-radius: 5px;
   background: transparent;
@@ -398,6 +398,10 @@ html[data-theme="ink-wash"] :is(.rank-index, .hero-rank .rank-item:first-of-type
 
 html[data-theme="ink-wash"] .hero-rank .rank-item:first-of-type .rank-index {
   color: var(--accent);
+}
+
+html[data-theme="ink-wash"] .hero-rank .rank-item strong {
+  color: var(--text);
 }
 
 html[data-theme="ink-wash"] .genre-chip {

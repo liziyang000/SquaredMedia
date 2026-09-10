@@ -216,7 +216,7 @@
 
   html[data-theme="poster-magazine"] .hero-slide {
     min-height: 540px;
-    padding: 28px 20px 88px;
+    padding: 28px 20px 96px;
   }
 
   .banner-bg {
@@ -771,7 +771,7 @@
 
   html[data-theme="poster-magazine"] .hero-slide {
     min-height: 500px;
-    padding: 24px 16px 82px;
+    padding: 24px 16px 96px;
   }
 
   .banner-content {
@@ -2350,37 +2350,35 @@ body::before {
   }
 
   .genre-dock {
-    display: flex;
-    overflow-x: auto;
-    gap: 9px;
-    margin-right: 0;
-    padding: 16px 0 8px;
-    scroll-snap-type: x proximity;
-    scrollbar-color: rgba(139, 124, 255, 0.46) transparent;
-    scrollbar-width: thin;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px 0 0;
   }
 
-  .rank-list::-webkit-scrollbar,
-  .genre-dock::-webkit-scrollbar {
+  .rank-list::-webkit-scrollbar {
     display: block;
     height: 4px;
   }
 
-  .rank-list::-webkit-scrollbar-track,
-  .genre-dock::-webkit-scrollbar-track {
+  .rank-list::-webkit-scrollbar-track {
     background: transparent;
   }
 
-  .rank-list::-webkit-scrollbar-thumb,
-  .genre-dock::-webkit-scrollbar-thumb {
+  .rank-list::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: rgba(139, 124, 255, 0.46);
   }
 
   .genre-chip {
-    flex: 0 0 clamp(160px, 42vw, 176px);
-    min-height: 72px;
-    scroll-snap-align: start;
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 64px;
+    border-radius: 14px;
+    padding: 9px 12px;
+    box-shadow: none;
+  }
+
+  .genre-chip::before {
+    display: none;
   }
 
   .genre-chip small {
@@ -2389,7 +2387,7 @@ body::before {
   }
 
   .home-shelf {
-    padding: 38px 0 18px;
+    padding: 28px 0 18px;
   }
 
   .home-shelf-head {

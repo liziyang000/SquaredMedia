@@ -22,10 +22,19 @@ function copyAddon(testRoot, name) {
   cpSync(path.join(root, "addons", name), destination, { recursive: true });
 }
 
+const themeRoot = mkdtempSync(path.join(tmpdir(), "pingfang-theme-package-"));
 const apiRoot = mkdtempSync(path.join(tmpdir(), "pingfang-api-package-"));
 const backendRoot = mkdtempSync(path.join(tmpdir(), "pingfang-backend-package-"));
 const vodopsRoot = mkdtempSync(path.join(tmpdir(), "vodops-package-"));
 try {
+  mkdirSync(path.join(themeRoot, "template"));
+  cpSync(path.join(root, "template", "pingfangvideo"), path.join(themeRoot, "template", "pingfangvideo"), { recursive: true });
+  const themePackage = run(packageScript, themeRoot, "theme");
+  assert.equal(themePackage.status, 0, themePackage.stderr);
+  assert.deepEqual(readdirSync(path.join(themeRoot, "dist")).sort(), ["pingfangvideo", "pingfangvideo.tar.gz"]);
+  const themeVerify = run(verifyScript, themeRoot, "theme");
+  assert.equal(themeVerify.status, 0, themeVerify.stderr);
+
   copyAddon(apiRoot, "pingfangapi");
   const apiPackage = run(packageScript, apiRoot, "api");
   assert.equal(apiPackage.status, 0, apiPackage.stderr);
@@ -37,7 +46,7 @@ try {
   writeFileSync(path.join(apiRoot, "dist", "sentinel"), "keep");
   const invalidPackage = run(packageScript, apiRoot, "invalid");
   assert.notEqual(invalidPackage.status, 0);
-  assert.match(invalidPackage.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
+  assert.match(invalidPackage.stderr, /DEPLOY_SCOPE must be all, theme, backend, api, or vodops/);
   assert.equal(existsSync(path.join(apiRoot, "dist", "sentinel")), true, "invalid scope must fail before clearing dist");
 
   copyAddon(backendRoot, "pingfangapi");
@@ -55,6 +64,7 @@ try {
   const vodopsVerify = run(verifyScript, vodopsRoot, "vodops");
   assert.equal(vodopsVerify.status, 0, vodopsVerify.stderr);
 } finally {
+  rmSync(themeRoot, { recursive: true, force: true });
   rmSync(apiRoot, { recursive: true, force: true });
   rmSync(backendRoot, { recursive: true, force: true });
   rmSync(vodopsRoot, { recursive: true, force: true });

@@ -9,6 +9,15 @@ const plan = JSON.parse(await readFile(join(pluginDir, "baseline-plan.json"), "u
 const pluginTemplate = await readFile(join(pluginDir, "code.template.js"), "utf8");
 const stateLedgerTemplate = JSON.parse(await readFile(join(pluginDir, "state-ledger.template.json"), "utf8"));
 const errors = [];
+const cssFiles = [
+  "base.css",
+  "themes-foundation.css",
+  "style.css",
+  "themes.css",
+  "games.css",
+  "responsive.css"
+];
+let themeCssSourcePromise;
 
 function check(condition, message) {
   if (!condition) errors.push(message);
@@ -53,6 +62,18 @@ async function exists(relativePath) {
   } catch {
     return false;
   }
+}
+
+function readProjectSource(relativePath) {
+  if (relativePath === "template/pingfangvideo/css/style.css") {
+    if (!themeCssSourcePromise) {
+      themeCssSourcePromise = Promise.all(
+        cssFiles.map((file) => readFile(join(projectDir, "template/pingfangvideo/css", file), "utf8"))
+      ).then((sources) => sources.join("\n"));
+    }
+    return themeCssSourcePromise;
+  }
+  return readFile(join(projectDir, relativePath), "utf8");
 }
 
 const head = execFileSync("git", ["rev-parse", "--short", "HEAD"], {
@@ -372,7 +393,7 @@ for (const [archetypeId, expected] of Object.entries(correctedArchetypeContracts
 for (const archetypeId of ["A28", "A29"]) {
   const archetype = plan.archetypes.find((item) => item.id === archetypeId);
   for (const template of archetype?.templates || []) {
-    const source = await readFile(join(projectDir, template), "utf8");
+    const source = await readProjectSource(template);
     check(source.includes("system-box module-fallback"), `${archetypeId} template is not a SystemBox module fallback: ${template}`);
   }
 }
@@ -412,7 +433,7 @@ for (const fact of plan.interactionFacts) {
   check(Boolean(fact.behavior), `${fact.name} behavior missing`);
   check(fact.evidence.length > 0, `${fact.name} evidence missing`);
   check(unique(fact.evidence), `${fact.name} has duplicate evidence`);
-  const source = await readFile(join(projectDir, fact.source), "utf8");
+  const source = await readProjectSource(fact.source);
   for (const needle of fact.evidence) {
     check(source.includes(needle), `${fact.name} source evidence missing: ${needle}`);
   }
@@ -443,7 +464,7 @@ for (const contract of plan.componentInteractionContracts) {
     check(await exists(sourceFile), `${contract.id} interaction source missing: ${sourceFile}`);
     if (!interactionEvidenceCache.has(sourceFile)) {
       try {
-        interactionEvidenceCache.set(sourceFile, await readFile(join(projectDir, sourceFile), "utf8"));
+        interactionEvidenceCache.set(sourceFile, await readProjectSource(sourceFile));
       } catch {
         interactionEvidenceCache.set(sourceFile, "");
       }
@@ -488,14 +509,14 @@ check(
   "native confirm and alert must not be represented as a project modal"
 );
 
-const css = await readFile(join(projectDir, "template/pingfangvideo/css/style.css"), "utf8");
-const headTemplate = await readFile(join(projectDir, "template/pingfangvideo/html/public/head.html"), "utf8");
-const appJs = await readFile(join(projectDir, "template/pingfangvideo/js/app.js"), "utf8");
+const css = await readProjectSource("template/pingfangvideo/css/style.css");
+const headTemplate = await readProjectSource("template/pingfangvideo/html/public/head.html");
+const appJs = await readProjectSource("template/pingfangvideo/js/app.js");
 const evidenceFiles = new Set(plan.components.flatMap((component) => component.sourceFiles));
 const evidenceChunks = [css, headTemplate, appJs];
 for (const relativePath of evidenceFiles) {
   try {
-    evidenceChunks.push(await readFile(join(projectDir, relativePath), "utf8"));
+    evidenceChunks.push(await readProjectSource(relativePath));
   } catch {
     // Directories and non-text sources are existence-checked above.
   }
@@ -645,7 +666,7 @@ check(
 const breakpointSourceFiles = [...new Set(plan.breakpoints.map((item) => item.sourceFile))];
 for (const sourceFile of breakpointSourceFiles) {
   check(Boolean(sourceFile), "breakpoint source file missing");
-  const sourceCss = await readFile(join(projectDir, sourceFile), "utf8");
+  const sourceCss = await readProjectSource(sourceFile);
   const sourceBreakpoints = plan.breakpoints.filter((item) => item.sourceFile === sourceFile);
   for (const breakpoint of sourceBreakpoints) {
     const needle = breakpoint.axis === "height" ? `max-height: ${breakpoint.max}px` : `max-width: ${breakpoint.max}px`;

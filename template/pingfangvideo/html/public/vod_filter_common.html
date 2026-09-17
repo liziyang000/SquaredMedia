@@ -1,4 +1,4 @@
-  <div class="filter-row" data-filter-kind="area">
+  <div class="filter-row" data-filter-kind="area" data-filter-href-template="{:mac_url_type($obj,['area'=>'__PINGFANG_FILTER_VALUE__','lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">
     <strong>地区</strong>
     <div class="filter-options">
       <a {if condition="$param['area'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>'','lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
@@ -21,7 +21,7 @@
       {/notempty}
     </div>
   </div>
-  <div class="filter-row" data-filter-kind="year">
+  <div class="filter-row" data-filter-kind="year" data-filter-href-template="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>'__PINGFANG_FILTER_VALUE__','letter'=>$param['letter'],'class'=>$param['class']],'show')}">
     <strong>年份</strong>
     <div class="filter-options">
       <a {if condition="$param['year'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>'','letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
@@ -44,7 +44,7 @@
       {/notempty}
     </div>
   </div>
-  <div class="filter-row" data-filter-kind="lang">
+  <div class="filter-row" data-filter-kind="lang" data-filter-href-template="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'__PINGFANG_FILTER_VALUE__','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">
     <strong>语言</strong>
     <div class="filter-options">
       <a {if condition="$param['lang'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>

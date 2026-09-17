@@ -57,20 +57,23 @@ describe("SiteHeader themes", () => {
     vi.unstubAllGlobals();
   });
 
-  it("offers, applies, and restores the Dunhuang caisson theme", async () => {
+  it.each([
+    { id: "dunhuang-caisson", label: "敦煌流光" },
+    { id: "ink-wash", label: "水墨映画" }
+  ])("offers, applies, and restores the $label theme", async ({ id, label }) => {
     const firstRender = renderHeader();
 
     fireEvent.click(screen.getByRole("button", { name: "主题" }));
-    fireEvent.click(screen.getByRole("button", { name: "敦煌流光" }));
+    fireEvent.click(screen.getByRole("button", { name: label }));
 
-    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "dunhuang-caisson"));
-    expect(localStorage.getItem("pingfang_theme")).toBe("dunhuang-caisson");
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", id));
+    expect(localStorage.getItem("pingfang_theme")).toBe(id);
 
     firstRender.unmount();
     renderHeader();
 
-    await waitFor(() => expect(screen.getAllByRole("button", { name: "敦煌流光", hidden: true })[0]).toHaveAttribute("aria-pressed", "true"));
-    expect(document.documentElement).toHaveAttribute("data-theme", "dunhuang-caisson");
+    await waitFor(() => expect(screen.getAllByRole("button", { name: label, hidden: true })[0]).toHaveAttribute("aria-pressed", "true"));
+    expect(document.documentElement).toHaveAttribute("data-theme", id);
   });
 
   it("offers, applies, and restores the Digital Particles theme", async () => {

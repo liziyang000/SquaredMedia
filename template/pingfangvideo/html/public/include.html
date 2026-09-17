@@ -2,22 +2,41 @@
 <meta name="renderer" content="webkit">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#070913">
 <link rel="icon" href="{$maccms.path_tpl}images/brand/favicon.ico">
 <link rel="icon" type="image/png" sizes="64x64" href="{$maccms.path_tpl}images/brand/favicon.png">
 <link rel="apple-touch-icon" sizes="512x512" href="{$maccms.path_tpl}images/brand/ios_fav.png">
+<link rel="stylesheet" href="{$maccms.path_tpl}css/base.css?v=__PINGFANG_BASE_STYLE_VERSION__">
+<link data-theme-foundation-stylesheet data-href="{$maccms.path_tpl}css/themes-foundation.css?v=__PINGFANG_THEME_FOUNDATION_VERSION__">
+<link rel="stylesheet" href="{$maccms.path_tpl}css/style.css?v=__PINGFANG_STYLE_VERSION__">
+<link data-theme-stylesheet data-href="{$maccms.path_tpl}css/themes.css?v=__PINGFANG_THEMES_VERSION__">
+{if condition="isset($pingfang_page_style) and $pingfang_page_style eq 'games'"}
+<link rel="stylesheet" href="{$maccms.path_tpl}css/games.css?v=__PINGFANG_GAMES_STYLE_VERSION__">
+{/if}
+<link rel="stylesheet" href="{$maccms.path_tpl}css/responsive.css?v=__PINGFANG_RESPONSIVE_STYLE_VERSION__">
+<link data-ink-theme-stylesheet data-href="{$maccms.path_tpl}css/ink-wash.css?v=__PINGFANG_INK_WASH_VERSION__">
 <script>
 (function(){
   try {
     var theme = window.localStorage.getItem("pingfang_theme");
-    if (theme === "blue-pink-purple" || theme === "poster-magazine" || theme === "dunhuang-caisson" || theme === "digital-particles" || theme === "pixel-frog") {
+    var validTheme = theme === "blue-pink-purple" || theme === "poster-magazine" || theme === "dunhuang-caisson" || theme === "digital-particles" || theme === "pixel-frog" || theme === "ink-wash";
+    var foundationTheme = theme === "blue-pink-purple" || theme === "poster-magazine";
+    var activate = function(selector) {
+      var stylesheet = document.querySelector(selector);
+      if (!stylesheet) return;
+      stylesheet.setAttribute("rel", "stylesheet");
+      stylesheet.setAttribute("href", stylesheet.getAttribute("data-href"));
+    };
+    if (validTheme) {
       document.documentElement.setAttribute("data-theme", theme);
+      if (foundationTheme) activate("[data-theme-foundation-stylesheet]");
+      activate(theme === "ink-wash" ? "[data-ink-theme-stylesheet]" : "[data-theme-stylesheet]");
     } else {
       document.documentElement.removeAttribute("data-theme");
     }
   } catch (error) {}
 })();
 </script>
-<link rel="stylesheet" href="{$maccms.path_tpl}css/style.css?v=__PINGFANG_STYLE_VERSION__">
 <script src="{$maccms.path}static/js/jquery.js"></script>
 <script>
 var maccms={"path":"{:rtrim($maccms['path'], '/')}","mid":"{$maccms.mid}","aid":"{$maccms.aid}","url":"{$maccms.site_url}","wapurl":"{$maccms.site_wapurl}","mob_status":"{$maccms.mob_status}"};

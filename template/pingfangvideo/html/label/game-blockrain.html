@@ -1,3 +1,4 @@
+{assign name="pingfang_page_style" value="games" /}
 {include file="public/head" seo_title="俄罗斯方块" seo_keywords="$maccms.site_keywords" seo_description="$maccms.site_description" /}
 <section class="wrap game-play-page game-play-page-blockrain" data-game-authenticated data-auth-member hidden aria-labelledby="gameBlockrainTitle">
   <header class="game-play-head">
@@ -31,7 +32,7 @@
     <a class="game-source-link" href="https://github.com/Aerolab/blockrain.js" target="_blank" rel="noopener noreferrer">基于 Aerolab Blockrain.js · MIT License</a>
   </div>
 </section>
-<span data-auth-script="{$maccms.path_tpl}games/blockrain/blockrain.jquery.min.js" hidden></span>
+<span data-auth-script="{$maccms.path_tpl}games/blockrain/blockrain.jquery.min.js?v=__PINGFANG_BLOCKRAIN_VERSION__" hidden></span>
 <span data-auth-script="{$maccms.path_tpl}games/init.js?v=__PINGFANG_GAME_VERSION__" hidden></span>
 <section class="wrap game-access-page" aria-labelledby="gameBlockrainLoginTitle" data-auth-guest hidden>
   <div class="game-login-gate">

@@ -32,7 +32,25 @@ class DoubanData
     private const ACTION_AUTO_SYNC = 'AUTO_SYNC';
     private const ACTION_AUTO_SYNC_PENDING = 'AUTO_SYNC_PENDING';
     private const ACTION_AUTO_SYNC_CONFLICT = 'AUTO_SYNC_CONFLICT';
+    private const ACTION_MANUAL_FIELD_SYNC = 'MANUAL_FIELD_SYNC';
+    private const ACTION_MANUAL_FIELD_SYNC_PENDING = 'MANUAL_FIELD_SYNC_PENDING';
+    private const ACTION_MANUAL_FIELD_SYNC_CONFLICT = 'MANUAL_FIELD_SYNC_CONFLICT';
     private const ACTION_ROLLBACK_PIC = 'ROLLBACK_PIC';
+    private const MANUAL_SYNC_FIELDS = [
+        'vod_name',
+        'vod_year',
+        'vod_area',
+        'vod_lang',
+        'vod_class',
+        'vod_director',
+        'vod_actor',
+        'vod_content',
+        'vod_douban_score',
+        'vod_score',
+        'vod_total',
+        'vod_remarks',
+        'vod_douban_id',
+    ];
     private static $nextLocalRequestAt = 0.0;
     private static $rateLimitStateReady = false;
 
@@ -670,15 +688,24 @@ class DoubanData
             ->order('v.vod_id desc')
             ->page($page, $limit)
             ->select());
-        $candidates = $status === 'review' ? self::candidatesForVodIds(array_column($rows, 'vod_id')) : [];
+        $reviewVodIds = [];
+        foreach ($rows as $row) {
+            if ((string) ($row['douban_review_status'] ?? '') === 'REVIEW') {
+                $reviewVodIds[] = (int) ($row['vod_id'] ?? 0);
+            }
+        }
+        $candidates = self::candidatesForVodIds($reviewVodIds);
         $pictureLogs = self::latestPictureLogsForVodIds(array_column($rows, 'vod_id'));
-
+        $now = time();
         foreach ($rows as &$row) {
             $vodId = (int) ($row['vod_id'] ?? 0);
+            $ignoreUntil = (int) ($row['douban_ignore_until'] ?? 0);
             $row['display_douban_id'] = self::resolveDoubanId($row, $row);
             $row['douban_review_status'] = (string) ($row['douban_review_status'] ?? '');
             $row['douban_next_sync_label'] = self::formatTime((int) ($row['douban_next_sync_at'] ?? 0));
             $row['douban_last_sync_label'] = self::formatTime((int) ($row['douban_last_sync_at'] ?? 0));
+            $row['is_ignored'] = $row['douban_review_status'] === 'IGNORED' || $ignoreUntil > $now ? 1 : 0;
+            $row['douban_ignore_until_label'] = self::formatTime($ignoreUntil);
             $row['candidates'] = $candidates[$vodId] ?? [];
             $row['can_rollback_pic'] = self::canRollbackPicture($pictureLogs[$vodId] ?? [], (string) ($row['vod_pic'] ?? ''));
         }
@@ -692,6 +719,81 @@ class DoubanData
             'total_pages' => $totalPages,
             'has_prev' => $page > 1,
             'has_next' => $page < $totalPages,
+        ];
+    }
+
+    public static function videoState(int $vodId)
+    {
+        if ($vodId < 1) {
+            throw new \InvalidArgumentException('vod_id missing');
+        }
+        $video = self::videoQuery('all', '', 0, '')->where('v.vod_id', $vodId)->find();
+        $video = is_array($video) ? $video : [];
+        if (empty($video) || (int) ($video['vod_id'] ?? 0) !== $vodId) {
+            throw new DoubanActionException('影片不存在');
+        }
+        $reviewStatus = (string) ($video['douban_review_status'] ?? '');
+        $candidates = $reviewStatus === 'REVIEW' ? self::candidatesForVodIds([$vodId]) : [];
+        $pictureLogs = self::latestPictureLogsForVodIds([$vodId]);
+        $ignoreUntil = (int) ($video['douban_ignore_until'] ?? 0);
+
+        return [
+            'vod_id' => $vodId,
+            'vod_name' => (string) ($video['vod_name'] ?? ''),
+            'type_id' => (int) ($video['type_id'] ?? 0),
+            'type_name' => (string) ($video['type_name'] ?? ''),
+            'vod_year' => (string) ($video['vod_year'] ?? ''),
+            'display_douban_id' => self::resolveDoubanId($video, $video),
+            'douban_review_status' => $reviewStatus,
+            'douban_review_reason' => (string) ($video['douban_review_reason'] ?? ''),
+            'douban_last_sync_label' => self::formatTime((int) ($video['douban_last_sync_at'] ?? 0)),
+            'douban_id_locked' => (int) ($video['douban_id_locked'] ?? 0),
+            'intro_locked' => (int) ($video['intro_locked'] ?? 0),
+            'douban_ignore_until' => $ignoreUntil,
+            'douban_ignore_until_label' => self::formatTime($ignoreUntil),
+            'is_ignored' => $reviewStatus === 'IGNORED' || $ignoreUntil > time() ? 1 : 0,
+            'can_rollback_pic' => self::canRollbackPicture($pictureLogs[$vodId] ?? [], (string) ($video['vod_pic'] ?? '')),
+            'candidates' => $candidates[$vodId] ?? [],
+        ];
+    }
+
+    public static function collectionState(
+        int $vodId,
+        string $status = 'all',
+        string $q = '',
+        int $typeId = 0,
+        string $year = '',
+        string $taskStatus = 'PENDING'
+    ) {
+        if ($vodId < 1) {
+            throw new \InvalidArgumentException('vod_id missing');
+        }
+        $allowedStatuses = ['all', 'review', 'not_found', 'duplicate', 'locked', 'confirmed', 'ignored'];
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = 'all';
+        }
+        $q = mb_substr(trim($q), 0, 100, 'UTF-8');
+        $typeId = max(0, $typeId);
+        $year = trim($year);
+        if (!preg_match('/^\d{4}$/', $year) || (int) $year < 1800 || (int) $year > 2100) {
+            $year = '';
+        }
+        $taskStatus = strtoupper(trim($taskStatus));
+        if (!in_array($taskStatus, ['PENDING', 'RUNNING', 'FAILED', 'SUCCESS', 'SKIP', 'ALL'], true)) {
+            $taskStatus = 'PENDING';
+        }
+
+        $total = (int) self::videoQuery($status, $q, $typeId, $year)->count();
+        $row = self::videoQuery($status, $q, $typeId, $year)
+            ->where('v.vod_id', $vodId)
+            ->find();
+
+        return [
+            'row_matches' => empty($row) ? 0 : 1,
+            'total' => $total,
+            'stats' => self::stats(),
+            'task_stats' => self::taskStats(),
+            'tasks' => self::listTasks($taskStatus, 50),
         ];
     }
 
@@ -1210,6 +1312,67 @@ class DoubanData
         return $result;
     }
 
+    public static function previewManualSync(int $vodId)
+    {
+        $snapshot = self::manualSyncSnapshot($vodId, self::config());
+
+        return [
+            'vod_id' => $vodId,
+            'vod_name' => (string) ($snapshot['vod']['vod_name'] ?? ''),
+            'douban_id' => (string) $snapshot['douban_id'],
+            'code' => 1,
+            'msg' => empty($snapshot['updates']) ? '资料已一致' : '请选择要更新的字段',
+            'updated_fields' => [],
+            'changes' => self::syncChangesForView($snapshot['old_values'], $snapshot['updates']),
+            'warnings' => $snapshot['warnings'],
+            'context_token' => $snapshot['context_token'],
+        ];
+    }
+
+    public static function applyManualSync(int $vodId, array $fields, string $contextToken, int $operatorId = 0)
+    {
+        $fields = self::normalizeManualSyncFields($fields);
+        $snapshot = self::manualSyncSnapshot($vodId, self::config());
+        if (!hash_equals((string) $snapshot['context_token'], trim($contextToken))) {
+            throw new DoubanActionException('视频或豆瓣数据已变化，请重新预览后再更新。');
+        }
+
+        $unavailable = array_diff($fields, array_keys($snapshot['updates']));
+        if (!empty($unavailable)) {
+            throw new DoubanActionException('所选字段已无可更新内容，请重新预览后再更新。');
+        }
+        $selected = array_fill_keys($fields, true);
+        $updates = array_intersect_key($snapshot['updates'], $selected);
+        $oldValues = array_intersect_key($snapshot['old_values'], $selected);
+        $reason = '管理员手动选择豆瓣字段：' . implode(',', array_keys($updates));
+        $logId = self::recordLog(
+            $vodId,
+            self::ACTION_MANUAL_FIELD_SYNC_PENDING,
+            $oldValues,
+            $updates,
+            '等待写入：' . $reason,
+            0,
+            $operatorId
+        );
+        if (self::conditionalVodUpdate($vodId, $oldValues, $updates) !== 1) {
+            self::finishLog($logId, self::ACTION_MANUAL_FIELD_SYNC_CONFLICT, '视频数据已变化，未执行手动字段更新');
+            throw new DoubanActionException('视频数据已变化，本次更新已停止，请重新预览。');
+        }
+        self::finishLog($logId, self::ACTION_MANUAL_FIELD_SYNC, $reason);
+        self::forgetStatsCache();
+
+        return [
+            'vod_id' => $vodId,
+            'vod_name' => (string) ($snapshot['vod']['vod_name'] ?? ''),
+            'douban_id' => (string) $snapshot['douban_id'],
+            'code' => 1,
+            'msg' => '所选字段已更新',
+            'updated_fields' => array_keys($updates),
+            'changes' => self::syncChangesForView($oldValues, $updates),
+            'warnings' => $snapshot['warnings'],
+        ];
+    }
+
     public static function rollbackPicture(int $vodId, int $operatorId = 0)
     {
         if ($vodId < 1) {
@@ -1440,6 +1603,55 @@ class DoubanData
         self::forgetStatsCache();
 
         return ['vod_id' => $vodId, 'ignore_until' => $until, 'skipped_tasks' => $skippedTasks];
+    }
+
+    public static function restoreIgnored(int $vodId, int $operatorId = 0)
+    {
+        $vodId = max(0, $vodId);
+        if ($vodId < 1) {
+            throw new \InvalidArgumentException('vod_id missing');
+        }
+
+        return self::withEnqueueLock(function () use ($vodId, $operatorId) {
+            $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
+            if (empty($vod)) {
+                throw new DoubanActionException('影片不存在');
+            }
+            $meta = Db::name(self::META_TABLE)->where('vod_id', $vodId)->lock(true)->find();
+            $reviewStatus = (string) ($meta['douban_review_status'] ?? '');
+            $ignoreUntil = (int) ($meta['douban_ignore_until'] ?? 0);
+            if (empty($meta) || ($reviewStatus !== 'IGNORED' && $ignoreUntil <= time())) {
+                throw new DoubanActionException('影片当前未处于忽略状态');
+            }
+
+            $now = time();
+            $doubanId = self::resolveDoubanId((array) $meta, (array) $vod);
+            $updates = [
+                'douban_review_status' => $doubanId === '' ? 'NOT_FOUND' : 'CONFIRMED',
+                'douban_review_reason' => $doubanId === '' ? '已恢复处理，等待匹配豆瓣ID' : '',
+                'douban_ignore_until' => 0,
+                'douban_next_sync_at' => $now,
+            ];
+            self::updateMeta($vodId, $updates);
+
+            $row = array_merge((array) $vod, [
+                'meta_vod_id' => $vodId,
+                'meta_douban_id' => (string) ($meta['douban_id'] ?? ''),
+            ]);
+            $prepared = self::prepareTaskRows($row === [] ? [] : [$row], self::activeTaskKeys([$vodId]), $now);
+            $task = $prepared['task_rows'][0] ?? [];
+            if (!empty($task)) {
+                Db::name(self::TASK_TABLE)->insert($task);
+            }
+            self::recordLog($vodId, 'RESTORE_IGNORE', (array) $meta, $updates, '后台恢复忽略影片', 0, $operatorId);
+            self::forgetStatsCache();
+
+            return [
+                'vod_id' => $vodId,
+                'created_task' => empty($task) ? 0 : 1,
+                'task_type' => (string) ($task['task_type'] ?? ($doubanId === '' ? self::TASK_MATCH : self::TASK_SYNC)),
+            ];
+        });
     }
 
     public static function calibrateScores(int $operatorId = 0)
@@ -1991,7 +2203,7 @@ class DoubanData
         }
         self::saveCandidates($vodId, $ranked['candidates'], (int) $config['candidate_topn']);
         $top = $ranked['candidates'][0] ?? [];
-        $doubanId = (string) ($top['douban_id'] ?? '');
+        $doubanId = self::normalizeDoubanId((string) ($top['douban_id'] ?? ''));
         $duplicate = $doubanId !== '' && Db::name(self::META_TABLE)
             ->where('douban_id', $doubanId)
             ->where('vod_id', '<>', $vodId)
@@ -2101,12 +2313,16 @@ class DoubanData
         Db::name(self::CANDIDATE_TABLE)->where('vod_id', $vodId)->delete();
         $now = time();
         foreach (array_slice($candidates, 0, max(1, min(10, $limit))) as $rank => $candidate) {
+            $doubanId = self::normalizeDoubanId((string) ($candidate['douban_id'] ?? ''));
+            if ($doubanId === '') {
+                continue;
+            }
             $scoreDetail = (array) ($candidate['score_detail'] ?? []);
             $scoreDetail['candidate_title'] = trim((string) ($candidate['title'] ?? ''));
             $scoreDetail['candidate_year'] = trim((string) ($candidate['year'] ?? ''));
             Db::name(self::CANDIDATE_TABLE)->insert([
                 'vod_id' => $vodId,
-                'douban_id' => (string) ($candidate['douban_id'] ?? ''),
+                'douban_id' => $doubanId,
                 'score_total' => (int) ($candidate['score_total'] ?? 0),
                 'score_detail' => self::json($scoreDetail),
                 'conflicts' => self::json($candidate['conflicts'] ?? []),
@@ -2320,6 +2536,9 @@ class DoubanData
         }
         if ($status === 'confirmed') {
             return $query->where('m.douban_review_status', 'CONFIRMED');
+        }
+        if ($status === 'ignored') {
+            return $query->where('m.douban_review_status', 'IGNORED');
         }
         if ($status === 'duplicate') {
             $ids = self::duplicateDoubanIds();
@@ -2573,14 +2792,50 @@ class DoubanData
         }
         self::throttleRequests($config, $maxRateWaitSeconds);
         if (self::isInternalEndpoint($endpoint)) {
-            return DoubanGateway::search($query, (int) ($config['candidate_topn'] ?? 5));
+            $data = DoubanGateway::search($query, (int) ($config['candidate_topn'] ?? 5));
+        } else {
+            $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, [
+                'q' => $query,
+                'limit' => (int) ($config['candidate_topn'] ?? 5),
+            ]));
         }
-        $data = self::requestEndpoint(self::buildEndpointUrl($endpoint, [
-            'q' => $query,
-            'limit' => (int) ($config['candidate_topn'] ?? 5),
-        ]));
 
-        return array_values(array_filter($data, 'is_array'));
+        return self::normalizeCandidateRows($data, (int) ($config['candidate_topn'] ?? 5));
+    }
+
+    private static function normalizeCandidateRows(array $rows, int $limit)
+    {
+        $limit = max(1, min(10, $limit));
+        $normalized = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $rawId = self::extractValue($row, ['douban_id', 'id']);
+            if (!preg_match('/^\d+$/', $rawId)) {
+                continue;
+            }
+            $doubanId = self::normalizeDoubanId($rawId);
+            $title = mb_substr(self::extractValue($row, ['title', 'vod_name', 'name']), 0, 160, 'UTF-8');
+            if ($doubanId === '' || $title === '') {
+                continue;
+            }
+            $year = self::extractValue($row, ['year', 'vod_year']);
+            if ($year !== '' && (!preg_match('/^\d{4}$/', $year) || (int) $year < 1800 || (int) $year > 2100)) {
+                $year = '';
+            }
+            $row['douban_id'] = $doubanId;
+            $row['title'] = $title;
+            $row['year'] = $year;
+            $row['subtitle'] = mb_substr(self::extractValue($row, ['subtitle', 'sub_title']), 0, 160, 'UTF-8');
+            $row['url'] = 'https://movie.douban.com/subject/' . $doubanId . '/';
+            $normalized[] = $row;
+            if (count($normalized) >= $limit) {
+                break;
+            }
+        }
+
+        return $normalized;
     }
 
     private static function requestEndpoint(string $url)
@@ -2893,6 +3148,73 @@ class DoubanData
         }
 
         return $updates;
+    }
+
+    private static function manualSyncSnapshot(int $vodId, array $config)
+    {
+        if ($vodId < 1) {
+            throw new \InvalidArgumentException('vod_id missing');
+        }
+        $vod = Db::name(self::VOD_TABLE)->where('vod_id', $vodId)->find();
+        if (empty($vod)) {
+            throw new DoubanActionException('影片不存在');
+        }
+        $meta = Db::name(self::META_TABLE)->where('vod_id', $vodId)->find();
+        $meta = is_array($meta) ? $meta : [];
+        $doubanId = self::resolveDoubanId($meta, (array) $vod);
+        if ($doubanId === '') {
+            throw new DoubanActionException('请先搜索或填写豆瓣ID');
+        }
+
+        $data = self::fetchDoubanData($doubanId, $config);
+        $warnings = [];
+        $updates = self::buildVodUpdates((array) $vod, $meta, $data, $doubanId, $warnings);
+        $oldValues = [];
+        foreach ($updates as $field => $value) {
+            $oldValues[$field] = $vod[$field] ?? '';
+        }
+
+        return [
+            'vod' => (array) $vod,
+            'douban_id' => $doubanId,
+            'old_values' => $oldValues,
+            'updates' => $updates,
+            'warnings' => $warnings,
+            'context_token' => self::manualSyncContextToken($vodId, $doubanId, $oldValues, $updates),
+        ];
+    }
+
+    private static function normalizeManualSyncFields(array $fields)
+    {
+        $normalized = [];
+        foreach ($fields as $field) {
+            if (!is_string($field) && !is_int($field)) {
+                throw new \InvalidArgumentException('包含不允许手动更新的字段');
+            }
+            $field = trim((string) $field);
+            if (!in_array($field, self::MANUAL_SYNC_FIELDS, true)) {
+                throw new \InvalidArgumentException('包含不允许手动更新的字段');
+            }
+            $normalized[$field] = $field;
+        }
+        if (empty($normalized)) {
+            throw new \InvalidArgumentException('请至少选择一个要更新的字段');
+        }
+
+        return array_values($normalized);
+    }
+
+    private static function manualSyncContextToken(int $vodId, string $doubanId, array $oldValues, array $updates)
+    {
+        ksort($oldValues);
+        ksort($updates);
+
+        return hash('sha256', self::json([
+            'vod_id' => $vodId,
+            'douban_id' => $doubanId,
+            'old_values' => $oldValues,
+            'updates' => $updates,
+        ]));
     }
 
     private static function vodFieldWarning(string $field, string $value)

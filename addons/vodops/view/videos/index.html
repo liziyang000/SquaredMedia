@@ -1,0 +1,468 @@
+<style>
+  .vod-library { --library-blue:#175cd3; --library-line:#e4e7ec; --library-muted:#667085; display:grid; gap:12px; }
+  .vod-library [hidden] { display:none !important; }
+  .vod-library-toolbar, .vod-library-filter-main, .vod-library-filter-more, .vod-library-presets, .vod-library-selection, .vod-library-actions, .vod-library-pager { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .vod-library-toolbar { justify-content:space-between; }
+  .vod-library-presets { padding:10px 12px; border:1px solid #dbe5f5; border-radius:10px; background:#f5f8ff; }
+  .vod-library-panel { padding:14px; border:1px solid var(--library-line); border-radius:10px; background:#fff; }
+  .vod-library-field { display:grid; gap:5px; min-width:150px; color:#475467; font-size:12px; }
+  .vod-library-field.is-search { flex:1 1 260px; }
+  .vod-library-input, .vod-library-select, .vod-library-button, .vod-library-link { min-height:38px; box-sizing:border-box; border:1px solid #cfd5dc; border-radius:7px; background:#fff; color:#344054; font:inherit; }
+  .vod-library-input, .vod-library-select { width:100%; padding:7px 10px; }
+  .vod-library-button, .vod-library-link { display:inline-flex; align-items:center; justify-content:center; padding:7px 12px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .vod-library-button:hover, .vod-library-link:hover { border-color:#98a2b3; }
+  .vod-library-button:focus-visible, .vod-library-link:focus-visible, .vod-library-input:focus, .vod-library-select:focus { border-color:var(--library-blue); box-shadow:0 0 0 3px rgba(23,92,211,.14); outline:none; }
+  .vod-library-button.is-primary, .vod-library-link.is-primary { border-color:var(--library-blue); background:var(--library-blue); color:#fff; }
+  .vod-library-button:disabled { cursor:wait; opacity:.6; }
+  .vod-library-more { margin-top:10px; }
+  .vod-library-more summary { width:max-content; color:var(--library-blue); cursor:pointer; font-size:13px; }
+  .vod-library-filter-more { margin-top:10px; padding-top:10px; border-top:1px solid var(--library-line); align-items:end; }
+  .vod-library-selection { justify-content:space-between; border-color:#a9c4f5; background:#f5f8ff; }
+  .vod-library-feedback { min-height:22px; padding:0 2px; color:var(--library-muted); font-size:13px; }
+  .vod-library-feedback[data-state="running"] { color:var(--library-blue); }
+  .vod-library-feedback[data-state="success"] { color:#027a48; }
+  .vod-library-feedback[data-state="error"] { color:#b42318; }
+  .vod-library-table-wrap { overflow:auto; border:1px solid var(--library-line); border-radius:10px; background:#fff; }
+  .vod-library-table { width:100%; min-width:980px; table-layout:fixed; border-collapse:collapse; }
+  .vod-library-table th, .vod-library-table td { padding:10px 9px; border-bottom:1px solid #edf0f3; text-align:left; vertical-align:middle; }
+  .vod-library-table th { position:sticky; top:0; z-index:2; background:#f8fafc; color:#475467; font-size:12px; white-space:nowrap; }
+  .vod-library-table tbody tr:last-child td { border-bottom:0; }
+  .vod-library-table tbody tr:hover { background:#fafcff; }
+  .vod-library-title { display:-webkit-box; overflow:hidden; color:#101828; font-weight:650; line-height:1.45; text-overflow:ellipsis; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+  .vod-library-meta, .vod-library-source { margin-top:3px; overflow:hidden; color:var(--library-muted); font-size:12px; line-height:1.4; text-overflow:ellipsis; white-space:nowrap; }
+  .vod-library-badge { display:inline-flex; padding:3px 8px; border-radius:999px; background:#f2f4f7; color:#475467; font-size:12px; white-space:nowrap; }
+  .vod-library-badge.is-success { background:#ecfdf3; color:#027a48; }
+  .vod-library-badge.is-warning { background:#fffaeb; color:#b54708; }
+  .vod-library-badge.is-danger { background:#fef3f2; color:#b42318; }
+  .vod-library-actions { flex-wrap:nowrap; }
+  .vod-library-actions .vod-library-button, .vod-library-actions .vod-library-link { min-height:32px; padding:5px 9px; font-size:12px; }
+  .vod-library-pager { justify-content:flex-end; }
+  .vod-library-page-label { color:var(--library-muted); font-size:13px; }
+  .vod-library-empty { padding:38px 16px; color:var(--library-muted); text-align:center; }
+  @media (max-width:900px) { .vod-library-filter-main { align-items:end; } .vod-library-table { min-width:820px; } }
+</style>
+
+<section class="vod-library" data-vod-library
+  data-list-url="{:url('vodops/videosData')}"
+  data-page-url="{:url('vodops/videos')}"
+  data-edit-url="{:url('vod/info')}"
+  data-ai-url="{:url('vod/aiSeoGenerate')}">
+  <div class="vod-library-toolbar">
+    <div class="vod-library-presets" aria-label="快捷筛选">
+      <strong>快捷查看</strong>
+      <button class="vod-library-button" type="button" data-library-preset="recent">最近更新</button>
+      <button class="vod-library-button" type="button" data-library-preset="pending">待审核</button>
+      <button class="vod-library-button" type="button" data-library-preset="no-seo">未做 SEO</button>
+      <button class="vod-library-button" type="button" data-library-preset="missing-pic">缺少图片</button>
+      <button class="vod-library-button" type="button" data-library-preset="serial">连载中</button>
+    </div>
+    <div class="vod-library-actions">
+      <button class="vod-library-button" type="button" data-library-refresh>刷新当前列表</button>
+      <a class="vod-library-link is-primary j-iframe" data-full="1" data-href="{:url('vod/info')}" href="javascript:;">添加视频</a>
+      <a class="vod-library-link" href="{:url('vod/data')}">原生高级管理</a>
+    </div>
+  </div>
+
+  <form id="vodLibraryFilters" class="vod-library-panel" method="get" action="{:url('vodops/videos')}">
+    <div class="vod-library-filter-main">
+      <label class="vod-library-field is-search">关键词或视频 ID
+        <input class="vod-library-input" name="q" value="{$video_filters.q|htmlspecialchars}" placeholder="输入 ID，或从片名开头搜索" autocomplete="off">
+      </label>
+      <label class="vod-library-field">分类
+        <select class="vod-library-select" name="type_id">
+          <option value="0">全部分类</option>
+          {volist name="categories" id="category"}
+          <option value="{$category.type_id}" {if condition="$video_filters.type_id eq $category.type_id"}selected{/if}>{$category.label|htmlspecialchars}</option>
+          {/volist}
+        </select>
+      </label>
+      <label class="vod-library-field">审核状态
+        <select class="vod-library-select" name="status">
+          {foreach name="video_statuses" item="label" key="key"}
+          <option value="{$key}" {if condition="$video_filters.status eq $key"}selected{/if}>{$label}</option>
+          {/foreach}
+        </select>
+      </label>
+      <label class="vod-library-field">更新状态
+        <select class="vod-library-select" name="isend">
+          <option value="all" {if condition="$video_filters.isend eq 'all'"}selected{/if}>全部</option>
+          <option value="0" {if condition="$video_filters.isend eq '0'"}selected{/if}>连载中</option>
+          <option value="1" {if condition="$video_filters.isend eq '1'"}selected{/if}>已完结</option>
+        </select>
+      </label>
+      <button class="vod-library-button is-primary" type="submit">查询</button>
+      <button class="vod-library-button" type="button" data-library-reset>清空</button>
+    </div>
+    <details class="vod-library-more" {if condition="$video_filters.source neq '' or $video_filters.seo neq 'all' or $video_filters.pic neq 'all' or $video_filters.limit neq 30"}open{/if}>
+      <summary>更多筛选</summary>
+      <div class="vod-library-filter-more">
+        <label class="vod-library-field">播放源代码
+          <input class="vod-library-input" name="source" value="{$video_filters.source|htmlspecialchars}" placeholder="例如 wjys">
+        </label>
+        <label class="vod-library-field">SEO 状态
+          <select class="vod-library-select" name="seo">
+            <option value="all" {if condition="$video_filters.seo eq 'all'"}selected{/if}>全部</option>
+            <option value="none" {if condition="$video_filters.seo eq 'none'"}selected{/if}>未生成</option>
+            <option value="optimized" {if condition="$video_filters.seo eq 'optimized'"}selected{/if}>已优化</option>
+            <option value="fallback" {if condition="$video_filters.seo eq 'fallback'"}selected{/if}>已降级</option>
+          </select>
+        </label>
+        <label class="vod-library-field">图片
+          <select class="vod-library-select" name="pic">
+            <option value="all" {if condition="$video_filters.pic eq 'all'"}selected{/if}>全部</option>
+            <option value="missing" {if condition="$video_filters.pic eq 'missing'"}selected{/if}>缺少图片</option>
+            <option value="remote" {if condition="$video_filters.pic eq 'remote'"}selected{/if}>远程图片</option>
+          </select>
+        </label>
+        <label class="vod-library-field">每页数量
+          <select class="vod-library-select" name="limit">
+            <option value="20" {if condition="$video_filters.limit eq 20"}selected{/if}>20 条</option>
+            <option value="30" {if condition="$video_filters.limit eq 30"}selected{/if}>30 条</option>
+            <option value="50" {if condition="$video_filters.limit eq 50"}selected{/if}>50 条</option>
+          </select>
+        </label>
+      </div>
+    </details>
+  </form>
+
+  <div class="vod-library-panel vod-library-selection" data-library-selection hidden>
+    <strong>已选择 <span data-library-selected-count>0</span> 条</strong>
+    <div class="vod-library-actions">
+      <label><input type="checkbox" data-library-skip-seo checked> 跳过已处理 SEO</label>
+      <button class="vod-library-button is-primary" type="button" data-library-batch-seo>批量 AI SEO</button>
+      <button class="vod-library-button" type="button" data-library-clear-selection>取消选择</button>
+    </div>
+  </div>
+
+  <div class="vod-library-feedback" data-library-feedback role="status" aria-live="polite">准备就绪</div>
+
+  <div class="vod-library-table-wrap">
+    <table class="vod-library-table">
+      <colgroup><col style="width:42px"><col><col style="width:130px"><col style="width:150px"><col style="width:105px"><col style="width:145px"><col style="width:150px"></colgroup>
+      <thead><tr><th><input type="checkbox" data-library-select-all aria-label="选择本页全部视频"></th><th>视频</th><th>状态</th><th>播放源</th><th>SEO</th><th>更新时间</th><th>操作</th></tr></thead>
+      <tbody data-library-rows>
+        {volist name="video_rows" id="video"}
+        <tr data-vod-id="{$video.vod_id}" data-seo-status="{$video.seo_status}">
+          <td><input type="checkbox" data-library-select-row aria-label="选择 {$video.vod_name|htmlspecialchars}"></td>
+          <td><span class="vod-library-title" title="{$video.vod_name|htmlspecialchars}">{$video.vod_name|htmlspecialchars}</span><div class="vod-library-meta">#{$video.vod_id} · {$video.type_name|default='未分类'|htmlspecialchars}{if condition="$video.vod_remarks neq ''"} · {$video.vod_remarks|htmlspecialchars}{/if}</div></td>
+          <td><span class="vod-library-badge {if condition="$video.vod_status eq 1"}is-success{else/}is-warning{/if}">{$video.status_label}</span>{if condition="$video.vod_isend eq 0"}<div class="vod-library-meta">连载 {$video.vod_serial|htmlspecialchars}</div>{else/}<div class="vod-library-meta">已完结</div>{/if}</td>
+          <td><span class="vod-library-badge">{$video.source_count} 个来源</span><div class="vod-library-source" title="{$video.source_preview|htmlspecialchars}">{$video.source_preview|default='暂无播放源'|htmlspecialchars}</div></td>
+          <td><span class="vod-library-badge {if condition="$video.seo_status eq 1"}is-success{elseif condition="$video.seo_status eq 2"/}is-warning{/if}" data-seo-badge>{$video.seo_status_label}</span></td>
+          <td>{$video.updated_at_label}</td>
+          <td><div class="vod-library-actions"><a class="vod-library-link j-iframe" data-full="1" data-href="{:url('vod/info',['id'=>$video['vod_id']])}" href="javascript:;">编辑</a><button class="vod-library-button" type="button" data-library-ai-seo>AI SEO</button></div></td>
+        </tr>
+        {/volist}
+      </tbody>
+    </table>
+    <div class="vod-library-empty" data-library-empty {if condition="!empty($video_rows)"}hidden{/if}>没有符合当前条件的视频</div>
+  </div>
+
+  <nav class="vod-library-pager" aria-label="视频列表分页">
+    <a class="vod-library-link" data-library-page="{:$video_pagination['page']-1}" href="{$video_pagination.prev_url|default='javascript:;'}" {if condition="empty($video_pagination.prev_url)"}hidden{/if}>上一页</a>
+    <span class="vod-library-page-label">第 <span data-library-page-label>{$video_pagination.page}</span> 页</span>
+    <a class="vod-library-link" data-library-page="{:$video_pagination['page']+1}" href="{$video_pagination.next_url|default='javascript:;'}" {if condition="empty($video_pagination.next_url)"}hidden{/if}>下一页</a>
+  </nav>
+</section>
+
+<script>
+(function () {
+  "use strict";
+  var root = document.querySelector("[data-vod-library]");
+  if (!root || !window.fetch || !window.URLSearchParams) return;
+  var form = document.getElementById("vodLibraryFilters");
+  var rowsRoot = root.querySelector("[data-library-rows]");
+  var empty = root.querySelector("[data-library-empty]");
+  var feedback = root.querySelector("[data-library-feedback]");
+  var selectAll = root.querySelector("[data-library-select-all]");
+  var selection = root.querySelector("[data-library-selection]");
+  var selectedCount = root.querySelector("[data-library-selected-count]");
+  var requestController = null;
+  var AI_CONCURRENCY = 2;
+
+  function setFeedback(state, message) {
+    feedback.dataset.state = state || "idle";
+    feedback.textContent = message || "";
+  }
+
+  function withQuery(url, params) {
+    var query = params.toString();
+    return url + (query ? (url.indexOf("?") === -1 ? "?" : "&") + query : "");
+  }
+
+  function withParam(url, key, value) {
+    var params = new URLSearchParams();
+    params.set(key, value);
+    return withQuery(url, params);
+  }
+
+  function currentParams(page) {
+    var params = new URLSearchParams(new FormData(form));
+    params.set("page", String(Math.max(1, Number(page) || 1)));
+    return params;
+  }
+
+  function currentPage() {
+    return Math.max(1, Number(root.querySelector("[data-library-page-label]").textContent) || 1);
+  }
+
+  function resetFilters() {
+    form.elements.q.value = "";
+    form.elements.type_id.value = "0";
+    form.elements.status.value = "all";
+    form.elements.isend.value = "all";
+    form.elements.source.value = "";
+    form.elements.seo.value = "all";
+    form.elements.pic.value = "all";
+    form.elements.limit.value = "30";
+  }
+
+  function badge(text, className) {
+    var node = document.createElement("span");
+    node.className = "vod-library-badge" + (className ? " " + className : "");
+    node.textContent = text;
+    return node;
+  }
+
+  function meta(text, className) {
+    var node = document.createElement("div");
+    node.className = className || "vod-library-meta";
+    node.textContent = text;
+    node.title = text;
+    return node;
+  }
+
+  function renderRow(video) {
+    var row = document.createElement("tr");
+    row.dataset.vodId = String(video.vod_id || "");
+    row.dataset.seoStatus = String(video.seo_status || 0);
+
+    var selectCell = document.createElement("td");
+    var checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.setAttribute("data-library-select-row", "");
+    checkbox.setAttribute("aria-label", "选择 " + (video.vod_name || "该视频"));
+    selectCell.appendChild(checkbox);
+    row.appendChild(selectCell);
+
+    var titleCell = document.createElement("td");
+    var title = document.createElement("span");
+    title.className = "vod-library-title";
+    title.textContent = video.vod_name || "未命名";
+    title.title = title.textContent;
+    titleCell.appendChild(title);
+    titleCell.appendChild(meta("#" + video.vod_id + " · " + (video.type_name || "未分类") + (video.vod_remarks ? " · " + video.vod_remarks : "")));
+    row.appendChild(titleCell);
+
+    var statusCell = document.createElement("td");
+    var statusClass = Number(video.vod_status) === 1 ? "is-success" : "is-warning";
+    statusCell.appendChild(badge(video.status_label || "未知状态", statusClass));
+    statusCell.appendChild(meta(Number(video.vod_isend) === 0 ? "连载 " + (video.vod_serial || "") : "已完结"));
+    row.appendChild(statusCell);
+
+    var sourceCell = document.createElement("td");
+    sourceCell.appendChild(badge(String(video.source_count || 0) + " 个来源"));
+    sourceCell.appendChild(meta(video.source_preview || "暂无播放源", "vod-library-source"));
+    row.appendChild(sourceCell);
+
+    var seoCell = document.createElement("td");
+    var seoClass = Number(video.seo_status) === 1 ? "is-success" : (Number(video.seo_status) === 2 ? "is-warning" : "");
+    var seoBadge = badge(video.seo_status_label || "未生成", seoClass);
+    seoBadge.setAttribute("data-seo-badge", "");
+    seoCell.appendChild(seoBadge);
+    row.appendChild(seoCell);
+
+    var timeCell = document.createElement("td");
+    timeCell.textContent = video.updated_at_label || "-";
+    row.appendChild(timeCell);
+
+    var actionCell = document.createElement("td");
+    var actions = document.createElement("div");
+    actions.className = "vod-library-actions";
+    var edit = document.createElement("a");
+    edit.className = "vod-library-link j-iframe";
+    edit.dataset.full = "1";
+    edit.dataset.href = withParam(root.dataset.editUrl, "id", video.vod_id);
+    edit.href = "javascript:;";
+    edit.textContent = "编辑";
+    actions.appendChild(edit);
+    var ai = document.createElement("button");
+    ai.className = "vod-library-button";
+    ai.type = "button";
+    ai.setAttribute("data-library-ai-seo", "");
+    ai.textContent = "AI SEO";
+    actions.appendChild(ai);
+    actionCell.appendChild(actions);
+    row.appendChild(actionCell);
+    return row;
+  }
+
+  function renderRows(videos) {
+    var fragment = document.createDocumentFragment();
+    (videos || []).forEach(function (video) { fragment.appendChild(renderRow(video)); });
+    rowsRoot.replaceChildren(fragment);
+    empty.hidden = Boolean(videos && videos.length);
+    selectAll.checked = false;
+    selectAll.indeterminate = false;
+    updateSelection();
+  }
+
+  function renderPager(library) {
+    var previous = root.querySelector('[data-library-page="' + (Number(library.page) - 1) + '"]') || root.querySelectorAll("[data-library-page]")[0];
+    var next = root.querySelectorAll("[data-library-page]")[1];
+    previous.dataset.libraryPage = String(Math.max(1, Number(library.page) - 1));
+    previous.href = library.prev_url || "javascript:;";
+    previous.hidden = !library.has_prev;
+    next.dataset.libraryPage = String(Number(library.page) + 1);
+    next.href = library.next_url || "javascript:;";
+    next.hidden = !library.has_next;
+    root.querySelector("[data-library-page-label]").textContent = String(library.page || 1);
+  }
+
+  function syncForm(filters) {
+    Object.keys(filters || {}).forEach(function (key) {
+      var field = form.elements.namedItem(key);
+      if (field) field.value = String(filters[key]);
+    });
+  }
+
+  function loadPage(params, updateHistory) {
+    if (requestController) requestController.abort();
+    requestController = window.AbortController ? new AbortController() : null;
+    setFeedback("running", "正在更新视频列表…");
+    return fetch(withQuery(root.dataset.listUrl, params), {
+      credentials: "same-origin",
+      headers: { "X-Requested-With": "XMLHttpRequest" },
+      signal: requestController ? requestController.signal : undefined
+    }).then(function (response) {
+      return response.json().then(function (payload) {
+        if (!response.ok || !payload || Number(payload.code) !== 1) throw new Error((payload && payload.msg) || "列表加载失败");
+        return payload.data;
+      });
+    }).then(function (library) {
+      renderRows(library.data);
+      renderPager(library);
+      syncForm(library.filters);
+      if (updateHistory) history.pushState({}, "", withQuery(root.dataset.pageUrl, params));
+      setFeedback("success", "列表已更新；第 " + library.page + " 页显示 " + library.data.length + " 条");
+      return library;
+    }).catch(function (error) {
+      if (error && error.name === "AbortError") return;
+      setFeedback("error", error && error.message ? error.message : "列表加载失败，请重试");
+    });
+  }
+
+  function updateSelection() {
+    var boxes = Array.prototype.slice.call(rowsRoot.querySelectorAll("[data-library-select-row]"));
+    var checked = boxes.filter(function (box) { return box.checked; });
+    selectedCount.textContent = String(checked.length);
+    selection.hidden = checked.length === 0;
+    selectAll.checked = boxes.length > 0 && checked.length === boxes.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < boxes.length;
+  }
+
+  function csrfToken() {
+    var token = document.querySelector('meta[name="csrf-token"]');
+    return token ? token.getAttribute("content") || "" : "";
+  }
+
+  function generateSeo(row) {
+    var button = row.querySelector("[data-library-ai-seo]");
+    var params = new URLSearchParams();
+    params.set("id", row.dataset.vodId);
+    button.disabled = true;
+    return fetch(root.dataset.aiUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "X-Requested-With": "XMLHttpRequest",
+        "X-CSRF-Token": csrfToken()
+      },
+      body: params.toString()
+    }).then(function (response) { return response.json(); }).then(function (payload) {
+      if (!payload || Number(payload.code) !== 1) throw new Error((payload && payload.msg) || "AI SEO 生成失败");
+      row.dataset.seoStatus = "1";
+      var seoBadge = row.querySelector("[data-seo-badge]");
+      seoBadge.textContent = "已优化";
+      seoBadge.className = "vod-library-badge is-success";
+      return true;
+    }).finally(function () { button.disabled = false; });
+  }
+
+  function runBatchSeo() {
+    var rows = Array.prototype.slice.call(rowsRoot.querySelectorAll("tr")).filter(function (row) {
+      var box = row.querySelector("[data-library-select-row]");
+      return box && box.checked;
+    });
+    var skip = root.querySelector("[data-library-skip-seo]").checked;
+    rows = rows.filter(function (row) { return !skip || ![1, 2].includes(Number(row.dataset.seoStatus)); });
+    if (!rows.length) { setFeedback("idle", "所选视频均已处理，无需重复生成"); return; }
+    if (!window.confirm("将为 " + rows.length + " 条视频生成 AI SEO，确认继续？")) return;
+    var batchButton = root.querySelector("[data-library-batch-seo]");
+    var cursor = 0, completed = 0, success = 0, failed = 0;
+    batchButton.disabled = true;
+    setFeedback("running", "AI SEO 处理中：0 / " + rows.length);
+
+    function worker() {
+      var index = cursor++;
+      if (index >= rows.length) return Promise.resolve();
+      return generateSeo(rows[index]).then(function () { success++; }).catch(function () { failed++; }).then(function () {
+        completed++;
+        setFeedback("running", "AI SEO 处理中：" + completed + " / " + rows.length + "；成功 " + success + "，失败 " + failed);
+        return worker();
+      });
+    }
+
+    Promise.all(Array.from({ length: AI_CONCURRENCY }, worker)).then(function () {
+      batchButton.disabled = false;
+      setFeedback(failed ? "error" : "success", "AI SEO 完成：成功 " + success + "，失败 " + failed);
+    });
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    loadPage(currentParams(1), true);
+  });
+  root.querySelector("[data-library-refresh]").addEventListener("click", function () {
+    loadPage(currentParams(currentPage()), false);
+  });
+  root.querySelector("[data-library-reset]").addEventListener("click", function () {
+    resetFilters();
+    loadPage(currentParams(1), true);
+  });
+  root.querySelectorAll("[data-library-preset]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var preset = button.dataset.libraryPreset;
+      resetFilters();
+      form.elements.status.value = preset === "pending" ? "0" : "all";
+      form.elements.isend.value = preset === "serial" ? "0" : "all";
+      form.elements.seo.value = preset === "no-seo" ? "none" : "all";
+      form.elements.pic.value = preset === "missing-pic" ? "missing" : "all";
+      loadPage(currentParams(1), true);
+    });
+  });
+  root.addEventListener("click", function (event) {
+    var pageLink = event.target.closest("[data-library-page]");
+    if (pageLink && !pageLink.hidden) {
+      event.preventDefault();
+      loadPage(currentParams(pageLink.dataset.libraryPage), true);
+      return;
+    }
+    var ai = event.target.closest("[data-library-ai-seo]");
+    if (ai) {
+      var row = ai.closest("tr");
+      setFeedback("running", "正在为 #" + row.dataset.vodId + " 生成 AI SEO…");
+      generateSeo(row).then(function () { setFeedback("success", "AI SEO 已生成并更新当前行"); }).catch(function (error) { setFeedback("error", error.message || "AI SEO 生成失败"); });
+    }
+  });
+  rowsRoot.addEventListener("change", function (event) { if (event.target.matches("[data-library-select-row]")) updateSelection(); });
+  selectAll.addEventListener("change", function () { rowsRoot.querySelectorAll("[data-library-select-row]").forEach(function (box) { box.checked = selectAll.checked; }); updateSelection(); });
+  root.querySelector("[data-library-clear-selection]").addEventListener("click", function () { rowsRoot.querySelectorAll("[data-library-select-row]").forEach(function (box) { box.checked = false; }); updateSelection(); });
+  root.querySelector("[data-library-batch-seo]").addEventListener("click", runBatchSeo);
+  window.addEventListener("popstate", function () {
+    var params = new URLSearchParams(window.location.search);
+    syncForm(Object.fromEntries(params.entries()));
+    loadPage(params, false);
+  });
+})();
+</script>

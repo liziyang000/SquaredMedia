@@ -1,4 +1,7 @@
-{include file="public/head" seo_title="$obj.vod_name" seo_keywords="$obj.vod_tag" seo_description="$obj.vod_blurb" /}
+{assign name="pingfang_seo_title" value="$obj.vod_name" /}
+{assign name="pingfang_seo_keywords" value="$obj.vod_tag|default=''" /}
+{assign name="pingfang_seo_description" value="$obj.vod_blurb|default=''" /}
+{include file="public/head" seo_title="" seo_keywords="" seo_description="" /}
 <section class="player-page">
   <div class="wrap">
     <div class="player-head">

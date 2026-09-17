@@ -10,7 +10,7 @@ class DoubanController extends Base
 {
     public function index()
     {
-        return redirect(url('vodops/index', ['workspace' => 'douban']));
+        return redirect(url('vodops/douban'));
     }
 
     public function saveConfig()
@@ -128,7 +128,9 @@ class DoubanController extends Base
         }
 
         try {
-            $result = DoubanData::fetchVod((int) input('vod_id/d', 0), $this->adminId());
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::fetchVod($vodId, $this->adminId());
+            $result = $this->appendWorkspaceState($result, $vodId);
             return json([
                 'code' => 1,
                 'msg' => (string) ($result['msg'] ?? '豆瓣数据获取完成'),
@@ -146,10 +148,58 @@ class DoubanController extends Base
         }
 
         try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::syncVod($vodId, $this->adminId());
+            $result = $this->appendWorkspaceState($result, $vodId);
             return json([
                 'code' => 1,
                 'msg' => '同步完成',
-                'data' => DoubanData::syncVod((int) input('vod_id/d', 0), $this->adminId()),
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function previewManualSync()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            return json([
+                'code' => 1,
+                'msg' => '字段更新预览已生成',
+                'data' => DoubanData::previewManualSync((int) input('vod_id/d', 0)),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function applyManualSync()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+        if ((int) input('confirm/d', 0) !== 1) {
+            return json(['code' => 1001, 'msg' => '请确认更新所选字段']);
+        }
+
+        try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::applyManualSync(
+                $vodId,
+                (array) input('fields/a', []),
+                (string) input('context_token/s', ''),
+                $this->adminId()
+            );
+            $result = $this->appendWorkspaceState($result, $vodId);
+            return json([
+                'code' => 1,
+                'msg' => '所选字段已更新',
+                'data' => $result,
             ]);
         } catch (\Throwable $e) {
             return $this->errorJson($e);
@@ -166,10 +216,13 @@ class DoubanController extends Base
         }
 
         try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::rollbackPicture($vodId, $this->adminId());
+            $result = $this->appendWorkspaceState($result, $vodId);
             return json([
                 'code' => 1,
                 'msg' => '图片已回退',
-                'data' => DoubanData::rollbackPicture((int) input('vod_id/d', 0), $this->adminId()),
+                'data' => $result,
             ]);
         } catch (\Throwable $e) {
             return $this->errorJson($e);
@@ -247,15 +300,18 @@ class DoubanController extends Base
         }
 
         try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::setDoubanId(
+                $vodId,
+                (string) input('douban_id', ''),
+                (int) input('lock/d', 0),
+                $this->adminId()
+            );
+            $result = $this->appendWorkspaceState($result, $vodId);
             return json([
                 'code' => 1,
                 'msg' => '豆瓣ID已保存',
-                'data' => DoubanData::setDoubanId(
-                    (int) input('vod_id/d', 0),
-                    (string) input('douban_id', ''),
-                    (int) input('lock/d', 0),
-                    $this->adminId()
-                ),
+                'data' => $result,
             ]);
         } catch (\Throwable $e) {
             return $this->errorJson($e);
@@ -269,15 +325,18 @@ class DoubanController extends Base
         }
 
         try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::setLock(
+                $vodId,
+                (string) input('field', 'id'),
+                (int) input('locked/d', 1),
+                $this->adminId()
+            );
+            $result = $this->appendWorkspaceState($result, $vodId);
             return json([
                 'code' => 1,
                 'msg' => '锁定状态已更新',
-                'data' => DoubanData::setLock(
-                    (int) input('vod_id/d', 0),
-                    (string) input('field', 'id'),
-                    (int) input('locked/d', 1),
-                    $this->adminId()
-                ),
+                'data' => $result,
             ]);
         } catch (\Throwable $e) {
             return $this->errorJson($e);
@@ -289,12 +348,38 @@ class DoubanController extends Base
         if (($error = $this->guardPost()) !== null) {
             return $error;
         }
+        if ((int) input('confirm/d', 0) !== 1) {
+            return json(['code' => 1001, 'msg' => '请确认忽略该影片30天']);
+        }
 
         try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::ignore($vodId, (int) input('days/d', 30), $this->adminId());
+            $result = $this->appendWorkspaceState($result, $vodId);
             return json([
                 'code' => 1,
                 'msg' => '已忽略',
-                'data' => DoubanData::ignore((int) input('vod_id/d', 0), (int) input('days/d', 30), $this->adminId()),
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
+    }
+
+    public function restore()
+    {
+        if (($error = $this->guardPost()) !== null) {
+            return $error;
+        }
+
+        try {
+            $vodId = (int) input('vod_id/d', 0);
+            $result = DoubanData::restoreIgnored($vodId, $this->adminId());
+            $result = $this->appendWorkspaceState($result, $vodId);
+            return json([
+                'code' => 1,
+                'msg' => !empty($result['created_task']) ? '已恢复处理并生成任务' : '已恢复处理，已有任务未重复生成',
+                'data' => $result,
             ]);
         } catch (\Throwable $e) {
             return $this->errorJson($e);
@@ -423,6 +508,26 @@ class DoubanController extends Base
     {
         $value = (string) $value;
         return preg_match('/^[\s]*[=+\-@]/u', $value) ? ("'" . $value) : $value;
+    }
+
+    private function appendWorkspaceState(array $result, int $vodId)
+    {
+        try {
+            $result['video_state'] = DoubanData::videoState($vodId);
+            $result['collection_state'] = DoubanData::collectionState(
+                $vodId,
+                (string) input('status', 'all'),
+                (string) input('q', ''),
+                (int) input('type_id/d', 0),
+                (string) input('year', ''),
+                (string) input('task_status', 'PENDING')
+            );
+        } catch (\Throwable $e) {
+            $this->logFailure('刷新豆瓣工作区状态', $e);
+            $result['state_warning'] = '操作已完成，但局部状态获取失败，请手动刷新后确认。';
+        }
+
+        return $result;
     }
 
     private function guardPost()

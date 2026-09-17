@@ -1,4 +1,57 @@
+@import "../../../../template/pingfangvideo/css/base.css";
+@import "../../../../template/pingfangvideo/css/themes-foundation.css";
 @import "../../../../template/pingfangvideo/css/style.css";
+@import "../../../../template/pingfangvideo/css/themes.css";
+@import "../../../../template/pingfangvideo/css/games.css";
+@import "../../../../template/pingfangvideo/css/responsive.css";
+@import "../../../../template/pingfangvideo/css/ink-wash.css";
+
+.react-app .rank-item em,
+.react-app .home-shelf-body strong,
+.react-app .home-shelf-body small,
+.react-app .rank-body strong,
+.react-app .hero-rank .rank-item:first-of-type strong,
+.react-app .home-continue-body strong,
+.react-app .vod-card .card-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-app .vod-card strong {
+  display: -webkit-box;
+  height: 2.7em;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.react-app .vod-card .card-meta {
+  min-width: 0;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.react-app .vod-card .card-meta span:first-child {
+  flex: 1 1 auto;
+}
+
+.react-app .vod-card .card-meta span:last-child {
+  flex: 0 0 auto;
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .banner-dot.is-active {
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="dunhuang-caisson"] .react-app .banner-dot.is-active::after {
+  width: 30px;
+  height: 3px;
+  background: var(--dunhuang-gold);
+  box-shadow: 0 0 10px rgba(200, 155, 74, 0.36);
+}
 
 html {
   scrollbar-gutter: stable;

@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <title>[seo_title] - {$maccms.site_name}</title>
+  <title>{if condition="isset($pingfang_seo_title)"}{$pingfang_seo_title|htmlspecialchars=ENT_QUOTES,'UTF-8',false}{else/}[seo_title]{/if} - {$maccms.site_name}</title>
   {include file="public/include" /}
-  <meta name="keywords" content="[seo_keywords]">
-  <meta name="description" content="[seo_description]">
+  <meta name="keywords" content="{if condition="isset($pingfang_seo_keywords)"}{$pingfang_seo_keywords|htmlspecialchars=ENT_QUOTES,'UTF-8',false}{else/}[seo_keywords]{/if}">
+  <meta name="description" content="{if condition="isset($pingfang_seo_description)"}{$pingfang_seo_description|htmlspecialchars=ENT_QUOTES,'UTF-8',false}{else/}[seo_description]{/if}">
 </head>
 <body>
 <header class="site-header">
@@ -12,8 +12,8 @@
     <a class="brand" href="{$maccms.path}" aria-label="{$maccms.site_name}">
       <span class="brand-emblem" aria-hidden="true"></span>
       <span class="brand-wordmark"><strong>{$maccms.site_name}</strong><small>STREAMING EDITION</small></span>
-      <img class="brand-logo" src="{$maccms.path_tpl}images/site-logo.png" alt="" width="58" height="58" decoding="async" hidden aria-hidden="true">
     </a>
+    <button class="mobile-search-toggle" type="button" data-mobile-search-open aria-label="打开站内搜索" aria-expanded="false" aria-controls="mobileDrawer"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg></button>
     <button class="nav-toggle" type="button" aria-label="展开导航" aria-expanded="false" aria-controls="mobileDrawer">
       <span></span><span></span><span></span>
     </button>
@@ -21,7 +21,6 @@
       <a href="{$maccms.path}" data-nav-section="home">首页</a>
       <a href="{:mac_url('label/categories')}" data-nav-section="videos">视频</a>
       <a href="{:mac_url('label/games')}" data-nav-section="games">游戏</a>
-      <a href="{:mac_url('label/qixi')}" data-nav-section="qixi">七夕花束</a>
     </nav>
     <div class="header-search-wrap">
       <form class="header-search" method="get" action="{:mac_url('vod/search')}">
@@ -57,6 +56,10 @@
           <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
           <span>像素蛙</span>
         </button>
+        <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
+          <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
+          <span>水墨映画</span>
+        </button>
       </div>
     </div>
     <div class="user-menu">
@@ -90,7 +93,6 @@
     <a href="{$maccms.path}" data-nav-section="home">首页</a>
     <a href="{:mac_url('label/categories')}" data-nav-section="videos">视频</a>
     <a href="{:mac_url('label/games')}" data-nav-section="games">游戏</a>
-    <a href="{:mac_url('label/qixi')}" data-nav-section="qixi">七夕花束</a>
   </nav>
   <div class="mobile-drawer-section mobile-drawer-account">
     <span>账号</span>
@@ -131,6 +133,10 @@
       <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
         <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
         <span>像素蛙</span>
+      </button>
+      <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
+        <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
+        <span>水墨映画</span>
       </button>
     </div>
   </div>

@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Script } from "node:vm";
 
 const root = process.cwd();
 const themeRoot = path.join(root, "template", "pingfangvideo");
@@ -11,17 +12,31 @@ const apiAddonRoot = path.join(root, "addons", "pingfangapi");
 const vodopsAddonRoot = path.join(root, "addons", "vodops");
 const fullLetterFilter = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9";
 const nonAdultVodTypeScope = "42,47,48,57,111";
+const baseStyleVersionPlaceholder = "__PINGFANG_BASE_STYLE_VERSION__";
 const styleVersionPlaceholder = "__PINGFANG_STYLE_VERSION__";
+const themeFoundationVersionPlaceholder = "__PINGFANG_THEME_FOUNDATION_VERSION__";
+const themesVersionPlaceholder = "__PINGFANG_THEMES_VERSION__";
+const gamesStyleVersionPlaceholder = "__PINGFANG_GAMES_STYLE_VERSION__";
+const responsiveStyleVersionPlaceholder = "__PINGFANG_RESPONSIVE_STYLE_VERSION__";
 const appVersionPlaceholder = "__PINGFANG_APP_VERSION__";
 const promptVersionPlaceholder = "__PINGFANG_PROMPT_VERSION__";
 const gameVersionPlaceholder = "__PINGFANG_GAME_VERSION__";
+const blockrainVersionPlaceholder = "__PINGFANG_BLOCKRAIN_VERSION__";
 const bambooCicadaVersionPlaceholder = "__PINGFANG_BAMBOO_CICADA_VERSION__";
 const multiplayerVersionPlaceholder = "__PINGFANG_MULTIPLAYER_VERSION__";
 const qixiVersionPlaceholder = "__PINGFANG_QIXI_VERSION__";
+const qixiStyleVersionPlaceholder = "__PINGFANG_QIXI_STYLE_VERSION__";
 
 const requiredFiles = [
   "info.ini",
+  "css/base.css",
   "css/style.css",
+  "css/ink-wash.css",
+  "css/themes-foundation.css",
+  "css/themes.css",
+  "css/games.css",
+  "css/responsive.css",
+  "css/qixi-bouquet.css",
   "images/brand/favicon.ico",
   "images/brand/favicon.png",
   "images/brand/ios_fav.png",
@@ -69,6 +84,15 @@ const requiredFiles = [
   "js/app.js",
   "js/multiplayer-games.js",
   "js/qixi-particle-rose.js",
+  "js/qixi-particle-bouquet.js",
+  "js/third-party/three/three.module.min.js",
+  "js/third-party/three/three.core.min.js",
+  "js/third-party/three/GLTFLoader.js",
+  "js/third-party/three/MeshSurfaceSampler.js",
+  "js/third-party/three/BufferGeometryUtils.js",
+  "js/third-party/three/LICENSE.txt",
+  "images/qixi/qixi-bouquet.glb",
+  "images/qixi/LICENSE.md",
   "player/preload.html",
   "player/buffering.html",
   "player/prompt.css",
@@ -211,10 +235,13 @@ const requiredRootFiles = [
   "addons/vodops/service/DoubanData.php",
   "addons/vodops/service/DoubanGateway.php",
   "addons/vodops/service/DoubanMatcher.php",
+  "addons/vodops/service/VodLibrary.php",
   "addons/vodops/service/VodQualityAnalyzer.php",
   "addons/vodops/service/VodQualityRepair.php",
   "addons/vodops/service/VodQualityScanner.php",
   "addons/vodops/view/index/index.html",
+  "addons/vodops/view/videos/index.html",
+  "preview/data.json",
   "preview/qixi.html",
   "scripts/lint-template.mjs",
   "scripts/deploy-ping2.env",
@@ -334,12 +361,31 @@ const include = readThemeFile("html/public/include.html");
 assert.match(include, /<link rel="icon" href="\{\$maccms\.path_tpl\}images\/brand\/favicon\.ico">/);
 assert.match(include, /<link rel="icon" type="image\/png" sizes="64x64" href="\{\$maccms\.path_tpl\}images\/brand\/favicon\.png">/);
 assert.match(include, /<link rel="apple-touch-icon" sizes="512x512" href="\{\$maccms\.path_tpl\}images\/brand\/ios_fav\.png">/);
+assert.match(include, /<meta name="theme-color" content="#070913">/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/home\.js/);
 assert.match(include, /css\/style\.css\?v=/);
 assert.match(include, /"path":"\{:\s*rtrim\(\$maccms\['path'\], '\/'\)\}"/);
 assert.match(include, /"aid":"\{\$maccms\.aid\}"/);
+assert.match(include, new RegExp(`css/base\\.css\\?v=${baseStyleVersionPlaceholder}`));
 assert.match(include, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/themes-foundation\\.css\\?v=${themeFoundationVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/themes\\.css\\?v=${themesVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/games\\.css\\?v=${gamesStyleVersionPlaceholder}`));
+assert.match(include, new RegExp(`css/responsive\\.css\\?v=${responsiveStyleVersionPlaceholder}`));
+assert.match(include, /data-theme-foundation-stylesheet/);
+assert.match(include, /data-theme-stylesheet/);
+assert.match(include, /\{if condition="isset\(\$pingfang_page_style\) and \$pingfang_page_style eq 'games'"\}/);
+assert.match(include, /foundationTheme = theme === "blue-pink-purple" \|\| theme === "poster-magazine"/);
+assert.match(include, /stylesheet\.setAttribute\("rel", "stylesheet"\)/);
+assert.ok(
+  include.indexOf("base.css") < include.indexOf("themes-foundation.css") &&
+    include.indexOf("themes-foundation.css") < include.indexOf("style.css") &&
+    include.indexOf("style.css") < include.indexOf("themes.css") &&
+    include.indexOf("themes.css") < include.indexOf("games.css") &&
+    include.indexOf("games.css") < include.indexOf("responsive.css"),
+  "Theme, base, game, and responsive stylesheets must keep their cascade order",
+);
 assert.match(include, /window\.localStorage\.getItem\("pingfang_theme"\)/);
 assert.match(include, /theme === "poster-magazine"/);
 assert.match(include, /theme === "dunhuang-caisson"/);
@@ -357,16 +403,28 @@ assert.doesNotMatch(include, /css\/style\.css\?v=20260620/);
 assert.doesNotMatch(include, /__ROOT__/);
 
 const head = readThemeFile("html/public/head.html");
+for (const field of ["title", "keywords", "description"]) {
+  assert.ok(head.includes(`{if condition="isset($pingfang_seo_${field})"}`));
+  assert.ok(head.includes(`{$pingfang_seo_${field}|htmlspecialchars=ENT_QUOTES,'UTF-8',false}`));
+}
+
+function assertRuntimeSeo(page, values) {
+  const include = '{include file="public/head" seo_title="" seo_keywords="" seo_description="" /}';
+  const includeIndex = page.indexOf(include);
+  assert.ok(includeIndex >= 0, "Dynamic pages must not pass request values to the compile-time include");
+  for (const [index, field] of ["title", "keywords", "description"].entries()) {
+    const assignment = `{assign name="pingfang_seo_${field}" value="${values[index]}" /}`;
+    const assignmentIndex = page.indexOf(assignment);
+    assert.ok(assignmentIndex >= 0 && assignmentIndex < includeIndex, `${field} must be assigned at runtime before rendering the head`);
+  }
+}
+
 assert.match(head, /\[seo_title\]/);
 assert.match(head, /\[seo_keywords\]/);
 assert.match(head, /\[seo_description\]/);
-assert.match(head, /site-logo\.png/);
-assert.match(head, /brand-logo/);
-assert.match(head, /class="brand-logo"[^>]*width="58"[^>]*height="58"/);
-assert.match(head, /class="brand-logo"[^>]*decoding="async"/);
 assert.match(head, /class="brand-emblem" aria-hidden="true"/);
 assert.match(head, /class="brand-wordmark"><strong>\{\$maccms\.site_name\}<\/strong><small>STREAMING EDITION<\/small>/);
-assert.match(head, /class="brand-logo"[^>]*hidden aria-hidden="true"/);
+assert.doesNotMatch(head, /class="brand-logo"|site-logo\.png/);
 assert.doesNotMatch(head, /brand-mark">PF/);
 assert.doesNotMatch(head, /brand-text/);
 assert.match(head, /class="theme-switcher" data-theme-switcher/);
@@ -385,24 +443,25 @@ assert.match(head, /data-theme-option="pixel-frog" aria-pressed="false"[\s\S]*?<
 assert.match(head, /class="mobile-drawer-section mobile-theme-section"/);
 assert.match(head, /data-theme-switcher-mobile/);
 const desktopNavLinks = head.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(desktopNavLinks), ["首页", "视频", "游戏", "七夕花束"]);
+assert.deepEqual(extractAnchorTexts(desktopNavLinks), ["首页", "视频", "游戏"]);
 assert.match(desktopNavLinks, /<a href="\{\$maccms\.path\}" data-nav-section="home">首页<\/a>/);
 assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/categories'\)\}" data-nav-section="videos">视频<\/a>/);
 assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/games'\)\}" data-nav-section="games">游戏<\/a>/);
-assert.match(desktopNavLinks, /<a href="\{:mac_url\('label\/qixi'\)\}" data-nav-section="qixi">七夕花束<\/a>/);
+assert.doesNotMatch(desktopNavLinks, /qixi|七夕花束/);
 assert.doesNotMatch(desktopNavLinks, /nav-video-menu/);
 assert.doesNotMatch(desktopNavLinks, /nav-video-panel/);
 assert.doesNotMatch(desktopNavLinks, />漫画<\/a>|>文章<\/a>/);
 assert.doesNotMatch(desktopNavLinks, />分类<\/a>/);
 assert.doesNotMatch(desktopNavLinks, />收藏<\/a>/);
 const mobileDrawerLinks = head.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(mobileDrawerLinks), ["首页", "视频", "游戏", "七夕花束"]);
+assert.deepEqual(extractAnchorTexts(mobileDrawerLinks), ["首页", "视频", "游戏"]);
 assert.match(mobileDrawerLinks, /data-nav-section="home">首页<\/a>/);
 assert.match(mobileDrawerLinks, /data-nav-section="videos">视频<\/a>/);
 assert.match(mobileDrawerLinks, /data-nav-section="games">游戏<\/a>/);
-assert.match(mobileDrawerLinks, /data-nav-section="qixi">七夕花束<\/a>/);
+assert.doesNotMatch(mobileDrawerLinks, /qixi|七夕花束/);
 assert.doesNotMatch(mobileDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(head, /aria-controls="mobileDrawer"/);
+assert.match(head, /class="mobile-search-toggle"[^>]*data-mobile-search-open[^>]*aria-controls="mobileDrawer"/);
 assert.match(head, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
 assert.match(
   head,
@@ -464,7 +523,8 @@ assert.doesNotMatch(foot, /mac_url\('gbook\/index'\)/);
 assert.doesNotMatch(foot, /mac_url\('map\/rss'\)/);
 assert.match(foot, /class="mac_timming"/);
 assert.doesNotMatch(foot, /js\/gsap\.min\.js/);
-assert.match(foot, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.match(foot, /js\/app\.js\?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="\{\$maccms\.path_tpl\}js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
+assert.doesNotMatch(foot, /<script src="[^\"]*canvas-confetti\.min\.js/);
 assert.doesNotMatch(foot, /https?:\/\/[^"']*canvas-confetti/);
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260621/);
 assert.match(foot, new RegExp(`js/app\\.js\\?v=${appVersionPlaceholder}`));
@@ -541,50 +601,127 @@ assert.match(comicsPage, /\{include file="public\/foot" \/\}/);
 const qixiPage = readThemeFile("html/label/qixi.html");
 assert.match(qixiPage, /seo_title="七夕粒子玫瑰"/);
 assert.match(qixiPage, /document\.documentElement\.classList\.add\("qixi-immersive"\)/);
+assert.match(qixiPage, /viewport-fit=cover/);
+assert.match(qixiPage, /meta\[name="theme-color"\]/);
+assert.match(qixiPage, /themeColor\.content = "#100611"/);
 assert.match(qixiPage, /class="qixi-rose-page" data-qixi-rose/);
 assert.match(qixiPage, /data-qixi-canvas/);
 assert.match(qixiPage, /data-qixi-bloom/);
 assert.match(qixiPage, /data-qixi-share/);
 assert.match(qixiPage, /折成一束玫瑰|不会凋谢/);
-assert.match(qixiPage, new RegExp(`js/qixi-particle-rose\\.js\\?v=${qixiVersionPlaceholder}`));
+assert.match(qixiPage, /粉色与蓝色星光粒子从下向上聚成3D玫瑰花束/);
+assert.doesNotMatch(qixiPage, /qixi-rose-gesture|拖动花束，让玫瑰随你转身/);
+assert.doesNotMatch(qixiPage, /data-qixi-model|qixi-rose-model/);
+assert.match(qixiPage, /3D Flower Bouquet by/);
+assert.match(qixiPage, /sketchfab\.com\/3d-models\/flower-bouquet-48e92013548247a9ad486dc13110c9b4/);
+assert.match(qixiPage, new RegExp(`type="module" src="\\{\\$maccms\\.path_tpl\\}js/qixi-particle-bouquet\\.js\\?v=${qixiVersionPlaceholder}"`));
+assert.match(qixiPage, new RegExp(`href="\\{\\$maccms\\.path_tpl\\}css/qixi-bouquet\\.css\\?v=${qixiStyleVersionPlaceholder}"`));
+assert.doesNotMatch(qixiPage, /src="[^"]*qixi-particle-rose\.js/);
 assert.match(qixiPage, /\{include file="public\/foot" \/\}/);
 
-const qixiScript = readThemeFile("js/qixi-particle-rose.js");
-assert.match(qixiScript, /createRoseDome/);
-assert.match(qixiScript, /ringCounts = \[1, 7, 13, 20\]/);
-assert.match(qixiScript, /createRoseBasis/);
-assert.match(qixiScript, /transformRosePoint/);
-assert.match(qixiScript, /addRoseCalyx/);
-assert.match(qixiScript, /roseSurfacePoint/);
-assert.match(qixiScript, /petalEnvelope/);
-assert.match(qixiScript, /petalSurfacePoint/);
-assert.match(qixiScript, /rosePetalBands/);
-assert.match(qixiScript, /roseRimShare/);
-assert.match(qixiScript, /openness:/);
-assert.match(qixiScript, /petalWidth:/);
-assert.match(qixiScript, /irregularity:/);
-assert.match(qixiScript, /petalShift:/);
-assert.doesNotMatch(qixiScript, /addPetalLayer|petalLayers = \[/);
-assert.match(qixiScript, /addWrappingParticles/);
-assert.match(qixiScript, /addWrappingCollar/);
-assert.match(qixiScript, /depthBuckets/);
-assert.match(qixiScript, /shadeColor/);
-assert.match(qixiScript, /entryDuration = 2800/);
-assert.match(qixiScript, /startEntrance/);
-assert.match(qixiScript, /completeEntrance/);
-assert.match(qixiScript, /entryDelay/);
+const legacyQixiScript = readThemeFile("js/qixi-particle-rose.js");
+assert.doesNotThrow(() => new Script(legacyQixiScript), "The Qixi script shared with Next must remain a classic script");
+assert.match(legacyQixiScript, /getContext\("2d"\)/);
+assert.match(legacyQixiScript, /createRoseDome/);
+assert.match(legacyQixiScript, /ringCounts = \[1, 7, 13, 20\]/);
+assert.match(legacyQixiScript, /createRoseBasis/);
+assert.match(legacyQixiScript, /transformRosePoint/);
+assert.match(legacyQixiScript, /addRoseCalyx/);
+assert.match(legacyQixiScript, /roseSurfacePoint/);
+assert.match(legacyQixiScript, /petalEnvelope/);
+assert.match(legacyQixiScript, /petalSurfacePoint/);
+assert.match(legacyQixiScript, /rosePetalBands/);
+assert.match(legacyQixiScript, /roseRimShare/);
+assert.match(legacyQixiScript, /openness:/);
+assert.match(legacyQixiScript, /petalWidth:/);
+assert.match(legacyQixiScript, /irregularity:/);
+assert.match(legacyQixiScript, /petalShift:/);
+assert.doesNotMatch(legacyQixiScript, /addPetalLayer|petalLayers = \[/);
+assert.match(legacyQixiScript, /addWrappingParticles/);
+assert.match(legacyQixiScript, /addWrappingCollar/);
+assert.match(legacyQixiScript, /depthBuckets/);
+assert.match(legacyQixiScript, /shadeColor/);
+assert.match(legacyQixiScript, /entryDuration = 2800/);
+assert.match(legacyQixiScript, /startEntrance/);
+assert.match(legacyQixiScript, /completeEntrance/);
+assert.match(legacyQixiScript, /entryDelay/);
+assert.match(legacyQixiScript, /is-entering/);
+assert.match(legacyQixiScript, /is-entered/);
+assert.match(legacyQixiScript, /easeOutQuint/);
+assert.doesNotMatch(legacyQixiScript, /createWrappingPanels|drawWrapping|drawRoseBases/);
+assert.doesNotMatch(legacyQixiScript, /globalCompositeOperation = "lighter"/);
+assert.match(legacyQixiScript, /requestAnimationFrame/);
+assert.match(legacyQixiScript, /pointerdown/);
+assert.match(legacyQixiScript, /IntersectionObserver/);
+assert.match(legacyQixiScript, /prefers-reduced-motion/);
+assert.match(legacyQixiScript, /navigator\.share/);
+assert.doesNotMatch(legacyQixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
+
+const qixiScript = readThemeFile("js/qixi-particle-bouquet.js");
+assert.match(qixiScript, /import \* as THREE from "\.\/third-party\/three\/three\.module\.min\.js"/);
+assert.match(qixiScript, /import \{ GLTFLoader \} from "\.\/third-party\/three\/GLTFLoader\.js"/);
+assert.match(qixiScript, /import \{ MeshSurfaceSampler \} from "\.\/third-party\/three\/MeshSurfaceSampler\.js"/);
+assert.match(qixiScript, /import \{ mergeGeometries \} from "\.\/third-party\/three\/BufferGeometryUtils\.js"/);
+assert.match(qixiScript, /new URL\("\.\.\/images\/qixi\/qixi-bouquet\.glb\?v=a931cafa7bfe", import\.meta\.url\)/);
+assert.match(qixiScript, /const sourceBouquet = sourceScene/);
+assert.match(qixiScript, /function toFloatAttribute/);
+assert.match(qixiScript, /attribute\.getComponent/);
+assert.match(qixiScript, /mergeGeometries/);
+assert.match(qixiScript, /new MeshSurfaceSampler/);
+assert.match(qixiScript, /function isPetalMaterial/);
+assert.match(qixiScript, /function isLeafMaterial/);
+assert.match(qixiScript, /function texturePixelsForMaterial/);
+assert.match(qixiScript, /function textureShadeAt/);
+assert.match(qixiScript, /getImageData/);
+assert.match(qixiScript, /texture\.transformUv\(uv\)/);
+assert.match(qixiScript, /const petalPalette = \["#ff76b3", "#ffacce", "#7295ff", "#a4c2ff"\]/);
+assert.match(qixiScript, /function samplingWeightForMaterial/);
+assert.match(qixiScript, /if \(isPetalMaterial\(material\)\) return 1\.4/);
+assert.match(qixiScript, /weight: samplingWeightForMaterial\(entry\.sourceMaterial\)/);
+assert.match(qixiScript, /isPetal: isPetalMaterial\(entry\.sourceMaterial\)/);
+assert.match(qixiScript, /entry\.sourceMaterial\.name === "Leaves6"/);
+assert.match(qixiScript, /particleCount = isLowPowerDevice \? 60000 : 112000/);
+assert.match(qixiScript, /sizes\[particleIndex\] = \(1\.4 \+ Math\.pow\(Math\.random\(\), 1\.8\) \* 1\.25\) \* 1\.1/);
+assert.match(qixiScript, /sampler\.sample\(target, normal, undefined, uv\)/);
+assert.match(qixiScript, /textureShadeAt\(allocation\.surface\.texturePixels, uv, allocation\.surface\.isPetal\)/);
+assert.match(qixiScript, /geometry\.setAttribute\("aNormal", new THREE\.Float32BufferAttribute\(normals, 3\)\)/);
+assert.match(qixiScript, /geometry\.setAttribute\("aPetal", new THREE\.Float32BufferAttribute\(petals, 1\)\)/);
+assert.match(qixiScript, /geometry\.setAttribute\("aSpin", new THREE\.Float32BufferAttribute\(spins, 1\)\)/);
+assert.match(qixiScript, /surface\.area \* surface\.weight/);
+assert.match(qixiScript, /attribute vec3 aNormal/);
+assert.match(qixiScript, /attribute float aPetal/);
+assert.match(qixiScript, /attribute float aSpin/);
+assert.match(qixiScript, /normalMatrix \* aNormal/);
+assert.match(qixiScript, /blending: THREE\.NormalBlending/);
+assert.doesNotMatch(qixiScript, /THREE\.AdditiveBlending/);
+assert.match(qixiScript, /delays\[particleIndex\] = 0\.05 \+ height \* 0\.43/);
+assert.match(qixiScript, /particleSystem\.points\.visible = true/);
+assert.doesNotMatch(qixiScript, /uSolidProgress|solidReveal|prepareMaterial|bouquetRoot\.add\(bouquet\.group\)/);
+assert.match(qixiScript, /startBloom/);
+assert.match(qixiScript, /finishBloom/);
 assert.match(qixiScript, /is-entering/);
 assert.match(qixiScript, /is-entered/);
-assert.match(qixiScript, /easeOutQuint/);
-assert.doesNotMatch(qixiScript, /createWrappingPanels|drawWrapping|drawRoseBases/);
-assert.doesNotMatch(qixiScript, /globalCompositeOperation = "lighter"/);
 assert.match(qixiScript, /requestAnimationFrame/);
+assert.match(qixiScript, /webglcontextlost/);
+assert.match(qixiScript, /ratioLimit = width < 700 \? 1\.35 : 1\.8/);
 assert.match(qixiScript, /pointerdown/);
+assert.match(qixiScript, /setPointerCapture/);
 assert.match(qixiScript, /IntersectionObserver/);
 assert.match(qixiScript, /prefers-reduced-motion/);
 assert.match(qixiScript, /navigator\.share/);
-assert.match(qixiScript, /PingFangQixiShareUrl/);
-assert.doesNotMatch(qixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
+assert.doesNotMatch(qixiScript, /getContext\("webgl"|unpkg|jsdelivr|createSolidBouquetRenderer|createRoseDome/);
+
+const qixiModel = readFileSync(path.join(themeRoot, "images/qixi/qixi-bouquet.glb"));
+assert.equal(qixiModel.subarray(0, 4).toString("ascii"), "glTF");
+assert.ok(qixiModel.length < 4.5 * 1024 * 1024, "Qixi bouquet should stay below the mobile delivery budget");
+const qixiLicense = readThemeFile("images/qixi/LICENSE.md");
+assert.match(qixiLicense, /icecool/);
+assert.match(qixiLicense, /flower-bouquet-48e92013548247a9ad486dc13110c9b4/);
+assert.match(qixiLicense, /Creative Commons Attribution 4\.0/);
+const qixiGltfLoader = readThemeFile("js/third-party/three/GLTFLoader.js");
+assert.match(qixiGltfLoader, /from '\.\/three\.module\.min\.js'/);
+assert.match(qixiGltfLoader, /from '\.\/BufferGeometryUtils\.js'/);
+assert.doesNotMatch(qixiGltfLoader, /\.\.\/utils\/BufferGeometryUtils\.js/);
 
 const gamesPage = readThemeFile("html/label/games.html");
 assert.match(gamesPage, /seo_title="游戏大厅"/);
@@ -608,6 +745,22 @@ assert.match(gamesPage, /登录后开启游戏大厅/);
 assert.match(gamesPage, /mac_url\('user\/login'\)/);
 assert.match(gamesPage, /\{include file="public\/foot" \/\}/);
 
+for (const file of [
+  "html/label/games.html",
+  "html/label/game-2048.html",
+  "html/label/game-blockrain.html",
+  "html/label/game-bamboo-cicada.html",
+  "html/label/game-gomoku.html",
+  "html/label/game-drawguess.html",
+]) {
+  const page = readThemeFile(file);
+  const styleAssignment = '{assign name="pingfang_page_style" value="games" /}';
+  assert.ok(
+    page.indexOf(styleAssignment) >= 0 && page.indexOf(styleAssignment) < page.indexOf('{include file="public/head"'),
+    `${file} should request game styles before rendering the shared head`,
+  );
+}
+
 const game2048Page = readThemeFile("html/label/game-2048.html");
 assert.match(game2048Page, /seo_title="2048"/);
 assert.doesNotMatch(game2048Page, /\$user\.user_id|\{else\/\}|\{\/if\}/);
@@ -629,7 +782,7 @@ assert.match(gameBlockrainPage, /class="blockrain-shell"/);
 assert.match(gameBlockrainPage, /data-blockrain-next/);
 assert.equal((gameBlockrainPage.match(/data-blockrain-action=/g) || []).length, 5);
 assert.match(gameBlockrainPage, /data-blockrain-action="drop"/);
-assert.match(gameBlockrainPage, /data-auth-script="\{\$maccms\.path_tpl\}games\/blockrain\/blockrain\.jquery\.min\.js"/);
+assert.match(gameBlockrainPage, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/blockrain/blockrain\\.jquery\\.min\\.js\\?v=${blockrainVersionPlaceholder}"`));
 assert.match(gameBlockrainPage, new RegExp(`data-auth-script="\\{\\$maccms\\.path_tpl\\}games/init\\.js\\?v=${gameVersionPlaceholder}"`));
 assert.doesNotMatch(gameBlockrainPage, /jquery-1\.11\.1\.min\.js/);
 assert.doesNotMatch(gameBlockrainPage, /<script[^>]+games\/(?:blockrain|init)/);
@@ -790,7 +943,7 @@ assert.match(userLoginPage, /mac_url\('user\/findpass'\)/);
 assert.match(userLoginPage, /mac_url\('user\/reg'\)/);
 assert.match(userLoginPage, /login_verify/);
 assert.match(userLoginPage, /name="verify"/);
-assert.match(userLoginPage, /class="mac_verify_img"[^>]*src="\{:url\('verify\/index'\)\}"/);
+assert.match(userLoginPage, /class="mac_verify_img"[^>]*src="\{:url\('verify\/index'\)\}"[^>]*width="126"[^>]*height="54"[^>]*decoding="async"/);
 assert.match(userLoginPage, /type="hidden" name="openid"/);
 assert.match(userLoginPage, /type="hidden" name="col"/);
 
@@ -926,10 +1079,8 @@ assert.doesNotMatch(index, /hero-gradient-strips/);
 assert.doesNotMatch(index, /data-gradient-strips?/);
 assert.match(index, /hero-slide/);
 assert.match(index, /banner-content/);
-assert.match(
-  index,
-  /data-banner-bg="\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}"/
-);
+assert.match(index, /data-banner-bg="\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}"/);
+assert.match(index, /\{if condition="\$key eq 1"\}\s*\{if condition="\$vo\.vod_pic_slide neq ''"\}\s*<img class="banner-priority-image" src="\{\$vo\.vod_pic_slide\|mac_url_img\}"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image>\s*\{else\/\}\s*<img class="banner-priority-image" src="\{\$vo\.vod_pic\|mac_url_img\}"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image>\s*\{\/if\}\s*\{\/if\}/);
 assert.doesNotMatch(index, /style="--banner-bg:/);
 assert.match(index, /class="primary-btn" href="\{:mac_url_vod_play\(\$vo\)\}">立即播放<\/a>/);
 assert.match(index, /class="ghost-btn" href="\{:mac_url_vod_detail\(\$vo\)\}">详情介绍<\/a>/);
@@ -1043,21 +1194,22 @@ assert.doesNotMatch(index, /mac_url\('vod\/show',\['by'=>'hits'\]\)/);
 assert.doesNotMatch(index, /<a href="\{:mac_url\('vod\/show'\)\}">全部影片<\/a>/);
 
 const detail = readThemeFile("html/vod/detail.html");
-assert.match(detail, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
+assertRuntimeSeo(detail, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(detail, /\{\$obj\.vod_pic\|mac_url_img\}/);
-assert.match(detail, /class="detail-backdrop" aria-hidden="true"><img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="">/);
-assert.match(
-  detail,
-  /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 44vw, 250px">/
-);
+assert.match(detail, /class="detail-backdrop" aria-hidden="true"><img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="" width="380" height="570" decoding="async">/);
+assert.match(detail, /class="detail-poster"[\s\S]*<img src="\{\$obj\.vod_pic\|mac_url_img\}" alt="\{\$obj\.vod_name\}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="\(max-width: 760px\) 116px, 250px">/);
 assert.match(detail, /mac_url_vod_play/);
 assert.match(detail, /mac_history_set/);
 assert.match(detail, /obj\.vod_play_list/);
 assert.match(detail, /detail-panel/);
-assert.match(detail, /detail-title-row/);
+assert.match(detail, /class="detail-primary"[\s\S]*<h1>[\s\S]*class="detail-actions"/);
+assert.ok(detail.indexOf('class="detail-primary"') < detail.indexOf('class="summary"'), "detail primary actions should precede secondary copy on mobile");
+assert.doesNotMatch(detail, /detail-title-row/);
 assert.match(detail, /include file="public\/score"/);
-assert.match(detail, /include file="public\/star"/);
+assert.doesNotMatch(detail, /include file="public\/star"/);
 assert.match(detail, /include file="public\/digg"/);
+assert.match(detail, /\{\$obj\.vod_lang\|mac_default='语言未知'\}/);
+assert.match(detail, /<summary aria-label="展开或收起主演名单">/);
 assert.match(detail, /data-favorite-action/);
 assert.match(detail, /data-favorite-label/);
 assert.match(detail, /data-favorite-saved-label="已收藏"/);
@@ -1085,7 +1237,7 @@ const searchImagePage = readThemeFile("html/vod/search.html");
 assert.equal((searchImagePage.match(/sizes="96px"/g) || []).length, 2);
 
 const play = readThemeFile("html/vod/play.html");
-assert.match(play, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
+assertRuntimeSeo(play, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(play, /\{\$player_data\}/);
 assert.match(play, /\{\$player_js\}/);
 assert.doesNotMatch(play, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -1099,9 +1251,10 @@ assert.match(play, /data-source-quality-sid="\{\$vo\.sid\}"/);
 assert.match(play, /player-toolbar/);
 assert.match(play, /class="player-shell" role="region" aria-label="视频播放器"[\s\S]*class="player-toolbar" role="group" aria-label="播放控制"/);
 assert.match(play, /\{if condition="\$param\.nid gt 1"\}[\s\S]*\{\$obj\.player_info\.link_pre\}[\s\S]*上一集/);
-assert.match(play, /href="#episodeList">选集<\/a>/);
+assert.match(play, /href="#episodeList" data-episode-drawer-toggle aria-controls="episodeList" aria-expanded="false">选集<\/a>/);
 assert.match(play, /\$obj\.player_info\.link_next[\s\S]*下一集/);
-assert.match(play, /id="episodeList" aria-label="选集列表"/);
+assert.match(play, /id="episodeList" aria-label="选集列表" data-episode-drawer/);
+assert.match(play, /class="episode-drawer-head"[\s\S]*id="episodeDrawerTitle"[\s\S]*data-episode-drawer-close/);
 assert.match(play, /\$vo\.sid eq \$param\.sid and \$vo2\.nid eq \$param\.nid/);
 assert.match(play, /aria-current="page"/);
 assert.doesNotMatch(play, /data-player-fullscreen/);
@@ -1127,7 +1280,7 @@ assert.match(vodDetailPwdPage, /data-type="1"/);
 assert.doesNotMatch(vodDetailPwdPage, /method="post"|name="verify"|\{\$verify\}|验证码/);
 
 const playerPage = readThemeFile("html/vod/player.html");
-assert.match(playerPage, /\{include file="public\/head" seo_title="\$obj\.vod_name" seo_keywords="\$obj\.vod_tag" seo_description="\$obj\.vod_blurb" \/\}/);
+assertRuntimeSeo(playerPage, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(playerPage, /\{\$player_data\}/);
 assert.match(playerPage, /\{\$player_js\}/);
 assert.doesNotMatch(playerPage, /\{\$maccms\.path_tpl\}js\/hls\.min\.js/);
@@ -1187,7 +1340,7 @@ assert.match(playerPwdPage, /data-type="4"/);
 assert.doesNotMatch(playerPwdPage, /method="post"|name="verify"|\{\$verify\}|验证码/);
 
 const downPage = readThemeFile("html/vod/down.html");
-assert.match(downPage, /seo_title="\$obj\.vod_name"/);
+assertRuntimeSeo(downPage, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(downPage, /obj\.vod_down_list/);
 assert.match(downPage, /download-list/);
 assert.match(downPage, /mac_url_vod_down/);
@@ -1208,7 +1361,7 @@ assert.match(copyrightPage, /版权限制/);
 assert.match(copyrightPage, /mac_url_vod_detail/);
 
 const plotPage = readThemeFile("html/vod/plot.html");
-assert.match(plotPage, /seo_title="\$obj\.vod_name"/);
+assertRuntimeSeo(plotPage, ["$obj.vod_name", "$obj.vod_tag|default=''", "$obj.vod_blurb|default=''"]);
 assert.match(plotPage, /plot-list/);
 assert.match(plotPage, /obj\.vod_plot_list/);
 
@@ -1225,6 +1378,7 @@ function expandVodGridResults(pageurl, vodType) {
 }
 
 const typePageSource = readThemeFile("html/vod/type.html");
+assertRuntimeSeo(typePageSource, ["$obj.type_name", "$obj.type_key|default=''", "$obj.type_des|default=''"]);
 const typePage = [typePageSource, vodFilterCommonPartial, expandVodGridResults("vod/type", "current")].join("\n");
 assert.match(typePage, /\{include file="public\/head" seo_title=/);
 assert.match(typePageSource, /\{include file="public\/vod_filter_common" \/\}/);
@@ -1233,12 +1387,18 @@ assert.match(typePage, /\{maccms:vod num="24" paging="yes"/);
 assert.match(typePage, /pageurl="vod\/type"/);
 assert.doesNotMatch(typePage, /\$param\['by'\]/);
 assert.match(typePage, /filter-panel category-filter/);
+assert.match(typePageSource, /class="wrap page-title filter-page-title"/);
+assert.match(typePageSource, /data-filter-drawer/);
 assert.match(typePage, /data-dynamic-vod-filters/);
 assert.match(typePage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
 assert.match(typePage, /data-filter-type-id="\{\$obj\.type_id\}"/);
 assert.match(typePage, /data-current-area="\{\$param\.area\}"/);
 assert.match(typePage, /data-current-year="\{\$param\.year\}"/);
 assert.match(typePage, /data-current-lang="\{\$param\.lang\}"/);
+assert.match(typePage, /data-filter-kind="area" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(typePage, /data-filter-kind="year" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(typePage, /data-filter-kind="lang" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(typePage, /__PINGFANG_FILTER_VALUE__/);
 assert.match(typePage, /class="channel-search"/);
 assert.match(typePage, /class="filter-row filter-search-row"/);
 assert.match(typePage, /action="\{:mac_url\('vod\/search'\)\}"/);
@@ -1256,9 +1416,9 @@ assert.match(typePage, /mac_url_type\(\$obj,\['area'=>\$param\['area'\][\s\S]*'b
 assert.doesNotMatch(typePage, /<strong>子类<\/strong>/);
 assert.equal((typePage.match(/<strong>类型<\/strong>/g) || []).length, 1);
 assert.match(typePage, /<div class="filter-row">\s*<strong>类型<\/strong>/);
-assert.doesNotMatch(typePage, /<div class="filter-row" data-filter-kind="area">\s*<strong>类型<\/strong>/);
+assert.doesNotMatch(typePage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>类型<\/strong>/);
 assert.match(typePage, /<strong>地区<\/strong>/);
-assert.match(typePage, /<div class="filter-row" data-filter-kind="area">\s*<strong>地区<\/strong>/);
+assert.match(typePage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>地区<\/strong>/);
 assert.match(typePage, /data-filter-kind="area"/);
 assert.match(typePage, /<strong>年份<\/strong>/);
 assert.match(typePage, /data-filter-kind="year"/);
@@ -1306,17 +1466,25 @@ assert.match(typePageSource, /class="vod-grid" data-empty-container data-empty-i
 assert.match(typePage, /\{include file="public\/paging" \/\}/);
 
 const showPageSource = readThemeFile("html/vod/show.html");
+assertRuntimeSeo(showPageSource, ["$obj.type_name|default='影片库'", "$obj.type_key|default=''", "$obj.type_des|default=''"]);
+assert.match(showPageSource, /<h1>\{\$pingfang_seo_title\|htmlspecialchars=ENT_QUOTES,'UTF-8',false\}<\/h1>/);
 const showPage = [showPageSource, vodFilterCommonPartial, expandVodGridResults("vod/show", nonAdultVodTypeScope)].join("\n");
 assert.match(showPageSource, /\{include file="public\/vod_filter_common" \/\}/);
 assert.match(showPageSource, new RegExp(`\\{include file="public/vod_grid_results" pageurl="vod/show" vod_type="${nonAdultVodTypeScope}" \\/\\}`));
 assert.match(vodGridResultsPartial, /pageurl="\[pageurl\]"/);
 assert.match(vodGridResultsPartial, /type="\[vod_type\]"/);
 assert.match(showPage, /data-dynamic-vod-filters/);
+assert.match(showPageSource, /class="wrap page-title filter-page-title"/);
+assert.match(showPageSource, /data-filter-drawer/);
 assert.match(showPage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
 assert.match(showPage, /data-filter-type-id="\{\$obj\.type_id\}"/);
 assert.match(showPage, /data-current-area="\{\$param\.area\}"/);
 assert.match(showPage, /data-current-year="\{\$param\.year\}"/);
 assert.match(showPage, /data-current-lang="\{\$param\.lang\}"/);
+assert.match(showPage, /data-filter-kind="area" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(showPage, /data-filter-kind="year" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(showPage, /data-filter-kind="lang" data-filter-href-template="\{:mac_url_type\(\$obj,/);
+assert.match(showPage, /__PINGFANG_FILTER_VALUE__/);
 assert.match(showPage, /class="channel-search"/);
 assert.match(showPage, /class="filter-row filter-search-row"/);
 assert.match(showPage, /action="\{:mac_url\('vod\/search'\)\}"/);
@@ -1335,9 +1503,9 @@ assert.match(showPage, /mac_url_type\(\$obj,\['area'=>\$param\['area'\][\s\S]*'b
 assert.doesNotMatch(showPage, /<strong>子类<\/strong>/);
 assert.equal((showPage.match(/<strong>类型<\/strong>/g) || []).length, 1);
 assert.match(showPage, /<div class="filter-row">\s*<strong>类型<\/strong>/);
-assert.doesNotMatch(showPage, /<div class="filter-row" data-filter-kind="area">\s*<strong>类型<\/strong>/);
+assert.doesNotMatch(showPage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>类型<\/strong>/);
 assert.match(showPage, /<strong>地区<\/strong>/);
-assert.match(showPage, /<div class="filter-row" data-filter-kind="area">\s*<strong>地区<\/strong>/);
+assert.match(showPage, /<div class="filter-row" data-filter-kind="area"[^\n]*>\s*<strong>地区<\/strong>/);
 assert.match(showPage, /data-filter-kind="area"/);
 assert.match(showPage, /<strong>年份<\/strong>/);
 assert.match(showPage, /data-filter-kind="year"/);
@@ -1398,6 +1566,8 @@ for (const sortField of ["hits", "score", "time"]) {
 assert.doesNotMatch(showPage, /\{maccms:vod[^}]*pageurl="vod\/show"[^}]*type="all"/);
 
 const searchPage = readThemeFile("html/vod/search.html");
+assertRuntimeSeo(searchPage, ["$param.wd|default='搜索结果'", "$param.wd|default=''", "$param.wd|default=''"]);
+assert.match(searchPage, /<h1>\{\$pingfang_seo_title\|htmlspecialchars=ENT_QUOTES,'UTF-8',false\}<\/h1>/);
 assert.match(searchPage, /\{maccms:vod num="20" paging="yes" pageurl="vod\/search"/);
 assert.match(searchPage, /loading="lazy" decoding="async" width="160" height="240"/);
 assert.equal((searchPage.match(/data-empty-container data-empty-item="\.list-item"/g) || []).length, 2);
@@ -1407,11 +1577,43 @@ assert.doesNotMatch(searchPage, /class="hot-search-panel search-hot-panel"/);
 assert.doesNotMatch(searchPage, /\$maccms\.search_hot/);
 assert.doesNotMatch(searchPage, /mac_url\('vod\/search',\['wd'=>\$vo2\]\)/);
 
-const performanceStyle = readThemeFile("css/style.css");
+const baseFoundationStyle = readThemeFile("css/base.css");
+const coreStyle = readThemeFile("css/style.css");
+const baseStyle = `${baseFoundationStyle}\n${coreStyle}`;
+const themeFoundationStyle = readThemeFile("css/themes-foundation.css");
+const optionalThemeStyle = readThemeFile("css/themes.css");
+const gamesStyle = readThemeFile("css/games.css");
+const responsiveStyle = readThemeFile("css/responsive.css");
+const performanceStyle = `${baseStyle}\n${responsiveStyle}`;
 assert.match(performanceStyle, /@supports \(content-visibility: auto\)/);
 assert.match(performanceStyle, /content-visibility: auto;/);
 assert.match(performanceStyle, /contain-intrinsic-size: auto 520px;/);
+assert.match(performanceStyle, /\.banner-priority-image\s*\{/);
+assert.match(performanceStyle, /min-height: clamp\(360px, 48svh, 400px\)/);
+assert.match(performanceStyle, /\.filter-drawer-sheet/);
+assert.match(performanceStyle, /\.episode-drawer-head/);
+assert.match(performanceStyle, /body\.filter-drawer-open/);
+assert.match(performanceStyle, /body\.episode-drawer-open/);
+assert.match(performanceStyle, /grid-template-columns: 116px minmax\(0, 1fr\)/);
+assert.doesNotMatch(performanceStyle, /transition:\s*all/);
+assert.doesNotMatch(baseStyle, /\/\* Member game hub \*\//);
+assert.doesNotMatch(baseStyle, /\/\* Theme-specific login treatments \*\//);
+assert.doesNotMatch(baseStyle, /:where\(html\[data-theme="blue-pink-purple"\]/);
+assert.doesNotMatch(baseStyle, /\/\* Core mobile experience: compact first screens and progressive drawers\. \*\//);
+assert.match(themeFoundationStyle, /html\[data-theme="poster-magazine"\]/);
+assert.match(themeFoundationStyle, /html\[data-theme="blue-pink-purple"\]/);
+assert.match(optionalThemeStyle, /html\[data-theme="dunhuang-caisson"\]/);
+assert.match(optionalThemeStyle, /html\[data-theme="digital-particles"\]/);
+assert.match(optionalThemeStyle, /html\[data-theme="pixel-frog"\]/);
+assert.match(optionalThemeStyle, /Fusion Pixel PFV/);
+assert.match(gamesStyle, /\/\* Member game hub \*\//);
+assert.match(gamesStyle, /\.game-2048/);
+assert.match(gamesStyle, /\.blockrain-shell/);
+assert.match(gamesStyle, /\.bamboo-cicada-arena/);
+assert.match(responsiveStyle, /\/\* Core mobile experience: compact first screens and progressive drawers\. \*\//);
 assert.match(searchPage, /class="wrap filter-panel category-filter search-filter-panel"/);
+assert.match(searchPage, /class="wrap page-title filter-page-title"/);
+assert.match(searchPage, /data-filter-drawer/);
 assert.match(searchPage, /<strong>频道<\/strong>/);
 assert.match(searchPage, /mac_url\('vod\/search',\['wd'=>\$param\['wd'\]\]\)/);
 assert.match(searchPage, /\{maccms:type ids="parent" order="asc" by="sort" mid="1" num="20" id="type"\}/);
@@ -1440,6 +1642,7 @@ const diggPartial = readThemeFile("html/public/digg.html");
 assert.match(diggPartial, /digg-panel/);
 assert.match(diggPartial, /vod_up/);
 assert.match(diggPartial, /vod_down/);
+assert.equal((diggPartial.match(/aria-live="polite"/g) || []).length, 2);
 
 const scorePartial = readThemeFile("html/public/score.html");
 assert.match(scorePartial, /score-panel/);
@@ -1452,7 +1655,7 @@ assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
 assert.match(starPartial, /豆瓣/);
 
-const style = readThemeFile("css/style.css");
+const style = [baseFoundationStyle, themeFoundationStyle, coreStyle, optionalThemeStyle, gamesStyle, responsiveStyle].join("\n");
 assert.match(style, /\.multiplayer-page \[hidden\]\s*\{\s*display: none !important;/);
 const appScript = readThemeFile("js/app.js");
 const dunhuangAssets = [
@@ -1486,26 +1689,24 @@ const visualRootRule = [...style.matchAll(/(?:^|\n):root\s*\{[\s\S]*?\}/g)].map(
 const pageStarsRule = extractCssRule(style, "body::before");
 const headerSearchInputFocusRule = extractCssRule(style, ".header-search input:focus-visible");
 const filterOptionsRule = extractCssRule(style, ".filter-options");
-const sharedGlassSurfaceRule =
-  style.match(
-    /\.filter-panel,\n\.episode-box,\n\.detail-panel,\n\.system-box,\n\.device-panel,\n\.favorite-toolbar,\n\.record-toolbar,\n\.comment-layout \.system-box\s*\{[^}]*\}/
-  )?.[0] || "";
-const auroraCinemaRule = style.match(/html\[data-theme="blue-pink-purple"\],\nhtml\[data-theme="aurora-glass"\]\s*\{[^}]*\}/)?.[0] || "";
-const posterRootRule = extractCssRule(style, 'html[data-theme="poster-magazine"]');
-const posterHeroGridRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-grid');
-const posterHeroCarouselRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-carousel');
-const posterHeroRankRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-rank');
-const posterHeroRankBeforeRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .hero-rank::before');
-const posterRankListRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .rank-list');
-const posterShelfRailRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-rail');
-const posterShelfCardRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-card');
-const posterShelfFirstCardRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-card:first-child');
-const posterShelfPosterRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .home-shelf-poster');
-const auroraLoginPanelRule = extractCssRule(style, 'html[data-theme="blue-pink-purple"] .login-panel');
-const posterLoginPanelRule = extractCssRule(style, 'html[data-theme="poster-magazine"] .login-panel');
-const digitalRootRule = extractCssRule(style, 'html[data-theme="digital-particles"]');
-const digitalLoginPanelRule = extractCssRule(style, 'html[data-theme="digital-particles"] .login-panel');
-const digitalBodyParticlesRule = extractCssRule(style, 'html[data-theme="digital-particles"] body::after');
+const dynamicFilterOptionsRule = extractCssRule(style, '.filter-row[data-filter-kind] .filter-options');
+const sharedGlassSurfaceRule = style.match(/\.filter-panel,\n\.episode-box,\n\.detail-panel,\n\.system-box,\n\.device-panel,\n\.favorite-toolbar,\n\.record-toolbar,\n\.comment-layout \.system-box\s*\{[^}]*\}/)?.[0] || "";
+const auroraCinemaRule = optionalThemeStyle.match(/html\[data-theme="blue-pink-purple"\],\nhtml\[data-theme="aurora-glass"\]\s*\{[^}]*\}/)?.[0] || "";
+const posterRootRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"]');
+const posterHeroGridRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-grid');
+const posterHeroCarouselRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-carousel');
+const posterHeroRankRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-rank');
+const posterHeroRankBeforeRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .hero-rank::before');
+const posterRankListRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .rank-list');
+const posterShelfRailRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-rail');
+const posterShelfCardRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-card');
+const posterShelfFirstCardRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-card:first-child');
+const posterShelfPosterRule = extractCssRule(themeFoundationStyle, 'html[data-theme="poster-magazine"] .home-shelf-poster');
+const auroraLoginPanelRule = extractCssRule(optionalThemeStyle, 'html[data-theme="blue-pink-purple"] .login-panel');
+const posterLoginPanelRule = extractCssRule(optionalThemeStyle, 'html[data-theme="poster-magazine"] .login-panel');
+const digitalRootRule = extractCssRule(optionalThemeStyle, 'html[data-theme="digital-particles"]');
+const digitalLoginPanelRule = extractCssRule(optionalThemeStyle, 'html[data-theme="digital-particles"] .login-panel');
+const digitalBodyParticlesRule = extractCssRule(optionalThemeStyle, 'html[data-theme="digital-particles"] body::after');
 const playerShellRule = [...style.matchAll(/(?:^|\n)\.player-shell\s*\{[^}]*\}/g)].map((match) => match[0]).find((rule) => /aspect-ratio/.test(rule)) || "";
 const playerMediaRule = style.match(/\.player-shell #MacPlayer,[\s\S]*?\.player-shell object\s*\{[^}]*\}/)?.[0] || "";
 const playerMacRule = extractCssRule(style, ".player-shell #MacPlayer");
@@ -1535,10 +1736,8 @@ const rankIndexRule = style.match(/(?:^|\n)\.rank-index\s*\{[\s\S]*?\}/)?.[0] ||
 const rankThumbRule = style.match(/\.rank-thumb\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankThumbImgRule = style.match(/\.rank-thumb img\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankBodyRule = style.match(/(?:^|\n)\.rank-body\s*\{[\s\S]*?\}/)?.[0] || "";
-const rankItemMetaRule = style.match(/\.rank-item em\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankMetaRule = style.match(/\.rank-meta\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankScoreRule = style.match(/\.rank-score\s*\{[\s\S]*?\}/)?.[0] || "";
-const cinemaRankTitleRule = style.match(/\.rank-body strong,\n\.hero-rank \.rank-item:first-of-type strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const heroSlideRule = style.match(/\.hero-slide\s*\{[\s\S]*?\}/)?.[0] || "";
 const activeHeroSlideRule = style.match(/\.hero-slide\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerContentRule = style.match(/\.banner-content\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1551,8 +1750,6 @@ const bannerDotRule = style.match(/\.banner-dot\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotAfterRule = style.match(/\.banner-dot::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotActiveRule = style.match(/\.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
 const bannerDotActiveAfterRule = style.match(/\.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
-const dunhuangBannerDotActiveRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
-const dunhuangBannerDotActiveAfterRule = style.match(/html\[data-theme="dunhuang-caisson"\] \.banner-dot\.is-active::after\s*\{[\s\S]*?\}/)?.[0] || "";
 const pageHeadingRule = style.match(/\.hero-copy h1,[\s\S]*?\.player-head h1\s*\{[\s\S]*?\}/)?.[0] || "";
 const rankListTitleRule = style.match(/\.rank-item strong,[\s\S]*?\.list-item strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardTitleRule = style.match(/\.vod-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1562,6 +1759,8 @@ const vodCardMetaChipRule = style.match(/\.card-meta span\s*\{[\s\S]*?\}/)?.[0] 
 const posterRemarkRule = style.match(/\.poster em,[\s\S]*?\.detail-poster span\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryMainTitleRule = style.match(/\.category-main span\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryChildLinkRule = style.match(/\.category-children a\s*\{[\s\S]*?\}/)?.[0] || "";
+const loginTouchLinkRule = style.match(/\.login-options a,\n\.login-register a\s*\{[\s\S]*?\}/)?.[0] || "";
+const gameSourceLinkRule = extractCssRule(style, ".game-source-link");
 const timelineTitleRule = style.match(/\.timeline-card strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const episodeLinkRule = style.match(/\.episode-grid a\s*\{[\s\S]*?\}/)?.[0] || "";
 const episodeActiveRule = style.match(/\.episode-grid a:hover,[\s\S]*?\.episode-grid a\.is-active\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1591,14 +1790,13 @@ const homeShelfScoreRule = style.match(/\.home-shelf-score\s*\{[\s\S]*?\}/)?.[0]
 const homeShelfFeaturedBodyRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfFeaturedTextRule =
   style.match(/\.home-shelf-card\.is-featured \.home-shelf-body strong,\n\.home-shelf-card\.is-featured \.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
-const homeContinueTitleRule = style.match(/\.home-continue-body strong\s*\{[\s\S]*?\}/)?.[0] || "";
-const cinemaVodMetaRule = style.match(/\.vod-card \.card-meta\s*\{[\s\S]*?\}/)?.[0] || "";
-const cinemaVodMetaChipRule = style.match(/\.vod-card \.card-meta span\s*\{[\s\S]*?\}/)?.[0] || "";
-const cinemaVodMetaFirstRule = style.match(/\.vod-card \.card-meta span:first-child\s*\{[\s\S]*?\}/)?.[0] || "";
-const cinemaVodMetaLastRule = style.match(/\.vod-card \.card-meta span:last-child\s*\{[\s\S]*?\}/)?.[0] || "";
 const mobilePlayerToolbarButtonRule =
   [...style.matchAll(/\.player-toolbar-actions \.ghost-btn\s*\{[^}]*\}/g)].map((match) => match[0]).find((rule) => /text-align: center/.test(rule)) || "";
 assert.match(appScript, /themeStorageKey = "pingfang_theme"/);
+assert.match(appScript, /function ensureThemeStyles\(theme\)/);
+assert.match(appScript, /data-theme-foundation-stylesheet/);
+assert.match(appScript, /data-theme-stylesheet/);
+assert.match(appScript, /ensureThemeStyles\(theme\)\.then\(function \(\) \{[\s\S]*applyTheme\(theme, true\)/);
 assert.match(appScript, /validThemes = \{[\s\S]*"blue-pink-purple": true/);
 assert.match(appScript, /"poster-magazine": true/);
 assert.match(appScript, /"dunhuang-caisson": true/);
@@ -1610,6 +1808,10 @@ assert.match(appScript, /document\.documentElement\.removeAttribute\("data-theme
 assert.match(appScript, /window\.localStorage\.setItem\(themeStorageKey, theme\)/);
 assert.match(appScript, /window\.localStorage\.removeItem\(themeStorageKey\)/);
 assert.match(appScript, /window\.confetti/);
+assert.match(appScript, /data-pixel-confetti-src/);
+assert.match(appScript, /function loadPixelThemeConfetti\(\)/);
+assert.match(appScript, /document\.createElement\("script"\)/);
+assert.match(appScript, /loadPixelThemeConfetti\(\)\.then/);
 assert.match(appScript, /shapes: \["square"\]/);
 assert.match(appScript, /disableForReducedMotion: true/);
 assert.match(appScript, /gravity: 0/);
@@ -1776,6 +1978,8 @@ assert.match(style, /\.filter-panel a\.is-active/);
 assert.match(filterOptionsRule, /flex-wrap: wrap/);
 assert.match(filterOptionsRule, /overflow-x: visible/);
 assert.doesNotMatch(filterOptionsRule, /overflow-x: auto|scrollbar-width|scroll-snap|overscroll-behavior|-webkit-overflow-scrolling/);
+assert.match(dynamicFilterOptionsRule, /max-height:/);
+assert.match(dynamicFilterOptionsRule, /overflow-y: auto/);
 assert.doesNotMatch(style, /\.filter-options::-webkit-scrollbar/);
 assert.doesNotMatch(style, /\.filter-options\s*\{[^}]*margin-right:\s*-\d+px/);
 assert.doesNotMatch(style, /\.filter-panel a\s*\{[^}]*scroll-snap-align/);
@@ -1839,14 +2043,7 @@ assert.match(rankThumbRule, /overflow: hidden/);
 assert.match(rankThumbImgRule, /object-fit: cover/);
 assert.match(rankBodyRule, /display: grid/);
 assert.match(rankBodyRule, /min-width: 0/);
-assert.match(rankItemMetaRule, /min-width: 0/);
-assert.match(rankItemMetaRule, /overflow: hidden/);
-assert.match(rankItemMetaRule, /text-overflow: ellipsis/);
-assert.match(rankItemMetaRule, /white-space: nowrap/);
 assert.match(rankMetaRule, /color: rgba\(244, 240, 232, 0\.48\)/);
-assert.match(cinemaRankTitleRule, /overflow: hidden/);
-assert.match(cinemaRankTitleRule, /text-overflow: ellipsis/);
-assert.match(cinemaRankTitleRule, /white-space: nowrap/);
 assert.match(rankScoreRule, /color: var\(--accent-2\)/);
 assert.match(style, /\.home-shelf/);
 assert.match(homeShelfRule, /padding: 34px 0 18px/);
@@ -1899,26 +2096,19 @@ assert.match(homeShelfPosterImgHoverRule, /transform: scale\(1\.035\)/);
 assert.match(homeShelfBadgeRule, /white-space: normal/);
 assert.match(homeShelfBadgeRule, /overflow-wrap: anywhere/);
 assert.match(homeShelfBodyRule, /display: contents/);
+assert.match(homeShelfTitleRule, /overflow-wrap: anywhere/);
 assert.match(homeShelfTitleRule, /display: block/);
 assert.match(homeShelfTitleRule, /grid-column: 1 \/ -1/);
 assert.match(homeShelfTitleRule, /grid-row: 2/);
 assert.match(homeShelfTitleRule, /align-self: start/);
-assert.match(homeShelfTitleRule, /min-width: 0/);
-assert.match(homeShelfTitleRule, /overflow: hidden/);
-assert.match(homeShelfTitleRule, /text-overflow: ellipsis/);
-assert.match(homeShelfTitleRule, /white-space: nowrap/);
+assert.match(homeShelfTitleRule, /overflow: visible/);
 assert.doesNotMatch(homeShelfTitleRule, /-webkit-line-clamp/);
 assert.match(homeShelfMetaRule, /display: block/);
 assert.match(homeShelfMetaRule, /grid-column: 1/);
 assert.match(homeShelfMetaRule, /grid-row: 3/);
-assert.match(homeShelfMetaRule, /min-width: 0/);
-assert.match(homeShelfMetaRule, /overflow: hidden/);
-assert.match(homeShelfMetaRule, /text-overflow: ellipsis/);
-assert.match(homeShelfMetaRule, /white-space: nowrap/);
+assert.match(homeShelfMetaRule, /overflow: visible/);
 assert.doesNotMatch(homeShelfMetaRule, /-webkit-line-clamp/);
-assert.match(homeContinueTitleRule, /overflow: hidden/);
-assert.match(homeContinueTitleRule, /text-overflow: ellipsis/);
-assert.match(homeContinueTitleRule, /white-space: nowrap/);
+assert.doesNotMatch(style.replace(/\.detail-cast-preview\s*\{[^}]*\}/g, ""), /-webkit-line-clamp:\s*[1-9]/);
 assert.match(homeShelfScoreRule, /grid-column: 2/);
 assert.match(homeShelfScoreRule, /grid-row: 3/);
 assert.match(homeShelfScoreRule, /height: 20px/);
@@ -1990,10 +2180,6 @@ assert.match(bannerDotAfterRule, /width: 28px/);
 assert.match(bannerDotAfterRule, /height: 5px/);
 assert.match(bannerDotActiveAfterRule, /width: 36px/);
 assert.match(bannerDotActiveRule, /background: transparent/);
-assert.match(dunhuangBannerDotActiveRule, /background: transparent/);
-assert.match(dunhuangBannerDotActiveRule, /box-shadow: none/);
-assert.match(dunhuangBannerDotActiveAfterRule, /width: 30px/);
-assert.match(dunhuangBannerDotActiveAfterRule, /background: var\(--dunhuang-gold\)/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
 for (const chipRule of [posterRemarkRule, vodCardMetaChipRule, categoryChildLinkRule, homeShelfBadgeRule]) {
@@ -2046,6 +2232,13 @@ assert.doesNotMatch(playerShellRule, /min-height: 500px/);
 assert.doesNotMatch(playerMacChildrenRule, /min-height: 500px/);
 assert.match(mobilePlayerToolbarButtonRule, /flex: 1 1 0/);
 assert.match(mobilePlayerToolbarButtonRule, /min-width: 0/);
+assert.match(categoryChildLinkRule, /display: inline-flex/);
+assert.match(categoryChildLinkRule, /min-height: 40px/);
+assert.match(loginTouchLinkRule, /display: inline-flex/);
+assert.match(loginTouchLinkRule, /min-height: 40px/);
+assert.match(gameSourceLinkRule, /display: inline-flex/);
+assert.match(gameSourceLinkRule, /min-height: 40px/);
+assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.player-head > \.ghost-btn\s*\{[\s\S]*min-height: 44px/);
 assert.doesNotMatch(style, /\.pf-player/);
 assert.match(style, /\.download-list/);
 assert.match(style, /\.download-list a[\s\S]*transition: border-color/);
@@ -2086,26 +2279,14 @@ assert.match(appScript, /ArrowRight/);
 assert.match(appScript, /ArrowLeft/);
 assert.match(appScript, /tabIndex = isActive \? 0 : -1/);
 assert.doesNotMatch(style, /\.vod-card small/);
-assert.match(vodCardTitleRule, /display: -webkit-box/);
-assert.match(vodCardTitleRule, /height: 2\.7em/);
-assert.match(vodCardTitleRule, /overflow: hidden/);
+assert.match(vodCardTitleRule, /overflow: visible/);
 assert.match(vodCardTitleRule, /overflow-wrap: anywhere/);
-assert.match(vodCardTitleRule, /-webkit-box-orient: vertical/);
-assert.match(vodCardTitleRule, /-webkit-line-clamp: 2/);
+assert.doesNotMatch(vodCardTitleRule, /-webkit-line-clamp/);
 assert.match(vodCardMetaRule, /margin: 12px 2px 0/);
 assert.match(vodCardMetaRule, /flex-wrap: wrap/);
 assert.match(vodCardMetaChipRule, /white-space: normal/);
 assert.match(vodCardMetaChipRule, /overflow-wrap: anywhere/);
 assert.doesNotMatch(vodCardMetaChipRule, /text-overflow: ellipsis/);
-assert.match(cinemaVodMetaRule, /min-width: 0/);
-assert.match(cinemaVodMetaRule, /overflow: hidden/);
-assert.match(cinemaVodMetaRule, /flex-wrap: nowrap/);
-assert.match(cinemaVodMetaChipRule, /min-width: 0/);
-assert.match(cinemaVodMetaChipRule, /overflow: hidden/);
-assert.match(cinemaVodMetaChipRule, /text-overflow: ellipsis/);
-assert.match(cinemaVodMetaChipRule, /white-space: nowrap/);
-assert.match(cinemaVodMetaFirstRule, /flex: 1 1 auto/);
-assert.match(cinemaVodMetaLastRule, /flex: 0 0 auto/);
 assert.match(style, /\.poster[\s\S]*isolation: isolate/);
 assert.match(style, /\.brand-logo/);
 assert.match(style, /object-fit: contain/);
@@ -2165,11 +2346,8 @@ assert.match(appScript, /window\.scrollY > compactHeaderEnterY/);
 assert.doesNotMatch(appScript, /classList\.toggle\("is-compact", mobileHeaderQuery\.matches && window\.scrollY > 72\)/);
 assert.doesNotMatch(style, /\.site-header\.is-compact:not\(:focus-within\) \.header-search-wrap\s*\{/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*?\.hero-carousel,[\s\S]*?\.hero-slide\s*\{[\s\S]*?min-height: min\(520px, 68dvh\)/);
-assert.match(
-  style,
-  /@media \(max-width: 760px\)[\s\S]*?\.rank-list::-webkit-scrollbar,[\s\S]*?\.genre-dock::-webkit-scrollbar\s*\{[\s\S]*?display: block[\s\S]*?height: 4px/
-);
-assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.genre-chip\s*\{[\s\S]*?flex: 0 0 clamp\(160px, 42vw, 176px\)/);
+assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.rank-list::-webkit-scrollbar\s*\{[\s\S]*?display: block[\s\S]*?height: 4px/);
+assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.genre-dock\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.rank-meta\s*\{[\s\S]*?font-size: 12px/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.genre-chip small\s*\{[\s\S]*?font-size: 12px/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*?\.home-shelf-body small\s*\{[\s\S]*?font-size: 12px/);
@@ -2303,7 +2481,7 @@ assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.user-menu\s*\{[\s\S]*di
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.nav-toggle\s*\{[\s\S]*display: block/);
 assert.match(style, /@media \(max-width: 520px\)[\s\S]*\.site-header \.brand img\s*\{[\s\S]*width: 48px/);
 assert.doesNotMatch(style, /\.hero-carousel \.hero-stats/);
-assert.doesNotMatch(style, /@media \(max-width: 760px\)[\s\S]*\.banner-copy small\s*\{[\s\S]*-webkit-line-clamp/);
+assert.doesNotMatch(extractCssRule(responsiveStyle, ".hero .banner-copy small"), /-webkit-line-clamp/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.banner-copy strong\s*\{[\s\S]*-webkit-line-clamp: unset/);
 assert.doesNotMatch(style, /@media \(max-width: 760px\)[\s\S]*\.hero-carousel \.hero-stats/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.banner-controls\s*\{[\s\S]*min-height: 0/);
@@ -2369,12 +2547,18 @@ assert.match(style, /\.drawguess-canvas-frame/);
 assert.match(style, /\.interaction-panel/);
 assert.match(style, /\.qixi-rose-page/);
 assert.match(style, /\.qixi-rose-canvas/);
+assert.doesNotMatch(style, /\.qixi-rose-model|is-model-materializing|is-model-visible/);
+const qixiBouquetStyle = readThemeFile("css/qixi-bouquet.css");
+assert.match(qixiBouquetStyle, /\.qixi-rose-credit/);
 assert.match(style, /\.qixi-bloom-button/);
 assert.match(style, /html\.qixi-immersive \.site-header/);
 assert.match(style, /html\.qixi-immersive \.qixi-rose-page[\s\S]*min-height: max\(720px, 100svh\)/);
+assert.match(qixiBouquetStyle, /\.qixi-rose-page[\s\S]*env\(safe-area-inset-top, 0px\)[\s\S]*env\(safe-area-inset-bottom, 0px\)/);
 assert.match(style, /\.qixi-rose-page\.is-entering \.qixi-rose-kicker/);
 assert.match(style, /\.qixi-rose-page\.is-entering\.is-entered \.qixi-rose-copy/);
 assert.match(style, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.qixi-rose-page\.is-entering/);
+assert.match(style, /\.qixi-rose-gesture/, "Keep legacy gesture styling for the independent Next page");
+assert.doesNotMatch(qixiBouquetStyle, /\.qixi-rose-gesture/);
 assert.match(style, /\.star-meter/);
 assert.doesNotMatch(style, /border(?:-color)?: [^;]*rgba\(40, 199, 167/);
 
@@ -2397,13 +2581,21 @@ assert.match(packageScript, /lstatSync/);
 assert.match(packageScript, /Unsupported release entry type/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionInputs/);
+assert.match(packageScript, /__PINGFANG_BASE_STYLE_VERSION__: "css\/base\.css"/);
 assert.match(packageScript, /__PINGFANG_STYLE_VERSION__/);
+assert.match(packageScript, /__PINGFANG_THEME_FOUNDATION_VERSION__: "css\/themes-foundation\.css"/);
+assert.match(packageScript, /__PINGFANG_THEMES_VERSION__: "css\/themes\.css"/);
+assert.match(packageScript, /__PINGFANG_GAMES_STYLE_VERSION__: "css\/games\.css"/);
+assert.match(packageScript, /__PINGFANG_RESPONSIVE_STYLE_VERSION__: "css\/responsive\.css"/);
 assert.match(packageScript, /__PINGFANG_APP_VERSION__/);
 assert.match(packageScript, /__PINGFANG_PROMPT_VERSION__/);
 assert.match(packageScript, /__PINGFANG_GAME_VERSION__/);
+assert.match(packageScript, /__PINGFANG_BLOCKRAIN_VERSION__/);
 assert.match(packageScript, /__PINGFANG_BAMBOO_CICADA_VERSION__/);
 assert.match(packageScript, /__PINGFANG_MULTIPLAYER_VERSION__/);
 assert.match(packageScript, /__PINGFANG_QIXI_VERSION__/);
+assert.match(packageScript, /__PINGFANG_QIXI_VERSION__: "js\/qixi-particle-bouquet\.js"/);
+assert.match(packageScript, /__PINGFANG_QIXI_STYLE_VERSION__: "css\/qixi-bouquet\.css"/);
 assert.match(packageScript, /excludedThemePackageFiles/);
 assert.doesNotMatch(packageScript, /rank-react|pingfang-player|react\.production|hls\.min/);
 assert.match(packageScript, /"player\/prompt\.css"/);
@@ -2693,7 +2885,7 @@ assert.match(deployScript, /DEPLOY_SITE_HOST/);
 assert.match(deployScript, /DEPLOY_SITE_SCHEME/);
 assert.match(deployScript, /DEPLOY_SITE_MARKER/);
 assert.match(deployScript, /DEPLOY_SCOPE="\$\{DEPLOY_SCOPE:-all\}"/);
-assert.match(deployScript, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
+assert.match(deployScript, /DEPLOY_SCOPE must be all, theme, backend, api, or vodops/);
 assert.match(deployScript, /--resolve "\$\{DEPLOY_SITE_HOST\}:\$\{port\}:127\.0\.0\.1"/);
 assert.match(deployScript, /Verified deployed site/);
 assert.match(deployScript, /index\.php\/pingfangapi\/index\?\$\{query\}/);
@@ -2793,9 +2985,10 @@ assert.match(deployScript, /rm -rf "\$legacy_douban_dir"/);
 assert.match(deployScript, /application\/index\/controller\/Douban\.php/);
 assert.match(deployScript, /rm -f "\$legacy_index_controller_target"/);
 assert.match(deployScript, /application\/extra\/quickmenu\.php/);
-assert.match(deployScript, /\$singleWorkbenchRoutes[\s\S]*?vodops\/index[\s\S]*?admin\/vodops\/index[\s\S]*?douban\/index[\s\S]*?admin\/douban\/index/);
+assert.match(deployScript, /\$managedRoutes[\s\S]*?vodops\/videos[\s\S]*?vodops\/quality[\s\S]*?vodops\/douban[\s\S]*?douban\/index/);
+assert.match(deployScript, /视频管理,vodops\/videos[\s\S]*?数据质量与修复,vodops\/quality[\s\S]*?豆瓣匹配与同步,vodops\/douban/);
 assert.match(deployScript, /count\(array_keys\(\$verified, \$entry, true\)\) !== 1/);
-assert.match(deployScript, /workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/index\/index[\s\S]*?Vodops single-workbench verification failed/);
+assert.match(deployScript, /workspace eq 'videos'[\s\S]*?workspace eq 'douban'[\s\S]*?addons\/vodops\/view\/videos\/index[\s\S]*?Vodops admin page verification failed/);
 assert.match(deployScript, /vodops_lock/);
 assert.match(deployScript, /vodops_scan/);
 assert.match(deployScript, /vodops_issue/);
@@ -2992,6 +3185,9 @@ const fakeDeployCommand = [
   'printf "%s" "$command_name" >> "$DEPLOY_TEST_LOG"',
   'printf "\\t%s" "$@" >> "$DEPLOY_TEST_LOG"',
   'printf "\\n" >> "$DEPLOY_TEST_LOG"',
+  'if [[ "$command_name" == "npm" && "$*" == "run package" ]]; then',
+  '  node scripts/package-theme.mjs',
+  'fi',
   'if [[ "$command_name" == "scp" && -n "${DEPLOY_TEST_FAIL_SCP_MATCH:-}" && "$*" == *"$DEPLOY_TEST_FAIL_SCP_MATCH"* ]]; then',
   "  exit 73",
   "fi",
@@ -3028,11 +3224,11 @@ try {
     encoding: "utf8",
     env: {
       ...deployHarnessEnv,
-      DEPLOY_SCOPE: "theme"
+      DEPLOY_SCOPE: "invalid"
     }
   });
   assert.notEqual(invalidDeployScope.status, 0);
-  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
+  assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, theme, backend, api, or vodops/);
 
   writeFileSync(deployHarnessLog, "");
   const apiOnlyDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
@@ -3100,6 +3296,18 @@ try {
   assert.match(fullDeployLog, /scp[^\n]*\tdist\/pingfangdevice\.tar\.gz/);
   assert.match(fullDeployLog, /scp[^\n]*\tdist\/pingfangapi\.tar\.gz/);
   assert.match(fullDeployLog, /ssh[\s\S]*DEPLOY_SCOPE=all/);
+
+  writeFileSync(deployHarnessLog, "");
+  const themeOnlyDeploy = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...deployHarnessEnv, DEPLOY_SCOPE: "theme" }
+  });
+  assert.equal(themeOnlyDeploy.status, 0, themeOnlyDeploy.stderr);
+  const themeOnlyDeployLog = readFileSync(deployHarnessLog, "utf8");
+  assert.match(themeOnlyDeployLog, /scp[^\n]*\tdist\/pingfangvideo\.tar\.gz/);
+  assert.doesNotMatch(themeOnlyDeployLog, /scp[^\n]*\tdist\/(?:pingfangdevice|pingfangapi|vodops)\.tar\.gz/);
+  assert.match(themeOnlyDeployLog, /THEME_ARCHIVE_SHA=[a-f0-9]{64}/);
 
   writeFileSync(deployHarnessLog, "");
   const interruptedScp = spawnSync("bash", ["scripts/deploy-theme.sh"], {
@@ -3202,7 +3410,7 @@ const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
   }
 });
 assert.notEqual(invalidDeployScope.status, 0);
-assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, backend, api, or vodops/);
+assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, theme, backend, api, or vodops/);
 
 const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
@@ -3362,6 +3570,15 @@ assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
 assert.match(vodopsView, /workspace/);
 assert.match(vodopsView, /addons\/vodops\/view\/index\/index/);
+assert.match(vodopsView, /addons\/vodops\/view\/videos\/index/);
+const vodLibrary = readFileSync(path.join(vodopsAddonRoot, "service/VodLibrary.php"), "utf8");
+assert.match(vodLibrary, /v\.vod_id,v\.vod_name,v\.vod_status[\s\S]*?v\.vod_play_from/);
+assert.doesNotMatch(vodLibrary, /->field\(["']\*["']\)|->count\(\)/);
+const vodLibraryView = readFileSync(path.join(vodopsAddonRoot, "view/videos/index.html"), "utf8");
+assert.match(vodLibraryView, /data-vod-library/);
+assert.match(vodLibraryView, /history\.pushState/);
+assert.match(vodLibraryView, /AI_CONCURRENCY = 2/);
+assert.doesNotMatch(vodLibraryView, /location\.reload/);
 const doubanBridge = readFileSync(path.join(vodopsAddonRoot, "application/admin/controller/Douban.php"), "utf8");
 assert.match(doubanBridge, /addons\\vodops\\backend\\DoubanController/);
 assert.doesNotMatch(doubanBridge, /->route\(/);
@@ -3370,7 +3587,7 @@ assert.match(doubanBackend, /namespace addons\\vodops\\backend/);
 assert.match(doubanBackend, /class DoubanController extends Base/);
 assert.match(doubanBackend, /public function startAudit\(\)/);
 assert.match(doubanBackend, /public function calibrateByType\(\)/);
-assert.match(doubanBackend, /redirect\(url\('vodops\/index'/);
+assert.match(doubanBackend, /redirect\(url\('vodops\/douban'/);
 assert.doesNotMatch(doubanBackend, /fetch\(['"]index\/index/);
 assert.doesNotMatch(doubanBackend, /view_path/);
 const doubanData = readFileSync(path.join(vodopsAddonRoot, "service/DoubanData.php"), "utf8");
@@ -3530,30 +3747,26 @@ const vodFilterOptionsService = readAddonFile("service/VodFilterOptions.php");
 assert.match(vodFilterOptionsService, /class VodFilterOptions/);
 assert.match(vodFilterOptionsService, /const VOD_TABLE = 'vod'/);
 assert.match(vodFilterOptionsService, /public static function filters\(array \$input\)/);
-assert.match(vodFilterOptionsService, /const CACHE_VERSION = 'v4'/);
-assert.match(vodFilterOptionsService, /\$params\['type_ids'\] = self::typeScope\(\$params\['type_id'\]\)/);
+assert.match(vodFilterOptionsService, /const CACHE_VERSION = 'v6'/);
+assert.match(vodFilterOptionsService, /const MAX_OPTIONS = 1000/);
 assert.match(vodFilterOptionsService, /responseParams/);
 assert.match(vodFilterOptionsService, /'area' => 'vod_area'/);
 assert.match(vodFilterOptionsService, /'year' => 'vod_year'/);
 assert.match(vodFilterOptionsService, /'lang' => 'vod_lang'/);
 assert.match(vodFilterOptionsService, /Db::name\(self::VOD_TABLE\)/);
-assert.match(vodFilterOptionsService, /where\('vod_status', 1\)/);
-assert.match(vodFilterOptionsService, /withoutDimension/);
-assert.match(vodFilterOptionsService, /typeScope/);
-assert.match(vodFilterOptionsService, /dimensionCandidates/);
-assert.match(vodFilterOptionsService, /globalExtendValue/);
-assert.doesNotMatch(vodFilterOptionsService, /optionExists/);
-assert.match(vodFilterOptionsService, /\$maccms\['app'\]\['vod_extend_' \. \$dimension\]/);
-assert.match(vodFilterOptionsService, /where\(\$field, 'in', array_values\(\$values\)\)/);
-assert.match(vodFilterOptionsService, /field\(\$field \. ' as value, count\(\*\) as total'\)/);
-assert.match(vodFilterOptionsService, /allowed_classes' => false/);
+assert.match(vodFilterOptionsService, /distinct\(true\)/);
+assert.match(vodFilterOptionsService, /configuredPriority/);
+assert.match(vodFilterOptionsService, /namedOptions/);
+assert.match(vodFilterOptionsService, /labelsForRawValue/);
+assert.match(vodFilterOptionsService, /aliasQuery/);
+assert.match(vodFilterOptionsService, /vod_extend_/);
+assert.match(vodFilterOptionsService, /field\(\$field \. ' as value'\)/);
+assert.doesNotMatch(vodFilterOptionsService, /where\('vod_status', 1\)|count\(\*\) as total|typeScope|withoutDimension/);
 assert.match(vodFilterOptionsService, /isValidYearValue/);
 assert.match(vodFilterOptionsService, /preg_match\('\/\^\[0-9\]\{4\}\$\/'/);
-assert.match(vodFilterOptionsService, /max\(\$params\['limit'\] \* 4, 120\)/);
-assert.match(vodFilterOptionsService, /count\(\$options\) >= \$params\['limit'\]/);
+assert.match(vodFilterOptionsService, /array_slice\(\$options, 0, \$limit\)/);
 assert.doesNotMatch(vodFilterOptionsService, /where\(\$field, 'regexp'/);
 assert.match(vodFilterOptionsService, /date\('Y'\)/);
-assert.match(vodFilterOptionsService, /group\(\$field\)/);
 
 const deviceAddonSql = readAddonFile("install.sql");
 assert.match(deviceAddonSql, /CREATE TABLE IF NOT EXISTS `__PREFIX__pingfang_device_session`/);
@@ -3609,6 +3822,10 @@ assert.match(templateLinter, /Template lint passed/);
 
 const compatVerifier = readFileSync(path.join(root, "scripts/verify-compat.mjs"), "utf8");
 assert.match(compatVerifier, /requiredThemeDirs/);
+assert.match(
+  compatVerifier,
+  /const requiredThemeFiles = \[[\s\S]*"css\/base\.css"[\s\S]*"css\/themes-foundation\.css"[\s\S]*"css\/style\.css"[\s\S]*"css\/themes\.css"[\s\S]*"css\/games\.css"[\s\S]*"css\/responsive\.css"/
+);
 assert.match(compatVerifier, /html\/label\/comics\.html/);
 assert.match(compatVerifier, /html\/label\/qixi\.html/);
 assert.match(compatVerifier, /html\/comment\/index\.html/);
@@ -3624,6 +3841,17 @@ assert.match(compatVerifier, /html\/vod\/plot\.html/);
 assert.match(compatVerifier, /href="#"/);
 assert.match(compatVerifier, /javascript:history/);
 assert.match(compatVerifier, /Compatibility verification passed/);
+
+const figmaBaselineValidator = readFileSync(path.join(root, "scripts/figma-product-baseline/validate-plan.mjs"), "utf8");
+assert.match(
+  figmaBaselineValidator,
+  /const cssFiles = \[[\s\S]*"base\.css"[\s\S]*"themes-foundation\.css"[\s\S]*"style\.css"[\s\S]*"themes\.css"[\s\S]*"games\.css"[\s\S]*"responsive\.css"/
+);
+assert.match(figmaBaselineValidator, /function readProjectSource\(relativePath\)/);
+assert.match(
+  figmaBaselineValidator,
+  /interactionEvidenceCache\.set\(sourceFile, await readProjectSource\(sourceFile\)\)/
+);
 
 const previewVerifier = readFileSync(path.join(root, "scripts/verify-preview.mjs"), "utf8");
 assert.match(previewVerifier, /php/);
@@ -3664,9 +3892,21 @@ assert.match(releaseVerifier, /assertSafeAssetReference/);
 assert.match(releaseVerifier, /preview\\\/data\\\.json/);
 assert.match(releaseVerifier, /assetVersionPlaceholders/);
 assert.match(releaseVerifier, /assetVersionPattern/);
+assert.match(releaseVerifier, /__PINGFANG_BASE_STYLE_VERSION__/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/base\.css/);
 assert.match(releaseVerifier, /html\/label\/qixi\.html/);
 assert.match(releaseVerifier, /js\/qixi-particle-rose\.js/);
+assert.match(releaseVerifier, /js\/qixi-particle-bouquet\.js/);
+assert.match(releaseVerifier, /css\/qixi-bouquet\.css/);
 assert.match(releaseVerifier, /__PINGFANG_QIXI_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_THEME_FOUNDATION_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_THEMES_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_GAMES_STYLE_VERSION__/);
+assert.match(releaseVerifier, /__PINGFANG_RESPONSIVE_STYLE_VERSION__/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/themes-foundation\.css/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/themes\.css/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/games\.css/);
+assert.match(releaseVerifier, /pingfangvideo\/css\/responsive\.css/);
 assert.match(releaseVerifier, /requiredAddonEntries/);
 assert.match(releaseVerifier, /requiredApiAddonEntries/);
 assert.match(releaseVerifier, /requiredVodopsEntries/);
@@ -3686,8 +3926,19 @@ assert.equal((releaseVerifier.match(/\.split\(\/\\r\?\\n\/\)/g) || []).length, 5
 const preview = readFileSync(path.join(root, "preview/index.html"), "utf8");
 const qixiPreview = readFileSync(path.join(root, "preview/qixi.html"), "utf8");
 assert.match(qixiPreview, /class="qixi-rose-page" data-qixi-rose/);
-assert.match(qixiPreview, /template\/pingfangvideo\/css\/style\.css/);
-assert.match(qixiPreview, /template\/pingfangvideo\/js\/qixi-particle-rose\.js/);
+assert.doesNotMatch(qixiPreview, /data-qixi-model|qixi-rose-model/);
+assert.match(
+  qixiPreview,
+  /template\/pingfangvideo\/css\/base\.css[\s\S]*template\/pingfangvideo\/css\/style\.css[\s\S]*template\/pingfangvideo\/css\/responsive\.css[\s\S]*template\/pingfangvideo\/css\/qixi-bouquet\.css/
+);
+assert.match(qixiPreview, /type="module" src="\.\.\/template\/pingfangvideo\/js\/qixi-particle-bouquet\.js"/);
+assert.match(qixiPreview, /href="\.\.\/template\/pingfangvideo\/css\/qixi-bouquet\.css"/);
+assert.doesNotMatch(qixiPreview, /src="[^"]*qixi-particle-rose\.js/);
+assert.match(qixiPreview, /3D Flower Bouquet by/);
+assert.match(qixiPreview, /粉色与蓝色星光粒子从下向上聚成3D玫瑰花束/);
+assert.match(qixiPreview, /viewport-fit=cover/);
+assert.match(qixiPreview, /meta name="theme-color" content="#100611"/);
+assert.doesNotMatch(qixiPreview, /qixi-rose-gesture|拖动花束，让玫瑰随你转身/);
 assert.doesNotMatch(preview, /\bskip-link\b/);
 assert.doesNotMatch(preview, /class="site-footer"/);
 assert.doesNotMatch(preview, /让每一次打开/);
@@ -3695,12 +3946,22 @@ assert.doesNotMatch(preview, /href="#"/);
 assert.match(preview, /class="filter-options letter-options"/);
 assert.match(preview, /class="filter-row"[\s\S]*class="filter-options"/);
 assert.match(preview, /css\/style\.css\?v=/);
+assert.match(preview, new RegExp(`css/base\\.css\\?v=${baseStyleVersionPlaceholder}`));
 assert.match(preview, new RegExp(`css/style\\.css\\?v=${styleVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/themes-foundation\\.css\\?v=${themeFoundationVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/themes\\.css\\?v=${themesVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/games\\.css\\?v=${gamesStyleVersionPlaceholder}`));
+assert.match(preview, new RegExp(`css/responsive\\.css\\?v=${responsiveStyleVersionPlaceholder}`));
+assert.match(preview, /data-game-stylesheet/);
+assert.match(preview, /function ensureGameStyles\(route\)/);
+assert.match(preview, /async function render\(\)[\s\S]*await ensureGameStyles\(route\)/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260626"/);
 assert.doesNotMatch(preview, /css\/style\.css\?v=20260621/);
 assert.match(preview, /js\/app\.js\?v=/);
-assert.match(preview, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.match(preview, /js\/app\.js\?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="\.\.\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
+assert.doesNotMatch(preview, /<script src="[^\"]*canvas-confetti\.min\.js/);
 assert.doesNotMatch(preview, /https?:\/\/[^"']*canvas-confetti/);
+assert.match(preview, /<meta name="theme-color" content="#070913">/);
 assert.match(preview, /data-home-gsap-src="\.\.\/template\/pingfangvideo\/js\/gsap\.min\.js\?v=3\.15\.0"/);
 assert.doesNotMatch(preview, /<script src="\.\.\/template\/pingfangvideo\/js\/gsap\.min\.js/);
 assert.doesNotMatch(preview, /js\/react\.production\.min\.js\?v=18\.3\.1/);
@@ -3712,6 +3973,8 @@ assert.match(preview, /sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30
 assert.match(preview, /class="rank-thumb"[\s\S]*sizes="72px"/);
 assert.match(preview, /class="rank-score"/);
 assert.match(preview, /data-banner-bg="\$\{escapeHtml\(backdrop\)\}"/);
+assert.match(preview, /class="banner-priority-image"[\s\S]*loading="eager"[\s\S]*fetchpriority="high"[\s\S]*data-banner-priority-image/);
+assert.match(preview, /class="detail-backdrop" aria-hidden="true"><img src="\$\{escapeHtml\(video\.poster\)\}" alt="" width="380" height="570" decoding="async">/);
 assert.doesNotMatch(preview, /bannerBgStyle/);
 assert.doesNotMatch(preview, /banner-poster/);
 assert.match(preview, /sizes="96px"/);
@@ -3732,7 +3995,7 @@ assert.match(preview, /aria-controls="mobileDrawer"/);
 assert.match(preview, /class="theme-switcher" data-theme-switcher/);
 assert.match(preview, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
 assert.match(preview, /class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile/);
-assert.match(preview, /class="brand-logo"[^>]*width="58"[^>]*height="58"[^>]*decoding="async"/);
+assert.doesNotMatch(preview, /class="brand-logo"|site-logo\.png/);
 assert.match(preview, /<nav class="site-nav" id="siteNav" aria-label="主导航">/);
 assert.match(preview, /data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu"/);
 assert.match(preview, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
@@ -3744,19 +4007,17 @@ assert.equal((preview.match(/data-theme-option="dunhuang-caisson"/g) || []).leng
 assert.equal((preview.match(/data-theme-option="digital-particles"/g) || []).length, 2);
 assert.equal((preview.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(preview, /class="mobile-drawer-backdrop" data-mobile-nav-close hidden/);
-assert.match(
-  preview,
-  /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/
-);
+assert.match(preview, /class="mobile-search-toggle"[^>]*data-mobile-search-open[^>]*aria-controls="mobileDrawer"/);
+assert.match(preview, /<aside class="mobile-drawer" id="mobileDrawer" role="dialog" aria-modal="true" aria-labelledby="mobileDrawerTitle" aria-hidden="true" inert>/);
 assert.match(preview, /class="mobile-drawer-section mobile-drawer-account"/);
 assert.match(preview, /<span>账号<\/span>/);
 assert.match(preview, /class="mobile-drawer-login" href="\?route=login" data-route="login">登录<\/a>/);
 assert.match(preview, /<form class="mobile-drawer-search" role="search">/);
 assert.match(preview, /id="previewMobileSearch" type="search" name="wd"/);
 const previewStaticDrawerLinks = preview.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(previewStaticDrawerLinks), ["首页", "视频", "游戏", "七夕花束"]);
+assert.deepEqual(extractAnchorTexts(previewStaticDrawerLinks), ["首页", "视频", "游戏"]);
 assert.match(previewStaticDrawerLinks, /data-route="games" data-nav-section="games">游戏<\/a>/);
-assert.match(previewStaticDrawerLinks, /href="qixi\.html" data-nav-section="qixi">七夕花束<\/a>/);
+assert.doesNotMatch(previewStaticDrawerLinks, /qixi|七夕花束/);
 assert.doesNotMatch(previewStaticDrawerLinks, />漫画<\/a>|>文章<\/a>/);
 assert.match(preview, /id="mobileDrawerCats"/);
 assert.match(preview, /function renderMobileDrawerCategories/);
@@ -3830,8 +4091,8 @@ assert.doesNotMatch(preview, /<div class="vod-grid">\$\{latest\.map\(card\)\.joi
 const previewCardFunction = preview.match(/function card\(video\) \{[\s\S]*?function rankItem/)?.[0] || "";
 assert.doesNotMatch(previewCardFunction, /<small>\$\{escapeHtml\(video\.actor\)\}<\/small>/);
 assert.match(preview, /detail-panel/);
-assert.match(preview, /class="detail-backdrop" aria-hidden="true"><img src="\$\{escapeHtml\(video\.poster\)\}" alt="">/);
-assert.match(preview, /site-logo\.png/);
+assert.match(preview, /class="detail-primary"/);
+assert.match(preview, /class="detail-backdrop" aria-hidden="true"><img src="\$\{escapeHtml\(video\.poster\)\}" alt="" width="380" height="570" decoding="async">/);
 assert.match(preview, /class="brand-emblem"/);
 assert.match(preview, /class="brand-wordmark"/);
 assert.doesNotMatch(preview, /brand-text/);
@@ -3844,7 +4105,9 @@ assert.match(preview, /route === "history"/);
 assert.match(preview, /route === "login"/);
 assert.match(preview, /function renderPlay\(id, episodeNo\)/);
 assert.match(preview, /<video controls preload="metadata" playsinline/);
-assert.match(preview, /id="episodeList" aria-label="选集列表"/);
+assert.match(preview, /id="episodeList" aria-label="选集列表" data-episode-drawer/);
+assert.match(preview, /data-episode-drawer-toggle/);
+assert.match(preview, /data-episode-drawer-close/);
 assert.match(preview, /aria-current="\$\{item\.no === episode\.no \? "page" : "false"\}"/);
 assert.match(preview, /if \(next\.hash && next\.pathname === window\.location\.pathname && next\.search === window\.location\.search\) return/);
 assert.match(preview, /function renderLoginPage/);
@@ -3880,11 +4143,11 @@ assert.doesNotMatch(preview, /function renderVideoNavCategories/);
 assert.doesNotMatch(preview, /nav-video-panel/);
 assert.doesNotMatch(preview, /nav-video-trigger/);
 const previewRenderNavFunction = preview.match(/function renderNav\(\) \{[\s\S]*?\n\}/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(previewRenderNavFunction), ["首页", "视频", "游戏", "七夕花束"]);
+assert.deepEqual(extractAnchorTexts(previewRenderNavFunction), ["首页", "视频", "游戏"]);
 assert.match(previewRenderNavFunction, /href="\$\{url\("home"\)\}" data-route="home" data-nav-section="home">首页/);
 assert.match(previewRenderNavFunction, /href="\$\{url\("categories"\)\}" data-route="categories" data-nav-section="videos">视频/);
 assert.match(previewRenderNavFunction, /href="\$\{url\("games"\)\}" data-route="games" data-nav-section="games">游戏/);
-assert.match(previewRenderNavFunction, /href="qixi\.html" data-nav-section="qixi">七夕花束/);
+assert.doesNotMatch(previewRenderNavFunction, /qixi|七夕花束/);
 assert.doesNotMatch(previewRenderNavFunction, /data-route="comics"|data-route="articles"/);
 assert.doesNotMatch(previewRenderNavFunction, /data-route="categories">分类/);
 assert.match(preview, /<a href="\?route=categories" data-route="categories" data-nav-section="videos">视频<\/a>/);
@@ -3945,6 +4208,13 @@ assert.match(phpEntry, /render_page/);
 assert.match(phpEntry, /PHP_VERSION_ID/);
 
 const phpRender = readFileSync(path.join(root, "server/lib/render.php"), "utf8");
+assert.match(phpRender, /function render_layout\(array \$data, string \$title, string \$content, bool \$loadGameStyles = false\): string/);
+assert.match(phpRender, /css\/base\.css/);
+assert.match(phpRender, /css\/themes-foundation\.css/);
+assert.match(phpRender, /css\/themes\.css/);
+assert.match(phpRender, /css\/responsive\.css/);
+assert.match(phpRender, /\$loadGameStyles \? '[^']*css\/games\.css/);
+assert.match(phpRender, /render_layout\(\$data, '游戏大厅', \$content, true\)/);
 assert.doesNotMatch(phpRender, /\bskip-link\b/);
 assert.doesNotMatch(phpRender, /class="site-footer"/);
 assert.doesNotMatch(phpRender, /让每一次打开/);
@@ -3983,23 +4253,24 @@ assert.doesNotMatch(phpRender, /class="nav-video-menu"/);
 assert.doesNotMatch(phpRender, /class="nav-video-trigger"/);
 assert.doesNotMatch(phpRender, /class="nav-video-panel"/);
 const phpNavSnippet = phpRender.match(/\$nav = [\s\S]*?\$drawerCategories = implode/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(phpNavSnippet), ["首页", "视频", "游戏", "七夕花束"]);
+assert.deepEqual(extractAnchorTexts(phpNavSnippet), ["首页", "视频", "游戏"]);
 assert.match(phpNavSnippet, /path_for\('categories'\)[\s\S]*>视频<\/a>/);
 assert.match(phpNavSnippet, /path_for\('games'\)[\s\S]*data-nav-section="games">游戏<\/a>/);
-assert.match(phpNavSnippet, /href="\/preview\/qixi\.html" data-nav-section="qixi">七夕花束<\/a>/);
+assert.doesNotMatch(phpNavSnippet, /qixi|七夕花束/);
 assert.match(phpNavSnippet, /data-nav-section="home"/);
 assert.match(phpNavSnippet, /data-nav-section="videos"/);
 assert.doesNotMatch(phpNavSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.doesNotMatch(phpNavSnippet, />分类<\/a>/);
 const phpMobileDrawerLinksSnippet = phpRender.match(/<nav class="mobile-drawer-links"[\s\S]*?<\/nav>/)?.[0] || "";
-assert.deepEqual(extractAnchorTexts(phpMobileDrawerLinksSnippet), ["首页", "视频", "游戏", "七夕花束"]);
+assert.deepEqual(extractAnchorTexts(phpMobileDrawerLinksSnippet), ["首页", "视频", "游戏"]);
 assert.match(phpMobileDrawerLinksSnippet, /path_for\('categories'\)[\s\S]*>视频<\/a>/);
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, /path_for\('videos'\)[\s\S]*>视频<\/a>/);
 assert.match(phpMobileDrawerLinksSnippet, /path_for\('games'\)[\s\S]*>游戏<\/a>/);
-assert.match(phpMobileDrawerLinksSnippet, /href="\/preview\/qixi\.html" data-nav-section="qixi">七夕花束<\/a>/);
+assert.doesNotMatch(phpMobileDrawerLinksSnippet, /qixi|七夕花束/);
 assert.doesNotMatch(phpMobileDrawerLinksSnippet, />漫画<\/a>|>文章<\/a>/);
 assert.match(phpRender, /class="theme-switcher" data-theme-switcher/);
-assert.match(phpRender, /class="brand-logo"[^>]*width="58"[^>]*height="58"[^>]*decoding="async"/);
+assert.match(phpRender, /<meta name="theme-color" content="#070913">/);
+assert.doesNotMatch(phpRender, /class="brand-logo"|site-logo\.png/);
 assert.match(phpRender, /<nav class="site-nav" aria-label="主导航">/);
 assert.match(phpRender, /data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu"/);
 assert.match(phpRender, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
@@ -4015,7 +4286,8 @@ assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
 assert.match(phpRender, /hero-carousel/);
 assert.match(phpRender, /data-home-gsap-src="\/template\/pingfangvideo\/js\/gsap\.min\.js\?v=3\.15\.0"/);
-assert.match(phpRender, /js\/canvas-confetti\.min\.js\?v=1\.9\.4[\s\S]*js\/app\.js/);
+assert.match(phpRender, /js\/app\.js" data-pixel-confetti-src="\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
+assert.doesNotMatch(phpRender, /<script src="\/template\/pingfangvideo\/js\/canvas-confetti\.min\.js/);
 assert.doesNotMatch(phpRender, /https?:\/\/[^"']*canvas-confetti/);
 assert.doesNotMatch(phpRender, /<script src="\/template\/pingfangvideo\/js\/gsap\.min\.js/);
 assert.match(phpRender, /banner-dots/);
@@ -4026,6 +4298,10 @@ assert.match(phpRender, /function render_home_shelf_card\(array \$video, bool \$
 assert.match(phpRender, /title="' \. e\(\$video\['title'\]\) \. '"/);
 assert.match(phpRender, /\$image = \$featured \? \(\$video\['backdrop'\] \?\? \$video\['poster'\]\) : \$video\['poster'\]/);
 assert.match(phpRender, /width="300" height="450"/);
+assert.match(phpRender, /loading="lazy" decoding="async" width="76" height="114" sizes="76px"/);
+assert.match(phpRender, /loading="lazy" decoding="async" width="96" height="144" sizes="96px"/);
+assert.match(phpRender, /class="detail-backdrop" aria-hidden="true"><img[^>]*width="380" height="570" decoding="async">/);
+assert.match(phpRender, /class="detail-poster"><img[^>]*width="380" height="570" loading="eager" decoding="async" fetchpriority="high"/);
 assert.match(phpRender, /\$homeTabs = \[/);
 assert.match(phpRender, /\$tabRails \.= render_home_latest_panel\(\$tab\['key'\], \$tab\['videos'\], \$index === 0\)/);
 assert.match(phpRender, /\$tabLinks \.= '<button type="button" data-home-tab="' \. e\(\$tab\['key'\]\)/);
@@ -4046,7 +4322,6 @@ assert.match(phpRender, /detail-panel/);
 assert.match(phpRender, /class="detail-backdrop" aria-hidden="true"><img src="/);
 const phpRenderCardsFunction = phpRender.match(/function render_cards\(array \$videos\): string[\s\S]*?function hero_slides/)?.[0] || "";
 assert.doesNotMatch(phpRenderCardsFunction, /<small>' \. e\(\$video\['actor'\]\) \. '<\/small>/);
-assert.match(phpRender, /site-logo\.png/);
 assert.match(phpRender, /images\/brand\/favicon\.ico/);
 assert.match(phpRender, /images\/brand\/favicon\.png/);
 assert.match(phpRender, /class="brand-emblem"/);
@@ -4124,6 +4399,7 @@ assert.match(phpRender, /gbook_content/);
 assert.doesNotMatch(phpRender, /array_slice\(\$data\['categories'\], 0, 6\)/);
 
 const appJs = readThemeFile("js/app.js");
+assert.match(phpRender, /class="mobile-search-toggle"[^>]*data-mobile-search-open[^>]*aria-controls="mobileDrawer"/);
 assert.match(appJs, /document\.querySelector\("\.mobile-drawer"\)/);
 assert.match(appJs, /document\.querySelector\("\.mobile-drawer-backdrop"\)/);
 assert.match(appJs, /mobile-nav-open/);
@@ -4292,6 +4568,43 @@ assert.match(appJs, /data-dynamic-vod-filters/);
 assert.match(appJs, /data-filter-endpoint/);
 assert.match(appJs, /data-filter-kind/);
 assert.match(appJs, /data-filter-value/);
+assert.match(appJs, /function dynamicFilterHref/);
+assert.match(appJs, /function createDynamicFilterLink/);
+assert.match(appJs, /function filterOptionIsActive/);
+assert.match(appJs, /option\.query/);
+assert.match(appJs, /option\.label/);
+assert.match(appJs, /__PINGFANG_FILTER_VALUE__/);
+assert.match(appJs, /limit: "1000"/);
+assert.match(appJs, /function initFilterDrawers/);
+assert.match(appJs, /data-filter-drawer-toggle/);
+assert.match(appJs, /data-filter-drawer-sheet/);
+assert.match(appJs, /function initEpisodeDrawer/);
+assert.match(appJs, /data-episode-drawer-toggle/);
+assert.match(appJs, /data-episode-drawer-close/);
+assert.match(appJs, /data-banner-priority-image/);
+const dynamicFilterHelperStart = appJs.indexOf("  function normalizeFilterOptions");
+const dynamicFilterHelperEnd = appJs.indexOf("  function applyDynamicVodFilters", dynamicFilterHelperStart);
+assert.ok(dynamicFilterHelperStart >= 0 && dynamicFilterHelperEnd > dynamicFilterHelperStart);
+const dynamicFilterHelpers = new Function(
+  `${appJs.slice(dynamicFilterHelperStart, dynamicFilterHelperEnd)}\nreturn { normalizeFilterOptions, dynamicFilterHref, filterOptionIsActive };`
+)();
+const normalizedDynamicOptions = dynamicFilterHelpers.normalizeFilterOptions([
+  { value: "美国", label: "美国", query: "美国,USA" },
+  { value: "美国", label: "重复项", query: "USA" }
+]);
+assert.deepEqual(normalizedDynamicOptions, [{ value: "美国", label: "美国", query: "美国,USA", total: 0 }]);
+assert.equal(dynamicFilterHelpers.filterOptionIsActive(normalizedDynamicOptions[0], "USA"), true);
+assert.equal(dynamicFilterHelpers.filterOptionIsActive(normalizedDynamicOptions[0], "美国,USA"), true);
+assert.equal(dynamicFilterHelpers.filterOptionIsActive(normalizedDynamicOptions[0], "英国"), false);
+const dynamicFilterRow = {
+  getAttribute(name) {
+    return name === "data-filter-href-template" ? "/vod/show/area/__PINGFANG_FILTER_VALUE__" : "";
+  }
+};
+assert.equal(
+  dynamicFilterHelpers.dynamicFilterHref(dynamicFilterRow, "美国,USA"),
+  `/vod/show/area/${encodeURIComponent("美国,USA")}`
+);
 assert.match(appJs, /pingfangFilterReady/);
 assert.match(appJs, /X-Requested-With/);
 assert.match(appJs, /function initSourceQuality/);
@@ -4400,6 +4713,8 @@ assert.match(videosPreview, /\/index\.php\?route=videos[^"]*sort=hot/);
 assert.doesNotMatch(videosPreview, /<title>全部影片 - 平方影视<\/title>/);
 assert.doesNotMatch(videosPreview, /<h1>全部影片<\/h1>/);
 assert.doesNotMatch(videosPreviewMain, /\/index\.php\?route=category(?:&amp;|")/);
+assert.match(videosPreview, /class="wrap page-title filter-page-title"/);
+assert.match(videosPreview, /data-filter-drawer/);
 
 const categoryIndexPreview = renderPreview("route=category");
 assert.match(categoryIndexPreview, /<title>影片库 - 平方影视<\/title>/);
@@ -4441,6 +4756,7 @@ assert.doesNotMatch(emptyCategoryPreview, /<div><strong>地区<\/strong>/);
 const emptySearchPreview = renderPreview("route=search&wd=不存在的影片关键词");
 assert.match(emptySearchPreview, /data-empty-container data-empty-item="\.list-item"/);
 assert.match(emptySearchPreview, /没有找到相关影片/);
+assert.match(emptySearchPreview, /data-filter-drawer/);
 
 const homePreview = renderPreview("route=home");
 const homeShelfImage = homePreview.match(/<span class="home-shelf-poster"><img[^>]+>/)?.[0] || "";
@@ -4450,6 +4766,7 @@ assert.match(homeShelfImage, /width="300" height="450"/);
 assert.match(homePreview, /class="wrap genre-dock" aria-label="频道快捷入口"/);
 assert.doesNotMatch(homePreview, /liquid-lens/);
 assert.match(homePreview, /data-carousel-autoplay-toggle/);
+assert.match(homePreview, /class="banner-priority-image"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image/);
 assert.match(homePreview, /NEW THIS YEAR/);
 assert.match(homePreview, /本年最新上线/);
 const yearlyHomeContent = homePreview.slice(homePreview.indexOf("data-rank-react-list"), homePreview.indexOf("</main>"));
@@ -4465,9 +4782,10 @@ assert.ok(
 assert.match(playPreview, /class="player-shell" role="region" aria-label="视频播放器"/);
 assert.match(playPreview, /<video controls preload="metadata" playsinline/);
 assert.match(playPreview, /rel="prev">上一集<\/a>/);
-assert.match(playPreview, /href="#episodeList">选集<\/a>/);
+assert.match(playPreview, /href="#episodeList" data-episode-drawer-toggle aria-controls="episodeList" aria-expanded="false">选集<\/a>/);
 assert.match(playPreview, /rel="next">下一集<\/a>/);
-assert.match(playPreview, /id="episodeList" aria-label="选集列表"/);
+assert.match(playPreview, /id="episodeList" aria-label="选集列表" data-episode-drawer/);
+assert.match(playPreview, /data-episode-drawer-close/);
 assert.match(playPreview, /class="is-active" aria-current="page"[^>]*>第2集<\/a>/);
 
 const firstEpisodePreview = renderPreview("route=play&id=2&episode=1");
@@ -4486,3 +4804,40 @@ assert.ok(
 assert.match(trialPreview, /class="player-shell" role="region" aria-label="试看播放器"/);
 assert.match(trialPreview, />完整播放<\/a>/);
 assert.doesNotMatch(trialPreview, /id="episodeList"/);
+
+
+// Every render surface must restore the same theme before its styles are painted.
+for (const [surface, markup, bootstrapSource] of [
+  ["production", head, include],
+  ["static preview", preview, preview],
+  ["PHP preview", phpRender, phpRender],
+]) {
+  assert.equal((markup.match(/data-theme-option="ink-wash"/g) || []).length, 2, `${surface} must offer ink wash on desktop and mobile`);
+  const bootstrap = bootstrapSource.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(bootstrap, `${surface} must include theme initialization`);
+  for (const storedTheme of ["ink-wash", "pixel-frog", "blue-pink-purple", null, "unknown-theme"]) {
+    let appliedTheme = null;
+    const activatedStyles = [];
+    new Script(bootstrap).runInNewContext({
+      window: { localStorage: { getItem: () => storedTheme }, location: { search: "?route=home" } },
+      URLSearchParams,
+      document: {
+        querySelector: (selector) => ({
+          getAttribute: () => "theme.css",
+          setAttribute: (name) => { if (name === "href") activatedStyles.push(selector); },
+        }),
+        documentElement: {
+          setAttribute: (name, value) => { if (name === "data-theme") appliedTheme = value; },
+          removeAttribute: () => { appliedTheme = null; },
+        },
+      },
+    });
+    assert.equal(appliedTheme, storedTheme === "unknown-theme" ? null : storedTheme, `${surface} should restore ${storedTheme}`);
+    assert.deepEqual(activatedStyles, storedTheme === "ink-wash" ? ["[data-ink-theme-stylesheet]"] :
+      storedTheme === "blue-pink-purple" ? ["[data-theme-foundation-stylesheet]", "[data-theme-stylesheet]"] :
+      storedTheme === "pixel-frog" ? ["[data-theme-stylesheet]"] : [], `${surface} should load only the selected theme styles`);
+  }
+  assert.doesNotThrow(() => new Script(bootstrap).runInNewContext({
+    window: { localStorage: { getItem: () => { throw new Error("Storage unavailable"); } } },
+  }), `${surface} should tolerate unavailable local storage`);
+}

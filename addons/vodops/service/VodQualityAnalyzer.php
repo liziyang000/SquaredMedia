@@ -14,6 +14,8 @@ class VodQualityAnalyzer
         'lang_missing' => '语言缺失',
         'poster_missing' => '海报缺失',
         'poster_file_missing' => '本地海报文件丢失',
+        'poster_remote_unavailable' => '远程海报失效',
+        'poster_remote_unverified' => '远程海报检测待确认',
         'play_source_missing' => '播放源不完整',
         'play_group_mismatch' => '播放组不匹配',
         'exact_duplicate' => '严格重复候选',
@@ -82,6 +84,8 @@ class VodQualityAnalyzer
             $issues[] = self::issue('poster_missing', 'vod_pic', $poster, '视频海报为空。');
         } elseif (self::localPosterMissing($poster, $context)) {
             $issues[] = self::issue('poster_file_missing', 'vod_pic', $poster, '本地海报路径存在于数据中，但站点文件已丢失。');
+        } elseif (($remotePosterIssue = self::remotePosterIssue($poster, $context)) !== null) {
+            $issues[] = $remotePosterIssue;
         }
 
         $playFrom = trim((string) ($vod['vod_play_from'] ?? ''));
@@ -211,5 +215,44 @@ class VodQualityAnalyzer
         }
 
         return !is_file($siteRoot . '/' . $relative);
+    }
+
+    private static function remotePosterIssue($poster, array $context)
+    {
+        $probe = is_array($context['remote_poster_probe'] ?? null) ? $context['remote_poster_probe'] : [];
+        if ((string) ($probe['url'] ?? '') !== (string) $poster) {
+            return null;
+        }
+
+        $state = (string) ($probe['state'] ?? '');
+        if (!in_array($state, ['broken', 'inconclusive'], true)) {
+            return null;
+        }
+        $reason = preg_replace('/[^a-z_]/', '', (string) ($probe['reason'] ?? ''));
+        $httpCode = max(0, min(599, intval($probe['http_code'] ?? 0)));
+        $contentType = self::sanitizeValue($probe['content_type'] ?? '', 40);
+        $attempts = max(1, min(2, intval($probe['attempts'] ?? 1)));
+        $detail = [
+            'poster_hash' => hash('sha256', (string) $poster),
+            'probe_state' => $state,
+            'reason' => $reason,
+            'http_code' => $httpCode,
+            'content_type' => $contentType,
+            'attempts' => $attempts,
+        ];
+
+        if ($state === 'inconclusive') {
+            return self::issue(
+                'poster_remote_unverified',
+                'vod_pic',
+                $poster,
+                '远程海报连续检测后仍无法确认可用，请人工核验或稍后复检。',
+                $detail
+            );
+        }
+        $message = $reason === 'invalid_content'
+            ? '远程海报返回的内容不是有效图片。'
+            : ($httpCode > 0 ? '远程海报返回 HTTP ' . $httpCode . '，已确认不可用。' : '远程海报已确认不可用。');
+        return self::issue('poster_remote_unavailable', 'vod_pic', $poster, $message, $detail);
     }
 }

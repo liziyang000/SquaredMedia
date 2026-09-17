@@ -177,6 +177,7 @@ namespace {
     $root = dirname(__DIR__);
     require $root . '/addons/vodops/service/VodQualityAnalyzer.php';
     require $root . '/addons/vodops/service/VodQualityRepair.php';
+    require $root . '/addons/vodops/service/VodPosterCandidate.php';
 
     use addons\vodops\service\VodQualityRepair;
 
@@ -204,7 +205,7 @@ namespace {
     ];
 
     vodops_repair_assert_same(
-        ['type_parent_mismatch', 'year_missing', 'year_invalid', 'area_missing', 'lang_missing', 'poster_missing', 'poster_file_missing'],
+        ['type_parent_mismatch', 'year_missing', 'year_invalid', 'area_missing', 'lang_missing', 'poster_missing', 'poster_file_missing', 'poster_remote_unavailable', 'poster_remote_unverified'],
         array_keys(VodQualityRepair::supportedIssueTypes()),
         'The first repair release must expose only the reviewed, narrow field repairs.'
     );
@@ -266,6 +267,23 @@ namespace {
     );
     $preview = VodQualityRepair::previewUpdate('poster_file_missing', 'https://img.example.com/new.jpg', $posterVod, $typeMap, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same(['vod_pic' => 'https://img.example.com/new.jpg'], $preview['updates'], 'An HTTPS remote poster URL should replace a missing local file path.');
+
+    $remotePosterVod = $baseVod;
+    $remotePosterVod['vod_pic'] = 'https://img.example.com/broken.jpg';
+    $remotePosterContext = [
+        'site_root' => $siteRoot,
+        'remote_upload' => false,
+        'remote_poster_probe' => [
+            'url' => $remotePosterVod['vod_pic'],
+            'state' => 'broken',
+            'reason' => 'not_found',
+            'http_code' => 404,
+            'content_type' => 'text/html',
+            'attempts' => 1,
+        ],
+    ];
+    $preview = VodQualityRepair::previewUpdate('poster_remote_unavailable', 'https://img.example.com/new.jpg', $remotePosterVod, $typeMap, $remotePosterContext);
+    vodops_repair_assert_same(['vod_pic' => 'https://img.example.com/new.jpg'], $preview['updates'], 'A confirmed broken remote poster should reuse the guarded vod_pic repair path.');
     vodops_repair_expect_error(
         static function () use ($posterVod, $typeMap, $siteRoot) {
             VodQualityRepair::previewUpdate('poster_file_missing', 'http://img.example.com/insecure.jpg', $posterVod, $typeMap, ['site_root' => $siteRoot, 'remote_upload' => false]);
@@ -366,6 +384,44 @@ namespace {
                 'detail_json' => '[]',
                 'created_at' => time(),
             ],
+            [
+                'issue_id' => 7,
+                'run_id' => 12,
+                'vod_id' => 106,
+                'vod_name' => '远程坏图影片',
+                'type_id' => 11,
+                'issue_type' => 'poster_remote_unavailable',
+                'field_name' => 'vod_pic',
+                'current_value' => 'https://img.example.com/broken.jpg',
+                'message' => '远程海报已确认不可用。',
+                'detail_json' => json_encode([
+                    'poster_hash' => hash('sha256', 'https://img.example.com/broken.jpg'),
+                    'reason' => 'not_found',
+                    'http_code' => 404,
+                    'content_type' => 'text/html',
+                    'attempts' => 1,
+                ]),
+                'created_at' => time(),
+            ],
+            [
+                'issue_id' => 8,
+                'run_id' => 12,
+                'vod_id' => 107,
+                'vod_name' => '远程待确认影片',
+                'type_id' => 11,
+                'issue_type' => 'poster_remote_unverified',
+                'field_name' => 'vod_pic',
+                'current_value' => 'https://img.example.com/protected.jpg',
+                'message' => '远程海报连续检测后仍无法确认可用。',
+                'detail_json' => json_encode([
+                    'poster_hash' => hash('sha256', 'https://img.example.com/protected.jpg'),
+                    'reason' => 'http_unconfirmed',
+                    'http_code' => 403,
+                    'content_type' => 'text/html',
+                    'attempts' => 2,
+                ]),
+                'created_at' => time(),
+            ],
         ],
         'vod' => [
             array_merge($baseVod, ['vod_year' => '0']),
@@ -374,6 +430,8 @@ namespace {
             array_merge($baseVod, ['vod_id' => 103, 'vod_name' => '地区影片', 'vod_area' => '']),
             array_merge($baseVod, ['vod_id' => 104, 'vod_name' => '语言影片', 'vod_lang' => '']),
             array_merge($baseVod, ['vod_id' => 105, 'vod_name' => '海报缺失影片', 'vod_pic' => '']),
+            array_merge($baseVod, ['vod_id' => 106, 'vod_name' => '远程坏图影片', 'vod_pic' => ' https://img.example.com/broken.jpg ']),
+            array_merge($baseVod, ['vod_id' => 107, 'vod_name' => '远程待确认影片', 'vod_pic' => 'https://img.example.com/protected.jpg']),
         ],
         'type' => array_values($typeMap),
         'vodops_repair_log' => [],
@@ -383,6 +441,8 @@ namespace {
     $result = VodQualityRepair::apply(1, '2024', 'manual', 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('2024', \think\Db::$tables['vod'][0]['vod_year'], 'Applying a reviewed repair should update only the target row.');
     vodops_repair_assert_same('fixed', $result['result_status'] ?? null, 'A successful repair should be rechecked immediately.');
+    vodops_repair_assert_same('vod_year', $result['field_name'] ?? null, 'Repair responses should identify the field that can be updated in place.');
+    vodops_repair_assert_same('2024', $result['current_value'] ?? null, 'Repair responses should return the fresh field value without a page reload.');
     vodops_repair_assert_same('pending', \think\Db::$events[0][2]['operation_status'] ?? null, 'The original value must be persisted before touching MyISAM source data.');
     vodops_repair_assert_same('vodops_repair_log', \think\Db::$events[0][1] ?? null, 'The first write must target the repair audit table.');
     vodops_repair_assert_same('vod', \think\Db::$events[1][1] ?? null, 'The source update may run only after the audit insert succeeds.');
@@ -391,6 +451,7 @@ namespace {
     $rolledBack = VodQualityRepair::rollback($repairId, 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('0', \think\Db::$tables['vod'][0]['vod_year'], 'Rollback should restore the exact audited original value.');
     vodops_repair_assert_same('open', $rolledBack['result_status'] ?? null, 'Rollback should reopen an issue when the original value is still invalid.');
+    vodops_repair_assert_same('0', $rolledBack['current_value'] ?? null, 'Rollback responses should return the restored value for the current row.');
 
     \think\Db::$tables['vod'][0]['vod_year'] = '0';
     \think\Db::$beforeVodUpdate = static function () {
@@ -413,6 +474,8 @@ namespace {
         4 => ['area_missing', 'vod_area'],
         5 => ['lang_missing', 'vod_lang'],
         6 => ['poster_missing', 'vod_pic'],
+        7 => ['poster_remote_unavailable', 'vod_pic'],
+        8 => ['poster_remote_unverified', 'vod_pic'],
     ];
     foreach ($candidateFields as $issueId => [$issueType, $fieldName]) {
         $candidate = VodQualityRepair::candidateContext($issueId, ['site_root' => $siteRoot, 'remote_upload' => false]);
@@ -531,10 +594,38 @@ namespace {
     VodQualityRepair::rollback(intval($posterRepair['repair_id'] ?? 0), 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('upload/vod/restored.jpg', \think\Db::$tables['vod'][1]['vod_pic'], 'Candidate rollback should restore the exact prior poster path.');
 
+    $remoteCandidateContext = VodQualityRepair::posterCandidateContext(7, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    $remoteRepair = VodQualityRepair::apply(
+        7,
+        'https://img.example.com/replacement.jpg',
+        'collector',
+        7,
+        ['site_root' => $siteRoot, 'remote_upload' => false],
+        (string) $remoteCandidateContext['context_token']
+    );
+    vodops_repair_assert_same('fixed', $remoteRepair['result_status'] ?? null, 'A reviewed source candidate should resolve a confirmed remote poster failure.');
+    vodops_repair_assert_same('https://img.example.com/replacement.jpg', \think\Db::$tables['vod'][6]['vod_pic'], 'Remote poster repair must only replace vod_pic.');
+    VodQualityRepair::rollback(intval($remoteRepair['repair_id'] ?? 0), 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    vodops_repair_assert_same(' https://img.example.com/broken.jpg ', \think\Db::$tables['vod'][6]['vod_pic'], 'Remote poster rollback should restore the exact stored value, including harmless surrounding whitespace.');
+
+    $unverifiedInfo = VodQualityRepair::repairInfo(8, ['site_root' => $siteRoot, 'remote_upload' => false]);
+    vodops_repair_assert_same(true, $unverifiedInfo['external_candidates_supported'] ?? null, 'An inconclusive remote poster should expose reviewed replacement candidates without auto-selecting one.');
+    $remoteRecheck = VodQualityRepair::recheck(8, 7, [
+        'site_root' => $siteRoot,
+        'remote_upload' => false,
+        'poster_probe' => static function (array $urls): array {
+            return [
+                $urls[0] => ['ok' => true, 'state' => 'healthy', 'reason' => 'image', 'http_code' => 200, 'content_type' => 'image/jpeg'],
+            ];
+        },
+    ]);
+    vodops_repair_assert_same('fixed', $remoteRecheck['result_status'] ?? null, 'A live recheck should close an inconclusive issue once the current image is healthy.');
+
     file_put_contents($siteRoot . '/upload/vod/restored.jpg', 'poster');
     $rechecked = VodQualityRepair::recheck(2, 7, ['site_root' => $siteRoot, 'remote_upload' => false]);
     vodops_repair_assert_same('fixed', $rechecked['result_status'] ?? null, 'Restoring the original local file should resolve the issue without changing vod_pic.');
     vodops_repair_assert_same('upload/vod/restored.jpg', \think\Db::$tables['vod'][1]['vod_pic'], 'A file-only repair must not rewrite the source field.');
+    vodops_repair_assert_same('upload/vod/restored.jpg', $rechecked['current_value'] ?? null, 'Recheck responses should return the current value for an in-place row refresh.');
 
     @unlink($siteRoot . '/upload/vod/restored.jpg');
     @rmdir($siteRoot . '/upload/vod');

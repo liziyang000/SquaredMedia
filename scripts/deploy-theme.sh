@@ -35,9 +35,9 @@ REMOTE_API_ADDON_TMP="${DEPLOY_REMOTE_API_ADDON_TMP:-/tmp/${API_ADDON_NAME}.${up
 REMOTE_VODOPS_ADDON_TMP="${DEPLOY_REMOTE_VODOPS_ADDON_TMP:-/tmp/${VODOPS_ADDON_NAME}.${upload_nonce}.tar.gz}"
 
 case "$DEPLOY_SCOPE" in
-  all|backend|api|vodops) ;;
+  all|theme|backend|api|vodops) ;;
   *)
-    echo "DEPLOY_SCOPE must be all, backend, api, or vodops." >&2
+    echo "DEPLOY_SCOPE must be all, theme, backend, api, or vodops." >&2
     exit 1
     ;;
 esac
@@ -62,13 +62,13 @@ validate_remote_archive_path() {
   fi
 }
 
-if [[ "$DEPLOY_SCOPE" == "all" ]]; then
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "theme" ]]; then
   validate_remote_archive_path "$REMOTE_TMP" "DEPLOY_REMOTE_TMP"
 fi
 if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "backend" ]]; then
   validate_remote_archive_path "$REMOTE_ADDON_TMP" "DEPLOY_REMOTE_ADDON_TMP"
 fi
-if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+if [[ "$DEPLOY_SCOPE" != "vodops" && "$DEPLOY_SCOPE" != "theme" ]]; then
   validate_remote_archive_path "$REMOTE_API_ADDON_TMP" "DEPLOY_REMOTE_API_ADDON_TMP"
 fi
 if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "vodops" ]]; then
@@ -211,6 +211,9 @@ case "$DEPLOY_SCOPE" in
   all)
     archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
     ;;
+  theme)
+    archives=("$REMOTE_TMP")
+    ;;
   backend)
     archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
     ;;
@@ -238,6 +241,9 @@ cleanup_remote_uploads() {
     all)
       preserved_archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
       ;;
+    theme)
+      preserved_archives=("$REMOTE_TMP")
+      ;;
     backend)
       preserved_archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
       ;;
@@ -264,6 +270,9 @@ case "$DEPLOY_SCOPE" in
   all)
     archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
     ;;
+  theme)
+    archives=("$REMOTE_TMP")
+    ;;
   backend)
     archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
     ;;
@@ -287,13 +296,18 @@ REMOTE_UPLOAD_CLEANUP
 }
 trap cleanup_remote_uploads EXIT
 
-if [[ "$DEPLOY_SCOPE" == "all" ]]; then
+THEME_ARCHIVE_SHA=""
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "theme" ]]; then
+  THEME_ARCHIVE_SHA="$(node -e 'const fs=require("node:fs"),crypto=require("node:crypto"); process.stdout.write(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex"));' "$ARCHIVE")"
+fi
+
+if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "theme" ]]; then
   "${scp_command[@]}" "$ARCHIVE" "${REMOTE}:${REMOTE_TMP}"
 fi
 if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "backend" ]]; then
   "${scp_command[@]}" "$ADDON_ARCHIVE" "${REMOTE}:${REMOTE_ADDON_TMP}"
 fi
-if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+if [[ "$DEPLOY_SCOPE" != "vodops" && "$DEPLOY_SCOPE" != "theme" ]]; then
   "${scp_command[@]}" "$API_ADDON_ARCHIVE" "${REMOTE}:${REMOTE_API_ADDON_TMP}"
 fi
 if [[ "$DEPLOY_SCOPE" == "all" || "$DEPLOY_SCOPE" == "vodops" ]]; then
@@ -307,6 +321,7 @@ remote_env=(
   "REMOTE_ADDON_TMP=$(printf "%q" "$REMOTE_ADDON_TMP")"
   "REMOTE_VODOPS_ADDON_TMP=$(printf "%q" "$REMOTE_VODOPS_ADDON_TMP")"
   "THEME_NAME=$(printf "%q" "$THEME_NAME")"
+  "THEME_ARCHIVE_SHA=$(printf "%q" "$THEME_ARCHIVE_SHA")"
   "ADDON_NAME=$(printf "%q" "$ADDON_NAME")"
   "API_ADDON_NAME=$(printf "%q" "$API_ADDON_NAME")"
   "VODOPS_ADDON_NAME=$(printf "%q" "$VODOPS_ADDON_NAME")"
@@ -326,9 +341,9 @@ remote_env=(
 set -euo pipefail
 
 case "$DEPLOY_SCOPE" in
-  all|backend|api|vodops) ;;
+  all|theme|backend|api|vodops) ;;
   *)
-    echo "Remote DEPLOY_SCOPE must be all, backend, api, or vodops." >&2
+    echo "Remote DEPLOY_SCOPE must be all, theme, backend, api, or vodops." >&2
     exit 1
     ;;
 esac
@@ -339,6 +354,8 @@ api_addon_source=""
 rollback_root=""
 release_started=0
 release_committed=0
+theme_auto_rollback_backup=""
+theme_candidate_dir=""
 vodops_auto_rollback_backup=""
 vodops_auto_rollback_root=""
 vodops_auto_rollback_addon=""
@@ -506,6 +523,9 @@ remote_deploy_exit() {
   case "$DEPLOY_SCOPE" in
     all)
       archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+    theme)
+      archives=("$REMOTE_TMP")
       ;;
     backend)
       archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
@@ -812,7 +832,7 @@ verify_deployed_site() {
 
   bytes="$(wc -c < "$verify_file")"
   echo "Verified deployed site ${verify_url}: HTTP ${status}, ${bytes} bytes"
-  if [[ "$DEPLOY_SCOPE" != "vodops" ]]; then
+  if [[ "$DEPLOY_SCOPE" != "vodops" && "$DEPLOY_SCOPE" != "theme" ]]; then
     warm_api_endpoints "$port"
   fi
 }
@@ -863,6 +883,29 @@ if (file_put_contents($tempPath, $content) === false || !rename($tempPath, $newP
 PHP_ADDON_CONFIG
 
   php -l "$new_config" >/dev/null
+}
+
+install_theme_only() {
+  local actual_sha backup
+  actual_sha="$(sha256sum "$REMOTE_TMP" | cut -d' ' -f1)"
+  if [[ "$actual_sha" != "$THEME_ARCHIVE_SHA" ]]; then
+    echo "Uploaded theme archive SHA-256 mismatch." >&2
+    return 1
+  fi
+  if [[ ! -d "$DEPLOY_PATH/$THEME_NAME" || -L "$DEPLOY_PATH/$THEME_NAME" ]]; then
+    echo "Theme-only deployment requires an existing regular theme directory." >&2
+    return 1
+  fi
+  theme_candidate_dir="$(mktemp -d "$DEPLOY_PATH/.${THEME_NAME}.candidate.XXXXXX")"
+  tar -xzf "$REMOTE_TMP" -C "$theme_candidate_dir"
+  test -f "$theme_candidate_dir/$THEME_NAME/info.ini"
+  backup="$DEPLOY_PATH/pingfangvideo.backup.$(date +%Y%m%d%H%M%S).$$"
+  test ! -e "$backup"
+  theme_auto_rollback_backup="$backup"
+  mv "$DEPLOY_PATH/$THEME_NAME" "$backup"
+  mv "$theme_candidate_dir/$THEME_NAME" "$DEPLOY_PATH/$THEME_NAME"
+  echo "Theme backup: $backup"
+  echo "Theme archive SHA-256: $actual_sha"
 }
 
 install_device_addon() {
@@ -1534,23 +1577,35 @@ if (!is_array($menu)) {
     file_put_contents('php://stderr', "Vodops quick menu config is not an array.\n");
     exit(1);
 }
-$entry = '视频数据中心,vodops/index';
-$singleWorkbenchRoutes = [
+$entries = [
+    '视频管理,vodops/videos',
+    '数据质量与修复,vodops/quality',
+    '豆瓣匹配与同步,vodops/douban',
+];
+$managedRoutes = [
     'vodops/index',
     'admin/vodops/index',
+    'vodops/videos',
+    'admin/vodops/videos',
+    'vodops/quality',
+    'admin/vodops/quality',
+    'vodops/douban',
+    'admin/vodops/douban',
     'douban/index',
     'admin/douban/index',
 ];
-$menu = array_values(array_filter($menu, static function ($item) use ($singleWorkbenchRoutes) {
+$menu = array_values(array_filter($menu, static function ($item) use ($managedRoutes) {
     if (!is_string($item)) {
         return true;
     }
     $parts = explode(',', $item, 2);
     $route = strtolower(trim((string) ($parts[1] ?? '')));
     $route = explode('?', $route, 2)[0];
-    return !in_array($route, $singleWorkbenchRoutes, true);
+    return !in_array($route, $managedRoutes, true);
 }));
-$menu[] = $entry;
+foreach ($entries as $entry) {
+    $menu[] = $entry;
+}
 $content = "<?php\nreturn " . var_export(array_values($menu), true) . ";\n";
 $tempPath = $path . '.tmp.' . getmypid();
 if (is_file($path) && !copy($path, $path . '.backup.' . date('YmdHis') . '.' . getmypid())) {
@@ -1566,18 +1621,25 @@ if (function_exists('opcache_invalidate')) {
     opcache_invalidate($path, true);
 }
 $verified = include $path;
-if (!is_array($verified) || count(array_keys($verified, $entry, true)) !== 1) {
+if (!is_array($verified)) {
     file_put_contents('php://stderr', "Vodops quick menu verification failed.\n");
     exit(1);
 }
+foreach ($entries as $entry) {
+    if (count(array_keys($verified, $entry, true)) !== 1) {
+        file_put_contents('php://stderr', "Vodops quick menu verification failed.\n");
+        exit(1);
+    }
+}
+$entryLookup = array_fill_keys($entries, true);
 foreach ($verified as $item) {
-    if (!is_string($item) || $item === $entry) {
+    if (!is_string($item) || isset($entryLookup[$item])) {
         continue;
     }
     $parts = explode(',', $item, 2);
     $route = strtolower(trim((string) ($parts[1] ?? '')));
     $route = explode('?', $route, 2)[0];
-    if (in_array($route, $singleWorkbenchRoutes, true)) {
+    if (in_array($route, $managedRoutes, true)) {
         file_put_contents('php://stderr', "Legacy Vodops or Douban quick menu entry remains.\n");
         exit(1);
     }
@@ -1730,16 +1792,21 @@ PHP_VODOPS_HOOK
   php -l "$addon_dir/bin/vodops-worker.php" >/dev/null
   php -l "$addon_dir/backend/DoubanController.php" >/dev/null
   php -l "$addon_dir/service/DoubanData.php" >/dev/null
+  php -l "$addon_dir/service/VodLibrary.php" >/dev/null
   php -l "$addon_dir/service/VodQualityScanner.php" >/dev/null
   grep -Fq 'X-CSRF-Token' "$view_target"
+  grep -Fq "workspace eq 'videos'" "$view_target"
   grep -Fq "workspace eq 'douban'" "$view_target"
+  grep -Fq 'addons/vodops/view/videos/index' "$view_target"
   grep -Fq 'addons/vodops/view/index/index' "$view_target"
-  grep -Fq "redirect(url('vodops/index'" "$addon_dir/backend/DoubanController.php"
+  grep -Fq "redirect(url('vodops/douban'" "$addon_dir/backend/DoubanController.php"
+  grep -Fq 'data-vod-library' "$addon_dir/view/videos/index.html"
+  grep -Fq "url('vodops/videosData')" "$addon_dir/view/videos/index.html"
   grep -Fq 'X-CSRF-Token' "$addon_dir/view/index/index.html"
   grep -Fq '同步不会修改现有图片' "$addon_dir/view/index/index.html"
   if grep -Eqi '<!doctype|<html|<body|豆瓣匹配工作台' "$addon_dir/view/index/index.html" \
     || grep -Eq "fetch\\(['\"]index/index|view_path" "$addon_dir/backend/DoubanController.php"; then
-    echo "Vodops single-workbench verification failed." >&2
+    echo "Vodops admin page verification failed." >&2
     return 1
   fi
   install_vodops_worker_cron
@@ -1758,7 +1825,7 @@ if [[ -z "$resolved_deploy_path" || "$resolved_deploy_path" == "/" || "$(basenam
 fi
 DEPLOY_PATH="$resolved_deploy_path"
 maccms_root="$(dirname "$DEPLOY_PATH")"
-if [[ "$maccms_root" == "/" || ! -f "$maccms_root/application/database.php" ]]; then
+if [[ "$DEPLOY_SCOPE" != "theme" && ( "$maccms_root" == "/" || ! -f "$maccms_root/application/database.php" ) ]]; then
   echo "Remote MacCMS application/database.php is missing next to DEPLOY_PATH." >&2
   exit 1
 fi
@@ -1853,6 +1920,18 @@ cleanup_deploy_files() {
   local -a archives
   trap - EXIT
   set +e
+  if [[ "$status" != "0" && -n "${theme_auto_rollback_backup:-}" && -d "$theme_auto_rollback_backup" ]]; then
+    echo "Theme verification failed; restoring ${theme_auto_rollback_backup}." >&2
+    if { [[ ! -e "$DEPLOY_PATH/$THEME_NAME" ]] || mv "$DEPLOY_PATH/$THEME_NAME" "$DEPLOY_PATH/${THEME_NAME}.failed.$(date +%Y%m%d%H%M%S).$$"; } \
+      && cp -a "$theme_auto_rollback_backup" "$DEPLOY_PATH/$THEME_NAME"; then
+      if [[ "$DEPLOY_CLEAR_CACHE" != "0" ]] && ! clear_maccms_cache; then
+        rollback_status=1
+      fi
+    else
+      echo "Theme automatic rollback failed; restore the preserved backup manually." >&2
+      rollback_status=1
+    fi
+  fi
   if [[ "$status" != "0" && -n "${vodops_auto_rollback_backup:-}" ]]; then
     echo "VodOps deployment failed after replacement; starting automatic file rollback." >&2
     if ! restore_vodops_deploy_snapshot \
@@ -1869,6 +1948,9 @@ cleanup_deploy_files() {
   case "$DEPLOY_SCOPE" in
     all)
       archives=("$REMOTE_TMP" "$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP" "$REMOTE_VODOPS_ADDON_TMP")
+      ;;
+    theme)
+      archives=("$REMOTE_TMP")
       ;;
     backend)
       archives=("$REMOTE_ADDON_TMP" "$REMOTE_API_ADDON_TMP")
@@ -1899,6 +1981,9 @@ cleanup_deploy_files() {
     echo "CRITICAL: preserved remote release archives: ${archives[*]}" >&2
     exit "$ROLLBACK_FAILED_EXIT_STATUS"
   fi
+  if [[ -n "${theme_candidate_dir:-}" ]]; then
+    rm -rf -- "$theme_candidate_dir"
+  fi
   rm -rf -- "$deploy_tmp_dir"
   for archive in "${archives[@]}"; do
     if [[ -f "$archive" && ! -L "$archive" ]]; then
@@ -1912,6 +1997,8 @@ trap cleanup_deploy_files EXIT
 
 if [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
   install_vodops_addon
+elif [[ "$DEPLOY_SCOPE" == "theme" ]]; then
+  install_theme_only
 else
   preflight_release
   snapshot_release
@@ -1946,6 +2033,7 @@ vodops_auto_rollback_root=""
 vodops_auto_rollback_addon=""
 vodops_auto_rollback_cron="0"
 release_committed=1
+theme_auto_rollback_backup=""
 REMOTE_SCRIPT
 trap - EXIT
 
@@ -1954,6 +2042,8 @@ if [[ "$DEPLOY_SCOPE" == "api" ]]; then
   echo "API_ROLLBACK_BACKUP=${API_BACKUP_ID} npm run rollback:api"
 elif [[ "$DEPLOY_SCOPE" == "backend" ]]; then
   echo "Deployed ${ADDON_NAME} and ${API_ADDON_NAME} to ${REMOTE} without changing the theme or ${VODOPS_ADDON_NAME}"
+elif [[ "$DEPLOY_SCOPE" == "theme" ]]; then
+  echo "Deployed ${THEME_NAME} to ${REMOTE}:${DEPLOY_PATH}/${THEME_NAME}"
 elif [[ "$DEPLOY_SCOPE" == "vodops" ]]; then
   echo "Deployed ${VODOPS_ADDON_NAME} to ${REMOTE}:$(dirname "$DEPLOY_PATH")/addons/${VODOPS_ADDON_NAME}"
 else

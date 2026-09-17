@@ -164,13 +164,13 @@ namespace addons\vodops\service {
             return [['type_id' => 10, 'label' => '电影']];
         }
 
-        public static function startScan($adminId, $batchSize, $scopeTypeId, $workerMode)
+        public static function startScan($adminId, $batchSize, $scopeTypeId, $workerMode, $checkRemotePosters)
         {
             if (self::$actionError instanceof \Throwable) {
                 throw self::$actionError;
             }
-            self::$calls[] = ['start', $adminId, $batchSize, $scopeTypeId, $workerMode];
-            return ['run_id' => 13, 'status' => 'running'];
+            self::$calls[] = ['start', $adminId, $batchSize, $scopeTypeId, $workerMode, $checkRemotePosters];
+            return ['run_id' => 13, 'status' => 'running', 'check_remote_posters' => $checkRemotePosters];
         }
 
         public static function runChunk($runId)
@@ -254,6 +254,35 @@ namespace addons\vodops\service {
             ];
         }
     }
+
+    class VodLibrary
+    {
+        public static $calls = [];
+
+        public static function listVideos(array $filters)
+        {
+            self::$calls[] = $filters;
+            return [
+                'data' => [[
+                    'vod_id' => 99,
+                    'vod_name' => '测试影片',
+                    'type_name' => '电影',
+                    'status_label' => '已审核',
+                    'seo_status' => 0,
+                ]],
+                'filters' => $filters,
+                'page' => (int) ($filters['page'] ?? 1),
+                'limit' => (int) ($filters['limit'] ?? 30),
+                'has_prev' => (int) ($filters['page'] ?? 1) > 1,
+                'has_next' => true,
+            ];
+        }
+
+        public static function statusOptions()
+        {
+            return ['all' => '全部状态', '1' => '已审核'];
+        }
+    }
 }
 
 namespace {
@@ -303,6 +332,11 @@ namespace {
         return ['status' => $status, 'content' => $content, 'headers' => $headers];
     }
 
+    function redirect($url)
+    {
+        return ['redirect' => $url];
+    }
+
     function url($route, array $params = [])
     {
         return $route . (empty($params) ? '' : '?' . http_build_query($params));
@@ -325,36 +359,69 @@ namespace {
     require $root . '/addons/vodops/application/admin/controller/Vodops.php';
 
     $controller = new \app\admin\controller\Vodops();
-    vodops_controller_assert_same('rendered', $controller->index(), 'The admin index should render through the native admin controller.');
-    vodops_controller_assert_same('vodops/index', $controller->fetchedTemplate, 'The admin index should render the view_new template explicitly.');
+    vodops_controller_assert_same(
+        ['redirect' => 'vodops/videos'],
+        $controller->index(),
+        'The legacy Vodops index should send administrators to the dedicated video manager.'
+    );
+
+    $vodopsInput = ['workspace' => 'quality', 'run_id' => 12];
+    $legacyQuality = new \app\admin\controller\Vodops();
+    vodops_controller_assert_same(
+        ['redirect' => 'vodops/quality?run_id=12'],
+        $legacyQuality->index(),
+        'Legacy workspace links should preserve filters while redirecting to the dedicated quality route.'
+    );
+
+    $vodopsInput = [];
+    vodops_controller_assert_same('rendered', $controller->quality(), 'The quality route should render through the native admin controller.');
+    vodops_controller_assert_same('vodops/index', $controller->fetchedTemplate, 'Dedicated routes should reuse the tracked native view payload.');
+    vodops_controller_assert_same('quality', $controller->assigned['workspace'] ?? null, 'The quality route should select only the quality page.');
     vodops_controller_assert_same(12, $controller->assigned['scan']['run_id'] ?? null, 'The latest scan should be selected by default.');
     vodops_controller_assert_same(50, \addons\vodops\service\VodQualityScanner::$lastScanLimit, 'The history selector should expose enough terminal scans for manual management.');
     vodops_controller_assert_same(10, $controller->assigned['categories'][0]['type_id'] ?? null, 'The scan form should receive native category choices.');
     vodops_controller_assert_same([['decorate', 'completed']], \addons\vodops\service\VodQualityRepair::$calls, 'Issue rows should be decorated with their latest repair status.');
 
-    $vodopsInput = ['workspace' => 'douban', 'q' => '霸王别姬', 'page' => 2];
+    $vodopsInput = ['q' => '霸王别姬', 'page' => 2];
     \addons\vodops\service\DoubanData::$calls = [];
     $doubanWorkspace = new \app\admin\controller\Vodops();
-    vodops_controller_assert_same('rendered', $doubanWorkspace->index(), 'The Douban module should render through the single Vodops workbench.');
-    vodops_controller_assert_same('douban', $doubanWorkspace->assigned['workspace'] ?? null, 'The unified workbench should retain the selected module.');
-    vodops_controller_assert_same(88, $doubanWorkspace->assigned['videos'][0]['vod_id'] ?? null, 'The unified workbench should receive Douban video data.');
+    vodops_controller_assert_same('rendered', $doubanWorkspace->douban(), 'The dedicated Douban route should render through Vodops.');
+    vodops_controller_assert_same('douban', $doubanWorkspace->assigned['workspace'] ?? null, 'The Douban route should select only the Douban page.');
+    vodops_controller_assert_same(88, $doubanWorkspace->assigned['videos'][0]['vod_id'] ?? null, 'The Douban page should receive matching data.');
     vodops_controller_assert_same(
-        'vodops/index?workspace=douban&status=all&task_status=PENDING&q=%E9%9C%B8%E7%8E%8B%E5%88%AB%E5%A7%AC&type_id=0&year=&limit=20&page=3',
+        'vodops/douban?status=all&task_status=PENDING&q=%E9%9C%B8%E7%8E%8B%E5%88%AB%E5%A7%AC&type_id=0&year=&limit=20&page=3',
         $doubanWorkspace->assigned['pagination']['next_url'] ?? null,
-        'Douban pagination should stay inside the single Vodops workbench.'
+        'Douban pagination should stay on its dedicated route.'
     );
 
+    $vodopsInput = ['q' => '测试', 'type_id' => 10, 'status' => '1', 'page' => 2, 'limit' => 30];
+    \addons\vodops\service\VodLibrary::$calls = [];
+    $videoManager = new \app\admin\controller\Vodops();
+    vodops_controller_assert_same('rendered', $videoManager->videos(), 'The video manager should render as a dedicated page.');
+    vodops_controller_assert_same('videos', $videoManager->assigned['workspace'] ?? null, 'The video route should select only the manager page.');
+    vodops_controller_assert_same(99, $videoManager->assigned['video_library']['data'][0]['vod_id'] ?? null, 'The video manager should receive compact rows.');
+    vodops_controller_assert_same(
+        'vodops/videos?q=%E6%B5%8B%E8%AF%95&type_id=10&status=1&isend=all&source=&seo=all&pic=all&limit=30&page=3',
+        $videoManager->assigned['video_library']['next_url'] ?? null,
+        'Video pagination should retain submitted filters on the dedicated route.'
+    );
+
+    $response = $videoManager->videosData();
+    vodops_controller_assert_same(1, $response['data']['code'] ?? null, 'The video manager should refresh rows through an Ajax data endpoint.');
+    vodops_controller_assert_same(99, $response['data']['data']['data'][0]['vod_id'] ?? null, 'Ajax refreshes should return the same normalized row contract.');
+
     \addons\vodops\service\VodQualityScanner::$calls = [];
-    $vodopsInput = ['batch_size' => 500, 'scope_type_id' => 10, 'worker_mode' => 1];
+    $vodopsInput = ['batch_size' => 500, 'scope_type_id' => 10, 'worker_mode' => 1, 'check_remote_posters' => 1];
     $response = $controller->startScan();
     vodops_controller_assert_same(1, $response['data']['code'], 'A valid scan request should succeed.');
-    vodops_controller_assert_same([['start', 7, 500, 10, true]], \addons\vodops\service\VodQualityScanner::$calls, 'The native admin ID, batch size, category scope, and worker mode must reach the scanner.');
+    vodops_controller_assert_same([['start', 7, 500, 10, true, true]], \addons\vodops\service\VodQualityScanner::$calls, 'The native admin ID, batch size, category scope, worker mode, and remote-poster option must reach the scanner.');
 
     \addons\vodops\service\VodQualityScanner::$calls = [];
     $vodopsInput['worker_mode'] = 0;
+    $vodopsInput['check_remote_posters'] = 0;
     $response = $controller->startScan();
     vodops_controller_assert_same(1, $response['data']['code'], 'An administrator should be able to resume in page-only mode.');
-    vodops_controller_assert_same([['start', 7, 500, 10, false]], \addons\vodops\service\VodQualityScanner::$calls, 'An unchecked worker option must reach the scanner as an explicit disable request.');
+    vodops_controller_assert_same([['start', 7, 500, 10, false, false]], \addons\vodops\service\VodQualityScanner::$calls, 'Unchecked worker and remote-poster options must reach the scanner as explicit disable requests.');
 
     \addons\vodops\service\VodQualityScanner::$actionError = new \addons\vodops\service\VodQualityActionException('已有“全部分类”扫描正在进行，请先继续或结束该任务。');
     $response = $controller->startScan();

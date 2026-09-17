@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="96" viewBox="0 0 480 96" role="img" aria-labelledby="iwr-title iwr-desc">
+  <title id="iwr-title">静水微澜</title>
+  <desc id="iwr-desc">疏淡、断续的水面弧线，中央留空，适合页尾或宽幅留白。</desc>
+  <g fill="none" stroke="#252c29" stroke-linecap="round">
+    <path opacity=".2" stroke-width=".8" d="M206 38C216 32 239 31 256 34M268 37C277 41 270 45 256 47M237 49C220 50 204 46 202 42"/>
+    <path opacity=".17" stroke-width=".7" d="M187 29C204 23 239 21 268 25M284 29C310 39 298 51 276 56M254 59C223 63 188 55 180 47"/>
+    <path opacity=".135" stroke-width=".8" d="M140 35C148 23 176 18 189 17M211 15C254 12 300 17 318 27M328 35C342 47 328 60 297 67M276 71C246 74 208 72 188 67M169 63C157 60 145 53 144 49"/>
+    <path opacity=".1" stroke-width=".65" d="M110 29C124 20 145 13 170 11M286 12C323 17 349 26 359 35M362 46C355 64 316 77 277 80M247 82C199 84 155 75 130 64M118 57C110 52 106 47 107 42"/>
+    <path opacity=".07" stroke-width=".7" d="M73 36C77 28 90 21 105 17M364 20C383 29 390 39 387 47M378 59C367 69 348 75 330 79M190 86C151 81 117 73 97 62"/>
+    <path opacity=".08" stroke-width=".7" d="M20 66C49 63 80 65 96 67M355 83C383 78 407 81 426 77M402 51C426 48 449 49 462 47"/>
+  </g>
+</svg>

@@ -65,8 +65,8 @@ namespace {
         failControllerTest('Douban actions must run through the native MacCMS admin permission base');
     }
     $legacyIndex = $controller->index();
-    if (($legacyIndex['redirect'] ?? '') !== 'vodops/index?workspace=douban') {
-        failControllerTest('The legacy Douban index should redirect into the single Vodops workbench');
+    if (($legacyIndex['redirect'] ?? '') !== 'vodops/douban') {
+        failControllerTest('The legacy Douban index should redirect to the dedicated Vodops page');
     }
 
     $backend = new ReflectionClass(\addons\vodops\backend\DoubanController::class);
@@ -80,6 +80,8 @@ namespace {
         'retryFailed',
         'fetchVod',
         'sync',
+        'previewManualSync',
+        'applyManualSync',
         'rollbackPic',
         'calibrate',
         'previewCalibration',
@@ -87,6 +89,7 @@ namespace {
         'setDoubanId',
         'lock',
         'ignore',
+        'restore',
         'startAudit',
         'runAuditBatch',
         'pauseAudit',

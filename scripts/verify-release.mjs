@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { Script } from "node:vm";
 
 const root = process.cwd();
 const scope = process.env.DEPLOY_SCOPE || "all";
-if (!["all", "backend", "api", "vodops"].includes(scope)) {
-  throw new Error("DEPLOY_SCOPE must be all, backend, api, or vodops");
+if (!["all", "theme", "backend", "api", "vodops"].includes(scope)) {
+  throw new Error("DEPLOY_SCOPE must be all, theme, backend, api, or vodops");
 }
-const includeTheme = scope === "all";
+const includeTheme = scope === "all" || scope === "theme";
 const includeDevice = scope === "all" || scope === "backend";
 const includeApi = scope === "all" || scope === "backend" || scope === "api";
 const includeVodops = scope === "all" || scope === "vodops";
@@ -17,18 +19,40 @@ const addonArchive = path.join(root, "dist", "pingfangdevice.tar.gz");
 const apiAddonArchive = path.join(root, "dist", "pingfangapi.tar.gz");
 const vodopsArchive = path.join(root, "dist", "vodops.tar.gz");
 const assetVersionPlaceholders = [
+  "__PINGFANG_BASE_STYLE_VERSION__",
   "__PINGFANG_STYLE_VERSION__",
+  "__PINGFANG_INK_WASH_VERSION__",
+  "__PINGFANG_THEME_FOUNDATION_VERSION__",
+  "__PINGFANG_THEMES_VERSION__",
+  "__PINGFANG_GAMES_STYLE_VERSION__",
+  "__PINGFANG_RESPONSIVE_STYLE_VERSION__",
   "__PINGFANG_APP_VERSION__",
   "__PINGFANG_PROMPT_VERSION__",
   "__PINGFANG_GAME_VERSION__",
+  "__PINGFANG_BLOCKRAIN_VERSION__",
   "__PINGFANG_BAMBOO_CICADA_VERSION__",
   "__PINGFANG_MULTIPLAYER_VERSION__",
-  "__PINGFANG_QIXI_VERSION__"
+  "__PINGFANG_QIXI_VERSION__",
+  "__PINGFANG_QIXI_STYLE_VERSION__",
 ];
 const assetVersionPattern = /\?v=[a-f0-9]{12}/;
 const requiredEntries = [
   "pingfangvideo/info.ini",
+  "pingfangvideo/css/base.css",
   "pingfangvideo/css/style.css",
+  "pingfangvideo/css/ink-wash.css",
+  "pingfangvideo/images/ink-wash/bamboo-corner.svg",
+  "pingfangvideo/images/ink-wash/dry-brush-divider.svg",
+  "pingfangvideo/images/ink-wash/mist-mountains.svg",
+  "pingfangvideo/images/ink-wash/plum-sprig.svg",
+  "pingfangvideo/images/ink-wash/rice-paper.svg",
+  "pingfangvideo/images/ink-wash/water-ripples.svg",
+  "pingfangvideo/images/ink-wash/shan-shui-landscape.e17b1e76e079.webp",
+  "pingfangvideo/css/themes-foundation.css",
+  "pingfangvideo/css/themes.css",
+  "pingfangvideo/css/games.css",
+  "pingfangvideo/css/responsive.css",
+  "pingfangvideo/css/qixi-bouquet.css",
   "pingfangvideo/games/2048/LICENSE.txt",
   "pingfangvideo/games/2048/js/application.js",
   "pingfangvideo/games/2048/js/game_manager.js",
@@ -42,6 +66,15 @@ const requiredEntries = [
   "pingfangvideo/js/app.js",
   "pingfangvideo/js/multiplayer-games.js",
   "pingfangvideo/js/qixi-particle-rose.js",
+  "pingfangvideo/js/qixi-particle-bouquet.js",
+  "pingfangvideo/js/third-party/three/three.module.min.js",
+  "pingfangvideo/js/third-party/three/three.core.min.js",
+  "pingfangvideo/js/third-party/three/GLTFLoader.js",
+  "pingfangvideo/js/third-party/three/MeshSurfaceSampler.js",
+  "pingfangvideo/js/third-party/three/BufferGeometryUtils.js",
+  "pingfangvideo/js/third-party/three/LICENSE.txt",
+  "pingfangvideo/images/qixi/qixi-bouquet.glb",
+  "pingfangvideo/images/qixi/LICENSE.md",
   "pingfangvideo/images/site-logo.png",
   "pingfangvideo/player/preload.html",
   "pingfangvideo/player/buffering.html",
@@ -181,11 +214,13 @@ const requiredVodopsEntries = [
   "vodops/service/DoubanData.php",
   "vodops/service/DoubanGateway.php",
   "vodops/service/DoubanMatcher.php",
+  "vodops/service/VodLibrary.php",
   "vodops/service/VodPosterCandidate.php",
   "vodops/service/VodQualityAnalyzer.php",
   "vodops/service/VodQualityRepair.php",
   "vodops/service/VodQualityScanner.php",
   "vodops/view/index/index.html",
+  "vodops/view/videos/index.html",
 ];
 
 function assertBalanced(content, openPattern, closePattern, label, file) {
@@ -276,7 +311,12 @@ if (includeTheme) {
   assert.ok(styleVersion && appVersion, "Active assets should include generated versions");
   assert.notEqual(styleVersion, appVersion, "CSS and app.js should use independent content versions");
 
+  assert.match(includeHtml, /css\/ink-wash\.css\?v=[a-f0-9]{12}/);
+
   const blockrainHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-blockrain.html"], { encoding: "utf8" });
+  const blockrainJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/games/blockrain/blockrain.jquery.min.js"]);
+  const blockrainVersion = createHash("sha256").update(blockrainJs).digest("hex").slice(0, 12);
+  assert.ok(blockrainHtml.includes(`games/blockrain/blockrain.jquery.min.js?v=${blockrainVersion}"`));
   assert.match(blockrainHtml, new RegExp(`games/init\\.js${assetVersionPattern.source}`));
   const bambooCicadaHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-bamboo-cicada.html"], { encoding: "utf8" });
   assert.match(bambooCicadaHtml, new RegExp(`games/bamboo-cicada\\.js${assetVersionPattern.source}`));
@@ -285,7 +325,22 @@ if (includeTheme) {
   const drawguessHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/game-drawguess.html"], { encoding: "utf8" });
   assert.match(drawguessHtml, new RegExp(`js/multiplayer-games\\.js${assetVersionPattern.source}`));
   const qixiHtml = execFileSync("tar", ["-xOf", archive, "pingfangvideo/html/label/qixi.html"], { encoding: "utf8" });
-  assert.match(qixiHtml, new RegExp(`js/qixi-particle-rose\\.js${assetVersionPattern.source}`));
+  assert.match(qixiHtml, new RegExp(`js/qixi-particle-bouquet\\.js${assetVersionPattern.source}`));
+  assert.match(qixiHtml, new RegExp(`css/qixi-bouquet\\.css${assetVersionPattern.source}`));
+  const legacyQixiJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/qixi-particle-rose.js"], { encoding: "utf8" });
+  assert.doesNotThrow(() => new Script(legacyQixiJs), "The packaged legacy Qixi entry must remain a classic script");
+  const qixiJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/qixi-particle-bouquet.js"], { encoding: "utf8" });
+  assert.match(qixiJs, /\.\/third-party\/three\/three\.module\.min\.js/);
+  assert.match(qixiJs, /\.\.\/images\/qixi\/qixi-bouquet\.glb/);
+  const qixiModel = execFileSync("tar", ["-xOf", archive, "pingfangvideo/images/qixi/qixi-bouquet.glb"], {
+    maxBuffer: 5 * 1024 * 1024
+  });
+  assert.equal(qixiModel.subarray(0, 4).toString("ascii"), "glTF");
+  assert.ok(qixiModel.length < 4.5 * 1024 * 1024, "Packaged Qixi bouquet should stay below the mobile delivery budget");
+  const qixiLicense = execFileSync("tar", ["-xOf", archive, "pingfangvideo/images/qixi/LICENSE.md"], { encoding: "utf8" });
+  assert.match(qixiLicense, /icecool/);
+  assert.match(qixiLicense, /flower-bouquet-48e92013548247a9ad486dc13110c9b4/);
+  assert.match(qixiLicense, /Creative Commons Attribution 4\.0/);
 
   const appJs = execFileSync("tar", ["-xOf", archive, "pingfangvideo/js/app.js"], { encoding: "utf8" });
   assert.match(appJs, /fallbackHistoryUrl/);
@@ -416,7 +471,7 @@ assert.doesNotMatch(doubanBridge, /->route\(/);
 const doubanController = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/backend/DoubanController.php"], { encoding: "utf8" });
 assert.match(doubanController, /class DoubanController extends Base/);
 assert.match(doubanController, /豆瓣操作失败，请查看服务端日志/);
-assert.match(doubanController, /redirect\(url\('vodops\/index',[\s\S]*?workspace[\s\S]*?douban/);
+assert.match(doubanController, /redirect\(url\('vodops\/douban'\)\)/);
 assert.doesNotMatch(doubanController, /fetch\(['"]index\/index/);
 assert.doesNotMatch(doubanController, /view_path/);
 for (const action of [
@@ -471,6 +526,17 @@ assert.match(vodopsView, /确认修改并复检/);
 assert.match(vodopsView, /vodops\/rollbackRepair/);
 assert.match(vodopsView, /workspace/);
 assert.match(vodopsView, /addons\/vodops\/view\/index\/index/);
+assert.match(vodopsView, /addons\/vodops\/view\/videos\/index/);
+const vodLibrary = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/service/VodLibrary.php"], { encoding: "utf8" });
+assert.match(vodLibrary, /v\.vod_id,v\.vod_name,v\.vod_status[\s\S]*?v\.vod_play_from/);
+assert.doesNotMatch(vodLibrary, /->field\(["']\*["']\)|->count\(\)/);
+assert.match(vodLibrary, /\$limit \+ 1/);
+const vodLibraryView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/videos/index.html"], { encoding: "utf8" });
+assert.match(vodLibraryView, /data-vod-library/);
+assert.match(vodLibraryView, /vodops\/videosData/);
+assert.match(vodLibraryView, /history\.pushState/);
+assert.match(vodLibraryView, /AI_CONCURRENCY = 2/);
+assert.doesNotMatch(vodLibraryView, /location\.reload/);
 const doubanView = execFileSync("tar", ["-xOf", vodopsArchive, "vodops/view/index/index.html"], { encoding: "utf8" });
 assert.match(doubanView, /豆瓣匹配与同步/);
 assert.doesNotMatch(doubanView, /<!doctype|<html|<body|豆瓣匹配工作台/i);

@@ -71,6 +71,55 @@ namespace think {
             return $this;
         }
 
+        public function alias($alias)
+        {
+            return $this;
+        }
+
+        public function join($table, $condition, $type = '')
+        {
+            return $this;
+        }
+
+        public function whereIn($field, array $values)
+        {
+            $this->where[] = [(string) $field, 'IN', $values];
+
+            return $this;
+        }
+
+        public function whereLike($field, $value)
+        {
+            $this->where[] = [(string) $field, 'LIKE', (string) $value];
+
+            return $this;
+        }
+
+        public function order($order)
+        {
+            return $this;
+        }
+
+        public function group($fields)
+        {
+            return $this;
+        }
+
+        public function limit($limit)
+        {
+            return $this;
+        }
+
+        public function count()
+        {
+            return count($this->rows());
+        }
+
+        public function page($page, $limit)
+        {
+            return $this;
+        }
+
         public function lock($lock)
         {
             return $this;
@@ -112,7 +161,14 @@ namespace think {
         private function matches(array $row)
         {
             foreach ($this->where as [$field, $operator, $expected]) {
+                $field = preg_replace('/^.*\./', '', $field);
                 $actual = $row[$field] ?? null;
+                if ($operator === 'IN' && !in_array($actual, $expected, true)) {
+                    return false;
+                }
+                if ($operator === 'LIKE' && strpos((string) $actual, trim((string) $expected, '%')) === false) {
+                    return false;
+                }
                 if ($operator === '=' && (string) $actual !== (string) $expected) {
                     return false;
                 }
@@ -444,6 +500,22 @@ $candidate = $candidateMethod->invoke(null, [
 ]);
 if (($candidate['candidate_title'] ?? '') !== '这个杀手不太冷' || ($candidate['candidate_year'] ?? '') !== '1994') {
     fwrite(STDERR, "Saved candidates should expose title and year to the review page\n");
+    exit(1);
+}
+
+$normalizeCandidatesMethod = new ReflectionMethod(DoubanData::class, 'normalizeCandidateRows');
+$normalizeCandidatesMethod->setAccessible(true);
+$normalizedCandidates = $normalizeCandidatesMethod->invoke(null, [
+    ['douban_id' => 'subject/1292052/', 'title' => '非数字 ID'],
+    ['id' => '0000', 'title' => '全零 ID'],
+    ['id' => '1292052', 'title' => '<b>肖申克的救赎</b>', 'year' => '1994'],
+    ['douban_id' => '1295644', 'title' => '', 'year' => '1994'],
+], 5);
+if (count($normalizedCandidates) !== 1
+    || ($normalizedCandidates[0]['douban_id'] ?? '') !== '1292052'
+    || ($normalizedCandidates[0]['title'] ?? '') !== '肖申克的救赎'
+    || ($normalizedCandidates[0]['year'] ?? '') !== '1994') {
+    fwrite(STDERR, "Custom candidate rows must reject malformed IDs and normalize trusted display fields\n");
     exit(1);
 }
 
@@ -866,6 +938,78 @@ if (!$candidateSearchErrorPreserved) {
 }
 if (Db::$tables['vod'] !== $vodBeforeCandidates || Db::$tables['douban_vod_meta'] !== $metaBeforeCandidates || Db::$tables['douban_log'] !== []) {
     fwrite(STDERR, "Failed candidate lookup must not mutate video or metadata state\n");
+    exit(1);
+}
+
+Db::$tables['vod'][0] = array_merge(Db::$tables['vod'][0], [
+    'type_id' => 1,
+    'type_name' => '电影',
+    'douban_id' => '1290001',
+    'douban_review_status' => 'REVIEW',
+    'douban_review_reason' => '需要人工核查',
+    'douban_last_sync_at' => 1700000000,
+    'douban_id_locked' => 1,
+    'intro_locked' => 1,
+    'douban_ignore_until' => time() + 3600,
+    'vod_pic' => 'https://img.example/new.jpg',
+]);
+Db::$tables['douban_review_candidate'] = [[
+    'vod_id' => 501,
+    'douban_id' => '1290001',
+    'score_total' => 98,
+    'score_detail' => json_encode(['candidate_title' => '绑定影片', 'candidate_year' => '2024'], JSON_UNESCAPED_UNICODE),
+    'conflicts' => '[]',
+    'rank' => 1,
+]];
+Db::$tables['douban_log'] = [[
+    'log_id' => 21,
+    'vod_id' => 501,
+    'action' => 'AUTO_SYNC',
+    'old_values' => json_encode(['vod_pic' => '/upload/old.jpg']),
+    'new_values' => json_encode(['vod_pic' => 'https://img.example/new.jpg']),
+]];
+$videoState = DoubanData::videoState(501);
+if (($videoState['vod_name'] ?? '') !== '绑定影片'
+    || ($videoState['type_id'] ?? 0) !== 1
+    || ($videoState['type_name'] ?? '') !== '电影'
+    || ($videoState['vod_year'] ?? '') !== '2024'
+    || ($videoState['display_douban_id'] ?? '') !== '1290001'
+    || ($videoState['douban_review_status'] ?? '') !== 'REVIEW'
+    || ($videoState['douban_last_sync_label'] ?? '-') === '-'
+    || ($videoState['douban_id_locked'] ?? 0) !== 1
+    || ($videoState['intro_locked'] ?? 0) !== 1
+    || ($videoState['douban_ignore_until'] ?? 0) <= time()
+    || ($videoState['is_ignored'] ?? 0) !== 1
+    || ($videoState['can_rollback_pic'] ?? 0) !== 1
+    || ($videoState['candidates'][0]['candidate_title'] ?? '') !== '绑定影片') {
+    fwrite(STDERR, "Single-video responses should expose fresh row state for in-place rendering\n");
+    exit(1);
+}
+$videoList = DoubanData::listVideos('all', 1, 20, '501');
+$listedVideo = $videoList['data'][0] ?? [];
+if (($listedVideo['is_ignored'] ?? 0) !== 1
+    || ($listedVideo['douban_ignore_until_label'] ?? '-') === '-'
+    || ($listedVideo['candidates'][0]['douban_id'] ?? '') !== '1290001') {
+    fwrite(STDERR, "Initial video rows should expose ignore state and review candidates in the default listing\n");
+    exit(1);
+}
+$reviewCollection = DoubanData::collectionState(501, 'review', '501', 0, '2024', 'PENDING');
+if (($reviewCollection['row_matches'] ?? 0) !== 1
+    || ($reviewCollection['total'] ?? 0) !== 1
+    || !array_key_exists('stats', $reviewCollection)
+    || !array_key_exists('task_stats', $reviewCollection)
+    || !array_key_exists('tasks', $reviewCollection)) {
+    fwrite(STDERR, "Single-video responses should expose the current filtered collection and dashboard state\n");
+    exit(1);
+}
+Db::$tables['vod'][0]['douban_review_status'] = 'CONFIRMED';
+if ((DoubanData::videoState(501)['candidates'] ?? null) !== []) {
+    fwrite(STDERR, "Confirmed videos must not keep stale review candidates in the refreshed row\n");
+    exit(1);
+}
+$updatedReviewCollection = DoubanData::collectionState(501, 'review', '501', 0, '2024', 'PENDING');
+if (($updatedReviewCollection['row_matches'] ?? 1) !== 0 || ($updatedReviewCollection['total'] ?? 1) !== 0) {
+    fwrite(STDERR, "Collection state must remove a row that no longer matches the active review filter\n");
     exit(1);
 }
 

@@ -5,8 +5,16 @@
     <section class="hero-carousel" data-carousel aria-label="首页热播轮播">
       <div class="banner-track">
         {maccms:vod type="42,47,48,57,111" num="5" order="desc" by="hits" cachetime="300" id="vo" key="key"}
-        <article class='hero-slide{if condition="$key eq 1"} is-active{/if}' data-carousel-slide data-banner-bg="{if condition="$vo.vod_pic_slide neq ''"}{$vo.vod_pic_slide|mac_url_img}{else/}{$vo.vod_pic|mac_url_img}{/if}">
-          <span class="banner-bg"></span>
+        <article class='hero-slide{if condition="$key eq 1"} is-active has-priority-image{/if}' data-carousel-slide data-banner-bg="{if condition="$vo.vod_pic_slide neq ''"}{$vo.vod_pic_slide|mac_url_img}{else/}{$vo.vod_pic|mac_url_img}{/if}">
+          <span class="banner-bg">
+            {if condition="$key eq 1"}
+            {if condition="$vo.vod_pic_slide neq ''"}
+            <img class="banner-priority-image" src="{$vo.vod_pic_slide|mac_url_img}" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>
+            {else/}
+            <img class="banner-priority-image" src="{$vo.vod_pic|mac_url_img}" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>
+            {/if}
+            {/if}
+          </span>
           <span class="banner-content">
             <span class="banner-copy">
               <em class="eyebrow">热播推荐 · 今日更新 {:mac_data_count(0,'today','vod')} 部</em>

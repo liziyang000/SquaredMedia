@@ -22,6 +22,7 @@ class VodQualityScanner
     private const DEFAULT_BATCH_SIZE = 500;
     private const MIN_BATCH_SIZE = 100;
     private const MAX_BATCH_SIZE = 1000;
+    private const REMOTE_POSTER_BATCH_SIZE = 48;
     private const EXPORT_LIMIT = 50000;
     private const WORKER_LEASE_SECONDS = 180;
     private const WORKER_RETRY_SECONDS = 30;
@@ -37,10 +38,15 @@ class VodQualityScanner
         return self::categoryOptionsFromMap(self::typeMap());
     }
 
-    public static function startScan($adminId, $batchSize = self::DEFAULT_BATCH_SIZE, $scopeTypeId = 0, $workerMode = false)
+    public static function startScan($adminId, $batchSize = self::DEFAULT_BATCH_SIZE, $scopeTypeId = 0, $workerMode = false, $checkRemotePosters = false)
     {
         $batchSize = max(self::MIN_BATCH_SIZE, min(self::MAX_BATCH_SIZE, intval($batchSize)));
+        $checkRemotePosters = (bool) $checkRemotePosters;
+        if ($checkRemotePosters && !$workerMode) {
+            throw new VodQualityActionException('远程海报检测必须启用后台 Worker。');
+        }
         $scope = self::categoryScope($scopeTypeId, self::typeMap());
+        $scope['check_remote_posters'] = $checkRemotePosters;
         $executionMode = $workerMode ? 'worker' : 'manual';
         Db::startTrans();
         try {
@@ -62,6 +68,9 @@ class VodQualityScanner
                     throw new VodQualityActionException(
                         '已有“' . self::scopeDisplayLabel($activeScope) . '”扫描正在进行，请先继续或结束该任务。'
                     );
+                }
+                if (!empty($activeScope['check_remote_posters']) !== $checkRemotePosters) {
+                    throw new VodQualityActionException('已有扫描的“远程海报检测”选项不同，请先继续或结束该任务。');
                 }
                 if (self::normalizeExecutionMode($active['execution_mode'] ?? '') !== $executionMode) {
                     Db::name(self::SCAN_TABLE)->where('run_id', intval($active['run_id'] ?? 0))->update([
@@ -98,6 +107,7 @@ class VodQualityScanner
         $intervalSeconds = max(3600, min(720 * 3600, intval($intervalSeconds)));
         $batchSize = max(self::MIN_BATCH_SIZE, min(self::MAX_BATCH_SIZE, intval($batchSize)));
         $scope = self::categoryScope($scopeTypeId, self::typeMap());
+        $scope['check_remote_posters'] = false;
 
         Db::startTrans();
         try {
@@ -245,12 +255,15 @@ class VodQualityScanner
 
             $scope = self::scopeFromScan($scan, true);
             $scopeTypeIds = $scope['type_ids'];
+            $batchSize = !empty($scope['check_remote_posters'])
+                ? max(1, min(self::REMOTE_POSTER_BATCH_SIZE, intval($scan['batch_size'] ?? self::REMOTE_POSTER_BATCH_SIZE)))
+                : max(self::MIN_BATCH_SIZE, min(self::MAX_BATCH_SIZE, intval($scan['batch_size'] ?? self::DEFAULT_BATCH_SIZE)));
             $rows = self::rowsToArray(self::vodQuery($scopeTypeIds)
                 ->where('vod_id', '>', intval($scan['last_vod_id'] ?? 0))
                 ->where('vod_id', '<=', intval($scan['max_vod_id'] ?? 0))
                 ->field(self::VOD_FIELDS)
                 ->order('vod_id asc')
-                ->limit(max(self::MIN_BATCH_SIZE, min(self::MAX_BATCH_SIZE, intval($scan['batch_size'] ?? self::DEFAULT_BATCH_SIZE))))
+                ->limit($batchSize)
                 ->select());
 
             if (empty($rows)) {
@@ -261,11 +274,17 @@ class VodQualityScanner
 
             $typeMap = self::typeMap();
             $context = self::siteContext();
+            $posterProbes = self::remotePosterProbes($rows, !empty($scope['check_remote_posters']));
             $issueRows = [];
             $fingerprintRows = [];
             $fingerprints = [];
             foreach ($rows as $vod) {
-                foreach (VodQualityAnalyzer::analyze($vod, $typeMap, $context) as $issue) {
+                $vodContext = $context;
+                $poster = trim((string) ($vod['vod_pic'] ?? ''));
+                if (isset($posterProbes[$poster])) {
+                    $vodContext['remote_poster_probe'] = ['url' => $poster] + $posterProbes[$poster];
+                }
+                foreach (VodQualityAnalyzer::analyze($vod, $typeMap, $vodContext) as $issue) {
                     $issueRows[] = self::issueRow($runId, $vod, $issue);
                 }
                 $fingerprint = VodQualityAnalyzer::strictFingerprint($vod);
@@ -546,6 +565,10 @@ class VodQualityScanner
             ? intval(self::vodQuery($scope['type_ids'])->where('vod_id', '<=', $maxVodId)->count())
             : 0;
         $now = time();
+        $batchSize = max(self::MIN_BATCH_SIZE, min(self::MAX_BATCH_SIZE, intval($batchSize)));
+        if (!empty($scope['check_remote_posters'])) {
+            $batchSize = min(self::REMOTE_POSTER_BATCH_SIZE, $batchSize);
+        }
         return Db::name(self::SCAN_TABLE)->insertGetId([
             'status' => 'running',
             'total_count' => $totalCount,
@@ -553,7 +576,7 @@ class VodQualityScanner
             'last_vod_id' => 0,
             'processed_count' => 0,
             'issue_count' => 0,
-            'batch_size' => max(self::MIN_BATCH_SIZE, min(self::MAX_BATCH_SIZE, intval($batchSize))),
+            'batch_size' => $batchSize,
             'started_by' => max(0, intval($adminId)),
             'finished_by' => 0,
             'started_at' => $now,
@@ -834,7 +857,7 @@ class VodQualityScanner
     {
         $raw = trim((string) ($scan['scope_json'] ?? ''));
         if ($raw === '') {
-            return ['type_id' => 0, 'type_ids' => [], 'label' => '全部分类', 'valid' => true];
+            return ['type_id' => 0, 'type_ids' => [], 'label' => '全部分类', 'check_remote_posters' => false, 'valid' => true];
         }
         $scope = json_decode($raw, true);
         $typeId = is_array($scope) ? intval($scope['type_id'] ?? -1) : -1;
@@ -846,22 +869,33 @@ class VodQualityScanner
         ))) : [];
         sort($typeIds, SORT_NUMERIC);
         $label = is_array($scope) ? VodQualityAnalyzer::sanitizeValue($scope['label'] ?? '', 100) : '';
+        $checkRemotePosters = is_array($scope) && ($scope['check_remote_posters'] ?? false) === true;
+        $remoteOptionValid = !is_array($scope)
+            || !array_key_exists('check_remote_posters', $scope)
+            || is_bool($scope['check_remote_posters']);
         $valid = is_array($scope)
             && array_key_exists('type_id', $scope)
             && array_key_exists('type_ids', $scope)
             && $typeId >= 0
+            && $remoteOptionValid
             && (($typeId === 0 && empty($typeIds))
                 || ($typeId > 0 && $label !== '' && in_array($typeId, $typeIds, true)));
         if (!$valid) {
             if ($strict) {
                 throw new \RuntimeException('扫描分类范围数据无效，请结束该任务后重新创建。');
             }
-            return ['type_id' => 0, 'type_ids' => [], 'label' => '范围数据无效', 'valid' => false];
+            return ['type_id' => 0, 'type_ids' => [], 'label' => '范围数据无效', 'check_remote_posters' => false, 'valid' => false];
         }
         if ($typeId === 0) {
             $label = '全部分类';
         }
-        return ['type_id' => $typeId, 'type_ids' => $typeIds, 'label' => $label, 'valid' => true];
+        return [
+            'type_id' => $typeId,
+            'type_ids' => $typeIds,
+            'label' => $label,
+            'check_remote_posters' => $checkRemotePosters,
+            'valid' => true,
+        ];
     }
 
     private static function scopeDisplayLabel(array $scope)
@@ -907,6 +941,59 @@ class VodQualityScanner
             'site_root' => $siteRoot,
             'remote_upload' => $remoteUpload,
         ];
+    }
+
+    private static function remotePosterProbes(array $rows, $enabled, ?callable $probeFetcher = null)
+    {
+        if (!$enabled) {
+            return [];
+        }
+        $urls = [];
+        foreach ($rows as $vod) {
+            $url = trim((string) ($vod['vod_pic'] ?? ''));
+            if (preg_match('#^(?:https?:)?//#i', $url)) {
+                $urls[$url] = $url;
+            }
+        }
+        if (empty($urls)) {
+            return [];
+        }
+
+        $probeFetcher = $probeFetcher ?? [VodPosterCandidate::class, 'probeStoredImages'];
+        $first = (array) call_user_func($probeFetcher, array_values($urls));
+        $retryUrls = [];
+        foreach ($urls as $url) {
+            if (($first[$url]['state'] ?? 'unknown') === 'unknown') {
+                $retryUrls[] = $url;
+            }
+        }
+        $second = empty($retryUrls) ? [] : (array) call_user_func($probeFetcher, $retryUrls);
+        $results = [];
+        foreach ($urls as $url) {
+            $probe = (array) ($first[$url] ?? []);
+            $attempts = 1;
+            if (($probe['state'] ?? 'unknown') === 'unknown') {
+                $attempts = 2;
+                $retried = (array) ($second[$url] ?? []);
+                if (in_array(($retried['state'] ?? ''), ['healthy', 'broken'], true)) {
+                    $probe = $retried;
+                } else {
+                    $probe = !empty($retried) ? $retried : $probe;
+                    $probe['state'] = 'inconclusive';
+                }
+            }
+            if (!in_array(($probe['state'] ?? ''), ['broken', 'inconclusive'], true)) {
+                continue;
+            }
+            $results[$url] = [
+                'state' => (string) $probe['state'],
+                'reason' => (string) ($probe['reason'] ?? ''),
+                'http_code' => intval($probe['http_code'] ?? 0),
+                'content_type' => (string) ($probe['content_type'] ?? ''),
+                'attempts' => $attempts,
+            ];
+        }
+        return $results;
     }
 
     private static function issueQuery($runId, $issueType, $query)
@@ -1000,6 +1087,8 @@ class VodQualityScanner
         $scan['scope_type_count'] = count($scope['type_ids']);
         $scan['scope_valid'] = $scope['valid'];
         $scan['scope_label'] = self::scopeDisplayLabel($scope);
+        $scan['check_remote_posters'] = !empty($scope['check_remote_posters']);
+        $scan['remote_poster_check_label'] = $scan['check_remote_posters'] ? '已启用' : '未启用';
         return $scan;
     }
 
@@ -1017,6 +1106,17 @@ class VodQualityScanner
     {
         if ($issueType === 'type_parent_mismatch' && array_key_exists('expected_type_id_1', $detail)) {
             return '预期父分类 ID：#' . intval($detail['expected_type_id_1']);
+        }
+        if (in_array($issueType, ['poster_remote_unavailable', 'poster_remote_unverified'], true)) {
+            $parts = [];
+            if (intval($detail['http_code'] ?? 0) > 0) {
+                $parts[] = 'HTTP ' . intval($detail['http_code']);
+            }
+            if (!empty($detail['content_type'])) {
+                $parts[] = '类型 ' . VodQualityAnalyzer::sanitizeValue($detail['content_type'], 40);
+            }
+            $parts[] = '检测 ' . max(1, min(2, intval($detail['attempts'] ?? 1))) . ' 次';
+            return implode('；', $parts);
         }
         if ($issueType !== 'play_group_mismatch') {
             return '';

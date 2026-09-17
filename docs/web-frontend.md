@@ -8,7 +8,7 @@
 
 ## 模块定位
 
-`apps/web/` 是独立的 Next.js 16 App Router 前台。它负责干净 URL、页面与交互状态、运行时数据校验、Artplayer/HLS 播放外壳、六套视觉主题和 staging 发布，不替代 MacCMS：
+`apps/web/` 是独立的 Next.js 16 App Router 前台。它负责干净 URL、页面与交互状态、运行时数据校验、Artplayer/HLS 播放外壳、七套视觉主题和 staging 发布，不替代 MacCMS：
 
 - MacCMS 继续拥有后台、内容与用户数据、原生 Session、权限规则和生产播放授权。
 - `addons/pingfangapi/` 是浏览器与 MacCMS 之间的同源 BFF；React 不直接连接数据库，也不直接调用任意 MacCMS OpenAPI。

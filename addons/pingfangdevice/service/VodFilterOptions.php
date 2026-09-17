@@ -7,169 +7,380 @@ use think\Db;
 class VodFilterOptions
 {
     const VOD_TABLE = 'vod';
-    const CACHE_VERSION = 'v4';
+    const CACHE_VERSION = 'v6';
     const CACHE_SECONDS = 120;
+    const MAX_OPTIONS = 1000;
+    const MAX_ALIASES = 12;
+    const MAX_QUERY_LENGTH = 180;
 
     public static function filters(array $input)
     {
         $params = self::normalizeInput($input);
-        $params['type_ids'] = self::typeScope($params['type_id']);
-        $cacheKey = 'pingfang_vod_filter_options_' . self::CACHE_VERSION . '_' . md5(json_encode($params, JSON_UNESCAPED_UNICODE));
+        $priorities = [
+            'area' => self::configuredPriority('area'),
+            'lang' => self::configuredPriority('lang'),
+        ];
+        $cacheContext = [
+            'limit' => $params['limit'],
+            'priorities' => $priorities,
+        ];
+        $cacheKey = 'pingfang_vod_filter_options_' . self::CACHE_VERSION . '_' . md5(json_encode($cacheContext, JSON_UNESCAPED_UNICODE));
+        $filters = null;
 
         if (function_exists('cache')) {
             $cached = cache($cacheKey);
             if (is_array($cached)) {
-                return ['code' => 1, 'msg' => 'ok', 'data' => $cached];
+                $filters = $cached;
             }
         }
 
-        $data = [
-            'filters' => [
-                'area' => self::dimensionOptions('area', $params),
-                'year' => self::dimensionOptions('year', $params),
-                'lang' => self::dimensionOptions('lang', $params),
-            ],
-            'params' => self::responseParams($params),
-        ];
-
-        if (function_exists('cache')) {
-            cache($cacheKey, $data, self::CACHE_SECONDS);
+        if (!is_array($filters)) {
+            $filters = [
+                'area' => self::dimensionOptions('area', $params['limit'], $priorities['area']),
+                'year' => self::dimensionOptions('year', $params['limit'], []),
+                'lang' => self::dimensionOptions('lang', $params['limit'], $priorities['lang']),
+            ];
+            if (function_exists('cache')) {
+                cache($cacheKey, $filters, self::CACHE_SECONDS);
+            }
         }
 
-        return ['code' => 1, 'msg' => 'ok', 'data' => $data];
+        return [
+            'code' => 1,
+            'msg' => 'ok',
+            'data' => [
+                'filters' => $filters,
+                'params' => self::responseParams($params),
+            ],
+        ];
     }
 
-    private static function dimensionOptions($dimension, array $params)
+    private static function dimensionOptions($dimension, $limit, array $priority)
     {
         $fields = self::filterFields();
         if (empty($fields[$dimension])) {
             return [];
         }
 
-        $candidates = self::dimensionCandidates($dimension, $params['type_id']);
-        if (!empty($candidates)) {
-            return self::candidateOptions($dimension, $params, $candidates);
+        $field = $fields[$dimension];
+        // Keep this query on the single-column vod_* index. Adding status or type
+        // conditions makes MySQL scan and aggregate the full visible catalogue.
+        $rows = self::rowsToArray(Db::name(self::VOD_TABLE)
+            ->where($field, '<>', '')
+            ->distinct(true)
+            ->field($field . ' as value')
+            ->order($field . ($dimension === 'year' ? ' desc' : ' asc'))
+            ->limit(self::MAX_OPTIONS)
+            ->select());
+
+        if ($dimension === 'year') {
+            return self::yearOptions($rows, $limit);
         }
 
-        return self::queryDimensionOptions($dimension, $params);
+        return self::namedOptions($dimension, $rows, $limit, $priority);
     }
 
-    private static function candidateOptions($dimension, array $params, array $candidates)
+    private static function yearOptions(array $rows, $limit)
     {
-        $fields = self::filterFields();
-        $field = $fields[$dimension];
-        $values = [];
-        foreach ($candidates as $value) {
-            $value = trim((string) $value);
-            if ($value === '') {
-                continue;
-            }
-            if ($dimension === 'year' && !self::isValidYearValue($value)) {
-                continue;
-            }
-            $values[$value] = $value;
-            if (count($values) >= 200) {
-                break;
+        $years = [];
+        foreach ($rows as $row) {
+            $year = trim((string) ($row['value'] ?? ''));
+            if (self::isValidYearValue($year)) {
+                $years[$year] = [
+                    'value' => $year,
+                    'label' => $year,
+                    'query' => $year,
+                ];
             }
         }
-        if (empty($values)) {
+
+        krsort($years, SORT_NUMERIC);
+        return array_slice(array_values($years), 0, $limit);
+    }
+
+    private static function namedOptions($dimension, array $rows, $limit, array $priority)
+    {
+        $groups = [];
+        foreach ($rows as $row) {
+            $raw = trim((string) ($row['value'] ?? ''));
+            if ($raw === '' || self::charLength($raw) > 40 || strpos($raw, ',') !== false) {
+                continue;
+            }
+
+            foreach (self::labelsForRawValue($dimension, $raw) as $label) {
+                if (!isset($groups[$label])) {
+                    $groups[$label] = [];
+                }
+                $groups[$label][$raw] = $raw;
+            }
+        }
+
+        $options = [];
+        foreach ($groups as $label => $aliases) {
+            $query = self::aliasQuery($label, array_values($aliases));
+            if ($query === '') {
+                continue;
+            }
+            $options[] = [
+                'value' => $label,
+                'label' => $label,
+                'query' => $query,
+            ];
+        }
+
+        $priorityOrder = array_flip(array_values(array_unique($priority)));
+        usort($options, static function ($left, $right) use ($priorityOrder) {
+            $leftOrder = $priorityOrder[$left['value']] ?? PHP_INT_MAX;
+            $rightOrder = $priorityOrder[$right['value']] ?? PHP_INT_MAX;
+            if ($leftOrder !== $rightOrder) {
+                return $leftOrder <=> $rightOrder;
+            }
+            return strcmp((string) $left['value'], (string) $right['value']);
+        });
+
+        return array_slice($options, 0, $limit);
+    }
+
+    private static function labelsForRawValue($dimension, $raw)
+    {
+        $parts = preg_split('/\s*(?:\/|，|、|\||;|；)\s*/u', $raw);
+        if (!is_array($parts)) {
             return [];
         }
 
-        $rows = self::rowsToArray(self::baseQuery($params, $dimension)
-            ->where($field, 'in', array_values($values))
-            ->field($field . ' as value, count(*) as total')
-            ->group($field)
-            ->select());
-        $totals = [];
-        foreach ($rows as $row) {
-            $value = trim((string) ($row['value'] ?? ''));
-            if ($value !== '') {
-                $totals[$value] = intval($row['total'] ?? 0);
+        $labels = [];
+        foreach ($parts as $part) {
+            $label = $dimension === 'area'
+                ? self::normalizeAreaLabel($part)
+                : self::normalizeLanguageLabel($part);
+            if ($label !== '') {
+                $labels[$label] = $label;
             }
         }
-
-        $options = [];
-        foreach ($values as $value) {
-            if (!array_key_exists($value, $totals)) {
-                continue;
-            }
-            $options[] = [
-                'value' => $value,
-                'total' => $totals[$value],
-            ];
-            if (count($options) >= $params['limit']) {
-                break;
-            }
-        }
-
-        return $options;
+        return array_values($labels);
     }
 
-    private static function queryDimensionOptions($dimension, array $params)
+    private static function normalizeAreaLabel($value)
     {
-        $fields = self::filterFields();
-        $field = $fields[$dimension];
-        $query = self::baseQuery($params, $dimension)
-            ->field($field . ' as value, count(*) as total')
-            ->where($field, '<>', '');
-
-        $queryLimit = $dimension === 'year' ? max($params['limit'] * 4, 120) : $params['limit'];
-        $query = $query->group($field)
-            ->order($dimension === 'year' ? $field . ' desc' : 'total desc')
-            ->limit($queryLimit);
-
-        $rows = self::rowsToArray($query->select());
-        $options = [];
-        foreach ($rows as $row) {
-            $value = trim((string) ($row['value'] ?? ''));
-            if ($value === '') {
-                continue;
-            }
-            if ($dimension === 'year' && !self::isValidYearValue($value)) {
-                continue;
-            }
-            $options[] = [
-                'value' => $value,
-                'total' => intval($row['total'] ?? 0),
-            ];
-            if (count($options) >= $params['limit']) {
-                break;
-            }
+        $value = self::stripTrailingEnglish(trim((string) $value));
+        $aliases = [
+            '内地' => '大陆',
+            '中国' => '大陆',
+            '中国内地' => '大陆',
+            '中国大陆' => '大陆',
+            '中内地地' => '大陆',
+            '中国香港' => '香港',
+            '中国台湾' => '台湾',
+            '中国澳门' => '澳门',
+            '其它' => '其他',
+            '印尼' => '印度尼西亚',
+            '俄国' => '俄罗斯',
+            '俄羅斯' => '俄罗斯',
+            '台灣' => '台湾',
+            '蘇聯' => '苏联',
+            '前苏联' => '苏联',
+            '这个内地' => '大陆',
+            '克罗地亚版' => '克罗地亚',
+            '北马其' => '北马其顿',
+            '马其顿' => '北马其顿',
+            '塞尔维' => '塞尔维亚',
+            '塞尔维亚共和国' => '塞尔维亚',
+            '印地' => '印度',
+            '孟加拉' => '孟加拉国',
+            '沙特阿' => '沙特阿拉伯',
+            '沙特阿拉' => '沙特阿拉伯',
+            '法' => '法国',
+            '芬' => '芬兰',
+            '希' => '希腊',
+            '菲利兵' => '菲律宾',
+            '马拉西亚' => '马来西亚',
+            '泰剧' => '泰国',
+            '迪拜' => '阿联酋',
+            '欧美其他' => '欧美',
+            '欧美地区' => '欧美',
+            'USA' => '美国',
+            'US' => '美国',
+            'U.S.A.' => '美国',
+            'UK' => '英国',
+            'U.K.' => '英国',
+        ];
+        if (isset($aliases[$value])) {
+            return $aliases[$value];
         }
 
-        return $options;
+        $value = preg_replace('/\s+/u', '', $value);
+        if ($value === '' || preg_match('/(?:语|话|方言|文)$/u', $value)) {
+            return '';
+        }
+        $invalid = [
+            '北京', '卡', '大力', '大理', '大罗', '我', '找打了', '皆可', '知道了', '题本',
+            '斯洛', '瑞', '伊朗黎巴嫩', '法国美国德国', '斯洛伐克捷克',
+        ];
+        if (in_array($value, $invalid, true)) {
+            return '';
+        }
+        if (preg_match('/(?:暂无|未知|完结|全集|高清|字幕|中字|广告|动漫|核动力|电科)/u', $value)) {
+            return '';
+        }
+        return preg_match('/^[\p{Han}·]{1,12}$/u', $value) ? $value : '';
     }
 
-    private static function baseQuery(array $params, $withoutDimension)
+    private static function normalizeLanguageLabel($value)
     {
-        $query = Db::name(self::VOD_TABLE)->where('vod_status', 1);
-        $typeIds = $params['type_ids'] ?? self::typeScope($params['type_id']);
-        if (!empty($typeIds)) {
-            $query = $query->where('type_id', 'in', $typeIds);
+        $value = trim((string) $value);
+        $englishAliases = [
+            'german' => '德语',
+            'hindi' => '印地语',
+            'serbian' => '塞尔维亚语',
+            'tagalog' => '菲律宾语',
+            'telugu' => '泰卢固语',
+        ];
+        $lower = strtolower($value);
+        if (isset($englishAliases[$lower])) {
+            return $englishAliases[$lower];
         }
 
-        foreach (self::filterFields() as $dimension => $field) {
-            if ($dimension === $withoutDimension || $params[$dimension] === '') {
+        $value = self::stripTrailingEnglish($value);
+        $value = preg_replace('/\s+/u', '', $value);
+        $value = self::collapseRepeatedValue($value);
+        $aliases = [
+            '中文' => '国语',
+            '华语' => '国语',
+            '普通话' => '国语',
+            '其它' => '其他',
+            '外语' => '其他',
+            '印度尼西亚语' => '印尼语',
+            '他加禄语' => '菲律宾语',
+            '他家禄语' => '菲律宾语',
+            '塔加洛语' => '菲律宾语',
+            '塔加拉族语' => '菲律宾语',
+            '菲利宾语' => '菲律宾语',
+            '菲律賓语' => '菲律宾语',
+            '俄罗斯语' => '俄语',
+            '北印地语' => '印地语',
+            '北印度语' => '印地语',
+            '印度语' => '印地语',
+            '马来西亚语' => '马来语',
+            '墨西哥语' => '西班牙语',
+            '阿根廷语' => '西班牙语',
+            '多米尼加语' => '西班牙语',
+            '巴西班牙语' => '葡萄牙语',
+            '萄牙语' => '葡萄牙语',
+            '澳大利亚语' => '英语',
+            '新西兰语' => '英语',
+            '以色列语' => '希伯来语',
+            '现代希伯来语' => '希伯来语',
+            '伊朗语' => '波斯语',
+            '哈萨克斯坦语' => '哈萨克语',
+            '黎巴嫩语' => '阿拉伯语',
+            '朝鲜语' => '韩语',
+            '汉语普通话' => '国语',
+            '语国语' => '国语',
+            '越语' => '越南语',
+            '坦米尔语' => '泰米尔语',
+            '塔米尔语' => '泰米尔语',
+            '坎纳达语' => '卡纳达语',
+            '坎那达语' => '卡纳达语',
+            '马拉亚兰语' => '马拉雅拉姆语',
+            '马来亚拉姆语' => '马拉雅拉姆语',
+            '尼德兰语' => '荷兰语',
+            '闽南话' => '闽南语',
+            '南非语' => '南非荷兰语',
+            '阿非利卡语' => '南非荷兰语',
+            '弗拉芒语' => '佛兰芒语',
+            '加里西亚语' => '加利西亚语',
+            '奇楚亚语' => '克丘亚语',
+            '宗喀语' => '宗卡语',
+        ];
+        if (isset($aliases[$value])) {
+            $value = $aliases[$value];
+        }
+
+        if (in_array($value, ['加拿大语', '尼日利亚语', '新加坡语', '瑞士语', '新马语'], true)) {
+            return '';
+        }
+        if (substr_count($value, '语') > 1) {
+            return '';
+        }
+        if (in_array($value, ['无对白', '手语', '其他'], true)) {
+            return $value;
+        }
+        if (self::charLength($value) > 15) {
+            return '';
+        }
+        return preg_match('/^[\p{Han}·]+(?:语|话|方言)$/u', $value) ? $value : '';
+    }
+
+    private static function stripTrailingEnglish($value)
+    {
+        if (!preg_match('/\p{Han}/u', $value)) {
+            return $value;
+        }
+        return trim((string) preg_replace('/\s*[A-Za-z][A-Za-z ._-]*$/u', '', $value));
+    }
+
+    private static function collapseRepeatedValue($value)
+    {
+        $length = self::charLength($value);
+        if ($length < 2 || $length % 2 !== 0) {
+            return $value;
+        }
+        $half = function_exists('mb_substr')
+            ? mb_substr($value, 0, intval($length / 2), 'UTF-8')
+            : substr($value, 0, intval(strlen($value) / 2));
+        return $half . $half === $value ? $half : $value;
+    }
+
+    private static function aliasQuery($label, array $aliases)
+    {
+        usort($aliases, static function ($left, $right) use ($label) {
+            if ($left === $label) {
+                return -1;
+            }
+            if ($right === $label) {
+                return 1;
+            }
+            $lengthOrder = self::charLength($left) <=> self::charLength($right);
+            return $lengthOrder !== 0 ? $lengthOrder : strcmp($left, $right);
+        });
+
+        $selected = [];
+        $length = 0;
+        foreach ($aliases as $alias) {
+            $nextLength = $length + ($selected ? 1 : 0) + self::charLength($alias);
+            if (count($selected) >= self::MAX_ALIASES || $nextLength > self::MAX_QUERY_LENGTH) {
                 continue;
             }
-            $query = $query->where($field, 'in', self::csvValues($params[$dimension]));
+            $selected[] = $alias;
+            $length = $nextLength;
+        }
+        return implode(',', $selected);
+    }
+
+    private static function configuredPriority($dimension)
+    {
+        if (!function_exists('config')) {
+            return [];
         }
 
-        if ($params['class'] !== '') {
-            if (function_exists('mac_like_arr')) {
-                $query = $query->where(['vod_class' => ['like', mac_like_arr($params['class']), 'OR']]);
-            } else {
-                $query = $query->whereLike('vod_class', '%' . $params['class'] . '%');
+        $value = '';
+        $maccms = config('maccms');
+        if (is_array($maccms) && isset($maccms['app']['vod_extend_' . $dimension])) {
+            $value = (string) $maccms['app']['vod_extend_' . $dimension];
+        } else {
+            $value = (string) config('maccms.app.vod_extend_' . $dimension);
+        }
+
+        $priority = [];
+        foreach (explode(',', $value) as $item) {
+            $label = $dimension === 'area'
+                ? self::normalizeAreaLabel($item)
+                : self::normalizeLanguageLabel($item);
+            if ($label !== '') {
+                $priority[$label] = $label;
             }
         }
-
-        if ($params['letter'] !== '') {
-            $letters = $params['letter'] === '0~9' ? ['0','1','2','3','4','5','6','7','8','9'] : self::csvValues($params['letter']);
-            $query = $query->where('vod_letter', 'in', $letters);
-        }
-
-        return $query;
+        return array_values($priority);
     }
 
     private static function isValidYearValue($value)
@@ -180,123 +391,6 @@ class VodFilterOptions
 
         $year = intval($value);
         return $year >= 1900 && $year <= intval(date('Y'));
-    }
-
-    private static function dimensionCandidates($dimension, $typeId)
-    {
-        $value = '';
-        $type = self::typeInfo($typeId);
-        if (!empty($type)) {
-            $value = self::typeExtendValue($type, $dimension);
-        }
-
-        if ($value === '' && !empty($type['type_pid'])) {
-            $parent = self::typeInfo($type['type_pid']);
-            if (!empty($parent)) {
-                $value = self::typeExtendValue($parent, $dimension);
-            }
-        }
-
-        if ($value === '') {
-            $value = self::globalExtendValue($dimension);
-        }
-
-        return self::csvValues($value);
-    }
-
-    private static function globalExtendValue($dimension)
-    {
-        if (!function_exists('config')) {
-            return '';
-        }
-
-        $maccms = config('maccms');
-        if (is_array($maccms) && isset($maccms['app']['vod_extend_' . $dimension])) {
-            return trim((string) $maccms['app']['vod_extend_' . $dimension]);
-        }
-
-        return trim((string) config('maccms.app.vod_extend_' . $dimension));
-    }
-
-    private static function typeInfo($typeId)
-    {
-        $typeId = intval($typeId);
-        if ($typeId < 1) {
-            return [];
-        }
-
-        try {
-            $typeList = model('Type')->getCache('type_list');
-            if (is_array($typeList)) {
-                if (!empty($typeList[$typeId]) && is_array($typeList[$typeId])) {
-                    return $typeList[$typeId];
-                }
-                foreach ($typeList as $type) {
-                    if (intval($type['type_id'] ?? 0) === $typeId) {
-                        return is_array($type) ? $type : [];
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-        }
-
-        try {
-            return self::rowToArray(Db::name('type')
-                ->where('type_id', $typeId)
-                ->field('type_id,type_pid,type_extend')
-                ->find());
-        } catch (\Throwable $e) {
-            return [];
-        }
-    }
-
-    private static function typeExtendValue(array $type, $dimension)
-    {
-        $extend = $type['type_extend'] ?? '';
-        if (is_string($extend)) {
-            $extend = trim($extend);
-            if ($extend === '') {
-                return '';
-            }
-
-            $decoded = json_decode($extend, true);
-            if (is_array($decoded)) {
-                $extend = $decoded;
-            } else {
-                $decoded = @unserialize($extend, ['allowed_classes' => false]);
-                $extend = is_array($decoded) ? $decoded : [];
-            }
-        }
-
-        if (!is_array($extend)) {
-            return '';
-        }
-
-        return trim((string) ($extend[$dimension] ?? ''));
-    }
-
-    private static function typeScope($typeId)
-    {
-        $typeId = intval($typeId);
-        if ($typeId < 1) {
-            return [];
-        }
-
-        $ids = [$typeId];
-        try {
-            $typeList = model('Type')->getCache('type_list');
-            if (is_array($typeList)) {
-                foreach ($typeList as $type) {
-                    if (intval($type['type_id'] ?? 0) === $typeId || intval($type['type_pid'] ?? 0) === $typeId) {
-                        $ids[] = intval($type['type_id']);
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            return [$typeId];
-        }
-
-        return array_values(array_unique(array_filter($ids)));
     }
 
     private static function filterFields()
@@ -317,13 +411,12 @@ class VodFilterOptions
             'lang' => self::cleanValue($input['lang'] ?? ''),
             'class' => self::cleanValue($input['class'] ?? ''),
             'letter' => self::cleanValue($input['letter'] ?? ''),
-            'limit' => max(1, min(80, intval($input['limit'] ?? 60))),
+            'limit' => max(1, min(self::MAX_OPTIONS, intval($input['limit'] ?? self::MAX_OPTIONS))),
         ];
     }
 
     private static function responseParams(array $params)
     {
-        unset($params['type_ids']);
         return $params;
     }
 
@@ -337,11 +430,9 @@ class VodFilterOptions
         return substr($value, 0, 120);
     }
 
-    private static function csvValues($value)
+    private static function charLength($value)
     {
-        return array_values(array_filter(array_map('trim', explode(',', (string) $value)), static function ($item) {
-            return $item !== '';
-        }));
+        return function_exists('mb_strlen') ? mb_strlen((string) $value, 'UTF-8') : strlen((string) $value);
     }
 
     private static function rowsToArray($rows)
@@ -350,13 +441,5 @@ class VodFilterOptions
             $rows = $rows->toArray();
         }
         return is_array($rows) ? $rows : [];
-    }
-
-    private static function rowToArray($row)
-    {
-        if (is_object($row) && method_exists($row, 'toArray')) {
-            $row = $row->toArray();
-        }
-        return is_array($row) ? $row : [];
     }
 }

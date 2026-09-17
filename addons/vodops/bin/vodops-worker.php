@@ -85,6 +85,7 @@ try {
     require $baseFile;
     \think\App::initCommon();
     require_once dirname(__DIR__) . '/service/VodQualityAnalyzer.php';
+    require_once dirname(__DIR__) . '/service/VodPosterCandidate.php';
     require_once dirname(__DIR__) . '/service/VodQualityScanner.php';
 
     $config = function_exists('get_addon_config') ? get_addon_config('vodops') : [];

@@ -5,10 +5,10 @@ import path from "node:path";
 
 const root = process.cwd();
 const scope = process.env.DEPLOY_SCOPE || "all";
-if (!["all", "backend", "api", "vodops"].includes(scope)) {
-  throw new Error("DEPLOY_SCOPE must be all, backend, api, or vodops");
+if (!["all", "theme", "backend", "api", "vodops"].includes(scope)) {
+  throw new Error("DEPLOY_SCOPE must be all, theme, backend, api, or vodops");
 }
-const includeTheme = scope === "all";
+const includeTheme = scope === "all" || scope === "theme";
 const includeDevice = scope === "all" || scope === "backend";
 const includeApi = scope === "all" || scope === "backend" || scope === "api";
 const includeVodops = scope === "all" || scope === "vodops";
@@ -22,13 +22,21 @@ const dist = path.join(root, "dist");
 const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
 const assetVersionInputs = {
+  __PINGFANG_BASE_STYLE_VERSION__: "css/base.css",
   __PINGFANG_STYLE_VERSION__: "css/style.css",
+  __PINGFANG_INK_WASH_VERSION__: "css/ink-wash.css",
+  __PINGFANG_THEME_FOUNDATION_VERSION__: "css/themes-foundation.css",
+  __PINGFANG_THEMES_VERSION__: "css/themes.css",
+  __PINGFANG_GAMES_STYLE_VERSION__: "css/games.css",
+  __PINGFANG_RESPONSIVE_STYLE_VERSION__: "css/responsive.css",
   __PINGFANG_APP_VERSION__: "js/app.js",
   __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
   __PINGFANG_GAME_VERSION__: "games/init.js",
+  __PINGFANG_BLOCKRAIN_VERSION__: "games/blockrain/blockrain.jquery.min.js",
   __PINGFANG_BAMBOO_CICADA_VERSION__: "games/bamboo-cicada.js",
   __PINGFANG_MULTIPLAYER_VERSION__: "js/multiplayer-games.js",
-  __PINGFANG_QIXI_VERSION__: "js/qixi-particle-rose.js"
+  __PINGFANG_QIXI_VERSION__: "js/qixi-particle-bouquet.js",
+  __PINGFANG_QIXI_STYLE_VERSION__: "css/qixi-bouquet.css",
 };
 const excludedThemePackageFiles = new Set([
   "games/blockrain/jquery-1.11.1.min.js"

@@ -89,6 +89,53 @@ $validVod = [
 
 vodops_assert_same([], VodQualityAnalyzer::analyze($validVod, $typeMap), 'A complete row should not produce issues.');
 
+$remotePosterFailure = VodQualityAnalyzer::analyze($validVod, $typeMap, [
+    'remote_poster_probe' => [
+        'url' => $validVod['vod_pic'],
+        'state' => 'broken',
+        'reason' => 'not_found',
+        'http_code' => 404,
+        'content_type' => 'text/html',
+        'attempts' => 1,
+    ],
+]);
+vodops_assert_same(
+    ['poster_remote_unavailable'],
+    vodops_issue_types($remotePosterFailure),
+    'A definite remote poster failure should become a repairable issue.'
+);
+vodops_assert_same(404, $remotePosterFailure[0]['detail']['http_code'] ?? null, 'Remote poster evidence should retain the safe HTTP status.');
+vodops_assert_same(
+    hash('sha256', $validVod['vod_pic']),
+    $remotePosterFailure[0]['detail']['poster_hash'] ?? null,
+    'Remote poster issues should bind the scanned URL without duplicating it in structured evidence.'
+);
+
+$remotePosterUnverified = VodQualityAnalyzer::analyze($validVod, $typeMap, [
+    'remote_poster_probe' => [
+        'url' => $validVod['vod_pic'],
+        'state' => 'inconclusive',
+        'reason' => 'http_unconfirmed',
+        'http_code' => 403,
+        'content_type' => 'text/html',
+        'attempts' => 2,
+    ],
+]);
+vodops_assert_same(
+    ['poster_remote_unverified'],
+    vodops_issue_types($remotePosterUnverified),
+    'Repeated but inconclusive remote checks should remain visibly pending confirmation.'
+);
+vodops_assert_same(2, $remotePosterUnverified[0]['detail']['attempts'] ?? null, 'Inconclusive evidence should show that the probe was retried.');
+
+$mismatchedRemoteProbe = $remotePosterFailure[0]['detail'];
+$mismatchedRemoteProbe['url'] = 'https://img.example.com/other.jpg';
+vodops_assert_same(
+    [],
+    VodQualityAnalyzer::analyze($validVod, $typeMap, ['remote_poster_probe' => $mismatchedRemoteProbe]),
+    'Probe evidence for another URL must not affect the current poster.'
+);
+
 $missingName = $validVod;
 $missingName['vod_name'] = " \t";
 vodops_assert_same(
@@ -216,7 +263,7 @@ $incomplete['vod_play_url'] = '';
 vodops_assert_same(null, VodQualityAnalyzer::strictFingerprint($incomplete), 'Rows without playback data are not duplicate candidates.');
 
 $labels = VodQualityAnalyzer::issueTypes();
-foreach (['name_missing', 'type_parent_mismatch', 'poster_file_missing', 'play_group_mismatch', 'exact_duplicate'] as $type) {
+foreach (['name_missing', 'type_parent_mismatch', 'poster_file_missing', 'poster_remote_unavailable', 'poster_remote_unverified', 'play_group_mismatch', 'exact_duplicate'] as $type) {
     if (!isset($labels[$type])) {
         vodops_fail('Issue label is missing: ' . $type);
     }
@@ -238,6 +285,51 @@ vodops_assert_same(true, $siteContextMethod->invoke(null)['remote_upload'] ?? nu
 $vodopsMaccmsConfig['upload']['mode'] = 'S3';
 vodops_assert_same(true, $siteContextMethod->invoke(null)['remote_upload'] ?? null, 'Third-party object storage should skip local poster checks.');
 
+try {
+    VodQualityScanner::startScan(7, 500, 0, false, true);
+    vodops_fail('Remote poster checks must require the background worker.');
+} catch (VodQualityActionException $error) {
+    if (strpos($error->getMessage(), '后台 Worker') === false) {
+        vodops_fail('The remote poster worker requirement should be actionable.');
+    }
+}
+
+$remoteProbeCalls = [];
+$remotePosterProbesMethod = new ReflectionMethod(VodQualityScanner::class, 'remotePosterProbes');
+$remotePosterProbesMethod->setAccessible(true);
+$remotePosterProbes = $remotePosterProbesMethod->invoke(null, [
+    ['vod_pic' => 'https://img.example.com/healthy.jpg'],
+    ['vod_pic' => 'https://img.example.com/broken.jpg'],
+    ['vod_pic' => 'https://img.example.com/protected.jpg'],
+    ['vod_pic' => '//img.example.com/recovered.jpg'],
+    ['vod_pic' => 'upload/vod/local.jpg'],
+], true, static function (array $urls) use (&$remoteProbeCalls): array {
+    $remoteProbeCalls[] = $urls;
+    if (count($remoteProbeCalls) === 1) {
+        return [
+            'https://img.example.com/healthy.jpg' => ['state' => 'healthy', 'reason' => 'image', 'http_code' => 200, 'content_type' => 'image/jpeg'],
+            'https://img.example.com/broken.jpg' => ['state' => 'broken', 'reason' => 'not_found', 'http_code' => 404, 'content_type' => 'text/html'],
+            'https://img.example.com/protected.jpg' => ['state' => 'unknown', 'reason' => 'http_unconfirmed', 'http_code' => 403, 'content_type' => 'text/html'],
+            '//img.example.com/recovered.jpg' => ['state' => 'unknown', 'reason' => 'transport_error', 'http_code' => 0, 'content_type' => ''],
+        ];
+    }
+    return [
+        'https://img.example.com/protected.jpg' => ['state' => 'unknown', 'reason' => 'http_unconfirmed', 'http_code' => 403, 'content_type' => 'text/html'],
+        '//img.example.com/recovered.jpg' => ['state' => 'healthy', 'reason' => 'image', 'http_code' => 200, 'content_type' => 'image/webp'],
+    ];
+});
+vodops_assert_same(
+    ['https://img.example.com/protected.jpg', '//img.example.com/recovered.jpg'],
+    $remoteProbeCalls[1] ?? null,
+    'Only inconclusive first attempts should be retried.'
+);
+vodops_assert_same('broken', $remotePosterProbes['https://img.example.com/broken.jpg']['state'] ?? null, 'Definite failures should be retained without a retry.');
+vodops_assert_same('inconclusive', $remotePosterProbes['https://img.example.com/protected.jpg']['state'] ?? null, 'Repeated ambiguous responses should remain pending confirmation.');
+vodops_assert_same(2, $remotePosterProbes['https://img.example.com/protected.jpg']['attempts'] ?? null, 'Repeated ambiguous responses should retain their attempt count.');
+if (isset($remotePosterProbes['https://img.example.com/healthy.jpg']) || isset($remotePosterProbes['//img.example.com/recovered.jpg'])) {
+    vodops_fail('Healthy posters, including a successful retry, must not become issues.');
+}
+
 $decorateScanMethod = new ReflectionMethod(VodQualityScanner::class, 'decorateScan');
 $decorateScanMethod->setAccessible(true);
 $decoratedScan = $decorateScanMethod->invoke(null, [
@@ -258,11 +350,12 @@ $scopedScan = $decorateScanMethod->invoke(null, [
     'started_at' => 100,
     'finished_at' => 225,
     'updated_at' => 225,
-    'scope_json' => '{"type_id":10,"type_ids":[10,11,12,13],"label":"电影"}',
+    'scope_json' => '{"type_id":10,"type_ids":[10,11,12,13],"label":"电影","check_remote_posters":true}',
 ]);
 vodops_assert_same(10, $scopedScan['scope_type_id'] ?? null, 'Scan history should retain the selected root category.');
 vodops_assert_same([10, 11, 12, 13], $scopedScan['scope_type_ids'] ?? null, 'Scan history should retain its frozen category IDs.');
 vodops_assert_same('电影（含 4 个分类）', $scopedScan['scope_label'] ?? null, 'Scan history should explain descendant coverage.');
+vodops_assert_same(true, $scopedScan['check_remote_posters'] ?? null, 'Scan history should retain the opt-in remote poster check.');
 
 $now = time();
 $trafficScan = $decorateScanMethod->invoke(null, [

@@ -1,0 +1,55 @@
+/* Load only on the 3D bouquet page; keep shared styles compatible with Next. */
+.qixi-rose-page {
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+.qixi-rose-glow {
+  background: radial-gradient(circle, rgba(255, 115, 145, 0.18) 0%, rgba(133, 18, 45, 0.09) 36%, transparent 70%);
+}
+
+.qixi-rose-vow {
+  right: max(28px, calc(env(safe-area-inset-right, 0px) + 12px));
+}
+
+.qixi-rose-edition {
+  top: max(28px, calc(env(safe-area-inset-top, 0px) + 12px));
+  right: max(34px, calc(env(safe-area-inset-right, 0px) + 12px));
+}
+
+.qixi-rose-credit {
+  position: absolute;
+  z-index: 3;
+  right: max(18px, env(safe-area-inset-right, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  color: rgba(255, 247, 240, 0.3);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.qixi-rose-credit a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+.qixi-rose-credit a:focus-visible {
+  border-radius: 2px;
+  outline: 1px solid var(--qixi-champagne);
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  .qixi-rose-credit {
+    right: 50%;
+    width: max-content;
+    max-width: calc(100% - 28px);
+    text-align: center;
+    transform: translateX(50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qixi-rose-canvas {
+    transition: none;
+  }
+}

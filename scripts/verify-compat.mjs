@@ -15,7 +15,10 @@ const requiredThemeDirs = [
   "games/2048/js",
   "games/blockrain",
   "images",
+  "images/qixi",
   "js",
+  "js/third-party",
+  "js/third-party/three",
   "html",
   "html/public",
   "html/index",
@@ -38,7 +41,15 @@ const requiredThemeDirs = [
 
 const requiredThemeFiles = [
   "info.ini",
+  "css/base.css",
+  "css/themes-foundation.css",
   "css/style.css",
+  "css/ink-wash.css",
+  "images/ink-wash/shan-shui-landscape.e17b1e76e079.webp",
+  "css/themes.css",
+  "css/games.css",
+  "css/responsive.css",
+  "css/qixi-bouquet.css",
   "games/2048/LICENSE.txt",
   "games/2048/js/application.js",
   "games/2048/js/game_manager.js",
@@ -52,6 +63,15 @@ const requiredThemeFiles = [
   "js/app.js",
   "js/multiplayer-games.js",
   "js/qixi-particle-rose.js",
+  "js/qixi-particle-bouquet.js",
+  "js/third-party/three/three.module.min.js",
+  "js/third-party/three/three.core.min.js",
+  "js/third-party/three/GLTFLoader.js",
+  "js/third-party/three/MeshSurfaceSampler.js",
+  "js/third-party/three/BufferGeometryUtils.js",
+  "js/third-party/three/LICENSE.txt",
+  "images/qixi/qixi-bouquet.glb",
+  "images/qixi/LICENSE.md",
   "images/site-logo.png",
   "html/public/include.html",
   "html/public/head.html",
@@ -167,6 +187,14 @@ const include = readThemeFile("html/public/include.html");
 assert.match(include, /\{\$maccms\.path\}static\/js\/jquery\.js/);
 assert.match(include, /\{\$maccms\.path\}static\/js\/home\.js/);
 assert.match(include, /var maccms=/);
+assert.match(include, /css\/base\.css\?v=__PINGFANG_BASE_STYLE_VERSION__/);
+assert.match(include, /css\/themes-foundation\.css\?v=__PINGFANG_THEME_FOUNDATION_VERSION__/);
+assert.match(include, /css\/style\.css\?v=__PINGFANG_STYLE_VERSION__/);
+assert.match(include, /css\/themes\.css\?v=__PINGFANG_THEMES_VERSION__/);
+assert.match(include, /css\/games\.css\?v=__PINGFANG_GAMES_STYLE_VERSION__/);
+assert.match(include, /css\/responsive\.css\?v=__PINGFANG_RESPONSIVE_STYLE_VERSION__/);
+assert.match(include, /data-theme-foundation-stylesheet/);
+assert.match(include, /data-theme-stylesheet/);
 
 const head = readThemeFile("html/public/head.html");
 assert.match(head, /\[seo_title\]/);

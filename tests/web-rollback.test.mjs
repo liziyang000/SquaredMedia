@@ -250,7 +250,7 @@ function runRestoreHarness(failDaemonReload) {
       "  return 0",
       "}",
       "mv() {",
-      "  if [[ \"${1:-}\" == \"-Tf\" ]]; then /bin/mv -fh \"$2\" \"$3\"; else /bin/mv \"$@\"; fi",
+      process.platform === "darwin" ? '  if [[ "${1:-}" == "-Tf" ]]; then /bin/mv -fh "$2" "$3"; else /bin/mv "$@"; fi' : '  /bin/mv "$@"',
       "}",
       "reload_nginx() { return 0; }",
       restoreFunction,

@@ -50,7 +50,7 @@ body {
   overflow-x: clip;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
 }
 
 body.mobile-nav-open {
@@ -2254,12 +2254,15 @@ textarea:focus-visible,
 
 .rank-item strong,
 .list-item strong {
-  overflow: visible;
-  line-height: 1.35;
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.45;
   text-overflow: clip;
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .rank-item em,
@@ -2491,8 +2494,8 @@ textarea:focus-visible,
 
 .home-shelf-poster em {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  right: 10px;
+  bottom: 10px;
   z-index: 2;
   max-width: calc(100% - 20px);
   overflow: visible;
@@ -2520,21 +2523,24 @@ textarea:focus-visible,
   grid-column: 1 / -1;
   grid-row: 2;
   align-self: start;
-  display: block;
-  overflow: visible;
+  display: -webkit-box;
+  overflow: hidden;
+  height: 2.9em;
   color: var(--text);
   font-size: 16px;
-  font-weight: 850;
-  line-height: 1.35;
+  font-weight: 650;
+  line-height: 1.45;
   padding: 0 2px;
   text-overflow: clip;
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .home-shelf-body small {
-  grid-column: 1;
+  grid-column: 1 / -1;
   grid-row: 3;
   align-self: end;
   display: block;
@@ -2547,26 +2553,6 @@ textarea:focus-visible,
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
-}
-
-.home-shelf-score {
-  grid-column: 2;
-  grid-row: 3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  align-self: end;
-  justify-self: end;
-  height: 20px;
-  border: 1px solid var(--line-accent-soft);
-  border-radius: 999px;
-  background: rgba(38, 212, 175, 0.1);
-  color: var(--accent-2);
-  font-size: 11px;
-  font-weight: 900;
-  line-height: 1;
-  padding: 0 7px;
-  box-shadow: inset 0 0 0 1px rgba(38, 212, 175, 0.08);
 }
 
 .home-shelf-card.is-featured .home-shelf-body {
@@ -2585,14 +2571,6 @@ textarea:focus-visible,
   grid-column: auto;
   grid-row: auto;
   padding: 0;
-}
-
-.home-shelf-card.is-featured .home-shelf-score {
-  position: absolute;
-  right: 14px;
-  bottom: 17px;
-  z-index: 3;
-  padding-top: 0;
 }
 
 .home-shelf-card:hover .home-shelf-poster {
@@ -2702,7 +2680,8 @@ textarea:focus-visible,
 .poster em,
 .detail-poster span,
 .poster .quality-badge,
-.poster .score-badge {
+.poster .score-badge,
+.home-shelf-poster .score-badge {
   position: absolute;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.72);
@@ -2717,19 +2696,24 @@ textarea:focus-visible,
 
 .poster em,
 .poster .quality-badge,
+.home-shelf-poster .quality-badge,
 .detail-poster span {
+  display: -webkit-box;
   right: 10px;
   bottom: 10px;
   max-width: calc(100% - 20px);
-  overflow: visible;
+  overflow: hidden;
   line-height: 1.25;
   text-overflow: clip;
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.poster .score-badge {
+.poster .score-badge,
+.home-shelf-poster .score-badge {
   display: grid;
   place-items: center;
   top: 10px;
@@ -2740,6 +2724,7 @@ textarea:focus-visible,
   color: #15110a;
   font-size: 13px;
   font-weight: 900;
+  font-variant-numeric: tabular-nums;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
 }
 
@@ -2766,19 +2751,21 @@ textarea:focus-visible,
 }
 
 .vod-card strong {
-  display: block;
+  display: -webkit-box;
   min-width: 0;
-  overflow: visible;
-  min-height: 2.7em;
+  overflow: hidden;
+  height: 2.9em;
   margin: 10px 2px 0;
   color: var(--text);
   font-size: 16px;
-  font-weight: 800;
-  line-height: 1.35;
+  font-weight: 650;
+  line-height: 1.45;
   text-overflow: clip;
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .card-meta {
@@ -3350,6 +3337,14 @@ textarea:focus-visible,
   font-size: 24px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+.score-panel .score-unrated,
+.star-panel .score-unrated {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .score-panel em,

@@ -286,6 +286,15 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function formatScore(value) {
+  if ((typeof value !== "number" && typeof value !== "string") || String(value).trim() === "") return "";
+  if (typeof value === "string" && !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return "";
+  const score = Number(value);
+  if (!Number.isFinite(score) || score <= 0 || score > 10) return "";
+  const formatted = (Math.round(score * 10) / 10).toFixed(1);
+  return Number(formatted) > 0 ? formatted : "";
+}
+
 function videoById(id) {
   return store.videos.find((video) => String(video.id) === String(id)) || store.videos[0];
 }
@@ -303,15 +312,19 @@ function filterVideos(category, area, year, genre, lang = "", letter = "") {
 }
 
 function card(video) {
+  const score = formatScore(video.score);
+  const remark = String(video.remark || "").trim();
+  const year = String(video.year ?? "").trim();
+  const meta = [year !== "0" ? year : "", video.category].filter((value) => String(value ?? "").trim()).map(escapeHtml);
   return `
-    <a class="vod-card" href="${url("detail", { id: video.id })}" data-route="detail">
+    <a class="vod-card" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail">
       <span class="poster">
         <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">
-        <em class="quality-badge">${escapeHtml(video.remark)}</em>
-        <span class="score-badge">${escapeHtml(video.score)}</span>
+        ${remark ? `<em class="quality-badge">${escapeHtml(remark)}</em>` : ""}
+        ${score ? `<span class="score-badge">${score}</span>` : ""}
       </span>
       <strong>${escapeHtml(video.title)}</strong>
-      <span class="card-meta"><span>${escapeHtml(video.category)}</span><span>${escapeHtml(video.year)}</span></span>
+      <span class="card-meta">${meta.map((value) => `<span>${value}</span>`).join("")}</span>
     </a>`;
 }
 
@@ -333,34 +346,39 @@ function homeShelfPanel(tab) {
 function homeShelfCard(video, featured = false) {
   const image = featured ? (video.backdrop || video.poster) : video.poster;
   const cardClass = featured ? "home-shelf-card is-featured" : "home-shelf-card";
-  const badge = featured ? video.category : (video.remark || "高清");
-  const meta = featured ? (video.remark || "更新中") : `${video.year} · ${video.class || video.category}`;
+  const remark = String(video.remark || "").trim();
+  const score = formatScore(video.score);
+  const year = String(video.year ?? "").trim();
+  const meta = [year !== "0" ? year : "", video.category].filter((value) => String(value ?? "").trim()).join(" · ");
   return `
     <a class="${cardClass}" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail">
       <span class="home-shelf-poster">
         <img src="${escapeHtml(image)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>${escapeHtml(badge)}</em>
+        ${remark ? `<em class="quality-badge">${escapeHtml(remark)}</em>` : ""}
+        ${score ? `<span class="home-shelf-score score-badge">${score}</span>` : ""}
       </span>
       <span class="home-shelf-body">
         <strong>${escapeHtml(video.title)}</strong>
         <small>${escapeHtml(meta)}</small>
       </span>
-      <span class="home-shelf-score">${escapeHtml(video.score)}</span>
     </a>`;
 }
 
 function rankItem(video, index) {
+  const score = formatScore(video.score);
+  const year = String(video.year ?? "").trim();
+  const meta = [year !== "0" ? year : "", video.category].filter((value) => String(value ?? "").trim()).join(" · ");
   return `
-    <a class="rank-item" href="${url("detail", { id: video.id })}" data-route="detail" data-rank-item data-rank-title="${escapeHtml(video.title)}" data-rank-meta="${escapeHtml(video.year)} · ${escapeHtml(video.class || video.category)}" data-rank-score="${escapeHtml(video.score)}" data-rank-pic="${escapeHtml(video.poster)}">
+    <a class="rank-item" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail" data-rank-item data-rank-title="${escapeHtml(video.title)}" data-rank-meta="${escapeHtml(meta)}" data-rank-score="${score}" data-rank-pic="${escapeHtml(video.poster)}">
       <span class="rank-thumb">
         <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
         <span class="rank-index">${index + 1}</span>
       </span>
       <span class="rank-body">
         <strong>${escapeHtml(video.title)}</strong>
-        <em class="rank-meta">${escapeHtml(video.year)} · ${escapeHtml(video.class || video.category)}</em>
+        <em class="rank-meta">${escapeHtml(meta)}</em>
       </span>
-      <span class="rank-score">${escapeHtml(video.score)}</span>
+      ${score ? `<span class="rank-score">${score}</span>` : ""}
     </a>`;
 }
 
@@ -368,7 +386,7 @@ function bannerSlide(video, index) {
   const active = index === 0 ? " is-active" : "";
   const backdrop = video.backdrop || video.poster;
   const duration = video.duration || "时长待定";
-  const version = video.version || video.remark || "高清";
+  const version = String(video.version || "").trim() || String(video.remark || "").trim();
   const priorityImage = index === 0
     ? `<img class="banner-priority-image" src="${escapeHtml(backdrop)}" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>`
     : "";
@@ -379,7 +397,7 @@ function bannerSlide(video, index) {
         <span class="banner-copy">
           <em class="eyebrow">热播推荐</em>
           <strong>${escapeHtml(video.title)}</strong>
-          <span class="banner-meta"><i>${escapeHtml(video.year)}</i><i>${escapeHtml(video.class || video.category)}</i><i>${escapeHtml(duration)}</i><i>${escapeHtml(version)}</i></span>
+          <span class="banner-meta"><i>${escapeHtml(video.year)}</i><i>${escapeHtml(video.class || video.category)}</i><i>${escapeHtml(duration)}</i>${version ? `<i>${escapeHtml(version)}</i>` : ""}</span>
           <small>${escapeHtml(video.summary)}</small>
         </span>
         <span class="banner-actions">
@@ -1138,16 +1156,20 @@ function renderSearch(keyword, type = "", genre = "") {
     <section class="wrap content-section">
       ${selectedType ? `<div class="section-head compact"><h2>${escapeHtml(selectedType)}</h2><span>搜索结果</span></div>` : ""}
       <div class="vod-list" data-empty-container data-empty-item=".list-item">
-        ${list.map((video) => `
-          <a class="list-item" href="${url("detail", { id: video.id })}" data-route="detail">
+        ${list.map((video) => {
+          const score = formatScore(video.score);
+          const year = String(video.year ?? "").trim();
+          return `
+          <a class="list-item" href="${url("detail", { id: video.id })}" title="${escapeHtml(video.title)}" data-route="detail">
             <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="lazy" decoding="async" width="96" height="144" sizes="96px">
             <span>
               <strong>${escapeHtml(video.title)}</strong>
               <small>${escapeHtml(video.actor)}</small>
-              <span class="card-meta"><span>${escapeHtml(video.category)}</span><span>${escapeHtml(video.year)}</span><span>${escapeHtml(video.score)} 分</span></span>
+              <span class="card-meta">${[year !== "0" ? year : "", video.category].filter((value) => String(value ?? "").trim()).map((value) => `<span>${escapeHtml(value)}</span>`).join("")}${score ? `<span>${score} 分</span>` : ""}</span>
               <em>${escapeHtml(video.summary)}</em>
             </span>
-          </a>`).join("")}
+          </a>`;
+        }).join("")}
         <div class="content-empty-state" data-empty-state hidden role="status">
           <strong>没有找到相关影片</strong>
           <span>换个关键词或清除频道筛选后再试。</span>
@@ -1159,6 +1181,8 @@ function renderSearch(keyword, type = "", genre = "") {
 
 function renderDetail(id) {
   const video = videoById(id);
+  const score = formatScore(video.score);
+  const remark = String(video.remark || "").trim();
   const actor = String(video.actor || "待更新");
   const actorText = escapeHtml(actor);
   const actorDetail = new TextEncoder().encode(actor).length > 90
@@ -1170,14 +1194,14 @@ function renderDetail(id) {
       <div class="wrap detail-grid">
         <div class="detail-poster">
           <img src="${escapeHtml(video.poster)}" alt="${escapeHtml(video.title)}" loading="eager" decoding="async" width="380" height="570" sizes="(max-width: 760px) 116px, 250px">
-          <span>${escapeHtml(video.remark)}</span>
+          ${remark ? `<span>${escapeHtml(remark)}</span>` : ""}
         </div>
         <div class="detail-main detail-panel">
           <div class="detail-primary">
             <span class="eyebrow">${escapeHtml(video.category)}</span>
             <h1>${escapeHtml(video.title)}</h1>
             <p class="detail-meta" aria-label="影片信息">
-              <span>${escapeHtml(video.year)}</span>
+              <span>${escapeHtml(video.year || "年份未知")}</span>
               <span>${escapeHtml(video.area)}</span>
               <span>${escapeHtml(video.class)}</span>
               <span>${escapeHtml(video.lang)}</span>
@@ -1190,9 +1214,9 @@ function renderDetail(id) {
           <p class="summary">${escapeHtml(video.summary)}</p>
           <div class="detail-interactions" aria-label="评分与反馈">
             <div class="interaction-panel score-panel">
-              <span class="interaction-label">豆瓣评分</span>
-              <strong>${escapeHtml(video.score)}</strong>
-              <em>/ 10</em>
+              <span class="interaction-label">评分</span>
+              <strong${score ? "" : ' class="score-unrated"'}>${score || "暂无评分"}</strong>
+              ${score ? "<em>/ 10</em>" : ""}
             </div>
             <div class="interaction-panel digg-panel">
               <span class="interaction-label">影片反馈</span>

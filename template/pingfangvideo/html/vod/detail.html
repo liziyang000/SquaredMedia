@@ -7,7 +7,7 @@
   <div class="wrap detail-grid">
     <div class="detail-poster">
       <img src="{$obj.vod_pic|mac_url_img}" alt="{$obj.vod_name}" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 116px, 250px">
-      <span>{$obj.vod_remarks|mac_default='高清'}</span>
+      {if condition="trim((string) $obj['vod_remarks']) neq ''"}<span>{$obj.vod_remarks}</span>{/if}
     </div>
     <div class="detail-main detail-panel">
       <div class="detail-primary">
@@ -100,16 +100,7 @@
   </div>
   <div class="vod-grid compact-grid">
     {maccms:vod type="current" num="6" order="desc" by="rnd" id="vo"}
-    <a class="vod-card" href="{:mac_url_vod_detail($vo)}">
-      <span class="poster">
-        <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">
-        <em class="quality-badge">{$vo.vod_remarks|mac_default='高清'}</em>
-        <span class="score-badge">{$vo.vod_score|mac_default='0.0'}</span>
-      </span>
-      <strong>{$vo.vod_name}</strong>
-      <small>{$vo.vod_actor|mac_default='主演待更新'}</small>
-      <span class="card-meta"><span>{$vo.type.type_name|mac_default='同类'}</span><span>{$vo.vod_year|mac_default='年份未知'}</span></span>
-    </a>
+    {include file="public/vod_card" /}
     {/maccms:vod}
   </div>
 </section>

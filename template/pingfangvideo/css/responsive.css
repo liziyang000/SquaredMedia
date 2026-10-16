@@ -230,7 +230,6 @@ body.episode-drawer-open {
     overflow-wrap: anywhere;
   }
 
-  .list-item > span > strong,
   .list-item > span > small,
   .list-item > span > em {
     display: block;

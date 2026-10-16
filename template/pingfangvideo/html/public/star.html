@@ -1,6 +1,10 @@
 <div class="interaction-panel star-panel">
-  <div class="star-meter" aria-label="豆瓣评分 {$obj.vod_score|mac_default='0.0'} 分">
+  {if condition="is_numeric($obj['vod_score']) && round($obj['vod_score'], 1) gt 0 && $obj['vod_score'] elt 10"}
+  <div class="star-meter" aria-label="评分 {$obj.vod_score|number_format=1} 分">
     <span>★★★★★</span>
   </div>
-  <em>豆瓣 {$obj.vod_score|mac_default='0.0'} 分</em>
+  <em>评分 {$obj.vod_score|number_format=1} 分</em>
+  {else/}
+  <em>暂无评分</em>
+  {/if}
 </div>

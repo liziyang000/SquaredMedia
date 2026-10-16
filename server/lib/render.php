@@ -6,6 +6,21 @@ function e(mixed $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function format_score(mixed $value): string
+{
+    if (!is_numeric($value)) {
+        return '';
+    }
+
+    $score = (float) $value;
+    if (!is_finite($score) || $score <= 0 || $score > 10) {
+        return '';
+    }
+
+    $formatted = number_format($score, 1, '.', '');
+    return (float) $formatted > 0 ? $formatted : '';
+}
+
 function path_for(string $route, array $params = []): string
 {
     $query = http_build_query(['route' => $route] + $params);
@@ -171,10 +186,14 @@ function render_layout(array $data, string $title, string $content, bool $loadGa
 function render_cards(array $videos): string
 {
     return implode('', array_map(static function (array $video): string {
-        return '<a class="vod-card" href="' . e(path_for('detail', ['id' => $video['id']])) . '">
-  <span class="poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px"><em class="quality-badge">' . e($video['remark']) . '</em><span class="score-badge">' . e($video['score']) . '</span></span>
+        $score = format_score($video['score'] ?? null);
+        $remark = trim((string) ($video['remark'] ?? ''));
+        $year = trim((string) ($video['year'] ?? ''));
+        $meta = array_filter([$year !== '0' ? $year : '', $video['category'] ?? ''], static fn ($value): bool => trim((string) $value) !== '');
+        return '<a class="vod-card" href="' . e(path_for('detail', ['id' => $video['id']])) . '" title="' . e($video['title']) . '">
+  <span class="poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">' . ($remark !== '' ? '<em class="quality-badge">' . e($remark) . '</em>' : '') . ($score !== '' ? '<span class="score-badge">' . $score . '</span>' : '') . '</span>
   <strong>' . e($video['title']) . '</strong>
-  <span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span></span>
+  <span class="card-meta">' . implode('', array_map(static fn ($value): string => '<span>' . e($value) . '</span>', $meta)) . '</span>
 </a>';
     }, $videos));
 }
@@ -183,13 +202,14 @@ function render_home_shelf_card(array $video, bool $featured = false): string
 {
     $image = $featured ? ($video['backdrop'] ?? $video['poster']) : $video['poster'];
     $cardClass = $featured ? 'home-shelf-card is-featured' : 'home-shelf-card';
-    $badge = $featured ? ($video['category'] ?? '热播') : ($video['remark'] ?? '高清');
-    $meta = $featured ? ($video['remark'] ?? '更新中') : ((string) $video['year'] . ' · ' . (string) ($video['class'] ?? $video['category']));
+    $remark = trim((string) ($video['remark'] ?? ''));
+    $score = format_score($video['score'] ?? null);
+    $year = trim((string) ($video['year'] ?? ''));
+    $meta = implode(' · ', array_filter([$year !== '0' ? $year : '', $video['category'] ?? ''], static fn ($value): bool => trim((string) $value) !== ''));
 
     return '<a class="' . e($cardClass) . '" href="' . e(path_for('detail', ['id' => $video['id']])) . '" title="' . e($video['title']) . '">
-  <span class="home-shelf-poster"><img src="' . e($image) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px"><em>' . e($badge) . '</em></span>
+  <span class="home-shelf-poster"><img src="' . e($image) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">' . ($remark !== '' ? '<em class="quality-badge">' . e($remark) . '</em>' : '') . ($score !== '' ? '<span class="home-shelf-score score-badge">' . $score . '</span>' : '') . '</span>
   <span class="home-shelf-body"><strong>' . e($video['title']) . '</strong><small>' . e($meta) . '</small></span>
-  <span class="home-shelf-score">' . e($video['score']) . '</span>
 </a>';
 }
 
@@ -239,7 +259,7 @@ function render_hero_carousel(array $data, array $videos): string
         $active = $index === 0 ? ' is-active' : '';
         $backdrop = !empty($video['backdrop']) ? $video['backdrop'] : $video['poster'];
         $duration = $video['duration'] ?? '时长待定';
-        $version = $video['version'] ?? ($video['remark'] ?? '高清');
+        $version = trim((string) ($video['version'] ?? '')) ?: trim((string) ($video['remark'] ?? ''));
         $priorityImage = $index === 0
             ? '<img class="banner-priority-image" src="' . e($backdrop) . '" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>'
             : '';
@@ -251,7 +271,7 @@ function render_hero_carousel(array $data, array $videos): string
     <span class="banner-copy">
       <em class="eyebrow">热播推荐</em>
       <strong>' . e($video['title']) . '</strong>
-      <span class="banner-meta"><i>' . e($video['year']) . '</i><i>' . e($video['class'] ?? $video['category']) . '</i><i>' . e($duration) . '</i><i>' . e($version) . '</i></span>
+      <span class="banner-meta"><i>' . e($video['year']) . '</i><i>' . e($video['class'] ?? $video['category']) . '</i><i>' . e($duration) . '</i>' . ($version !== '' ? '<i>' . e($version) . '</i>' : '') . '</span>
       <small>' . e($video['summary']) . '</small>
     </span>
     <span class="banner-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('detail', ['id' => $video['id']])) . '">详情介绍</a></span>
@@ -790,7 +810,10 @@ function render_page(array $data, string $route, array $query): string
         }
         $filter .= '</section>';
         $list = implode('', array_map(static function (array $video): string {
-            return '<a class="list-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="96" height="144" sizes="96px"><span><strong>' . e($video['title']) . '</strong><small>' . e($video['actor']) . '</small><span class="card-meta"><span>' . e($video['category']) . '</span><span>' . e($video['year']) . '</span><span>' . e($video['score']) . ' 分</span></span><em>' . e($video['summary']) . '</em></span></a>';
+            $score = format_score($video['score'] ?? null);
+            $year = trim((string) ($video['year'] ?? ''));
+            $meta = array_filter([$year !== '0' ? $year : '', $video['category'] ?? ''], static fn ($value): bool => trim((string) $value) !== '');
+            return '<a class="list-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '" title="' . e($video['title']) . '"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" loading="lazy" decoding="async" width="96" height="144" sizes="96px"><span><strong>' . e($video['title']) . '</strong><small>' . e($video['actor']) . '</small><span class="card-meta">' . implode('', array_map(static fn ($value): string => '<span>' . e($value) . '</span>', $meta)) . ($score !== '' ? '<span>' . $score . ' 分</span>' : '') . '</span><em>' . e($video['summary']) . '</em></span></a>';
         }, $videos));
         $sectionHead = $type !== '' ? '<div class="section-head compact"><h2>' . e($type) . '</h2><span>搜索结果</span></div>' : '';
         $emptyState = '<div class="content-empty-state" data-empty-state hidden role="status"><strong>没有找到相关影片</strong><span>换个关键词或清除频道筛选后再试。</span><a href="' . e(path_for('videos')) . '">浏览影片库</a></div>';
@@ -799,6 +822,8 @@ function render_page(array $data, string $route, array $query): string
 
     if ($route === 'detail') {
         $video = find_video($data, (int) ($query['id'] ?? 1));
+        $score = format_score($video['score'] ?? null);
+        $remark = trim((string) ($video['remark'] ?? ''));
         $episodes = implode('', array_map(static function (array $episode) use ($video): string {
             return '<a href="' . e(path_for('play', ['id' => $video['id'], 'episode' => $episode['no']])) . '">' . e($episode['name']) . '</a>';
         }, $video['episodes']));
@@ -810,14 +835,14 @@ function render_page(array $data, string $route, array $query): string
         $detailHero = '<section class="detail-hero">'
             . '<span class="detail-backdrop" aria-hidden="true"><img src="' . e($video['poster']) . '" alt="" width="380" height="570" decoding="async"></span>'
             . '<div class="wrap detail-grid">'
-            . '<div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 116px, 250px"><span>' . e($video['remark']) . '</span></div>'
+            . '<div class="detail-poster"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="380" height="570" loading="eager" decoding="async" fetchpriority="high" sizes="(max-width: 760px) 116px, 250px">' . ($remark !== '' ? '<span>' . e($remark) . '</span>' : '') . '</div>'
             . '<div class="detail-main detail-panel"><div class="detail-primary">'
             . '<span class="eyebrow">' . e($video['category']) . '</span>'
             . '<h1>' . e($video['title']) . '</h1>'
-            . '<p class="detail-meta" aria-label="影片信息"><span>' . e($video['year']) . '</span><span>' . e($video['area']) . '</span><span>' . e($video['class']) . '</span><span>' . e($video['lang']) . '</span></p>'
+            . '<p class="detail-meta" aria-label="影片信息"><span>' . e($video['year'] ?: '年份未知') . '</span><span>' . e($video['area']) . '</span><span>' . e($video['class']) . '</span><span>' . e($video['lang']) . '</span></p>'
             . '<div class="detail-actions"><a class="primary-btn" href="' . e(path_for('play', ['id' => $video['id'], 'episode' => 1])) . '">立即播放</a><a class="ghost-btn" href="' . e(path_for('down', ['id' => $video['id']])) . '">下载</a><a class="ghost-btn" href="' . e(path_for('report', ['id' => $video['id']])) . '">报错</a><a class="ghost-btn" href="' . e(path_for('category', ['name' => $video['category']])) . '">同类影片</a></div></div>'
             . '<p class="summary">' . e($video['summary']) . '</p>'
-            . '<div class="detail-interactions" aria-label="评分与反馈"><div class="interaction-panel score-panel"><span class="interaction-label">豆瓣评分</span><strong>' . e($video['score']) . '</strong><em>/ 10</em></div><div class="interaction-panel digg-panel"><span class="interaction-label">影片反馈</span><button class="ghost-btn" type="button">顶 <em aria-live="polite">' . e($video['up'] ?? 0) . '</em></button><button class="ghost-btn" type="button">踩 <em aria-live="polite">' . e($video['down'] ?? 0) . '</em></button></div></div>'
+            . '<div class="detail-interactions" aria-label="评分与反馈"><div class="interaction-panel score-panel"><span class="interaction-label">评分</span><strong' . ($score !== '' ? '' : ' class="score-unrated"') . '>' . ($score !== '' ? $score : '暂无评分') . '</strong>' . ($score !== '' ? '<em>/ 10</em>' : '') . '</div><div class="interaction-panel digg-panel"><span class="interaction-label">影片反馈</span><button class="ghost-btn" type="button">顶 <em aria-live="polite">' . e($video['up'] ?? 0) . '</em></button><button class="ghost-btn" type="button">踩 <em aria-live="polite">' . e($video['down'] ?? 0) . '</em></button></div></div>'
             . '<dl class="detail-data"><div><dt>导演</dt><dd>' . e($video['director']) . '</dd></div><div class="detail-data-cast"><dt>主演</dt><dd>' . $actorDetail . '</dd></div><div><dt>热度</dt><dd>' . e($video['hits']) . ' 次</dd></div><div><dt>更新</dt><dd>' . e($video['updated']) . '</dd></div></dl>'
             . '</div></div></section>';
         $episodeSection = '<section class="wrap content-section"><div class="episode-box"><div class="section-head compact"><h2>在线播放</h2><span>' . count($video['episodes']) . ' 集</span></div><div class="episode-grid">' . $episodes . '</div></div></section>';
@@ -862,8 +887,10 @@ function render_page(array $data, string $route, array $query): string
     $currentYearData['videos'] = $currentYearVideos;
     $rankVideos = array_slice(sort_videos($currentYearVideos, 'hot'), 0, 5);
     $rank = implode('', array_map(static function (array $video, int $index): string {
-        $meta = $video['year'] . ' · ' . ($video['class'] ?? $video['category']);
-        return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '" data-rank-item data-rank-title="' . e($video['title']) . '" data-rank-meta="' . e($meta) . '" data-rank-score="' . e($video['score']) . '" data-rank-pic="' . e($video['poster']) . '"><span class="rank-thumb"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="112" height="84" loading="lazy" decoding="async" sizes="72px"><span class="rank-index">' . ($index + 1) . '</span></span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em class="rank-meta">' . e($meta) . '</em></span><span class="rank-score">' . e($video['score']) . '</span></a>';
+        $score = format_score($video['score'] ?? null);
+        $year = trim((string) ($video['year'] ?? ''));
+        $meta = implode(' · ', array_filter([$year !== '0' ? $year : '', $video['category'] ?? ''], static fn ($value): bool => trim((string) $value) !== ''));
+        return '<a class="rank-item" href="' . e(path_for('detail', ['id' => $video['id']])) . '" title="' . e($video['title']) . '" data-rank-item data-rank-title="' . e($video['title']) . '" data-rank-meta="' . e($meta) . '" data-rank-score="' . $score . '" data-rank-pic="' . e($video['poster']) . '"><span class="rank-thumb"><img src="' . e($video['poster']) . '" alt="' . e($video['title']) . '" width="112" height="84" loading="lazy" decoding="async" sizes="72px"><span class="rank-index">' . ($index + 1) . '</span></span><span class="rank-body"><strong>' . e($video['title']) . '</strong><em class="rank-meta">' . e($meta) . '</em></span>' . ($score !== '' ? '<span class="rank-score">' . $score . '</span>' : '') . '</a>';
     }, $rankVideos, array_keys($rankVideos)));
 
     $preferredTabs = ['电影', '剧集', '电视剧', '综艺', '动漫', '纪录', '纪录片', '直播'];

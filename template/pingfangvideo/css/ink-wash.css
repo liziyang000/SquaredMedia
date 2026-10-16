@@ -499,11 +499,11 @@ html[data-theme="ink-wash"] .vod-card .card-meta span + span::before {
   color: var(--line-strong);
 }
 
-html[data-theme="ink-wash"] :is(.home-shelf-score, .rank-score, .poster .score-badge) {
+html[data-theme="ink-wash"] :is(.home-shelf-score, .rank-score, :is(.poster, .home-shelf-poster) .score-badge) {
   color: var(--accent);
 }
 
-html[data-theme="ink-wash"] .poster .score-badge {
+html[data-theme="ink-wash"] :is(.poster, .home-shelf-poster) .score-badge {
   background: var(--panel);
 }
 

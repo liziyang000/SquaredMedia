@@ -19,7 +19,7 @@
             <span class="banner-copy">
               <em class="eyebrow">热播推荐 · 今日更新 {:mac_data_count(0,'today','vod')} 部</em>
               <strong>{$vo.vod_name}</strong>
-              <span class="banner-meta"><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_class|mac_default='类型待定'}</i><i>{$vo.vod_duration|mac_default='时长待定'}</i><i>{$vo.vod_version|mac_default='高清'}</i></span>
+              <span class="banner-meta"><i>{$vo.vod_year|mac_default='年份未知'}</i><i>{$vo.vod_class|mac_default='类型待定'}</i><i>{$vo.vod_duration|mac_default='时长待定'}</i>{if condition="trim((string) $vo['vod_version']) neq ''"}<i>{$vo.vod_version}</i>{elseif condition="trim((string) $vo['vod_remarks']) neq ''"}<i>{$vo.vod_remarks}</i>{/if}</span>
               <small>{$vo.vod_content|mac_filter_html|mac_substring=92}</small>
             </span>
             <span class="banner-actions">
@@ -42,16 +42,16 @@
       </div>
       <div class="rank-list" data-rank-react-list data-home-empty-container data-empty-item=".rank-item">
       {maccms:vod type="42,47,48,57,111" num="5" year="'.date('Y').'" order="desc" by="hits" cachetime="300" id="vo" key="key"}
-      <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item data-rank-title="{$vo.vod_name}" data-rank-meta="{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}" data-rank-score="{$vo.vod_score|mac_default='0.0'}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
+      <a class="rank-item" href="{:mac_url_vod_detail($vo)}" data-rank-item title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情" data-rank-title="{$vo.vod_name}" data-rank-meta="{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}" data-rank-score="{if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}{$vo.vod_score|number_format=1}{/if}" data-rank-pic="{$vo.vod_pic|mac_url_img}">
         <span class="rank-thumb">
           <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">
           <span class="rank-index">{$key}</span>
         </span>
         <span class="rank-body">
           <strong>{$vo.vod_name}</strong>
-          <em class="rank-meta">{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</em>
+          <em class="rank-meta">{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</em>
         </span>
-        <span class="rank-score">{$vo.vod_score|mac_default='0.0'}</span>
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="rank-score" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </a>
       {/maccms:vod}
         <div class="home-empty-state home-rank-empty" data-home-empty-state hidden role="status">
@@ -118,96 +118,96 @@
   </div>
   <div class="home-shelf-rail" data-home-tab="all" id="latest-panel-all" role="tabpanel" aria-hidden="false" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="42,47,48,57,111" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+        {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="home-shelf-score score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </span>
       <span class="home-shelf-body">
         <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+        <small>{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
     <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>有新影片上线后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
   <div class="home-shelf-rail" data-home-tab="category-1" id="latest-panel-category-1" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="42" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+        {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="home-shelf-score score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </span>
       <span class="home-shelf-body">
         <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+        <small>{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
     <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
   <div class="home-shelf-rail" data-home-tab="category-2" id="latest-panel-category-2" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="47" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+        {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="home-shelf-score score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </span>
       <span class="home-shelf-body">
         <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+        <small>{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
     <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
   <div class="home-shelf-rail" data-home-tab="category-3" id="latest-panel-category-3" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="48" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+        {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="home-shelf-score score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </span>
       <span class="home-shelf-body">
         <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+        <small>{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
     <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
   <div class="home-shelf-rail" data-home-tab="category-4" id="latest-panel-category-4" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="57" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+        {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="home-shelf-score score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </span>
       <span class="home-shelf-body">
         <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+        <small>{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
     <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>
   </div>
   <div class="home-shelf-rail" data-home-tab="category-5" id="latest-panel-category-5" role="tabpanel" hidden aria-hidden="true" data-home-empty-container data-empty-item=".home-shelf-card">
     {maccms:vod type="111" num="6" year="'.date('Y').'" order="desc" by="time" cachetime="300" id="vo"}
-    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+    <a class="home-shelf-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <span class="home-shelf-poster">
         <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px">
-        <em>{$vo.vod_remarks|mac_default='高清'}</em>
+        {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+        {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="home-shelf-score score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
       </span>
       <span class="home-shelf-body">
         <strong>{$vo.vod_name}</strong>
-        <small>{$vo.vod_year|mac_default='年份未知'} · {$vo.vod_class|mac_default='类型待定'}</small>
+        <small>{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}{$vo.vod_year}{if condition="$vo.type.type_name neq ''"} · {/if}{/if}{$vo.type.type_name}</small>
       </span>
-      <span class="home-shelf-score">{$vo.vod_score|mac_default='0.0'}</span>
     </a>
     {/maccms:vod}
     <div class="home-empty-state" data-home-empty-state hidden role="status"><strong>本年度暂无新上线内容</strong><span>此频道有新内容后会显示在这里。</span><a href="{:mac_url('label/videos')}">浏览全部影片</a></div>

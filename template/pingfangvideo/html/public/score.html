@@ -1,5 +1,9 @@
 <div class="interaction-panel score-panel">
-  <span class="interaction-label">豆瓣评分</span>
-  <strong>{$obj.vod_score|mac_default='0.0'}</strong>
+  <span class="interaction-label">评分</span>
+  {if condition="is_numeric($obj['vod_score']) && round($obj['vod_score'], 1) gt 0 && $obj['vod_score'] elt 10"}
+  <strong>{$obj.vod_score|number_format=1}</strong>
   <em>/ 10</em>
+  {else/}
+  <strong class="score-unrated">暂无评分</strong>
+  {/if}
 </div>

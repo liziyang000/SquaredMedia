@@ -679,14 +679,14 @@ html[data-theme="dunhuang-caisson"] .home-shelf-poster em {
   color: var(--dunhuang-sand);
 }
 
-html[data-theme="dunhuang-caisson"] .poster .score-badge,
+html[data-theme="dunhuang-caisson"] :is(.poster, .home-shelf-poster) .score-badge,
 html[data-theme="dunhuang-caisson"] .home-shelf-score,
 html[data-theme="dunhuang-caisson"] .rank-score,
 html[data-theme="dunhuang-caisson"] .home-continue-body em {
   color: var(--dunhuang-gold);
 }
 
-html[data-theme="dunhuang-caisson"] .poster .score-badge,
+html[data-theme="dunhuang-caisson"] :is(.poster, .home-shelf-poster) .score-badge,
 html[data-theme="dunhuang-caisson"] .hero-rank .rank-item:first-of-type .rank-index {
   border-radius: 4px;
   background: var(--dunhuang-gold);
@@ -1792,11 +1792,19 @@ html[data-theme="pixel-frog"] .detail-poster {
   box-shadow: 4px 4px 0 rgba(5, 12, 7, 0.76);
 }
 
-html[data-theme="pixel-frog"] .poster .score-badge,
+html[data-theme="pixel-frog"] :is(.poster, .home-shelf-poster) .score-badge,
 html[data-theme="pixel-frog"] .home-shelf-score,
 html[data-theme="pixel-frog"] .rank-score,
 html[data-theme="pixel-frog"] .home-continue-body em {
   color: var(--pixel-green);
+}
+
+html[data-theme="pixel-frog"] :is(.poster, .home-shelf-poster) .score-badge {
+  border: 2px solid var(--pixel-ink);
+  border-radius: 2px;
+  background: var(--pixel-green);
+  color: var(--pixel-ink);
+  box-shadow: 3px 3px 0 var(--pixel-ink);
 }
 
 html[data-theme="pixel-frog"] .filter-panel a,

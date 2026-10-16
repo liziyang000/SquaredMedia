@@ -1,9 +1,9 @@
 <a class="vod-card" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
   <span class="poster">
     <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="300" height="450" sizes="(max-width: 560px) 46vw, (max-width: 920px) 30vw, 180px">
-    <em class="quality-badge">{$vo.vod_remarks|mac_default='高清'}</em>
-    <span class="score-badge">{$vo.vod_score|mac_default='0.0'}</span>
+    {if condition="trim((string) $vo['vod_remarks']) neq ''"}<em class="quality-badge">{$vo.vod_remarks}</em>{/if}
+    {if condition="is_numeric($vo['vod_score']) && round($vo['vod_score'], 1) gt 0 && $vo['vod_score'] elt 10"}<span class="score-badge" aria-label="评分 {$vo.vod_score|number_format=1} 分">{$vo.vod_score|number_format=1}</span>{/if}
   </span>
   <strong>{$vo.vod_name}</strong>
-  <span class="card-meta"><span>{$vo.type.type_name|mac_default='视频'}</span><span>{$vo.vod_year|mac_default='年份未知'}</span></span>
+  <span class="card-meta">{if condition="$vo.vod_year neq '' and $vo.vod_year neq '0'"}<span>{$vo.vod_year}</span>{/if}{if condition="$vo.type.type_name neq ''"}<span>{$vo.type.type_name}</span>{/if}</span>
 </a>

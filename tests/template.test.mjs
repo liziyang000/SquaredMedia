@@ -1046,7 +1046,7 @@ assert.doesNotMatch(index, /style="--banner-bg:/);
 assert.match(index, /class="primary-btn" href="\{:mac_url_vod_play\(\$vo\)\}">立即播放<\/a>/);
 assert.match(index, /class="ghost-btn" href="\{:mac_url_vod_detail\(\$vo\)\}">详情介绍<\/a>/);
 assert.match(index, /vod_duration\|mac_default='时长待定'/);
-assert.match(index, /vod_version\|mac_default='高清'/);
+assert.match(index, /\{if condition="trim\(\(string\) \$vo\['vod_version'\]\) neq ''"\}<i>\{\$vo\.vod_version\}<\/i>\{elseif condition="trim\(\(string\) \$vo\['vod_remarks'\]\) neq ''"\}<i>\{\$vo\.vod_remarks\}<\/i>\{\/if\}/);
 assert.match(index, /banner-dots/);
 assert.match(index, /class="banner-autoplay-toggle" type="button" data-carousel-autoplay-toggle aria-pressed="false" aria-label="暂停自动轮播"/);
 assert.doesNotMatch(index, /liquid-lens/);
@@ -1064,8 +1064,8 @@ assert.match(index, /data-rank-item/);
 assert.match(index, new RegExp(`\\{maccms:vod type="${nonAdultVodTypeScope}" num="5" ${currentYearVodAttr} order="desc" by="hits" cachetime="300" id="vo" key="key"\\}`));
 assert.doesNotMatch(index, /is-rank-extra/);
 assert.match(index, /data-rank-title="\{\$vo\.vod_name\}"/);
-assert.match(index, /data-rank-meta="\{\$vo\.vod_year\|mac_default='年份未知'\} · \{\$vo\.vod_class\|mac_default='类型待定'\}"/);
-assert.match(index, /data-rank-score="\{\$vo\.vod_score\|mac_default='0\.0'\}"/);
+assert.match(index, /data-rank-meta="\{if condition="\$vo\.vod_year neq '' and \$vo\.vod_year neq '0'"\}[\s\S]*?\{\$vo\.type\.type_name\}"/);
+assert.match(index, /data-rank-score="\{if condition="[^"]*is_numeric\(\$vo\['vod_score'\]\)[^"]*"\}\{\$vo\.vod_score\|number_format=1\}\{\/if\}"/);
 assert.match(index, /data-rank-pic="\{\$vo\.vod_pic\|mac_url_img\}"/);
 assert.match(index, /class="rank-thumb"[\s\S]*<img src="\{\$vo\.vod_pic\|mac_url_img\}" alt="\{\$vo\.vod_name\}" width="112" height="84" loading="lazy" decoding="async" sizes="72px">/);
 assert.match(index, /rank-body/);
@@ -1089,7 +1089,7 @@ assert.match(index, /本年度暂无新上线内容/);
 assert.match(index, /class="wrap home-shelf home-continue" data-home-continue hidden/);
 assert.match(index, /data-home-continue-list/);
 assert.match(index, /home-shelf-tabs/);
-assert.match(index, /home-shelf-card" href="\{:\s*mac_url_vod_detail\(\$vo\)\}" title="\{\$vo\.vod_name\}">/);
+assert.match(index, /home-shelf-card" href="\{:\s*mac_url_vod_detail\(\$vo\)\}" title="\{\$vo\.vod_name\}" aria-label="查看\{\$vo\.vod_name\}详情">/);
 assert.match(index, /home-shelf-poster/);
 assert.match(index, /home-shelf-score/);
 assert.match(index, /<h2>本年最新上线<\/h2>/);
@@ -1159,7 +1159,7 @@ assert.match(detail, /data-favorite-label/);
 assert.match(detail, /data-favorite-saved-label="已收藏"/);
 assert.match(detail, /aria-pressed="false"/);
 assert.match(detail, /<dt>热度<\/dt><dd>\{\$obj\.vod_hits\|mac_default='0'\} 次<\/dd>/);
-assert.match(detail, /loading="lazy" decoding="async" width="300" height="450" sizes="\(max-width: 560px\) 46vw, \(max-width: 920px\) 30vw, 180px"/);
+assert.match(detail, /\{maccms:vod type="current"[^}]+\}\s*\{include file="public\/vod_card" \/\}/);
 assert.match(detail, /data-source-quality-panel/);
 assert.match(detail, /data-source-quality-endpoint="\{:url\('pingfangdevice\/sourceQuality'\)\}"/);
 assert.match(detail, /data-source-quality-vod-id="\{\$obj\.vod_id\}"/);
@@ -1567,13 +1567,30 @@ assert.equal((diggPartial.match(/aria-live="polite"/g) || []).length, 2);
 const scorePartial = readThemeFile("html/public/score.html");
 assert.match(scorePartial, /score-panel/);
 assert.match(scorePartial, /vod_score/);
-assert.match(scorePartial, /豆瓣评分/);
+assert.match(scorePartial, /<span class="interaction-label">评分<\/span>/);
+assert.match(scorePartial, /暂无评分/);
+assert.doesNotMatch(scorePartial, /豆瓣/);
 assert.doesNotMatch(scorePartial, /vod_score_num/);
 
 const starPartial = readThemeFile("html/public/star.html");
 assert.match(starPartial, /star-panel/);
 assert.match(starPartial, /vod_score/);
-assert.match(starPartial, /豆瓣/);
+assert.match(starPartial, /暂无评分/);
+assert.doesNotMatch(starPartial, /豆瓣/);
+
+for (const ratingTemplate of [index, vodCardPartial, scorePartial, starPartial]) {
+  assert.match(ratingTemplate, /is_numeric\(\$(?:vo|obj)\['vod_score'\]\)/);
+  assert.match(ratingTemplate, /round\(\$(?:vo|obj)\['vod_score'\], 1\) gt 0/);
+  assert.match(ratingTemplate, /\['vod_score'\] elt 10/);
+  assert.match(ratingTemplate, /vod_score\|number_format=1/);
+  assert.doesNotMatch(ratingTemplate, /vod_score\|mac_default='0\.0'/);
+}
+assert.doesNotMatch(vodCardPartial, /vod_remarks\|mac_default/);
+assert.match(vodCardPartial, /title="\{\$vo\.vod_name\}" aria-label="查看\{\$vo\.vod_name\}详情"/);
+for (const statusTemplate of [index, vodCardPartial, detail]) {
+  assert.match(statusTemplate, /\{if condition="trim\(\(string\) \$(?:vo|obj)\['vod_remarks'\]\) neq ''"\}<(?:em class="quality-badge"|span)>/);
+  assert.doesNotMatch(statusTemplate, /vod_remarks\|mac_default='高清'/);
+}
 
 const style = [baseFoundationStyle, themeFoundationStyle, coreStyle, optionalThemeStyle, gamesStyle, responsiveStyle].join("\n");
 assert.match(style, /\.multiplayer-page \[hidden\]\s*\{\s*display: none !important;/);
@@ -1678,7 +1695,7 @@ const vodCardTitleRule = style.match(/\.vod-card strong\s*\{[\s\S]*?\}/)?.[0] ||
 const vodCardRule = style.match(/\.vod-card\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardMetaRule = style.match(/\.card-meta\s*\{[\s\S]*?\}/)?.[0] || "";
 const vodCardMetaChipRule = style.match(/\.card-meta span\s*\{[\s\S]*?\}/)?.[0] || "";
-const posterRemarkRule = style.match(/\.poster em,[\s\S]*?\.detail-poster span\s*\{[\s\S]*?\}/)?.[0] || "";
+const posterRemarkRule = style.match(/\.poster em,\n\.poster \.quality-badge,[\s\S]*?\.detail-poster span\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryMainTitleRule = style.match(/\.category-main span\s*\{[\s\S]*?\}/)?.[0] || "";
 const categoryChildLinkRule = style.match(/\.category-children a\s*\{[\s\S]*?\}/)?.[0] || "";
 const loginTouchLinkRule = style.match(/\.login-options a,\n\.login-register a\s*\{[\s\S]*?\}/)?.[0] || "";
@@ -1708,7 +1725,7 @@ const homeShelfBadgeRule = style.match(/\.home-shelf-poster em\s*\{[\s\S]*?\}/)?
 const homeShelfBodyRule = style.match(/\.home-shelf-body\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfTitleRule = style.match(/\.home-shelf-body strong\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfMetaRule = style.match(/\.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
-const homeShelfScoreRule = style.match(/\.home-shelf-score\s*\{[\s\S]*?\}/)?.[0] || "";
+const posterScoreRule = [...style.matchAll(/\.poster \.score-badge,\n\.home-shelf-poster \.score-badge\s*\{[\s\S]*?\}/g)].map((match) => match[0]).find((rule) => /top:/.test(rule)) || "";
 const homeShelfFeaturedBodyRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body\s*\{[\s\S]*?\}/)?.[0] || "";
 const homeShelfFeaturedTextRule = style.match(/\.home-shelf-card\.is-featured \.home-shelf-body strong,\n\.home-shelf-card\.is-featured \.home-shelf-body small\s*\{[\s\S]*?\}/)?.[0] || "";
 const mobilePlayerToolbarButtonRule = [...style.matchAll(/\.player-toolbar-actions \.ghost-btn\s*\{[^}]*\}/g)]
@@ -2013,27 +2030,20 @@ assert.match(homeShelfBadgeRule, /white-space: normal/);
 assert.match(homeShelfBadgeRule, /overflow-wrap: anywhere/);
 assert.match(homeShelfBodyRule, /display: contents/);
 assert.match(homeShelfTitleRule, /overflow-wrap: anywhere/);
-assert.match(homeShelfTitleRule, /display: block/);
+assert.match(homeShelfTitleRule, /display: -webkit-box/);
 assert.match(homeShelfTitleRule, /grid-column: 1 \/ -1/);
 assert.match(homeShelfTitleRule, /grid-row: 2/);
 assert.match(homeShelfTitleRule, /align-self: start/);
-assert.match(homeShelfTitleRule, /overflow: visible/);
-assert.doesNotMatch(homeShelfTitleRule, /-webkit-line-clamp/);
+assert.match(homeShelfTitleRule, /overflow: hidden/);
+assert.match(homeShelfTitleRule, /-webkit-line-clamp: 2/);
 assert.match(homeShelfMetaRule, /display: block/);
-assert.match(homeShelfMetaRule, /grid-column: 1/);
+assert.match(homeShelfMetaRule, /grid-column: 1 \/ -1/);
 assert.match(homeShelfMetaRule, /grid-row: 3/);
 assert.match(homeShelfMetaRule, /overflow: visible/);
 assert.doesNotMatch(homeShelfMetaRule, /-webkit-line-clamp/);
-assert.doesNotMatch(style.replace(/\.detail-cast-preview\s*\{[^}]*\}/g, ""), /-webkit-line-clamp:\s*[1-9]/);
-assert.match(homeShelfScoreRule, /grid-column: 2/);
-assert.match(homeShelfScoreRule, /grid-row: 3/);
-assert.match(homeShelfScoreRule, /height: 20px/);
-assert.match(homeShelfScoreRule, /font-size: 11px/);
-assert.match(homeShelfScoreRule, /line-height: 1/);
-assert.match(homeShelfScoreRule, /padding: 0 7px/);
-assert.match(homeShelfScoreRule, /color: var\(--accent-2\)/);
-assert.match(homeShelfScoreRule, /border: 1px solid var\(--line-accent-soft\)/);
-assert.match(homeShelfScoreRule, /background: rgba\(38, 212, 175, 0\.1\)/);
+assert.match(posterScoreRule, /top: 10px/);
+assert.match(posterScoreRule, /left: 10px/);
+assert.match(posterScoreRule, /font-variant-numeric: tabular-nums/);
 assert.doesNotMatch(homeShelfPosterRule, /transform 0\.2s ease/);
 assert.doesNotMatch(homeShelfPosterHoverRule, /transform: translateY\(-2px\)/);
 assert.doesNotMatch(homeShelfPosterImgHoverRule, /transform: scale\(1\.04\)/);
@@ -2099,7 +2109,6 @@ assert.match(bannerDotActiveRule, /background: transparent/);
 assert.doesNotMatch(style, /#d83cff|#2d74ff|#ff38d0|#8a5cff|#ff4edb/);
 assert.doesNotMatch(style, /214, 72, 255|43, 19, 76|11, 18, 45|58, 93, 255|128, 155, 255|62, 91, 255/);
 for (const chipRule of [
-  posterRemarkRule,
   vodCardMetaChipRule,
   categoryChildLinkRule,
   homeShelfBadgeRule,
@@ -2109,8 +2118,9 @@ for (const chipRule of [
   assert.doesNotMatch(chipRule, /text-overflow: ellipsis/);
   assert.doesNotMatch(chipRule, /overflow: hidden/);
 }
+assert.match(posterRemarkRule, /-webkit-line-clamp: 2/);
+assert.match(posterRemarkRule, /overflow-wrap: anywhere/);
 for (const titleRule of [
-  rankListTitleRule,
   categoryMainTitleRule,
   timelineTitleRule,
   episodeLinkRule,
@@ -2122,6 +2132,8 @@ for (const titleRule of [
   assert.match(titleRule, /overflow-wrap: anywhere/);
   assert.doesNotMatch(titleRule, /overflow: hidden/);
 }
+assert.match(rankListTitleRule, /-webkit-line-clamp: 2/);
+assert.match(rankListTitleRule, /overflow-wrap: anywhere/);
 assert.match(systemBoxTitleRule, /overflow-wrap: anywhere/);
 assert.match(contentBodyWrapRule, /white-space: normal/);
 assert.match(contentBodyWrapRule, /overflow-wrap: anywhere/);
@@ -2200,9 +2212,9 @@ assert.match(appScript, /ArrowRight/);
 assert.match(appScript, /ArrowLeft/);
 assert.match(appScript, /tabIndex = isActive \? 0 : -1/);
 assert.doesNotMatch(style, /\.vod-card small/);
-assert.match(vodCardTitleRule, /overflow: visible/);
+assert.match(vodCardTitleRule, /overflow: hidden/);
 assert.match(vodCardTitleRule, /overflow-wrap: anywhere/);
-assert.doesNotMatch(vodCardTitleRule, /-webkit-line-clamp/);
+assert.match(vodCardTitleRule, /-webkit-line-clamp: 2/);
 assert.match(vodCardMetaRule, /margin: 12px 2px 0/);
 assert.match(vodCardMetaRule, /flex-wrap: wrap/);
 assert.match(vodCardMetaChipRule, /white-space: normal/);
@@ -4051,6 +4063,97 @@ echo render_page($data, (string)($_GET["route"] ?? "home"), $_GET);
 
   return execFileSync("php", ["-r", code], { encoding: "utf8" });
 }
+
+const ratingCases = [
+  [8, "8.0"], ["8.26", "8.3"], [8.35, "8.4"], [10, "10.0"], [" 8 ", "8.0"], ["8e0", "8.0"], [0.06, "0.1"],
+  [0, ""], ["0.0", ""], [0.04, ""], [null, ""], ["", ""], [" ", ""], [-1, ""], [11, ""],
+  ["8分", ""], ["0x8", ""], ["Infinity", ""], [true, ""], [false, ""], [[], ""], [{}, ""],
+];
+const ratingFixture = JSON.parse(readFileSync(path.join(root, "preview/data.json"), "utf8"));
+const ratingVideo = { ...ratingFixture.videos[0], title: '当我们在漫长的雨季重逢：最后一个夏天 <终章> & "特别版"', year: String(new Date().getFullYear()), remark: "更新至12集" };
+const ratingRuntime = {
+  store: { ...ratingFixture, videos: [ratingVideo] },
+  app: { innerHTML: "" },
+  TextEncoder,
+  url: (route, params = {}) => `/preview/index.html?${new URLSearchParams({ route, ...params })}`,
+};
+new Script(
+  preview.slice(preview.indexOf("function escapeHtml("), preview.indexOf("function bannerSlide("))
+  + preview.slice(preview.indexOf("function searchClassOptions("), preview.indexOf("function renderPlay(")),
+).runInNewContext(ratingRuntime);
+
+const phpRatingResults = JSON.parse(execFileSync("php", ["-r", `
+require "server/lib/data.php";
+require "server/lib/render.php";
+$data = load_data();
+$base = json_decode(${JSON.stringify(JSON.stringify(ratingVideo))}, true);
+$cases = json_decode(${JSON.stringify(JSON.stringify(ratingCases))}, true);
+$results = [];
+foreach ($cases as [$value, $expected]) {
+    $video = $base;
+    $video["score"] = $value;
+    $data["videos"] = [$video];
+    preg_match('/<a class="rank-item"[\\s\\S]*?<\\/a>/', render_page($data, "home", []), $rank);
+    preg_match('/<div class="interaction-panel score-panel[^\"]*"[\\s\\S]*?<\\/div>/', render_page($data, "detail", ["id" => $video["id"]]), $detailScore);
+    preg_match('/<a class="list-item"[\\s\\S]*?<\\/a>/', render_page($data, "search", []), $search);
+    $results[] = ["card" => render_cards([$video]), "shelf" => render_home_shelf_card($video), "rank" => $rank[0] ?? "", "detail" => $detailScore[0] ?? "", "search" => $search[0] ?? ""];
+}
+echo json_encode($results, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+`], { encoding: "utf8" }));
+
+for (const [caseIndex, [value, expected]] of ratingCases.entries()) {
+  const video = { ...ratingVideo, score: value };
+  ratingRuntime.store.videos = [video];
+  ratingRuntime.renderDetail(video.id);
+  const detailScore = ratingRuntime.app.innerHTML.match(/<div class="interaction-panel score-panel[^"]*"[\s\S]*?<\/div>/)?.[0] || "";
+  ratingRuntime.renderSearch("");
+  const staticResults = {
+    card: ratingRuntime.card(video),
+    shelf: ratingRuntime.homeShelfCard(video),
+    rank: ratingRuntime.rankItem(video, 0),
+    detail: detailScore,
+    search: ratingRuntime.app.innerHTML.match(/<a class="list-item"[\s\S]*?<\/a>/)?.[0] || "",
+  };
+  for (const [surface, results] of [["static", staticResults], ["PHP", phpRatingResults[caseIndex]]]) {
+    const context = `${surface} score ${JSON.stringify(value)}`;
+    for (const [name, badge] of [["card", "score-badge"], ["shelf", "home-shelf-score score-badge"], ["rank", "rank-score"]]) {
+      const scoreText = results[name].match(new RegExp(`<span class="${badge}"[^>]*>([^<]*)<\\/span>`))?.[1] || "";
+      assert.equal(scoreText, expected, `${context} on ${name}`);
+      assert.equal(results[name].includes(`class="${badge}"`), Boolean(expected), `${context} must omit an unrated badge on ${name}`);
+      assert.ok(results[name].includes(`title="${ratingRuntime.escapeHtml(video.title)}"`), `${context} must retain the full title on ${name}`);
+    }
+    assert.match(results.card, /class="quality-badge">更新至12集<\/em>/, context);
+    assert.match(results.shelf, /class="quality-badge">更新至12集<\/em>/, context);
+    if (expected) assert.ok(results.shelf.indexOf('class="home-shelf-score score-badge"') < results.shelf.indexOf("</span>"), `${context} score must stay in the poster`);
+    assert.match(results.detail, /<span class="interaction-label">评分<\/span>/, context);
+    assert.ok(results.detail.includes(`<strong${expected ? "" : ' class="score-unrated"'}>${expected || "暂无评分"}</strong>`) || (!expected && /<strong>暂无评分<\/strong>/.test(results.detail)), `${context} detail score`);
+    assert.equal(results.detail.includes("/ 10"), Boolean(expected), `${context} unrated detail must omit the denominator`);
+    assert.doesNotMatch(results.detail, /豆瓣|>0\.0</, context);
+    assert.equal(results.search.includes(`${expected} 分</span>`), Boolean(expected), `${context} search rating`);
+  }
+}
+
+for (const value of [undefined, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+  assert.equal(ratingRuntime.formatScore(value), "", "non-finite or missing ratings must not display a score");
+}
+const missingCardMetadata = { ...ratingVideo, score: null, year: "", remark: " " };
+for (const year of ["", null, 0, "0"]) {
+  const video = { ...missingCardMetadata, year };
+  for (const html of [ratingRuntime.card(video), ratingRuntime.homeShelfCard(video)]) {
+    assert.doesNotMatch(html, /quality-badge|score-badge|年份未知| · |<span>0<\/span>/);
+    assert.ok(html.includes(ratingVideo.category));
+  }
+}
+const phpMissingCardMetadata = execFileSync("php", ["-r", `
+require "server/lib/render.php";
+$video = json_decode(${JSON.stringify(JSON.stringify(missingCardMetadata))}, true);
+foreach (["", null, 0, "0"] as $year) {
+    $video["year"] = $year;
+    echo render_cards([$video]) . render_home_shelf_card($video);
+}
+`], { encoding: "utf8" });
+assert.doesNotMatch(phpMissingCardMetadata, /quality-badge|score-badge|年份未知| · |<span>0<\/span>/);
+assert.ok(phpMissingCardMetadata.includes(ratingVideo.category));
 
 const heroFallbackCases = JSON.parse(execFileSync("php", ["-r", `
 require "server/lib/data.php";

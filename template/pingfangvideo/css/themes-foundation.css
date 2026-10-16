@@ -202,21 +202,21 @@ body.theme-aurora-glass .favorite-card {
 :where(html[data-theme="blue-pink-purple"], html[data-theme="aurora-glass"]) .primary-btn,
 :where(html[data-theme="blue-pink-purple"], html[data-theme="aurora-glass"]) .hero-carousel .eyebrow,
 :where(html[data-theme="blue-pink-purple"], html[data-theme="aurora-glass"]) .hero-rank .rank-item:first-of-type .rank-index,
-:where(html[data-theme="blue-pink-purple"], html[data-theme="aurora-glass"]) .poster .score-badge,
+:where(html[data-theme="blue-pink-purple"], html[data-theme="aurora-glass"]) :is(.poster, .home-shelf-poster) .score-badge,
 body.theme-blue-pink-purple .header-search button,
 body.theme-blue-pink-purple .hero-search button,
 body.theme-blue-pink-purple .channel-search button,
 body.theme-blue-pink-purple .primary-btn,
 body.theme-blue-pink-purple .hero-carousel .eyebrow,
 body.theme-blue-pink-purple .hero-rank .rank-item:first-of-type .rank-index,
-body.theme-blue-pink-purple .poster .score-badge,
+body.theme-blue-pink-purple :is(.poster, .home-shelf-poster) .score-badge,
 body.theme-aurora-glass .header-search button,
 body.theme-aurora-glass .hero-search button,
 body.theme-aurora-glass .channel-search button,
 body.theme-aurora-glass .primary-btn,
 body.theme-aurora-glass .hero-carousel .eyebrow,
 body.theme-aurora-glass .hero-rank .rank-item:first-of-type .rank-index,
-body.theme-aurora-glass .poster .score-badge {
+body.theme-aurora-glass :is(.poster, .home-shelf-poster) .score-badge {
   background: linear-gradient(135deg, var(--accent-2) 0%, var(--accent) 52%, var(--gold) 100%);
   color: #070917;
   box-shadow: 0 16px 36px rgba(244, 114, 182, 0.24), 0 0 30px rgba(56, 189, 248, 0.18);
@@ -497,7 +497,7 @@ html[data-theme="poster-magazine"] .header-search button,
 html[data-theme="poster-magazine"] .hero-search button,
 html[data-theme="poster-magazine"] .channel-search button,
 html[data-theme="poster-magazine"] .hero-rank .rank-item:first-of-type .rank-index,
-html[data-theme="poster-magazine"] .poster .score-badge {
+html[data-theme="poster-magazine"] :is(.poster, .home-shelf-poster) .score-badge {
   background: linear-gradient(135deg, var(--pm-cyan) 0%, var(--pm-pink) 48%, var(--pm-violet) 100%);
   color: #050613;
   box-shadow: 0 14px 34px rgba(255, 79, 216, 0.22), 0 0 24px rgba(56, 189, 248, 0.16);

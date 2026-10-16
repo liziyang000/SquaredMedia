@@ -54,7 +54,7 @@
   {if condition="$param['type'] eq ''"}
   <div class="vod-list" data-empty-container data-empty-item=".list-item">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" order="desc" by="time" id="vo"}
-    <a class="list-item" href="{:mac_url_vod_detail($vo)}">
+    <a class="list-item" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
       <span>
         <strong>{$vo.vod_name}</strong>
@@ -77,7 +77,7 @@
   </div>
   <div class="vod-list" data-empty-container data-empty-item=".list-item">
     {maccms:vod num="20" paging="yes" pageurl="vod/search" wd="'.$param['wd'].'" type="'.$current['type_id'].'" order="desc" by="time" id="vo"}
-    <a class="list-item" href="{:mac_url_vod_detail($vo)}">
+    <a class="list-item" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" aria-label="查看{$vo.vod_name}详情">
       <img src="{$vo.vod_pic|mac_url_img}" alt="{$vo.vod_name}" loading="lazy" decoding="async" width="160" height="240" sizes="96px">
       <span>
         <strong>{$vo.vod_name}</strong>

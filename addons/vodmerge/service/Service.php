@@ -146,11 +146,29 @@ class Service
         });
     }
 
-    public function jobs(int $before = 0): array
+    public function jobs(int $before = 0, string $search = '', string $state = 'all'): array
     {
+        $states = ['all' => [], 'waiting' => ['pending', 'review', 'ready'], 'attention' => ['applying', 'creating', 'rolling_back'], 'done' => ['applied', 'rolled_back'], 'ignored' => ['rejected']];
+        if (mb_strlen($search) > 100 || !isset($states[$state])) {
+            throw new \InvalidArgumentException('任务搜索或状态无效。');
+        }
+        $where = ' WHERE source_key<>?';
+        $values = [self::LIBRARY_SOURCE];
+        if ($before > 0) {
+            $where .= ' AND job_id<?';
+            $values[] = $before;
+        }
+        if ($states[$state]) {
+            $where .= ' AND status IN (' . implode(',', array_fill(0, count($states[$state]), '?')) . ')';
+            $values = array_merge($values, $states[$state]);
+        }
+        if (trim($search) !== '') {
+            $like = '%' . strtr(trim($search), ['!' => '!!', '%' => '!%', '_' => '!_']) . '%';
+            $where .= " AND (source_key LIKE ? ESCAPE '!' OR source_id LIKE ? ESCAPE '!' OR JSON_EXTRACT(video_json,'$.vod_name') LIKE ? ESCAPE '!' OR JSON_EXTRACT(video_json,'$.vod_sub') LIKE ? ESCAPE '!')";
+            $values = array_merge($values, [$like, $like, $like, $like]);
+        }
         $rows = $this->query('SELECT job_id,source_key,source_id,status,vod_id,message,video_json,updated_at FROM ' . $this->table('vodmerge_job')
-            . ' WHERE source_key<>?' . ($before > 0 ? ' AND job_id < ?' : '') . ' ORDER BY job_id DESC LIMIT 30',
-            $before > 0 ? [self::LIBRARY_SOURCE, $before] : [self::LIBRARY_SOURCE])->fetchAll(\PDO::FETCH_ASSOC);
+            . $where . ' ORDER BY job_id DESC LIMIT 30', $values)->fetchAll(\PDO::FETCH_ASSOC);
         foreach ($rows as &$row) {
             $row['title'] = json_decode($row['video_json'], true)['vod_name'] ?? '';
             unset($row['video_json']);
@@ -181,7 +199,7 @@ class Service
             'status' => $job['status'], 'vod_id' => (int) $job['vod_id'], 'message' => $job['message'],
             'video' => Payload::metadata(json_decode($job['video_json'], true)),
             'review' => json_decode($job['review_json'] ?? '', true) ?: [],
-            'plan' => array_intersect_key($plan, array_flip(['mode', 'title', 'added_groups', 'added_episodes', 'new_status', 'line_changes'])),
+            'plan' => array_intersect_key($plan, array_flip(['mode', 'title', 'added_groups', 'added_episodes', 'new_status', 'line_changes', 'skipped_entries'])),
             'preview_token' => $job['status'] === 'ready' ? $job['preview_token'] : '',
             'preview_until' => $previewUntil, 'actions' => $actions,
         ];
@@ -208,7 +226,7 @@ class Service
         $job = $this->job($id);
         $marker = json_decode($job['review_json'] ?? '', true)['library'] ?? [];
         $pair = [(int) $issue['left_id'], (int) $issue['right_id']];
-        if ($job['source_key'] !== self::LIBRARY_SOURCE || (int) ($marker['issue_id'] ?? 0) !== $issueId
+        if ($job['source_key'] !== self::LIBRARY_SOURCE
             || !in_array((int) ($marker['source_vod_id'] ?? 0), $pair, true)
             || !in_array((int) ($marker['target_vod_id'] ?? 0), $pair, true)
             || (int) $marker['source_vod_id'] === (int) $marker['target_vod_id']
@@ -222,11 +240,11 @@ class Service
     private function latestLibraryJob(array $issue): ?array
     {
         $rows = $this->query('SELECT * FROM ' . $this->table('vodmerge_job')
-            . ' WHERE source_key=? AND source_id IN (?,?) ORDER BY job_id DESC',
-            [self::LIBRARY_SOURCE, (string) $issue['left_id'], (string) $issue['right_id']]);
+            . ' WHERE source_key=? AND ((source_id=? AND vod_id=?) OR (source_id=? AND vod_id=?)) ORDER BY job_id DESC',
+            [self::LIBRARY_SOURCE, (string) $issue['left_id'], (int) $issue['right_id'], (string) $issue['right_id'], (int) $issue['left_id']]);
         while ($job = $rows->fetch(\PDO::FETCH_ASSOC)) {
             $marker = json_decode($job['review_json'] ?? '', true)['library'] ?? [];
-            if ((int) ($marker['issue_id'] ?? 0) === (int) $issue['issue_id']) {
+            if (in_array((int) ($marker['source_vod_id'] ?? 0), [(int) $issue['left_id'], (int) $issue['right_id']], true)) {
                 return $this->libraryJob((int) $issue['issue_id'], (int) $job['job_id']);
             }
         }
@@ -278,16 +296,16 @@ class Service
         return ['issue_id' => $issueId, 'job' => $job ? $this->detail((int) $job['job_id']) : null];
     }
 
-    public function libraryPreview(int $issueId, int $targetId, bool $separate = false): array
+    public function libraryPreview(int $issueId, int $targetId, bool $separate = false, bool $renew = false): array
     {
-        $id = $this->locked(function () use ($issueId, $targetId, $separate) {
+        $id = $this->locked(function () use ($issueId, $targetId, $separate, $renew) {
             $issue = $this->libraryIssue($issueId);
             if (!in_array($targetId, [(int) $issue['left_id'], (int) $issue['right_id']], true)) {
                 throw new \RuntimeException('只能选择当前排查影片对中的一条作为保留目标。');
             }
             $sourceId = (int) $issue['left_id'] === $targetId ? (int) $issue['right_id'] : (int) $issue['left_id'];
             $job = $this->latestLibraryJob($issue);
-            if ($job && !in_array($job['status'], ['review', 'ready', 'rolled_back'], true)) {
+            if ($job && !in_array($job['status'], $renew ? ['review', 'ready', 'rolled_back', 'applied'] : ['review', 'ready', 'rolled_back'], true)) {
                 throw new \RuntimeException('此影片对已合并或有待恢复操作，请先处理已有记录。');
             }
             if ($job && $job['status'] === 'ready') {
@@ -305,7 +323,7 @@ class Service
             $values = ['source_id' => (string) $sourceId, 'video_json' => Payload::json($video), 'review_json' => Payload::json($marker),
                 'status' => 'review', 'vod_id' => $targetId, 'plan_json' => null, 'preview_token' => '', 'preview_until' => 0,
                 'message' => '仅人工预览与确认；来源影片保留。'];
-            if ($job && $job['status'] !== 'rolled_back') {
+            if ($job && !in_array($job['status'], ['rolled_back', 'applied'], true)) {
                 $id = (int) $job['job_id'];
                 $this->updateJob($id, $values);
             } else {
@@ -625,6 +643,11 @@ class Service
                 $plan = ['mode' => 'merge', 'title' => $target['vod_name'], 'before' => $before, 'after' => $after];
                 if ($librarySource !== null) {
                     $plan['library_source_before'] = $this->librarySnapshot($librarySource);
+                    $incomingCount = 0;
+                    foreach (Playlist::groups($librarySource) as $sourceGroup) {
+                        $incomingCount += count(explode('#', rtrim($sourceGroup['vod_play_url'], '#')));
+                    }
+                    $plan['skipped_entries'] = max(0, $incomingCount - $merge['added_episodes']);
                     $plan['line_changes'] = [];
                     $oldGroups = Playlist::groups($before);
                     foreach (Playlist::groups($after) as $slot => $group) {
@@ -632,7 +655,8 @@ class Service
                         $newCount = count(explode('#', rtrim($group['vod_play_url'], '#')));
                         $plan['line_changes'][] = ['slot' => $slot, 'player' => $group['vod_play_from'],
                             'before_episodes' => $oldCount, 'after_episodes' => $newCount,
-                            'added_episodes' => $newCount - $oldCount, 'is_new' => !isset($oldGroups[$slot])];
+                            'added_episodes' => $newCount - $oldCount, 'is_new' => !isset($oldGroups[$slot]),
+                            'entries' => self::publicEntries($group['vod_play_url'], isset($oldGroups[$slot]) ? $oldGroups[$slot]['vod_play_url'] : '')];
                     }
                 }
             } else {
@@ -665,6 +689,18 @@ class Service
             $this->updateJob($id, $updates);
             return $this->detail($id);
         });
+    }
+
+    private static function publicEntries(string $after, string $before): array
+    {
+        $old = array_flip(explode('#', rtrim($before, '#')));
+        $entries = [];
+        foreach (explode('#', rtrim($after, '#')) as $entry) {
+            $parts = explode('$', $entry, 2);
+            $entries[] = ['name' => count($parts) === 2 && !preg_match('~https?://~i', $parts[0]) ? $parts[0] : '未命名播放条目',
+                'action' => isset($old[$entry]) ? 'kept' : 'added'];
+        }
+        return $entries;
     }
 
     private function same(array $actual, array $expected): bool

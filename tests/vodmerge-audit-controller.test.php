@@ -39,6 +39,39 @@ namespace think {
 namespace addons\vodmerge\service {
     class Runtime
     {
+        public static function workbench()
+        {
+            $GLOBALS['workbench_calls'] = ($GLOBALS['workbench_calls'] ?? 0) + 1;
+            if (!empty($GLOBALS['workbench_error'])) {
+                throw new \PDOException('PRIVATE_DB_ERROR');
+            }
+            return new class {
+                public function __call($name, $args)
+                {
+                    if ($name === 'resourceAction') {
+                        if (!empty($GLOBALS['library_service_failure'])) {
+                            throw new \PDOException('PRIVATE_DB_ERROR');
+                        }
+                        $methods = ['merge_apply' => 'apply', 'merge_rollback' => 'rollback', 'merge_recover' => 'recover'];
+                        if (isset($methods[$args[1]])) {
+                            $arguments = [$args[0], $args[5]];
+                            if ($args[1] === 'merge_apply') {
+                                $arguments[] = $args[6];
+                            }
+                            if ($args[1] !== 'merge_recover') {
+                                $arguments[] = $args[2];
+                            }
+                            $GLOBALS['library_method_calls'][] = [$methods[$args[1]], $arguments];
+                            if (isset($GLOBALS['library_service_error'])) {
+                                throw $GLOBALS['library_service_error'];
+                            }
+                        }
+                    }
+                    $GLOBALS['workbench_methods'][] = [$name, $args];
+                    return ['fixture' => true, 'issue_id' => 7];
+                }
+            };
+        }
         public static function service()
         {
             $GLOBALS['library_service_calls']++;
@@ -285,6 +318,36 @@ namespace {
         $response = $controller->auditAction();
         auditControllerCheck($response['status'] === 409 && $response['body']['msg'] === '预览已失效，请重新预览。', 'Library merge conflicts preserve the actionable safe failure message');
         unset($GLOBALS['library_service_error']);
+        $GLOBALS['workbench_calls'] = 0;
+        $GLOBALS['workbench_methods'] = [];
+        foreach ([[false, true, 'valid', 'valid', 405], [true, false, 'valid', 'valid', 405], [true, true, 'valid', 'wrong', 403], [true, true, '', '', 403]] as $case) {
+            [$GLOBALS['audit_post'], $GLOBALS['audit_ajax'], $sessionToken, $sentToken, $expected] = $case;
+            $GLOBALS['audit_session'] = ['vodmerge_csrf' => $sessionToken];
+            $GLOBALS['audit_input'] = ['operation' => 'same', 'csrf' => $sentToken, 'issue_id' => 7];
+            $response = $controller->workbenchAction();
+            auditControllerCheck($response['status'] === $expected && $GLOBALS['workbench_calls'] === 0, 'New workbench mutations reject invalid method, Ajax and CSRF before obtaining the service');
+        }
+        $GLOBALS['audit_post'] = $GLOBALS['audit_ajax'] = true;
+        $GLOBALS['audit_session'] = ['vodmerge_csrf' => 'valid'];
+        $GLOBALS['audit_input'] = ['view' => 'list', 'q' => '跨页别名', 'queue' => 'pending', 'assessment' => 'high', 'page' => 2];
+        auditControllerCheck($controller->workbench()['status'] === 200 && end($GLOBALS['workbench_methods']) === ['cases', ['跨页别名', 'pending', 'high', 2]], 'Whole-queue list parameters reach the new read service');
+        foreach (['same', 'different', 'needs_info', 'snooze', 'restore'] as $op) {
+            $GLOBALS['audit_input'] = ['csrf' => 'valid', 'issue_id' => 7, 'operation' => $op, 'fingerprint' => str_repeat('a', 64), 'reason' => '人工核对'];
+            $response = $controller->workbenchAction();
+            auditControllerCheck($response['status'] === 200 && end($GLOBALS['workbench_methods']) === ['decide', [7, $op, str_repeat('a', 64), '人工核对', 1]], 'Identity decisions use the authenticated admin and submitted current fingerprint');
+        }
+        $GLOBALS['audit_input'] = ['csrf' => 'valid', 'issue_id' => 7, 'operation' => 'merge_preview', 'target_id' => 9, 'separate' => '1'];
+        auditControllerCheck($controller->workbenchAction()['status'] === 200 && end($GLOBALS['workbench_methods']) === ['resourceAction', [7, 'merge_preview', 1, 9, true]], 'Preview reaches the guarded manual workbench path');
+        foreach (['merge_apply', 'no_change'] as $op) {
+            $before = count($GLOBALS['workbench_methods']);
+            $GLOBALS['audit_input'] = ['csrf' => 'valid', 'issue_id' => 7, 'operation' => $op, 'job_id' => 9, 'preview_token' => 'forged'];
+            auditControllerCheck($controller->workbenchAction()['status'] === 400 && count($GLOBALS['workbench_methods']) === $before, 'Malformed preview credentials cannot reach resource execution');
+        }
+        $GLOBALS['workbench_error'] = true;
+        $GLOBALS['audit_input'] = ['view' => 'list'];
+        $response = $controller->workbench();
+        auditControllerCheck($response['status'] === 503 && strpos(json_encode($response), 'PRIVATE_DB_ERROR') === false, 'Workbench read errors withhold private database text');
+        unset($GLOBALS['workbench_error']);
         $GLOBALS['audit_admin_id'] = 2;
         $beforeCalls = $GLOBALS['audit_runtime_calls'];
         $beforeLibraryCalls = $GLOBALS['library_service_calls'];

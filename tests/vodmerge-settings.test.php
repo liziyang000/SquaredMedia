@@ -526,7 +526,7 @@ namespace {
                 foreach (['addons/vodmerge/service', 'application/admin/controller', 'application/extra'] as $directory) {
                     mkdir($installation . '/' . $directory, 0700, true);
                 }
-                foreach (['Payload', 'Playlist', 'Jev', 'Service', 'AuditMatch', 'LibraryAudit', 'Runtime'] as $service) {
+                foreach (['Payload', 'Playlist', 'Jev', 'Service', 'AuditMatch', 'LibraryAudit', 'Workbench', 'Runtime'] as $service) {
                     copy($root . '/addons/vodmerge/service/' . $service . '.php', $installation . '/addons/vodmerge/service/' . $service . '.php');
                 }
                 copy($root . '/addons/vodmerge/bootstrap.php', $installation . '/addons/vodmerge/bootstrap.php');

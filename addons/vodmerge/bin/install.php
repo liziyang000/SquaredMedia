@@ -31,6 +31,8 @@ try {
     }
     require __DIR__ . '/upgrade-audit.php';
     vodmergeUpgradeAudit($db, $prefix);
+    require __DIR__ . '/upgrade-workbench.php';
+    vodmergeUpgradeWorkbench($db, $prefix);
     foreach ($files as $file) {
         $target = APP_PATH . $file;
         if (!is_dir(dirname($target)) && !mkdir(dirname($target), 0755, true)) {

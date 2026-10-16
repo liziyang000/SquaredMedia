@@ -149,7 +149,14 @@ class Runtime
     public static function audit(): LibraryAudit
     {
         [$db, $prefix] = self::database();
-        return new LibraryAudit($db, $prefix);
+        $workbench = new Workbench($db, $prefix, new Service($db, $prefix, (array) config('vodplayer')));
+        return new LibraryAudit($db, $prefix, null, [$workbench, 'discover']);
+    }
+
+    public static function workbench(): Workbench
+    {
+        [$db, $prefix] = self::database();
+        return new Workbench($db, $prefix, new Service($db, $prefix, (array) config('vodplayer')));
     }
 
     public static function autoBound(): bool

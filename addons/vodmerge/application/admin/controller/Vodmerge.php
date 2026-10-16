@@ -102,6 +102,80 @@ class Vodmerge extends Base
         }
     }
 
+    public function workbench()
+    {
+        try {
+            $workbench = Runtime::workbench();
+            switch ((string) input('view/s', 'list')) {
+                case 'list':
+                    $result = $workbench->cases((string) input('q/s', ''), (string) input('queue/s', 'pending'), (string) input('assessment/s', ''), (int) input('page/d', 1));
+                    break;
+                case 'detail':
+                    $result = $workbench->detail($this->libraryId('issue_id'));
+                    break;
+                case 'history':
+                    $result = $workbench->history((int) input('page/d', 1));
+                    break;
+                default:
+                    throw new \InvalidArgumentException('未知工作台视图。');
+            }
+            return json(['code' => 1, 'data' => $result]);
+        } catch (\InvalidArgumentException $error) {
+            return json(['code' => 1003, 'msg' => $error->getMessage()], 400);
+        } catch (\PDOException $error) {
+            return json(['code' => 1004, 'msg' => '读取审核工作台失败，请确认已完成 1.8.0 数据升级。'], 503);
+        } catch (\RuntimeException $error) {
+            return json(['code' => 1003, 'msg' => $error->getMessage()], 409);
+        } catch (\Throwable $error) {
+            return json(['code' => 1004, 'msg' => '读取工作台失败，请刷新重试。'], 503);
+        }
+    }
+
+    public function workbenchAction()
+    {
+        if (!request()->isPost() || !request()->isAjax()) {
+            return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
+        }
+        $csrf = (string) session('vodmerge_csrf');
+        if ($csrf === '' || !hash_equals($csrf, (string) input('post.csrf/s', ''))) {
+            return json(['code' => 1002, 'msg' => '页面已失效，请刷新。'], 403);
+        }
+        try {
+            $issue = $this->libraryId('post.issue_id');
+            $operation = (string) input('post.operation/s', '');
+            $workbench = Runtime::workbench();
+            $actor = (int) $this->_admin['admin_id'];
+            if (in_array($operation, ['same', 'different', 'needs_info', 'snooze', 'restore'], true)) {
+                $result = $workbench->decide($issue, $operation, (string) input('post.fingerprint/s', ''), (string) input('post.reason/s', ''), $actor);
+            } elseif ($operation === 'review') {
+                Runtime::audit()->reviewIssue($issue, $this->libraryFlag('post.force'));
+                $result = $workbench->detail($issue);
+            } elseif ($operation === 'merge_preview') {
+                $result = $workbench->resourceAction($issue, $operation, $actor, $this->libraryId('post.target_id'), $this->libraryFlag('post.separate'));
+            } elseif (in_array($operation, ['merge_apply', 'merge_rollback', 'merge_recover', 'no_change'], true)) {
+                $token = input('post.preview_token', '');
+                if (!is_string($token) || (in_array($operation, ['merge_apply', 'no_change'], true) && !preg_match('/^[a-f0-9]{64}$/D', $token))) {
+                    throw new \InvalidArgumentException('预览凭据无效，请重新预览。');
+                }
+                $result = $workbench->resourceAction($issue, $operation, $actor, 0, false, $this->libraryId('post.job_id'), $token);
+                if (in_array($operation, ['merge_apply', 'merge_rollback', 'merge_recover'], true)) {
+                    Runtime::invalidate();
+                }
+            } else {
+                throw new \InvalidArgumentException('未知审核操作。');
+            }
+            return json(['code' => 1, 'data' => $result]);
+        } catch (\InvalidArgumentException $error) {
+            return json(['code' => 1003, 'msg' => $error->getMessage()], 400);
+        } catch (\PDOException $error) {
+            return json(['code' => 1004, 'msg' => '操作结果需核验，请刷新当前审核记录，勿重复确认。'], 503);
+        } catch (\RuntimeException $error) {
+            return json(['code' => 1003, 'msg' => $error->getMessage()], 409);
+        } catch (\Throwable $error) {
+            return json(['code' => 1004, 'msg' => '操作未完成，请读取当前审核状态后再继续。'], 503);
+        }
+    }
+
     public function auditIssues()
     {
         try {
@@ -196,19 +270,19 @@ class Vodmerge extends Base
                     if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D', $token)) {
                         throw new \InvalidArgumentException('预览凭据无效，请重新预览。');
                     }
-                    $result = Runtime::service()->libraryApply($issueId, $jobId, $token, (int) $this->_admin['admin_id']);
+                    $result = Runtime::workbench()->resourceAction($issueId, 'merge_apply', (int) $this->_admin['admin_id'], 0, false, $jobId, $token);
                     Runtime::invalidate();
                     break;
                 case 'merge_rollback':
                     $issueId = $this->libraryId('post.issue_id');
                     $jobId = $this->libraryId('post.job_id');
-                    $result = Runtime::service()->libraryRollback($issueId, $jobId, (int) $this->_admin['admin_id']);
+                    $result = Runtime::workbench()->resourceAction($issueId, 'merge_rollback', (int) $this->_admin['admin_id'], 0, false, $jobId);
                     Runtime::invalidate();
                     break;
                 case 'merge_recover':
                     $issueId = $this->libraryId('post.issue_id');
                     $jobId = $this->libraryId('post.job_id');
-                    $result = Runtime::service()->libraryRecover($issueId, $jobId);
+                    $result = Runtime::workbench()->resourceAction($issueId, 'merge_recover', (int) $this->_admin['admin_id'], 0, false, $jobId);
                     Runtime::invalidate();
                     break;
                 default:
@@ -230,7 +304,7 @@ class Vodmerge extends Base
     public function jobs()
     {
         try {
-            return json(['code' => 1, 'data' => Runtime::service()->jobs(max(0, (int) input('before/d', 0)))]);
+            return json(['code' => 1, 'data' => Runtime::service()->jobs(max(0, (int) input('before/d', 0)), (string) input('q/s', ''), (string) input('state/s', 'all'))]);
         } catch (\Throwable $error) {
             return json(['code' => 1004, 'msg' => '读取失败，请先安装插件数据表。'], 503);
         }

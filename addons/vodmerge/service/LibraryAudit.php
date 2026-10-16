@@ -7,11 +7,12 @@ class LibraryAudit
     private $db;
     private $prefix;
     private $reviewer;
+    private $discovered;
     private const WEEK = 604800;
     private const FIELDS = 'vod_id,vod_name,vod_sub,vod_en,vod_year,vod_area,vod_lang,vod_actor,vod_director,vod_class,vod_version,vod_douban_id,type_id';
     private const SEASON_PATTERN = '/(?:第\s*[0-9０-９一二三四五六七八九十两零〇]+\s*季|(?<![a-z0-9０-９])(?:season\s*|s\s*)[0-9０-９]{1,3}(?![a-z0-9０-９]))/iu';
 
-    public function __construct(\PDO $db, string $prefix, ?callable $reviewer = null)
+    public function __construct(\PDO $db, string $prefix, ?callable $reviewer = null, ?callable $discovered = null)
     {
         if (!preg_match('/^[a-zA-Z0-9_]{0,40}$/D', $prefix)) {
             throw new \RuntimeException('数据库表前缀无效。');
@@ -19,6 +20,7 @@ class LibraryAudit
         $this->db = $db;
         $this->prefix = $prefix;
         $this->reviewer = $reviewer ?? [Jev::class, 'review'];
+        $this->discovered = $discovered;
         $this->db->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
     }
 
@@ -183,6 +185,9 @@ class LibraryAudit
                 . ' (run_id,left_id,right_id,kind,assessment,priority,assessment_version,detail_json,created_at) VALUES (?,?,?,?,?,?,?,?,?)',
                 [$runId, (int) $candidateId, $id, $conflicts ? 'conflict' : 'possible_duplicate',
                     $assessment['level'], $assessment['priority'], AuditMatch::VERSION, Payload::json($detail), $now]);
+            if ($this->discovered) {
+                ($this->discovered)((int) $this->db->lastInsertId(), (int) $candidateId, $id, $assessment['level'], $assessment['priority'], $now, Workbench::searchText($detail['left'], $detail['right']));
+            }
             $count++;
         }
         foreach ($keys as $hash => $label) {

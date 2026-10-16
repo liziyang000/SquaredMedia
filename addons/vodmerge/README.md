@@ -1,14 +1,33 @@
-# 影片去重与采集审核（VodMerge 1.7.0）
+# 影片去重与采集审核（VodMerge 1.8.0）
 
-已有视频支持全量重复／匹配冲突排查：首轮建立身份索引并记录开始、完成、耗时和进度，后续每周检查新增视频并与旧库比较。在疑似影片对上点击“AI 复核”，可查看当前身份资料的同一影片概率和置信度；点击“人工审核 / 合并”，可选择目标、预览线路与集数、确认资源合并并回滚。影片合并由人工明确确认，来源影片及双方 ID、资料保留，不删除旧视频。
+已有视频支持全量重复／匹配冲突排查：首轮建立身份索引并记录开始、完成、耗时和进度，后续每周检查新增视频并与旧库比较。在疑似影片对上点击“AI 复核”，可查看当前身份资料的同一影片概率和置信度；进入“待处理”点击“审核”，保存身份结论后选择接收方，逐线路预览播放条目，再明确确认资源变化。处理记录保留历史任务与可按条件回滚的入口。影片合并由人工明确确认，来源影片及双方 ID、资料保留，不删除旧视频。
 
 用于 **其他采集脚本／接口 → MacCMS V10** 的独立后台插件。采集脚本先提交资源到暂存队列；按豆瓣 ID、完整名称、别名、英文名及季数主干召回候选，再由 Jev 给出 `same / different / uncertain` 判断。可人工预览后绑定，也可开启严格自动首次绑定。打开自动补集后，同一来源 ID 的后续更新由 Worker 合并到原视频。
 
 两个自动化开关默认关闭。自动首次绑定要求唯一豆瓣 ID、完整身份证据和 Jev 同时通过，模型高分不能越过身份冲突；新建视频及歧义仍需确认。未部署 Worker 时仍可在后台逐条复核、预览和确认。插件不依赖 VodOps，也不改写 MacCMS 核心文件。
 
+## 1.8.0 使用流程
+
+- **待处理**：跨排查轮次查询全部候选，支持片名、别名、影片 ID 与状态筛选。名称搜索使用最近排查或人工审核的名称索引，纯数字按 ID 查询；详情读取实时资料。尚未自动更新旧 ID 的更名索引，可先按 ID 查找。名称匹配超过 5000 对时明确要求缩小搜索范围，不显示截断结果。打开审核页对照当前资料；保存“不同影片”“待补资料”或延后 7 天处理。点击“确认同片并继续”会保存人工结论，返回列表不会丢失。
+- **资源预览**：选择接收方后生成 10 分钟有效的计划，逐线路查看新增、保留和重复跳过的播放条目。电影语言版本称为播放条目，不能当作新增集数。切换目标、资料变化或过期必须重新预览。
+- **处理记录**：查看人工结论、资源计划及执行结果。历史任务没有记录的人工结论或操作者不补写为事实。回滚检查执行后快照和依赖，不能保证随时可撤销。
+- **排查与设置**：查看扫描范围、开始与完成时间、候选截断和周计划；AI 仅按需调用，未配置也可人工审核。原 `#vm-audit` 链接继续进入待处理。
+
+### 从 1.7.0 升级
+
+备份插件目录、三个激活应用文件与插件数据库表。先在私有目录验收新包，然后创建两张审核表、添加跨轮次影片对索引并导入旧结果引用，完成后切换新代码：
+
+```bash
+php addons/vodmerge/bin/upgrade-workbench.php --apply
+```
+
+部署操作须在服务器使用匹配版本的引导与升级文件；首次安装由 `install.php --apply` 创建审核表。升级可重复执行，保留审核结论、旧任务、配置和两项 Cron，不重扫全库、不调用模型、不写影片。旧标签页需刷新并在新版待处理入口重新审核和预览，才能确认资源变化。
+
+资源补充完成后双方影片记录、ID 与资料仍存在；本版不实现前台重复条目隐藏或删除。身份资料变化会要求复核，资源变化会重新比较，不因为新扫描轮次就清除旧审核结论。
+
 ## 安装
 
-需要 PHP 7.4+（PDO MySQL、cURL、mbstring）、单主 MySQL 5.7+、完整 MacCMS V10。安装器需要创建六张 InnoDB 插件表；视频主表可为 MyISAM 或 InnoDB。
+需要 PHP 7.4+（PDO MySQL、cURL、mbstring）、单主 MySQL 5.7+、完整 MacCMS V10。安装器需要创建八张 InnoDB 插件表；视频主表可为 MyISAM 或 InnoDB。
 
 1. 将安装包解压到站点 `addons/`，最终结构须为 `addons/vodmerge/Vodmerge.php`。插件管理页能识别 `vodmerge`。本包遵循官方目录规范；没有对特定版本的插件市场上传器作兼容承诺，建议使用下方 CLI 安装载荷。
 2. 先备份数据库。以站点 PHP 用户进入站点根目录，执行：
@@ -17,7 +36,7 @@
    php addons/vodmerge/bin/install.php --apply
    ```
 
-   它创建或复用 `前缀vodmerge_job`、`前缀vodmerge_binding`，新增 `vodmerge_audit_state`、`vodmerge_audit_run`、`vodmerge_audit_key`、`vodmerge_audit_issue` 四张排查表，复制 `application/admin/controller/Vodmerge.php`、`application/api/controller/Vodmerge.php` 和 `application/admin/view_new/vodmerge/index.html`。目标文件已存在且不同则停止，便于先核对升级版本。不会改视频数据、写密钥或安装 Cron。
+   它创建或复用 `前缀vodmerge_job`、`前缀vodmerge_binding`，新增 `vodmerge_audit_state`、`vodmerge_audit_run`、`vodmerge_audit_key`、`vodmerge_audit_issue` 四张排查表，以及 `vodmerge_case`、`vodmerge_event` 两张审核表，复制 `application/admin/controller/Vodmerge.php`、`application/api/controller/Vodmerge.php` 和 `application/admin/view_new/vodmerge/index.html`。目标文件已存在且不同则停止，便于先核对升级版本。不会改视频数据、写密钥或安装 Cron。
 
 3. 将 `addons/vodmerge/examples/vodmerge.php.example` 复制为站点 `application/extra/vodmerge.php`，在服务器本地填写 `ingest_secret`：独立生成的至少 32 字节随机密钥，采集脚本使用同一值。已有配置文件时保留原值，不直接覆盖。
 

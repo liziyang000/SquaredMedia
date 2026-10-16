@@ -1,0 +1,519 @@
+{include file="../../../application/admin/view_new/public/head" /}
+<style>
+  .vm-nav { display:flex; gap:18px; margin:14px 0; font-size:13px; } .vm-page a { color:var(--vm-blue); text-decoration:none; } .vm-page a:hover { text-decoration:underline; } .vm-page a:focus-visible { outline:3px solid #a9c2ff; outline-offset:3px; }
+  .vm-audit-body { padding:20px; } .vm-audit-settings { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding-bottom:18px; border-bottom:1px solid var(--vm-line); } .vm-audit-settings label { display:flex; align-items:center; gap:8px; } .vm-audit-settings input { width:16px; height:16px; }
+  .vm-audit-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; margin-top:18px; } .vm-audit-metrics dt { color:var(--vm-muted); font-size:12px; } .vm-audit-metrics dd { margin:4px 0 0; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+  .vm-audit-run { margin-top:20px; padding:16px; background:#f7f9fc; border-radius:9px; } .vm-page .vm-audit-run h3 { font-size:15px; } .vm-page .vm-audit-run p { margin-top:7px; } .vm-audit-progress { width:100%; height:10px; margin-top:14px; accent-color:var(--vm-blue); } .vm-audit-run .vm-facts { grid-template-columns:88px minmax(0,1fr); }
+  .vm-audit-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:24px 0 14px; } .vm-page .vm-audit-toolbar h3 { font-size:16px; margin-right:auto; } .vm-audit-toolbar label { font-size:12px; color:var(--vm-muted); } .vm-audit-toolbar select { max-width:100%; }
+  .vm-audit-issue { padding:16px 0; border-top:1px solid var(--vm-line); } .vm-audit-issue-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; } .vm-audit-pair { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; } .vm-audit-film { padding:14px; border:1px solid var(--vm-line); border-radius:8px; min-width:0; } .vm-page .vm-audit-film h3 { font-size:15px; overflow-wrap:anywhere; } .vm-page .vm-audit-film p { margin:5px 0; overflow-wrap:anywhere; } .vm-audit-film details { margin-top:10px; } .vm-audit-reason { margin-top:12px!important; overflow-wrap:anywhere; }
+  .vm-audit-ai { margin-top:14px; padding:14px; background:#f7f9fc; border-radius:8px; } .vm-audit-ai-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; } .vm-page .vm-audit-ai h3 { font-size:14px; } .vm-audit-probabilities { display:flex; flex-wrap:wrap; gap:12px 24px; margin:12px 0; } .vm-audit-probabilities dt { color:var(--vm-muted); font-size:12px; } .vm-audit-probabilities dd { margin:2px 0 0; font-size:18px; font-variant-numeric:tabular-nums; } .vm-audit-probabilities div:first-child dd { color:var(--vm-blue); font-weight:600; } .vm-audit-ai details { margin-top:12px; } .vm-audit-ai .vm-audit-pair { margin-top:10px; } .vm-audit-conflict { color:#b5474d; }
+  .vm-library-toggle { margin-left:auto; } .vm-library-panel { margin-top:14px; padding:18px; border:1px solid #cbdafa; border-radius:9px; background:#fbfdff; } .vm-library-panel h3 { font-size:16px; } .vm-library-panel p { margin-top:8px; } .vm-library-panel fieldset { min-width:0; margin:16px 0; padding:0; border:0; } .vm-library-panel legend { font-weight:600; margin-bottom:8px; } .vm-library-target { display:flex; align-items:flex-start; gap:9px; padding:12px; border:1px solid var(--vm-line); border-radius:8px; background:#fff; cursor:pointer; overflow-wrap:anywhere; } .vm-library-target:has(input:checked) { border-color:var(--vm-blue); background:#f0f5ff; } .vm-library-panel input[type="radio"], .vm-library-panel input[type="checkbox"] { width:17px; min-height:17px; height:17px; margin:4px 0 0; padding:0; flex-shrink:0; accent-color:var(--vm-blue); } .vm-library-check { display:flex; align-items:flex-start; gap:9px; margin-top:12px; } .vm-library-plan { margin-top:16px; border:1px solid var(--vm-line); border-radius:8px; padding:14px; background:#fff; } .vm-library-line { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:9px 0; border-bottom:1px solid var(--vm-line); overflow-wrap:anywhere; } .vm-library-line:last-child { border-bottom:0; } .vm-library-panel .vm-submit { margin-top:14px; } .vm-library-panel .vm-notice { margin-top:12px; }
+  @media (max-width:760px) { .vm-audit-issue-head { flex-wrap:wrap; } .vm-library-toggle { width:100%; margin-left:0; } .vm-library-panel { padding:14px; } }
+  @media (max-width:760px) { .vm-audit-body { padding:16px; } .vm-audit-metrics { grid-template-columns:1fr; gap:10px; } .vm-audit-pair { grid-template-columns:1fr; } .vm-audit-toolbar label { width:100%; } .vm-audit-toolbar select { width:100%; } }
+  .vm-page { --vm-blue:#2563eb; --vm-ink:#24324a; --vm-muted:#68758a; --vm-line:#e1e7f0; box-sizing:border-box; max-width:1240px; min-height:100vh; margin:auto; padding:28px; color:var(--vm-ink); background:#f5f7fb; font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+  .vm-page *, .vm-page *::before, .vm-page *::after { box-sizing:border-box; }
+  .vm-page h1, .vm-page h2, .vm-page h3, .vm-page p { margin:0; }
+  .vm-page h1 { font-size:26px; line-height:1.4; font-weight:650; letter-spacing:-.5px; }
+  .vm-page h2 { font-size:18px; font-weight:650; } .vm-page h3 { font-size:17px; font-weight:650; }
+  .vm-page button, .vm-page input, .vm-page select { font:inherit; }
+  .vm-page button { min-height:38px; padding:7px 14px; border:1px solid var(--vm-line); border-radius:7px; background:#fff; color:var(--vm-ink); cursor:pointer; transition:background .15s,border-color .15s; }
+  .vm-page button:hover:not(:disabled) { border-color:#a7bce9; background:#f1f5ff; }
+  .vm-page button:disabled { opacity:.48; cursor:not-allowed; }
+  .vm-page button.vm-primary { background:var(--vm-blue); border-color:var(--vm-blue); color:#fff; } .vm-page button.vm-primary:hover:not(:disabled) { background:#1d4ed8; }
+  .vm-page button.vm-danger { color:#b5474d; }
+  .vm-page button:focus-visible, .vm-page input:focus-visible, .vm-page select:focus-visible, .vm-page summary:focus-visible { outline:3px solid #a9c2ff; outline-offset:3px; }
+  .vm-page input:not([type="checkbox"]), .vm-page select { min-height:38px; border:1px solid #cfd8e5; border-radius:7px; background:#fff; color:var(--vm-ink); padding:7px 10px; max-width:100%; }
+  .vm-page input:disabled { background:#f5f7fa; } .vm-page [hidden] { display:none!important; }
+  .vm-muted { color:var(--vm-muted); } .vm-small { font-size:12px; color:var(--vm-muted); }
+  .vm-header, .vm-section-head, .vm-actions, .vm-candidate-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .vm-header { margin-bottom:20px; } .vm-header p { margin-top:6px; color:var(--vm-muted); } .vm-actions { justify-content:flex-start; }
+  .vm-card { margin-top:16px; border:1px solid var(--vm-line); border-radius:12px; background:#fff; overflow:hidden; }
+  .vm-section-head { padding:18px 20px; border-bottom:1px solid var(--vm-line); } .vm-section-head p { margin-top:3px; }
+  .vm-pill { display:inline-block; padding:3px 9px; border-radius:5px; background:#edf1f7; color:#53627a; font-size:12px; white-space:nowrap; }
+  .vm-pill-good { color:#117759; background:#e9f7f0; } .vm-pill-wait { color:#a16820; background:#fff5df; } .vm-pill-error { color:#b5474d; background:#fff0f1; }
+  .vm-banner { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 16px; border:1px solid #dce6fc; border-radius:9px; background:#eef4ff; }
+  .vm-banner p { color:#536784; font-size:13px; margin-top:2px; }
+  .vm-filters { display:flex; gap:10px; flex-wrap:wrap; padding:14px 20px; border-bottom:1px solid var(--vm-line); } #vm-search { width:300px; }
+  .vm-scroll { overflow-x:auto; } .vm-page table { width:100%; border-collapse:collapse; }
+  .vm-page th { background:#f8fafc; color:var(--vm-muted); font-size:12px; font-weight:500; }
+  .vm-page th, .vm-page td { padding:13px 20px; text-align:left; border-bottom:1px solid #edf0f5; vertical-align:middle; }
+  .vm-page td:first-child { width:34%; } .vm-page td strong { display:block; font-weight:600; }
+  .vm-page td small { display:block; margin-top:3px; color:var(--vm-muted); overflow-wrap:anywhere; } .vm-page tr.vm-current { background:#f0f5ff; }
+  .vm-empty { padding:44px 20px; text-align:center; } .vm-empty svg { width:52px; height:52px; margin-bottom:10px; color:#91a5c5; }
+  .vm-empty p { margin:7px auto 16px; max-width:470px; color:var(--vm-muted); }
+  .vm-queue-footer { padding:12px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; } .vm-queue-footer button { flex-shrink:0; white-space:nowrap; }
+  .vm-notice { margin-top:14px; padding:11px 14px; border-radius:8px; background:#eef4ff; color:#31578e; overflow-wrap:anywhere; }
+  .vm-notice-error { background:#fff0f1; color:#a53840; } .vm-notice-success { background:#e9f7f0; color:#117759; }
+  .vm-detail-body { padding:20px; }
+  .vm-steps { display:flex; margin:0 0 20px; padding:0; list-style:none; gap:18px; color:var(--vm-muted); font-size:13px; }
+  .vm-steps li { display:flex; align-items:center; gap:7px; } .vm-steps span { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%; background:#edf1f7; font-size:12px; }
+  .vm-steps li.vm-step-active { color:var(--vm-blue); font-weight:600; } .vm-steps li.vm-step-active span { color:#fff; background:var(--vm-blue); }
+  .vm-compare { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:24px; }
+  .vm-source { padding:18px; border-radius:9px; background:#f7f9fc; align-self:start; } .vm-source h3 { margin:4px 0 12px; }
+  .vm-facts { display:grid; grid-template-columns:64px minmax(0,1fr); gap:7px 10px; margin:12px 0 0; font-size:13px; }
+  .vm-facts dt { color:var(--vm-muted); } .vm-facts dd { margin:0; overflow-wrap:anywhere; }
+  .vm-page details>summary { cursor:pointer; color:#536784; } .vm-source details, .vm-candidate details { margin-top:12px; font-size:13px; }
+  .vm-candidates-title { margin-bottom:12px; padding:0; border:0; }
+  .vm-candidate { padding:16px; border:1px solid var(--vm-line); border-radius:9px; margin-top:10px; }
+  .vm-candidate.vm-selected { border-color:var(--vm-blue); box-shadow:0 0 0 1px var(--vm-blue); background:#f8faff; }
+  .vm-candidate-head { align-items:flex-start; } .vm-candidate h3 { font-size:15px; overflow-wrap:anywhere; } .vm-candidate p { margin-top:8px; font-size:13px; overflow-wrap:anywhere; }
+  .vm-candidate .vm-actions { margin-top:12px; }
+  .vm-candidate-empty { padding:26px 16px; border:1px dashed #d8e1ed; border-radius:9px; background:#fafbfd; } .vm-candidate-empty p { margin-top:5px; color:var(--vm-muted); }
+  .vm-manual { margin-top:18px; padding-top:16px; border-top:1px solid var(--vm-line); } .vm-manual label { display:block; margin:12px 0 4px; } #vm-target { width:190px; }
+  .vm-selection { margin-top:20px; padding:13px 16px; background:#f0f5ff; border-radius:8px; }
+  .vm-plan { margin-top:16px; padding:16px; border:1px solid var(--vm-line); border-radius:9px; } .vm-plan h3 { font-size:15px; } .vm-plan p { margin-top:6px; color:var(--vm-muted); }
+  .vm-plan-counts { display:flex; gap:24px; margin-top:12px; } .vm-plan-counts strong { font-size:22px; margin-right:5px; font-variant-numeric:tabular-nums; }
+  .vm-submit { margin-top:18px; padding-top:16px; border-top:1px solid var(--vm-line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; } .vm-submit>.vm-small { margin-left:auto; }
+  .vm-more { margin-top:18px; padding-top:14px; border-top:1px solid var(--vm-line); font-size:13px; } .vm-more .vm-actions { margin-top:12px; } .vm-more p { margin-top:8px; color:var(--vm-muted); }
+  .vm-help { margin-top:18px; color:var(--vm-muted); font-size:13px; } .vm-help>summary { font-weight:500; } .vm-help-body { padding:16px 0; max-width:800px; } .vm-help-body h3 { font-size:14px; margin-top:12px; } .vm-help-body p { margin-top:5px; }
+  .vm-page dialog { width:490px; max-width:calc(100vw - 32px); padding:24px; border:1px solid var(--vm-line); border-radius:12px; color:var(--vm-ink); background:#fff; box-shadow:0 24px 80px #172b4d26; } .vm-page dialog::backdrop { background:#172b4d55; }
+  .vm-dialog-head { display:flex; align-items:center; justify-content:space-between; gap:12px; } .vm-dialog-head button { font-size:20px; padding:0 10px; min-width:36px; }
+  .vm-dialog-body>p { margin-top:12px; color:var(--vm-muted); } .vm-dialog-body label { display:block; margin:20px 0 6px; font-weight:500; } #vm-api-token { width:100%; }
+  .vm-dialog-body .vm-actions { margin-top:18px; } .vm-dialog-body details { margin-top:18px; font-size:12px; color:var(--vm-muted); } .vm-dialog-body details p { margin:8px 0; }
+  @media (max-width:760px) { .vm-page { padding:16px; } .vm-page h1 { font-size:23px; } .vm-compare { grid-template-columns:1fr; gap:18px; } .vm-section-head,.vm-detail-body { padding:16px; } .vm-banner { align-items:flex-start; } .vm-filters { padding:12px 16px; } #vm-search { flex:1; min-width:180px; } .vm-steps { gap:10px; flex-wrap:wrap; } .vm-submit>.vm-small { margin-left:0; width:100%; } .vm-page th,.vm-page td { padding:12px; } }
+  @media (max-width:520px) { .vm-header { align-items:flex-start; } .vm-banner { flex-direction:column; gap:8px; } .vm-page table thead { display:none; } .vm-page table,.vm-page tbody { display:block; } .vm-page tr { display:grid; grid-template-columns:minmax(0,1fr) auto; padding:12px 16px; border-bottom:1px solid var(--vm-line); gap:7px 12px; } .vm-page td { display:block; padding:0; border:0; } .vm-page td:first-child { width:auto; grid-column:1/-1; } .vm-page td:nth-child(2) { font-size:12px; color:var(--vm-muted); } .vm-page td:nth-child(4) { font-size:12px; } .vm-page td:last-child { grid-column:2; text-align:right; } .vm-queue-footer { padding:12px 16px; } .vm-candidate-head { flex-direction:column; gap:5px; } }
+  @media (prefers-reduced-motion:reduce) { .vm-page button { transition:none; } }
+</style>
+<main class="vm-page">
+  <header class="vm-header"><div><h1>采集审核</h1><p>核对新采集的影片，再把播放资源合并到对应作品。</p></div><button type="button" id="vm-open-settings">AI 设置 <span class="vm-pill" id="vm-jev-ready">{$jev_ready|htmlspecialchars}</span></button></header>
+  <div class="vm-banner" id="vm-connect-banner" hidden><div><strong>连接 AI，辅助比较影片</strong><p>尚未连接时，也可以查找候选影片并手动审核。</p></div><button type="button" id="vm-connect">连接 AI</button></div>
+  <nav class="vm-nav" aria-label="影片审核范围"><a href="#vm-collection">采集任务</a><a href="#vm-audit">已有影片排查</a></nav>
+  <section class="vm-card" id="vm-collection" aria-labelledby="vm-queue-title">
+    <div class="vm-section-head"><div><h2 id="vm-queue-title">采集任务</h2><p class="vm-small" id="vm-queue-count">正在读取任务…</p></div><button type="button" id="vm-refresh">刷新</button></div>
+    <div class="vm-filters" id="vm-filters" hidden><input type="search" id="vm-search" aria-label="查找本页任务" placeholder="查找本页影片或来源"><select id="vm-filter" aria-label="筛选本页任务状态"><option value="all">全部状态</option><option value="waiting">待审核</option><option value="attention">待恢复</option><option value="done">已完成</option><option value="ignored">已忽略</option></select></div>
+    <div class="vm-empty" id="vm-queue-state" role="status" aria-live="polite"><svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="7" y="9" width="34" height="30" rx="5" stroke="currentColor" stroke-width="2"/><path d="M7 17h34M16 9v8m16-8v8M19 24l10 5-10 5v-10Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><h3 id="vm-state-title">正在读取任务</h3><p id="vm-state-text">稍候片刻，采集结果会显示在这里。</p><button type="button" id="vm-state-action" hidden>查看接入说明</button></div>
+    <div class="vm-scroll" id="vm-table" hidden><table><thead><tr><th scope="col">影片</th><th scope="col">采集来源</th><th scope="col">处理状态</th><th scope="col">对应影片</th><th scope="col">操作</th></tr></thead><tbody id="vm-rows"></tbody></table></div>
+    <div class="vm-queue-footer"><span class="vm-small">先核对影片和季数，确认预览后才会写入。</span><button type="button" id="vm-older" disabled>更早任务</button></div>
+  </section>
+  <div id="vm-feedback" class="vm-notice" role="status" aria-live="polite" hidden></div>
+  <section class="vm-card" id="vm-detail" hidden aria-labelledby="vm-title">
+    <div class="vm-section-head"><div><h2 id="vm-title" tabindex="-1"></h2><p class="vm-small" id="vm-detail-subtitle"></p></div><button type="button" id="vm-close-detail" aria-label="收起任务详情">收起</button></div>
+    <div class="vm-detail-body">
+      <ol class="vm-steps" aria-label="审核步骤"><li><span>1</span>查看采集</li><li><span>2</span>比较影片</li><li><span>3</span>预览变化</li><li><span>4</span>确认合并</li></ol>
+      <div class="vm-compare">
+        <article class="vm-source"><span class="vm-small">这次采集</span><h3 id="vm-incoming-title"></h3><div id="vm-incoming-facts"></div><details><summary>展开完整资料</summary><div id="vm-metadata"></div></details></article>
+        <div><div class="vm-section-head vm-candidates-title"><h3>站内可能对应的影片</h3><button type="button" data-operation="review" class="vm-primary">比较已有影片</button></div><p class="vm-small" id="vm-review-status"></p><div id="vm-candidates"></div></div>
+      </div>
+      <details class="vm-manual" id="vm-manual"><summary>找不到对应影片？手动输入站内编号</summary><label for="vm-target">已有影片编号</label><input type="number" id="vm-target" min="1" inputmode="numeric" placeholder="例如 123"><p class="vm-small">预览时会显示目标片名，请再次核对。</p></details>
+      <div class="vm-selection" id="vm-selection" hidden></div><div class="vm-plan" id="vm-plan" hidden></div>
+      <div class="vm-submit"><button type="button" id="vm-preview" class="vm-primary">预览合并结果</button><button type="button" id="vm-create">作为新影片预览</button><button type="button" id="vm-apply" class="vm-primary" hidden>确认执行合并</button><button type="button" id="vm-recover-main" data-operation="recover" class="vm-primary" hidden>核验并恢复任务</button><span class="vm-small" id="vm-preview-hint">选择目标影片后，即可预览变化。</span></div>
+      <details class="vm-more"><summary>更多操作与核对说明</summary><label><input type="checkbox" id="vm-separate"> 同一集地址不同，追加一条独立线路</label><p>AI 判断仅供参考。作品、季数和版本需一致；若资料有冲突，请先核对。</p><p id="vm-automatic"></p><div class="vm-actions"><button type="button" data-operation="review" data-force="1">重新进行 AI 比较</button><button type="button" data-operation="requeue">重新排队</button><button type="button" data-operation="rollback" class="vm-danger">撤销本次合并</button><button type="button" data-operation="reject" class="vm-danger">忽略这次采集</button></div></details>
+    </div>
+  </section>
+  <details class="vm-help" id="vm-help"><summary>使用与采集接入说明</summary><div class="vm-help-body"><h3>为什么这里没有任务？</h3><p>这里只显示提交给 VodMerge 的采集结果。直接写入原视频库的记录不会自动出现在这里。请让采集脚本维护者按插件接入说明提交资源，任务收到后即可开始审核。</p><h3>如何完成一次审核？</h3><p>打开任务，比较片名、季数和版本，选择对应影片。点击“预览合并结果”，检查目标片名、新增线路与集数，再确认执行。没有对应作品时，可以预览新影片；新影片先进入待审核列表。</p><h3>自动处理状态</h3><p>自动合并：{$auto_first|htmlspecialchars}；已确认来源自动补集：{$auto_bound|htmlspecialchars}。需要调整时，请到插件管理中修改相应开关。自动处理由服务器计划任务执行。</p></div></details>
+  <section class="vm-card" id="vm-audit" aria-labelledby="vm-audit-title">
+    <div class="vm-section-head"><div><h2 id="vm-audit-title">已有影片排查</h2><p class="vm-small">查找疑似重复影片及匹配冲突。排查只记录结果；人工核对、预览并确认后，才会合并播放资源。</p></div><button type="button" id="vm-audit-refresh">刷新排查</button></div>
+    <div class="vm-audit-body">
+      <div class="vm-audit-settings"><div><button type="button" id="vm-audit-start" class="vm-primary" disabled>启动全库排查</button><p class="vm-small">首次检查当前全库；有排查运行时，不会重复启动。</p></div><div><label><input type="checkbox" id="vm-audit-weekly" disabled>每周检查新增影片</label><p class="vm-small">新增影片与已检查的旧库比较，服务器自动执行。</p></div></div>
+      <div id="vm-audit-feedback" class="vm-notice" role="status" aria-live="polite" hidden></div>
+      <div id="vm-audit-status" class="vm-empty" role="status" aria-live="polite"><h3 id="vm-audit-status-title">正在读取排查状态</h3><p id="vm-audit-status-text">稍候片刻，进度和历史记录会显示在这里。</p><button type="button" id="vm-audit-retry" hidden>重新读取排查状态</button></div>
+      <div id="vm-audit-summary" hidden>
+        <dl class="vm-audit-metrics"><div><dt>上次成功完成</dt><dd id="vm-audit-last">尚未完成过排查</dd></div><div><dt>下次新增排查</dt><dd id="vm-audit-next">尚未开启</dd></div><div><dt>已检查到影片编号</dt><dd id="vm-audit-watermark">尚未建立检查记录</dd></div></dl>
+        <div id="vm-audit-active" class="vm-notice" hidden></div>
+        <div class="vm-audit-toolbar"><h3>排查记录与结果</h3><label for="vm-audit-run-select">排查记录</label><select id="vm-audit-run-select" aria-label="选择排查记录" disabled></select><label for="vm-audit-kind">结果类型</label><select id="vm-audit-kind" aria-label="筛选排查结果"><option value="">全部结果</option><option value="possible_duplicate">疑似重复</option><option value="conflict">匹配冲突</option></select><label for="vm-audit-quality">审核分级</label><select id="vm-audit-quality" aria-label="按依据筛选排查结果"><option value="review">待审核</option><option value="all">全部结果</option><option value="high">强同片依据</option><option value="probable">较多同片依据</option><option value="conflict">资料冲突</option><option value="insufficient">资料不足</option><option value="related">更像不同作品或季数</option><option value="unrated">未分级</option></select></div>
+        <p id="vm-audit-quality-counts" class="vm-small"></p>
+        <p class="vm-small">按审核优先级排列，同级显示较新的结果。待审核暂不展示更像不同作品或季数的关联对；规则分级不是相似概率。旧结果未分级时需由服务器后台补充分级。</p>
+        <div id="vm-audit-run" class="vm-audit-run" hidden><div class="vm-section-head vm-candidates-title"><h3 id="vm-audit-run-title"></h3><span class="vm-pill" id="vm-audit-run-state"></span></div><progress id="vm-audit-progress" class="vm-audit-progress" max="1" value="0" aria-label="影片排查进度"></progress><p id="vm-audit-progress-text" class="vm-muted"></p><dl id="vm-audit-run-facts" class="vm-facts"></dl><p id="vm-audit-run-warning" class="vm-small"></p></div>
+        <div id="vm-audit-issues-state" class="vm-empty" role="status" aria-live="polite"><h3 id="vm-audit-issues-title">还没有排查记录</h3><p id="vm-audit-issues-text">启动一次全库排查后，在这里查看进度和疑似问题。</p><button type="button" id="vm-audit-issues-retry" hidden>重新读取结果</button></div>
+        <div id="vm-audit-issues"></div><div class="vm-queue-footer"><span id="vm-audit-issues-count" class="vm-small">结果需人工核对，疑似重复不代表可以直接合并。</span><button type="button" id="vm-audit-older" disabled>下一页</button></div>
+      </div>
+    </div>
+  </section>
+  <dialog id="vm-settings-dialog" aria-labelledby="vm-settings-title"><div class="vm-dialog-head"><h2 id="vm-settings-title">AI 连接设置</h2><button type="button" id="vm-close-settings" aria-label="关闭 AI 设置">×</button></div><div class="vm-dialog-body"><p>连接 Jev，辅助判断候选影片是否为同一作品。</p><p id="vm-jev-source"></p><label for="vm-api-token">Jev API Token</label><input type="password" id="vm-api-token" autocomplete="new-password" placeholder="粘贴你的 Jev API Token"><p class="vm-small">Token 保存在服务器，页面不会显示已保存的值。</p><div class="vm-actions"><button type="button" id="vm-save-token" class="vm-primary">保存连接</button><button type="button" id="vm-test-token">测试连接</button></div><div id="vm-settings-feedback" class="vm-notice" role="status" aria-live="polite" hidden></div><details><summary>连接管理与服务器配置</summary><p>测试不会保存配置。有输入时验证新 Token；留空时验证当前连接。服务器环境变量优先，后台无法修改该来源。</p><button type="button" id="vm-clear-token" class="vm-danger">断开已保存的连接</button></details></div></dialog>
+</main>
+<script>
+(function () {
+  "use strict";
+  var csrf = "{$csrf|htmlspecialchars}";
+  var nativeToken = "{$native_token|htmlspecialchars}";
+  var urls = { jobs: "{:url('vodmerge/jobs')}", detail: "{:url('vodmerge/detail')}", action: "{:url('vodmerge/action')}", settings: "{:url('vodmerge/settings')}" };
+  var jevSource = "{$jev_source|htmlspecialchars}";
+  var current = null, cursor = 0, busy = false, hasOlder = false, rows = [], listBefore = 0, emptyAction = "help";
+  var labels = { pending: "等待处理", review: "待审核", ready: "待确认", applying: "写入待恢复", creating: "新建待核验", applied: "已完成", rolling_back: "撤销待恢复", rolled_back: "已撤销", rejected: "已忽略" };
+  var groups = { pending: "waiting", review: "waiting", ready: "waiting", applying: "attention", creating: "attention", rolling_back: "attention", applied: "done", rolled_back: "done", rejected: "ignored" };
+  var metadataLabels = { vod_name: "片名", vod_sub: "别名", vod_en: "英文名", vod_year: "年份", vod_area: "地区", vod_lang: "语言", vod_actor: "主演", vod_director: "导演", vod_class: "类型", vod_version: "版本", type_id: "站内分类编号", vod_douban_id: "豆瓣编号", vod_content: "简介" };
+  function el(id) { return document.getElementById(id); }
+  function node(tag, text, className) { var item = document.createElement(tag); if (text !== undefined) item.textContent = text; if (className) item.className = className; return item; }
+  function notice(id, text, tone) { var box = el(id); box.textContent = text; box.className = "vm-notice" + (tone ? " vm-notice-" + tone : ""); box.hidden = !text; }
+  function message(text, tone) { notice("vm-feedback", text, tone); }
+  function issues(values) { return (values || []).map(function (text) { return text.replace(/vod_douban_id/g, "豆瓣编号").replace(/type_id/g, "影片分类").replace(/vod_year/g, "上映年份").replace(/vod_version/g, "影片版本"); }).join("；"); }
+  function permissions() { return current && current.actions ? current.actions : {}; }
+  function setBusy(value) {
+    busy = value;
+    Array.prototype.forEach.call(document.querySelectorAll(".vm-page button, .vm-page input, .vm-page select"), function (control) { if (!control.closest("#vm-audit")) control.disabled = busy; });
+    var allowed = permissions();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-operation]"), function (button) { button.disabled = busy || !allowed[button.getAttribute("data-operation")] || (button.getAttribute("data-force") === "1" && jevSource === "none"); });
+    var target = Number(el("vm-target").value);
+    el("vm-target").disabled = busy || !allowed.preview; el("vm-separate").disabled = busy || !allowed.preview;
+    el("vm-preview").disabled = busy || !allowed.preview || !Number.isInteger(target) || target < 1;
+    el("vm-create").hidden = !allowed.create; el("vm-create").disabled = busy || !allowed.create;
+    el("vm-apply").hidden = !allowed.apply || !current.preview_token; el("vm-apply").disabled = busy || !allowed.apply;
+    el("vm-recover-main").hidden = !allowed.recover;
+    el("vm-older").disabled = busy || !hasOlder;
+    el("vm-api-token").disabled = busy || jevSource === "environment";
+    el("vm-save-token").disabled = busy || jevSource === "environment" || !el("vm-api-token").value.trim();
+    el("vm-test-token").disabled = busy || (jevSource === "none" && !el("vm-api-token").value.trim());
+    el("vm-clear-token").disabled = busy || jevSource !== "file";
+    Array.prototype.forEach.call(document.querySelectorAll("[data-candidate]"), function (button) { button.disabled = busy || !allowed.preview || button.getAttribute("data-conflict") === "1"; });
+  }
+  function settingsStatus(data) {
+    jevSource = data.source; el("vm-jev-ready").textContent = data.configured ? "已配置" : "未配置";
+    el("vm-jev-ready").className = "vm-pill"; el("vm-connect-banner").hidden = data.configured;
+    el("vm-jev-source").textContent = jevSource === "environment" ? "Token 由服务器管理员配置。可以测试当前连接，修改请联系管理员。" : (jevSource === "file" ? "已保存 Token，可测试是否可用。输入新 Token 可以更换，留空保留原配置。" : "尚未配置 Token。粘贴后，可先测试，再保存。");
+    el("vm-api-token").placeholder = data.configured ? "留空保留当前连接" : "粘贴你的 Jev API Token";
+    document.querySelector('[data-operation="review"]').textContent = data.configured ? "比较已有影片" : "查找已有影片";
+  }
+  function facts(data, full) {
+    var dl = node("dl", undefined, "vm-facts");
+    (full ? Object.keys(metadataLabels) : ["vod_year", "vod_area", "vod_class", "vod_version", "vod_director", "vod_actor"]).forEach(function (key) {
+      var value = data[key]; if (value && value !== "0") { dl.appendChild(node("dt", metadataLabels[key])); dl.appendChild(node("dd", value)); }
+    });
+    return dl;
+  }
+  function fetchJson(url, options) {
+    return fetch(url, options).then(function (response) { return response.json().catch(function () { throw new Error("无法读取后台返回，请刷新页面或重新登录。"); }); }).then(function (result) {
+      if (result.code !== 1) throw new Error(result.msg || "操作未完成，请刷新任务后重试。"); return result.data;
+    }).catch(function (error) { if (error instanceof TypeError) throw new Error("连接失败，请检查网络后重试。"); throw error; });
+  }
+  function query(url, name, value) { return url + (url.indexOf("?") >= 0 ? "&" : "?") + name + "=" + value; }
+  function queueState(title, text, action, label) {
+    el("vm-queue-state").hidden = false; el("vm-table").hidden = true; el("vm-state-title").textContent = title; el("vm-state-text").textContent = text;
+    emptyAction = action; el("vm-state-action").hidden = !action; el("vm-state-action").textContent = label || "";
+  }
+  function renderRows() {
+    var search = el("vm-search").value.trim().toLowerCase(), filter = el("vm-filter").value;
+    var visible = rows.filter(function (row) { return (filter === "all" || groups[row.status] === filter) && (!search || [row.title, row.source_key, row.source_id, row.job_id].join(" ").toLowerCase().indexOf(search) >= 0); });
+    el("vm-rows").textContent = ""; el("vm-filters").hidden = !rows.length;
+    el("vm-queue-count").textContent = rows.length ? "本页显示 " + visible.length + " / " + rows.length + " 条" : "暂无任务";
+    if (!visible.length) {
+      if (rows.length) queueState("本页没有符合条件的任务", "试试其他状态，或清空搜索。筛选仅针对当前这一页。", "reset", "清空筛选");
+      else if (listBefore) queueState("已经到最早的任务了", "可以刷新列表，回到最新采集任务。", "latest", "回到最新任务");
+      else queueState("还没有采集任务", "采集脚本提交资源后，影片会出现在这里。先接入采集，再开始审核。", "help", "查看接入说明");
+      return;
+    }
+    el("vm-queue-state").hidden = true; el("vm-table").hidden = false;
+    visible.forEach(function (row) {
+      var tr = node("tr"); if (current && current.job_id === row.job_id) tr.className = "vm-current";
+      var title = node("td"); title.appendChild(node("strong", row.title)); title.appendChild(node("small", "任务 #" + row.job_id)); tr.appendChild(title);
+      var source = node("td", row.source_key); source.appendChild(node("small", row.source_id)); tr.appendChild(source);
+      var status = node("td"); status.appendChild(node("span", labels[row.status] || row.status, "vm-pill" + (groups[row.status] === "waiting" ? " vm-pill-wait" : (groups[row.status] === "attention" ? " vm-pill-error" : (row.status === "applied" ? " vm-pill-good" : ""))))); tr.appendChild(status);
+      tr.appendChild(node("td", row.vod_id ? "#" + row.vod_id : "尚未选择"));
+      var actions = node("td"), button = node("button", groups[row.status] === "waiting" ? "开始审核" : "查看记录"); button.type = "button";
+      button.onclick = function () { openTask(row.job_id); }; actions.appendChild(button); tr.appendChild(actions); el("vm-rows").appendChild(tr);
+    });
+  }
+  function list(before) {
+    listBefore = before; queueState("正在读取任务", "稍候片刻，采集结果会显示在这里。", "", "");
+    return fetchJson(query(urls.jobs, "before", before)).then(function (data) { rows = data; cursor = rows.length ? rows[rows.length - 1].job_id : 0; hasOlder = rows.length === 30; renderRows(); }).catch(function (error) {
+      el("vm-queue-count").textContent = "读取失败"; queueState("暂时无法读取任务", error.message, "retry", "重新读取"); throw error;
+    });
+  }
+  function loadList(before) { if (busy) return; setBusy(true); list(before).catch(function () {}).finally(function () { setBusy(false); }); }
+  function openTask(id) {
+    if (busy) return; setBusy(true); message("正在打开任务…");
+    fetchJson(query(urls.detail, "job_id", id)).then(function (data) {
+      render(data); renderRows(); el("vm-detail").scrollIntoView({ block:"start", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); el("vm-title").focus({ preventScroll:true });
+    }).catch(function (error) { message(error.message, "error"); }).finally(function () { setBusy(false); });
+  }
+  function selection() {
+    var target = Number(el("vm-target").value), candidates = current && current.review.candidates || [];
+    var selected = candidates.find(function (candidate) { return candidate.vod_id === target; });
+    el("vm-selection").hidden = !Number.isInteger(target) || target < 1;
+    el("vm-selection").textContent = selected ? "合并目标：" + selected.metadata.vod_name + " · " + (selected.metadata.vod_year || "年份待核对") + " · #" + target : "合并目标：站内影片 #" + target + "。请在预览中核对片名。";
+    Array.prototype.forEach.call(document.querySelectorAll("[data-candidate]"), function (button) { var active = Number(button.getAttribute("data-candidate")) === target; button.textContent = active ? "已选为合并目标" : "选为合并目标"; button.closest(".vm-candidate").classList.toggle("vm-selected", active); });
+  }
+  function render(data) {
+    var changed = !current || current.job_id !== data.job_id; current = data; current.review = current.review || {}; current.plan = current.plan || {};
+    el("vm-detail").hidden = false; el("vm-title").textContent = data.video.vod_name;
+    el("vm-detail-subtitle").textContent = "任务 #" + data.job_id + " · " + data.source + " / " + data.source_id + " · " + (labels[data.status] || data.status);
+    el("vm-incoming-title").textContent = data.video.vod_name;
+    el("vm-incoming-facts").textContent = ""; el("vm-incoming-facts").appendChild(facts(data.video, false));
+    el("vm-metadata").textContent = ""; el("vm-metadata").appendChild(facts(data.video, true));
+    message(data.status === "creating" && !data.vod_id ? "新建结果尚未确认。请先在视频管理中查找，找到后输入已有影片编号进行绑定，避免重复新建。" : issues(data.message ? [data.message] : []), groups[data.status] === "attention" ? "error" : "");
+    el("vm-target").value = data.vod_id || ""; if (changed) { el("vm-separate").checked = false; el("vm-manual").open = false; }
+    var review = data.review, candidates = review.candidates || [];
+    var reviewText = { ok:"比较完成，请核对资料后选择目标。", blocked:"候选资料存在冲突，请先核对。", no_candidates:"没有找到对应影片，可手动指定或预览新影片。", failed:"AI 比较未完成，可以人工核对，稍后再试。", unavailable:"AI 尚未连接或暂时不可用，可继续人工核对。", invalid:"AI 返回无法校验，请人工核对或重新比较。" };
+    el("vm-review-status").textContent = (reviewText[review.status] || "先查找候选影片，再选择合并目标。") + (review.cached ? " 本次使用 10 分钟内的比较结果。" : "") + (review.truncated ? " 候选超过 10 条，需进一步核对。" : "");
+    el("vm-candidates").textContent = "";
+    if (!candidates.length) { var empty = node("div", undefined, "vm-candidate-empty"); empty.appendChild(node("strong", review.status === "no_candidates" ? "未找到对应影片" : "还没有候选影片")); empty.appendChild(node("p", review.status === "no_candidates" ? "可以在下方手动输入影片编号，或核实后预览新影片。" : "点击上方按钮查找，也可以手动输入站内影片编号。")); el("vm-candidates").appendChild(empty); }
+    candidates.forEach(function (candidate) {
+      var box = node("article", undefined, "vm-candidate"), head = node("div", undefined, "vm-candidate-head"), identity = node("div");
+      identity.appendChild(node("h3", candidate.metadata.vod_name)); identity.appendChild(node("span", (candidate.metadata.vod_year || "年份待核对") + " · #" + candidate.vod_id, "vm-small")); head.appendChild(identity);
+      var judgment = candidate.judgment, conflict = candidate.conflicts && candidate.conflicts.length;
+      var verdict = conflict ? "资料有冲突" : (judgment ? { same:"可能是同一部", different:"不同作品", uncertain:"需要人工确认" }[judgment.choice] : "等待人工核对");
+      head.appendChild(node("span", verdict, "vm-pill" + (conflict ? " vm-pill-error" : (judgment && judgment.choice === "same" ? " vm-pill-good" : "")))); box.appendChild(head);
+      box.appendChild(node("p", ["版本：" + (candidate.metadata.vod_version || "未注明"), "导演：" + (candidate.metadata.vod_director || "未填写"), "主演：" + (candidate.metadata.vod_actor || "未填写")].join(" · "), "vm-muted"));
+      if (conflict) box.appendChild(node("p", issues(candidate.conflicts), "vm-muted")); else if (judgment) box.appendChild(node("p", "AI 判断相同的概率 " + (Number(judgment.probabilities.same) * 100).toFixed(2) + "% · 仅供核对参考", "vm-muted"));
+      var details = node("details"); details.appendChild(node("summary", "查看资料与判断详情")); details.appendChild(facts(candidate.metadata, true)); if (judgment) details.appendChild(node("p", "分布置信度 " + Number(judgment.confidence).toFixed(2) + "，不代表实际匹配准确率。", "vm-small")); box.appendChild(details);
+      var actions = node("div", undefined, "vm-actions"), button = node("button", "选为合并目标"); button.type = "button"; button.setAttribute("data-candidate", candidate.vod_id); button.setAttribute("data-conflict", conflict ? "1" : "0");
+      button.onclick = function () { if (busy || !permissions().preview || conflict) return; el("vm-target").value = candidate.vod_id; invalidatePreview(); selection(); setBusy(false); el("vm-selection").scrollIntoView({ block:"center", behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); el("vm-preview").focus({ preventScroll:true }); };
+      actions.appendChild(button); box.appendChild(actions); el("vm-candidates").appendChild(box);
+    });
+    var automatic = review.automatic; el("vm-automatic").textContent = automatic ? (automatic.eligible ? "这条任务符合自动合并条件；是否自动执行仍由插件开关决定。" : "需要人工审核：" + issues(automatic.reasons)) : "";
+    var plan = data.plan; el("vm-plan").textContent = ""; el("vm-plan").hidden = !plan.mode;
+    if (plan.mode) {
+      var active = permissions().apply && data.preview_token;
+      var planLabel = active ? "预览：" : (data.status === "ready" ? "已过期预览：" : (data.status === "rejected" ? "已忽略的预览：" : "处理记录："));
+      el("vm-plan").appendChild(node("h3", planLabel + (plan.mode === "create" ? "新影片 " : "合并到 ") + plan.title));
+      var counts = node("div", undefined, "vm-plan-counts"); [[plan.added_groups,"条新线路"],[plan.added_episodes,"集新资源"]].forEach(function (value) { var count = node("div"); count.appendChild(node("strong", value[0])); count.appendChild(node("span", value[1])); counts.appendChild(count); }); el("vm-plan").appendChild(counts);
+      el("vm-plan").appendChild(node("p", plan.mode === "create" ? "新影片进入待审核列表，请在上架前核对资料。" : "保留原影片编号和资料，仅合并播放资源。"));
+    }
+    el("vm-preview-hint").textContent = permissions().apply ? "预览有效至 " + new Date(data.preview_until * 1000).toLocaleTimeString("zh-CN", { hour:"2-digit", minute:"2-digit" }) : (data.status === "ready" ? "预览已失效，请重新生成。" : (permissions().preview ? "选择目标后，预览新增线路和集数。" : (permissions().recover ? "任务尚未完成，请先核验结果。" : "这条任务已结束，可用操作见下方。")));
+    el("vm-apply").textContent = plan.mode === "create" ? "确认新建待审核影片" : "确认执行合并";
+    Array.prototype.forEach.call(document.querySelectorAll(".vm-steps li"), function (step, index) { step.classList.toggle("vm-step-active", index === (data.status === "applied" ? 3 : (permissions().apply ? 2 : (candidates.length ? 1 : 0)))); });
+    selection(); setBusy(busy);
+  }
+  function invalidatePreview() { if (current && current.preview_token) { current.preview_token = ""; if (current.actions) current.actions.apply = false; el("vm-apply").hidden = true; el("vm-plan").hidden = true; el("vm-preview-hint").textContent = "合并选项已变化，请重新生成预览。"; } }
+  function act(operation, extra) {
+    if (!current || busy || !(operation === "preview" ? (extra.target_id ? permissions().preview : permissions().create) : permissions()[operation])) return;
+    var id = current.job_id; setBusy(true); message(operation === "review" ? "正在查找并比较影片，可能需要几十秒…" : "正在处理，请稍候…");
+    var body = new URLSearchParams(Object.assign({ csrf:csrf, __token__:nativeToken, operation:operation, job_id:id }, extra || {}));
+    fetchJson(urls.action, { method:"POST", credentials:"same-origin", headers:{ "X-Requested-With":"XMLHttpRequest" }, body:body }).then(function (data) {
+      render(data); return list(0).catch(function () { message("操作已完成，任务列表暂时未能刷新，请重新读取列表。", "error"); });
+    }).catch(function (error) {
+      invalidatePreview(); var text = error.message;
+      return fetchJson(query(urls.detail, "job_id", id)).then(function (data) { render(data); invalidatePreview(); message(text + " 已重新读取任务状态，请核对后继续。", "error"); }).catch(function () { if (current) current.actions = {}; message(text + " 请刷新任务确认状态后再继续。", "error"); });
+    }).finally(function () { setBusy(false); });
+  }
+  function openSettings() { if (busy) return; el("vm-settings-dialog").showModal(); el("vm-api-token").focus(); }
+  function configure(operation) {
+    if (busy || (jevSource === "environment" && operation !== "test")) return;
+    if (operation === "clear" && !window.confirm("断开后将无法使用 AI 比较。采集任务和站内影片会保留。是否继续？")) return;
+    setBusy(true); notice("vm-settings-feedback", operation === "test" ? "正在测试连接，请稍候…" : "正在保存连接…");
+    var body = new URLSearchParams({ csrf:csrf, __token__:nativeToken, operation:operation, api_token:operation === "clear" ? "" : el("vm-api-token").value });
+    fetchJson(urls.settings, { method:"POST", credentials:"same-origin", headers:{ "X-Requested-With":"XMLHttpRequest" }, body:body }).then(function (data) {
+      settingsStatus(data); if (operation !== "test") el("vm-api-token").value = ""; notice("vm-settings-feedback", data.message, "success");
+    }).catch(function (error) { notice("vm-settings-feedback", error.message, "error"); }).finally(function () { setBusy(false); });
+  }
+  el("vm-open-settings").onclick = openSettings; el("vm-connect").onclick = openSettings; el("vm-close-settings").onclick = function () { el("vm-settings-dialog").close(); };
+  el("vm-api-token").oninput = function () { setBusy(busy); }; el("vm-save-token").onclick = function () { configure("save"); }; el("vm-test-token").onclick = function () { configure("test"); }; el("vm-clear-token").onclick = function () { configure("clear"); };
+  el("vm-target").oninput = function () { invalidatePreview(); selection(); setBusy(busy); }; el("vm-separate").onchange = invalidatePreview;
+  el("vm-refresh").onclick = function () { loadList(0); }; el("vm-older").onclick = function () { if (cursor) loadList(cursor); };
+  el("vm-search").oninput = function () { renderRows(); setBusy(busy); }; el("vm-filter").onchange = function () { renderRows(); setBusy(busy); };
+  el("vm-state-action").onclick = function () { if (emptyAction === "retry") loadList(listBefore); else if (emptyAction === "latest") loadList(0); else if (emptyAction === "reset") { el("vm-search").value = ""; el("vm-filter").value = "all"; renderRows(); setBusy(busy); } else { el("vm-help").open = true; el("vm-help").scrollIntoView({ block:"start" }); } };
+  el("vm-close-detail").onclick = function () { if (busy) return; current = null; el("vm-detail").hidden = true; message(""); renderRows(); setBusy(false); };
+  el("vm-preview").onclick = function () { var id = Number(el("vm-target").value); if (!Number.isInteger(id) || id < 1) { message("请选择目标影片，或输入已有影片编号。", "error"); return; } act("preview", { target_id:id, separate:el("vm-separate").checked ? 1 : 0 }); };
+  el("vm-create").onclick = function () { act("preview", { target_id:0 }); };
+  el("vm-apply").onclick = function () { if (!current) return; if (current.preview_until < Date.now() / 1000) { invalidatePreview(); message("预览已过期，请重新生成。", "error"); setBusy(false); return; } act("apply", { preview_token:current.preview_token }); };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-operation]"), function (button) { button.onclick = function () {
+    var operation = button.getAttribute("data-operation");
+    if (operation === "rollback" && !window.confirm("将按记录撤销本次合并。影片需仍符合执行后的快照。是否继续？")) return;
+    if (operation === "reject" && !window.confirm("忽略后，这次采集不再处理，站内影片不会改变。是否继续？")) return;
+    act(operation, button.getAttribute("data-force") === "1" ? { force:1 } : {});
+  }; });
+  settingsStatus({ configured:jevSource !== "none", source:jevSource }); setBusy(false); loadList(0);
+})();
+</script>
+
+<script>
+(function () {
+  "use strict";
+  var urls = { status:"{:url('vodmerge/auditStatus')}", issues:"{:url('vodmerge/auditIssues')}", action:"{:url('vodmerge/auditAction')}", library:"{:url('vodmerge/libraryStatus')}", edit:"{:url('vod/info')}" };
+  var csrf = "{$csrf|htmlspecialchars}", nativeToken = "{$native_token|htmlspecialchars}";
+  var summary = null, runs = [], selected = 0, nextBefore = 0, nextPriority = -1, hasMore = false, issuesUpdating = false, busy = false, poll = null, issueBefore = 0, issuePriority = -1, libraryPanels = {};
+  function el(id) { return document.getElementById(id); }
+  function node(tag, text, className) { var item = document.createElement(tag); if (text !== undefined) item.textContent = text; if (className) item.className = className; return item; }
+  function query(url, name, value) { return url + (url.indexOf("?") >= 0 ? "&" : "?") + name + "=" + encodeURIComponent(value); }
+  function request(url, options) { return fetch(url, options).then(function (response) { return response.json().catch(function () { throw new Error("无法读取后台返回，请刷新页面或重新登录。"); }); }).then(function (result) { if (result.code !== 1) throw new Error(result.msg || "排查操作未完成，请稍后重试。"); return result.data; }).catch(function (error) { if (error instanceof TypeError) throw new Error("连接失败，请检查网络后重试。"); throw error; }); }
+  function notice(text, error) { el("vm-audit-feedback").textContent = text; el("vm-audit-feedback").className = "vm-notice" + (error ? " vm-notice-error" : ""); el("vm-audit-feedback").hidden = !text; }
+  function time(value) { return Number(value) > 0 ? new Date(Number(value) * 1000).toLocaleString("zh-CN", { hour12:false }) : "尚未记录"; }
+  function count(value) { return Number(value || 0).toLocaleString("zh-CN"); }
+  function duration(value) { value = Math.max(0, Math.floor(Number(value || 0))); return value < 60 ? value + " 秒" : (value < 3600 ? Math.floor(value / 60) + " 分 " + value % 60 + " 秒" : Math.floor(value / 3600) + " 时 " + Math.floor(value % 3600 / 60) + " 分"); }
+  function controls(value) { busy = value; Array.prototype.forEach.call(el("vm-audit").querySelectorAll("button,input,select"), function (control) { control.disabled = busy; }); el("vm-audit-start").disabled = busy || !summary || Number(summary.active_run_id) > 0; el("vm-audit-weekly").disabled = busy || !summary; el("vm-audit-run-select").disabled = busy || !runs.length; el("vm-audit-kind").disabled = busy || !selected; el("vm-audit-quality").disabled = busy || !selected; el("vm-audit-older").disabled = busy || !hasMore || issuesUpdating; Object.keys(libraryPanels).forEach(function (id) { libraryControls(libraryPanels[id]); }); }
+  function statusState(title, text, retry) { el("vm-audit-status").hidden = false; el("vm-audit-status-title").textContent = title; el("vm-audit-status-text").textContent = text; el("vm-audit-retry").hidden = !retry; }
+  function issueState(title, text, retry) { el("vm-audit-issues-state").hidden = false; el("vm-audit-issues-title").textContent = title; el("vm-audit-issues-text").textContent = text; el("vm-audit-issues-retry").hidden = !retry; }
+  function renderRun() {
+    var run = runs.find(function (item) { return Number(item.run_id) === selected; }); el("vm-audit-run").hidden = !run; if (!run) return;
+    el("vm-audit-run-title").textContent = (run.mode === "full" ? "全库排查" : "新增影片排查") + " #" + run.run_id;
+    el("vm-audit-run-state").textContent = { running:"正在排查", completed:"已完成", error:"已中断" }[run.status] || run.status;
+    el("vm-audit-run-state").className = "vm-pill" + (run.status === "error" ? " vm-pill-error" : run.status === "completed" ? " vm-pill-good" : " vm-pill-wait");
+    el("vm-audit-progress").max = Math.max(1, Number(run.total_count)); el("vm-audit-progress").value = Number(run.processed_count);
+    el("vm-audit-progress-text").textContent = "已检查 " + count(run.processed_count) + " / " + count(run.total_count) + " 部影片 · 记录 " + count(run.issue_count) + " 对疑似问题";
+    el("vm-audit-run-facts").textContent = "";
+    [["开始时间",time(run.started_at)],["完成时间",run.finished_at ? time(run.finished_at) : "尚未完成"],["累计耗时",duration(run.elapsed_seconds)],["扫描编号范围",Number(run.total_count) === 0 && run.mode === "incremental" ? "没有新增影片（基线 #" + run.lower_id + "）" : "#" + run.lower_id + " 之后至 #" + run.upper_id],["当前进度","已检查至 #" + run.cursor_id]].forEach(function (fact) { el("vm-audit-run-facts").appendChild(node("dt", fact[0])); el("vm-audit-run-facts").appendChild(node("dd", fact[1])); });
+    el("vm-audit-run-warning").textContent = run.error_message ? "排查中断：" + run.error_message : (Number(run.truncated_count) > 0 ? "其中 " + count(run.truncated_count) + " 部影片的候选过多，仅检查部分候选；不能据此认为已排除所有重复。" : "按片名、别名、外部编号和身份资料筛查，结果供人工核对。");
+    if (run.status === "completed" && Number(run.processed_count) < Number(run.total_count)) el("vm-audit-run-warning").textContent += " 启动时 " + count(run.total_count) + " 条，实际读取 " + count(run.processed_count) + " 条；期间删除的记录未计为已检查。";
+  }
+  function renderSummary(data, preferLatest) {
+    var summaryBefore = summary; summary = data; runs = (data.recent_runs || []).slice();
+    [data.run, data.latest_run].forEach(function (run) { if (run && !runs.some(function (item) { return Number(item.run_id) === Number(run.run_id); })) runs.unshift(run); });
+    runs.sort(function (left, right) { return Number(right.run_id) - Number(left.run_id); });
+    var previous = selected, previousRun = null; if (summaryBefore) previousRun = (summaryBefore.recent_runs || [summaryBefore.run, summaryBefore.latest_run]).find(function (run) { return run && Number(run.run_id) === selected; }); if (preferLatest || !runs.some(function (run) { return Number(run.run_id) === selected; })) selected = runs.length ? Number(runs[0].run_id) : 0;
+    el("vm-audit-status").hidden = true; el("vm-audit-summary").hidden = false; el("vm-audit-weekly").checked = Boolean(data.weekly_enabled);
+    el("vm-audit-last").textContent = data.last_completed_at ? time(data.last_completed_at) : "尚未完成过排查";
+    el("vm-audit-next").textContent = data.weekly_enabled ? (data.next_run_at ? time(data.next_run_at) : "首次排查完成后安排") : "每周检查已关闭";
+    el("vm-audit-watermark").textContent = Number(data.watermark) > 0 ? "#" + data.watermark : "尚未建立检查记录";
+    el("vm-audit-active").hidden = !data.run; el("vm-audit-active").textContent = data.run ? "排查 #" + data.run.run_id + (data.run.status === "running" ? " 正在后台运行，可离开页面。进度每 15 秒更新。" : " 已中断，进度已保留。请检查服务器日志，恢复后由后台继续。") : "";
+    el("vm-audit-run-select").textContent = ""; if (!runs.length) el("vm-audit-run-select").appendChild(node("option", "暂无记录")); runs.forEach(function (run) { var option = node("option", "#" + run.run_id + " · " + (run.mode === "full" ? "全库" : "新增") + " · " + time(run.started_at)); option.value = run.run_id; option.selected = Number(run.run_id) === selected; el("vm-audit-run-select").appendChild(option); });
+    var assessmentCounts = data.assessment_counts;
+    el("vm-audit-quality-counts").textContent = assessmentCounts ? "最新排查分级：" + [["强同片依据","high"],["较多同片依据","probable"],["资料冲突","conflict"],["资料不足","insufficient"],["不同作品或季数","related"],["未分级","unrated"]].map(function (entry) { return entry[0] + " " + count(assessmentCounts[entry[1]]); }).join(" · ") : "";
+    renderRun(); if (!selected) { el("vm-audit-issues").textContent = ""; issueState("还没有排查记录", "启动一次全库排查后，在这里查看进度和疑似问题。", false); hasMore = false; }
+    var currentRun = runs.find(function (run) { return Number(run.run_id) === selected; });
+    return selected && (previous !== selected || preferLatest || (!issueBefore && previousRun && currentRun && (previousRun.status !== currentRun.status || Number(previousRun.issue_count) !== Number(currentRun.issue_count))));
+  }
+  function film(data, id) {
+    data = data || {}; var box = node("article", undefined, "vm-audit-film"); box.appendChild(node("h3", data.vod_name || "影片 #" + id));
+    box.appendChild(node("p", (data.vod_year || "年份未填写") + " · " + (data.vod_version || "版本未填写") + " · #" + id, "vm-small"));
+    var link = node("a", "在视频管理中查看"); link.href = query(urls.edit, "id", Number(id)); link.target = "_blank"; link.rel = "noopener"; box.appendChild(link);
+    var labels = { vod_sub:"别名", vod_en:"英文名", vod_area:"地区", vod_lang:"语言", vod_director:"导演", vod_actor:"主演", vod_class:"类型", type_id:"分类编号", vod_douban_id:"豆瓣编号" }, details = node("details"), facts = node("dl", undefined, "vm-facts"); details.appendChild(node("summary", "更多身份资料"));
+    Object.keys(labels).forEach(function (key) { if (data[key] && data[key] !== "0") { facts.appendChild(node("dt", labels[key])); facts.appendChild(node("dd", data[key])); } }); if (!facts.children.length) facts.appendChild(node("dd", "未填写更多身份资料。")); details.appendChild(facts); box.appendChild(details); return box;
+  }
+  function percent(value) { return typeof value === "number" && isFinite(value) && value >= 0 && value <= 1 ? (value * 100).toFixed(1) + "%" : "未返回"; }
+  function libraryNotice(state, text, error) { state.feedback.textContent = text; state.feedback.className = "vm-notice" + (error ? " vm-notice-error" : ""); state.feedback.hidden = !text; }
+  function invalidateLibrary(state, text) {
+    state.fresh = false; state.token = ""; if (state.timer) window.clearTimeout(state.timer); state.timer = null;
+    state.apply.hidden = true; if (text) libraryNotice(state, text, false); renderLibrary(state);
+  }
+  function libraryControls(state) {
+    var job = state.job, allowed = job && job.actions || {}, uncertain = job && ["applying", "rolling_back", "creating"].indexOf(job.status) >= 0;
+    var editable = state.loaded && !state.unsafe && (!job || Boolean(allowed.preview) || job.status === "rolled_back") && !uncertain;
+    state.targets.forEach(function (input) { input.disabled = busy || !editable; }); state.checked.disabled = busy || !editable; state.separate.disabled = busy || !editable;
+    state.preview.disabled = busy || !editable || !state.target || !state.checked.checked;
+    state.apply.hidden = !(state.fresh && state.token && job && allowed.apply && Number(job.preview_until) > Date.now() / 1000);
+    state.apply.disabled = busy || state.apply.hidden; state.rollback.hidden = !(job && allowed.rollback); state.rollback.disabled = busy || state.unsafe;
+    state.recover.hidden = !(job && (allowed.recover || uncertain)); state.recover.disabled = busy || state.unsafe;
+    state.refresh.disabled = busy; state.close.disabled = busy;
+  }
+  function renderLibrary(state) {
+    var job = state.job, library = job && job.library || {}, plan = job && job.plan || {};
+    state.status.textContent = !state.loaded ? "正在读取人工审核记录…" : (!job ? "尚未合并。请选择保留目标，并人工核对双方资料。" : ({ pending:"尚未合并，请先核对和预览。", review:"等待人工核对和预览。", ready:"已保存预览，尚未执行合并。", applying:"合并响应需核验，请使用“核验并恢复”。", applied:"资源已合并；来源影片和双方资料、编号仍保留。", rolling_back:"回滚响应需核验，请使用“核验并恢复”。", rolled_back:"本次合并已回滚，目标资源已恢复。", rejected:"此审核记录已结束。" }[job.status] || "请核对任务状态后继续。"));
+    state.history.textContent = "";
+    if (job && library.target_vod_id) state.history.appendChild(node("p", "审核记录 #" + job.job_id + " · 来源 #" + library.source_vod_id + " → 目标 “" + (library.target_metadata && library.target_metadata.vod_name || plan.title || "未填写片名") + "” #" + library.target_vod_id, "vm-small"));
+    if (job && library.source_metadata && library.target_metadata) { var facts = node("details"), pair = node("div", undefined, "vm-audit-pair"); facts.appendChild(node("summary", "查看本次预览核对的身份资料")); pair.appendChild(film(library.source_metadata, library.source_vod_id)); pair.appendChild(film(library.target_metadata, library.target_vod_id)); facts.appendChild(pair); state.history.appendChild(facts); }
+    state.plan.textContent = ""; state.plan.hidden = !job || !Array.isArray(plan.line_changes);
+    if (!state.plan.hidden) {
+      state.plan.appendChild(node("h3", state.fresh ? "本次合并预览" : "已保存的资源变化记录"));
+      state.plan.appendChild(node("p", "保留目标：“" + (library.target_metadata && library.target_metadata.vod_name || plan.title || "未填写片名") + "” #" + library.target_vod_id + "；来源 #" + library.source_vod_id));
+      state.plan.appendChild(node("p", "新增 " + count(plan.added_groups) + " 条线路 · " + count(plan.added_episodes) + " 个播放条目", "vm-small"));
+      if (!plan.line_changes.length) state.plan.appendChild(node("p", "没有需要新增的线路或播放条目。"));
+      plan.line_changes.forEach(function (line) { var row = node("div", undefined, "vm-library-line"); row.appendChild(node("strong", "线路 " + (Number(line.slot) + 1) + " · " + (line.player || "未命名") + (line.is_new ? "（新增线路）" : ""))); row.appendChild(node("span", count(line.before_episodes) + " → " + count(line.after_episodes) + " 个播放条目 · 新增 " + count(line.added_episodes) + " 个")); state.plan.appendChild(row); });
+      state.plan.appendChild(node("p", state.fresh ? "预览有效至 " + time(job.preview_until) + "（10 分钟）。确认前请核对每条线路的变化。" : (job.status === "applied" ? "这是本次已合并的资源变化记录，可按快照回滚。" : "这是历史记录。再次合并前，请重新核对并生成预览。"), "vm-small"));
+    }
+    libraryControls(state);
+  }
+  function acceptLibrary(state, data, fresh) {
+    if (!data || Number(data.issue_id) !== Number(state.item.issue_id) || (data.job && (!data.job.library || Number(data.job.library.issue_id) !== Number(state.item.issue_id)))) throw new Error("人工审核记录不匹配，请刷新核验。");
+    state.job = data.job || null; state.loaded = true; state.unsafe = false; state.fresh = Boolean(fresh && state.job && state.job.preview_token); state.token = state.fresh ? state.job.preview_token : "";
+    if (state.timer) window.clearTimeout(state.timer); state.timer = null;
+    if (state.fresh) state.timer = window.setTimeout(function () { invalidateLibrary(state, "预览已过期，请重新生成预览。"); }, Math.max(0, Number(state.job.preview_until) * 1000 - Date.now()));
+    renderLibrary(state);
+  }
+  function loadLibrary(state) {
+    if (busy) return; invalidateLibrary(state); state.checked.checked = false; controls(true); libraryNotice(state, "正在只读核验审核状态…", false);
+    request(query(urls.library, "issue_id", state.item.issue_id)).then(function (data) { acceptLibrary(state, data, false); libraryNotice(state, "已读取审核状态。刷新不会执行合并或回滚。", false); }).catch(function (error) { state.unsafe = true; libraryNotice(state, error.message + " 请点击“刷新核验”，确认状态后继续。", true); }).finally(function () { controls(false); planPoll(); });
+  }
+  function libraryAction(state, operation) {
+    if (busy || !state.loaded || state.unsafe) return;
+    var job = state.job, allowed = job && job.actions || {}, extra = {}, text = "正在处理，请稍候…";
+    if (operation === "merge_preview") {
+      if (!state.target || !state.checked.checked || (job && !allowed.preview && job.status !== "rolled_back")) return;
+      extra = { target_id:state.target, separate:state.separate.checked ? 1 : 0, confirmed:1 }; text = "正在生成预览，仅保存插件快照…";
+    } else if (operation === "merge_apply") {
+      if (!state.fresh || !state.token || !allowed.apply || Number(job.preview_until) <= Date.now() / 1000) { invalidateLibrary(state, "预览已失效，请重新生成。"); return; }
+      var library = job.library, plan = job.plan || {};
+      if (!window.confirm("确认将来源影片 #" + library.source_vod_id + " 的资源补充到“" + (library.target_metadata && library.target_metadata.vod_name || plan.title || "未填写片名") + "” #" + library.target_vod_id + "？\n新增 " + count(plan.added_groups) + " 条线路、" + count(plan.added_episodes) + " 个播放条目。\n来源影片和双方资料、编号保留，不删除影片。本次合并可按快照回滚。")) return;
+      extra = { job_id:job.job_id, preview_token:state.token }; text = "正在确认合并，请等待状态核验…";
+    } else if (operation === "merge_rollback") {
+      if (!allowed.rollback || !window.confirm("确认回滚审核记录 #" + job.job_id + "？\n仅恢复本次目标 #" + job.library.target_vod_id + " 的资源变化；来源影片保留。若目标此后已变化，后台会拒绝回滚。")) return;
+      extra = { job_id:job.job_id }; text = "正在回滚本次资源变化…";
+    } else if (operation === "merge_recover") {
+      if (!(allowed.recover || ["applying", "rolling_back", "creating"].indexOf(job.status) >= 0) || !window.confirm("核验审核记录 #" + job.job_id + " 并按已保存的快照恢复未完成操作？\n后台会先检查实际资源状态。")) return;
+      extra = { job_id:job.job_id }; text = "正在核验并恢复未完成操作…";
+    } else return;
+    invalidateLibrary(state); controls(true); state.panel.setAttribute("aria-busy", "true"); libraryNotice(state, text, false);
+    var body = new URLSearchParams(Object.assign({ csrf:csrf, __token__:nativeToken, operation:operation, issue_id:state.item.issue_id }, extra));
+    request(urls.action, { method:"POST", credentials:"same-origin", headers:{ "X-Requested-With":"XMLHttpRequest" }, body:body }).then(function (data) {
+      acceptLibrary(state, data, operation === "merge_preview"); libraryNotice(state, operation === "merge_preview" ? "预览已生成。请核对变化，再确认合并。" : (operation === "merge_rollback" ? "本次资源变化已回滚。" : operation === "merge_recover" ? "已核验任务，请按当前状态继续。" : "资源已合并，来源影片仍保留。"), false);
+    }).catch(function (error) {
+      invalidateLibrary(state); state.checked.checked = false; state.unsafe = true;
+      return request(query(urls.library, "issue_id", state.item.issue_id)).then(function (data) { acceptLibrary(state, data, false); libraryNotice(state, error.message + " 已只读核验当前状态，请核对后继续。", true); }).catch(function () { libraryNotice(state, error.message + " 暂无法核验结果，请点击“刷新核验”；不要重复提交。", true); });
+    }).finally(function () { state.panel.removeAttribute("aria-busy"); controls(false); planPoll(); if (state.fresh) state.apply.focus({ preventScroll:true }); });
+  }
+  function createLibrary(item) {
+    var state = { item:item, job:null, loaded:false, unsafe:false, target:0, targets:[], fresh:false, token:"", timer:null };
+    state.panel = node("section", undefined, "vm-library-panel"); state.panel.id = "vm-library-" + Number(item.issue_id); state.panel.hidden = true; state.panel.setAttribute("aria-label", "人工审核结果 #" + item.issue_id);
+    var head = node("div", undefined, "vm-audit-ai-head"), heading = node("h3", "人工审核与资源合并"); heading.tabIndex = -1; state.heading = heading; state.close = node("button", "收起人工审核"); state.close.type = "button"; head.appendChild(heading); head.appendChild(state.close); state.panel.appendChild(head);
+    state.panel.appendChild(node("p", "资源补充到所选目标；来源影片及双方资料、ID 保留，不删除影片。", "vm-small"));
+    var fieldset = node("fieldset"), legend = node("legend", "1. 选择保留的目标影片（另一条作为资源来源）"), options = node("div", undefined, "vm-audit-pair"); fieldset.appendChild(legend);
+    [[item.left_id, item.detail && item.detail.left], [item.right_id, item.detail && item.detail.right]].forEach(function (entry) {
+      var label = node("label", undefined, "vm-library-target"), input = node("input"), metadata = entry[1] || {}; input.type = "radio"; input.name = "vm-library-target-" + item.issue_id; input.value = Number(entry[0]);
+      label.appendChild(input); label.appendChild(node("span", (metadata.vod_name || "未填写片名") + " · " + (metadata.vod_year || "年份未填写") + " · #" + entry[0])); options.appendChild(label); state.targets.push(input);
+      input.onchange = function () { state.target = Number(this.value); invalidateLibrary(state, "目标已变化，请重新生成预览。"); };
+    }); fieldset.appendChild(options); state.panel.appendChild(fieldset);
+    var check = node("label", undefined, "vm-library-check"); state.checked = node("input"); state.checked.type = "checkbox"; check.appendChild(state.checked); check.appendChild(node("span", "2. 我已人工核对：双方为同一作品、同一季、同一版本。")); state.panel.appendChild(check);
+    var separate = node("label", undefined, "vm-library-check"); state.separate = node("input"); state.separate.type = "checkbox"; separate.appendChild(state.separate); separate.appendChild(node("span", "同名播放条目地址不同，追加独立线路")); state.panel.appendChild(separate);
+    state.checked.onchange = state.separate.onchange = function () { invalidateLibrary(state, "核对或线路选项已变化，请重新生成预览。"); };
+    if ((item.detail && item.detail.conflicts || []).length) state.panel.appendChild(node("p", "此对影片存在规则冲突。勾选核对不能绕过后台对季数、版本等硬冲突的校验。", "vm-audit-conflict"));
+    state.status = node("p", undefined, "vm-small"); state.status.setAttribute("role", "status"); state.status.setAttribute("aria-live", "polite"); state.panel.appendChild(state.status); state.history = node("div"); state.panel.appendChild(state.history); state.plan = node("div", undefined, "vm-library-plan"); state.plan.hidden = true; state.panel.appendChild(state.plan);
+    var actions = node("div", undefined, "vm-submit"); [["preview", "3. 预览线路与播放条目", "merge_preview", "vm-primary"], ["apply", "确认合并资源", "merge_apply", "vm-primary"], ["rollback", "回滚本次合并", "merge_rollback", "vm-danger"], ["recover", "核验并恢复", "merge_recover", "vm-primary"]].forEach(function (entry) { var button = node("button", entry[1], entry[3]); button.type = "button"; button.onclick = function () { libraryAction(state, entry[2]); }; state[entry[0]] = button; actions.appendChild(button); }); state.refresh = node("button", "刷新核验"); state.refresh.type = "button"; state.refresh.onclick = function () { loadLibrary(state); }; actions.appendChild(state.refresh); state.panel.appendChild(actions);
+    state.feedback = node("div", undefined, "vm-notice"); state.feedback.hidden = true; state.feedback.setAttribute("role", "status"); state.feedback.setAttribute("aria-live", "polite"); state.panel.appendChild(state.feedback);
+    state.close.onclick = function () { if (busy) return; invalidateLibrary(state); state.checked.checked = false; state.panel.hidden = true; state.toggle.setAttribute("aria-expanded", "false"); state.toggle.focus({ preventScroll:true }); };
+    libraryPanels[item.issue_id] = state; renderLibrary(state); return state;
+  }
+  function clearLibraries() { Object.keys(libraryPanels).forEach(function (id) { invalidateLibrary(libraryPanels[id]); }); libraryPanels = {}; }
+  function renderIssue(item) {
+    var detail = item.detail || {}, review = detail.ai_review, article = node("article", undefined, "vm-audit-issue"), head = node("div", undefined, "vm-audit-issue-head");
+    var assessment = detail.rule_assessment, level = assessment && assessment.level || "unrated", labels = { high:"强同片依据", probable:"较多同片依据", conflict:"资料冲突", insufficient:"资料不足", related:"更像不同作品或季数", unrated:"未分级" };
+    head.appendChild(node("span", assessment && assessment.label || labels[level] || "未分级", "vm-pill" + (level === "conflict" ? " vm-pill-error" : level === "high" ? " vm-pill-good" : " vm-pill-wait"))); head.appendChild(node("span", (item.kind === "conflict" ? "匹配冲突" : "疑似重复") + " · 结果 #" + item.issue_id, "vm-small")); article.appendChild(head);
+    var library = libraryPanels[item.issue_id] || createLibrary(item), toggle = node("button", "人工审核 / 合并", "vm-primary vm-library-toggle"); library.item = item; library.toggle = toggle; toggle.type = "button"; toggle.setAttribute("aria-controls", library.panel.id); toggle.setAttribute("aria-expanded", String(!library.panel.hidden)); toggle.disabled = busy; head.appendChild(toggle);
+    if (detail.rule_stale) article.appendChild(node("p", "影片资料已变化，排查时的分级与依据已过期。请核对当前影片资料后再审核。", "vm-audit-reason vm-audit-conflict"));
+    if (detail.current_missing) article.appendChild(node("p", "此对影片中有记录已不存在，请先在视频管理中核对。", "vm-audit-reason vm-audit-conflict"));
+    if (assessment) {
+      [["同片依据",assessment.evidence],["缺少资料",assessment.missing],["核对风险",assessment.risks],["资料冲突",assessment.conflicts]].forEach(function (fact) { if (Array.isArray(fact[1]) && fact[1].length) article.appendChild(node("p", fact[0] + "：" + fact[1].join("；"), "vm-small vm-audit-reason" + (fact[0] === "资料冲突" ? " vm-audit-conflict" : ""))); });
+    } else article.appendChild(node("p", "此结果尚未分级，需由服务器后台补充分级；请结合原始规则依据人工核对。", "vm-small vm-audit-reason"));
+    article.appendChild(node("p", "规则依据 · 排查时资料", "vm-small"));
+    var pair = node("div", undefined, "vm-audit-pair"); pair.appendChild(film(detail.left, item.left_id)); pair.appendChild(film(detail.right, item.right_id)); article.appendChild(pair);
+    if ((detail.conflicts || []).length) article.appendChild(node("p", "规则发现需核对：" + detail.conflicts.map(function (value) { return value.replace(/vod_douban_id/g, "豆瓣编号").replace(/type_id/g, "影片分类").replace(/vod_year/g, "上映年份").replace(/vod_version/g, "影片版本"); }).join("；"), "vm-audit-reason vm-audit-conflict"));
+    if ((detail.matched_keys || []).length) article.appendChild(node("p", "规则关联依据：" + detail.matched_keys.join("；"), "vm-small vm-audit-reason"));
+    var box = node("div", undefined, "vm-audit-ai"), aiHead = node("div", undefined, "vm-audit-ai-head"), button = node("button", review ? "重新 AI 复核" : "AI 复核这对影片", "vm-audit-review-button"); button.type = "button"; button.disabled = busy;
+    aiHead.appendChild(node("h3", "AI 复核")); aiHead.appendChild(button); box.appendChild(aiHead);
+    if (review && review.stale) {
+      box.appendChild(node("p", "影片资料已变化，原复核结果已过期。请重新复核后查看概率。", "vm-audit-reason vm-audit-conflict"));
+    } else if (review && review.status === "ok" && review.judgment) {
+      var judgment = review.judgment, probabilities = judgment.probabilities || {}, values = node("dl", undefined, "vm-audit-probabilities");
+      [["同一影片概率", probabilities.same], ["不同影片概率", probabilities.different], ["无法确定概率", probabilities.uncertain], ["模型置信度", judgment.confidence]].forEach(function (fact) { var value = node("div"); value.appendChild(node("dt", fact[0])); value.appendChild(node("dd", percent(fact[1]))); values.appendChild(value); }); box.appendChild(values);
+      box.appendChild(node("p", "复核结论：" + ({ same:"疑似同一影片（同作品、同季、同版本）", different:"可能为不同影片", uncertain:"暂无法确定" }[judgment.choice] || "暂无法确定")));
+      box.appendChild(node("p", "模型 " + (review.model || "Jev") + " · " + time(review.reviewed_at) + " · 耗时 " + (Math.max(0, Number(review.elapsed_ms || 0)) / 1000).toFixed(2) + " 秒" + (review.reused ? " · 复用已保存结果" : ""), "vm-small"));
+      if (review.left && review.right) { var snapshot = node("details"), reviewedPair = node("div", undefined, "vm-audit-pair"); snapshot.appendChild(node("summary", "查看复核时资料")); reviewedPair.appendChild(film(review.left, item.left_id)); reviewedPair.appendChild(film(review.right, item.right_id)); snapshot.appendChild(reviewedPair); box.appendChild(snapshot); }
+      if ((detail.conflicts || []).length) box.appendChild(node("p", "规则排查发现资料冲突，仍需人工核对。", "vm-audit-reason vm-audit-conflict"));
+    } else box.appendChild(node("p", "尚未 AI 复核。点击按钮，仅比较这对影片的身份资料。", "vm-audit-reason vm-small"));
+    box.appendChild(node("p", "概率和置信度是模型判断，不代表实测准确率，也不自动合并影片。刷新页面不会调用 AI。", "vm-audit-reason vm-small"));
+    var feedback = node("div", undefined, "vm-notice"); feedback.hidden = true; feedback.setAttribute("role", "status"); feedback.setAttribute("aria-live", "polite"); box.appendChild(feedback); article.appendChild(box);
+    article.appendChild(library.panel); toggle.onclick = function () { if (busy) return; if (!library.panel.hidden) { library.close.click(); return; } library.panel.hidden = false; toggle.setAttribute("aria-expanded", "true"); library.heading.focus({ preventScroll:true }); loadLibrary(library); };
+    button.onclick = function () { reviewIssue(item, article, button, feedback); }; return article;
+  }
+  function reviewIssue(item, article, button, feedback) {
+    if (busy) return; if (libraryPanels[item.issue_id]) invalidateLibrary(libraryPanels[item.issue_id], "AI 复核后，请重新核对并生成合并预览。"); controls(true); article.setAttribute("aria-busy", "true"); button.textContent = "正在 AI 复核…"; feedback.className = "vm-notice"; feedback.textContent = "正在比较这对影片，请稍候。"; feedback.hidden = false;
+    var body = new URLSearchParams({ csrf:csrf, __token__:nativeToken, operation:"review", issue_id:item.issue_id, force:item.detail && item.detail.ai_review ? 1 : 0 }), updated = null;
+    request(urls.action, { method:"POST", credentials:"same-origin", headers:{ "X-Requested-With":"XMLHttpRequest" }, body:body }).then(function (data) { updated = renderIssue(data); article.replaceWith(updated); }).catch(function (error) { feedback.className = "vm-notice vm-notice-error"; feedback.textContent = error.message + " 可重试 AI 复核。"; button.textContent = item.detail && item.detail.ai_review ? "重新 AI 复核" : "重试 AI 复核"; }).finally(function () { article.removeAttribute("aria-busy"); controls(false); planPoll(); if (updated) updated.querySelector(".vm-audit-review-button").focus(); });
+  }
+  function renderIssues(data) {
+    el("vm-audit-issues").textContent = ""; nextBefore = Number(data.next_before || 0); nextPriority = data.next_priority === undefined ? -1 : Number(data.next_priority); hasMore = Boolean(data.has_more); issuesUpdating = Boolean(data.assessment_updating);
+    var items = data.items || []; if (!items.length) { var running = summary && summary.run && summary.run.status === "running" && Number(summary.run.run_id) === selected; issueState(issueBefore ? "当前筛选已无更多结果" : (running ? "目前还没有记录疑似问题" : "这次排查未记录此类疑似问题"), running ? "排查仍在进行，可以稍后刷新查看。" : "筛查结果不能保证库中不存在重复，请结合影片资料核对。", false); } else el("vm-audit-issues-state").hidden = true;
+    items.forEach(function (item) { el("vm-audit-issues").appendChild(renderIssue(item)); });
+    el("vm-audit-issues-count").textContent = "本页 " + items.length + " 对 · " + (issuesUpdating ? "规则分级正在更新，请刷新首页查看；完成后可继续翻页。" : "先人工核对，再预览并确认资源合并。");
+  }
+  function loadIssues(before, priority) {
+    if (!selected) return Promise.resolve(); clearLibraries(); issuesUpdating = false; issueBefore = before; issuePriority = priority === undefined ? -1 : priority; el("vm-audit-issues").textContent = ""; hasMore = false; issueState("正在读取结果", "正在加载这次排查记录，请稍候。", false);
+    var url = query(query(query(urls.issues, "run_id", selected), "before", before), "kind", el("vm-audit-kind").value);
+    url = query(query(url, "quality", el("vm-audit-quality").value), "before_priority", issuePriority);
+    return request(url).then(renderIssues).catch(function (error) { issueState("暂时无法读取结果", error.message, true); throw error; });
+  }
+  function planPoll() { if (poll) window.clearTimeout(poll); if (summary && Number(summary.active_run_id) > 0) poll = window.setTimeout(function () { if (busy) planPoll(); else loadStatus(false); }, 15000); }
+  function loadStatus(resetResults) {
+    if (busy) return; controls(true); if (!summary) statusState("正在读取排查状态", "稍候片刻，进度和历史记录会显示在这里。", false);
+    request(urls.status).then(function (data) { var change = renderSummary(data, false), openPanel = Object.keys(libraryPanels).some(function (id) { return !libraryPanels[id].panel.hidden; }); if (selected && (resetResults || (change && !openPanel))) return loadIssues(0); }).catch(function (error) { if (!summary) { el("vm-audit-summary").hidden = true; statusState("暂时无法读取排查状态", error.message, true); } else notice(error.message, true); }).finally(function () { controls(false); planPoll(); });
+  }
+  function action(operation, enabled) {
+    if (busy || !summary) return; controls(true); notice(operation === "start" ? "正在启动全库排查…" : "正在保存每周检查设置…");
+    var body = new URLSearchParams({ csrf:csrf, __token__:nativeToken, operation:operation, weekly:enabled ? 1 : 0, enabled:enabled ? 1 : 0 });
+    request(urls.action, { method:"POST", credentials:"same-origin", headers:{ "X-Requested-With":"XMLHttpRequest" }, body:body }).then(function (data) { renderSummary(data, operation === "start"); notice(operation === "start" ? "全库排查已启动。仅记录疑似问题，影片数据保持原样。" : (data.weekly_enabled ? "已开启每周新增排查。" : "已关闭每周新增排查。")); if (operation === "start") return loadIssues(0); }).catch(function (error) { if (summary) el("vm-audit-weekly").checked = Boolean(summary.weekly_enabled); notice(error.message + " 请刷新排查状态后再继续。", true); }).finally(function () { controls(false); planPoll(); });
+  }
+  function results(before, priority) { if (busy || !selected) return; controls(true); loadIssues(before, priority).catch(function () {}).finally(function () { controls(false); planPoll(); }); }
+  el("vm-audit-refresh").onclick = function () { notice(""); loadStatus(true); }; el("vm-audit-retry").onclick = function () { loadStatus(true); };
+  el("vm-audit-start").onclick = function () { action("start", el("vm-audit-weekly").checked); }; el("vm-audit-weekly").onchange = function () { action("schedule", el("vm-audit-weekly").checked); };
+  el("vm-audit-run-select").onchange = function () { selected = Number(this.value); renderRun(); results(0); }; el("vm-audit-kind").onchange = el("vm-audit-quality").onchange = function () { results(0); };
+  el("vm-audit-issues-retry").onclick = function () { results(issueBefore, issuePriority); }; el("vm-audit-older").onclick = function () { results(nextBefore, nextPriority); };
+  controls(false); loadStatus(true);
+})();
+</script>

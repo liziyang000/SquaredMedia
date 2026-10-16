@@ -1934,6 +1934,68 @@ body::before {
   color: #fff;
 }
 
+/* Keep the default cinema's supporting surfaces quieter than its artwork. */
+:where(html:not([data-theme])) :is(.hero-rank, .filter-panel, .detail-panel, .episode-box) {
+  border-color: var(--line-soft);
+  background: rgba(15, 19, 34, 0.76);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html:not([data-theme]) .hero-rank::before {
+  opacity: 0;
+}
+
+html:not([data-theme]) :is(.rank-item, .genre-chip, .home-shelf-tabs) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html:not([data-theme]) :is(.rank-item:hover, .genre-chip:hover, .genre-chip:focus-visible) {
+  border-color: var(--line-soft);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+html:not([data-theme]) .filter-options a:not(.is-active) {
+  background: transparent;
+}
+
+html:not([data-theme]) .banner-bg {
+  filter: saturate(1.02) contrast(1.02);
+  transform: none;
+}
+
+html:not([data-theme]) .banner-bg::after {
+  background:
+    linear-gradient(90deg, rgba(5, 7, 13, 0.96), rgba(5, 7, 13, 0.7) 30%, rgba(5, 7, 13, 0.08) 70%),
+    linear-gradient(180deg, transparent 45%, rgba(5, 7, 13, 0.8));
+}
+
+html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-bg {
+  background-image: linear-gradient(90deg, #0b1020, transparent 75%), var(--banner-bg);
+  background-position: center, 88% center;
+  background-size: cover, auto 84%;
+  background-repeat: no-repeat;
+}
+
+html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-priority-image {
+  inset: 8% 6% 8% auto;
+  width: 35%;
+  height: 84%;
+  object-fit: contain;
+  object-position: center;
+  filter: none;
+}
+
+html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-content {
+  max-width: min(560px, 100%);
+}
+
 .detail-hero,
 .player-page {
   position: relative;

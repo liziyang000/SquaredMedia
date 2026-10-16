@@ -3559,6 +3559,7 @@
       var markPriorityReady = function () {
         if (!slide.isConnected) return;
         if (priorityImage.naturalWidth > 0) {
+          slide.dataset.bannerLayout = priorityImage.naturalWidth < priorityImage.naturalHeight ? "poster" : "backdrop";
           slide.dataset.bannerBgReady = "true";
           slide.classList.remove("has-missing-background");
           return;
@@ -3584,6 +3585,7 @@
       var applyBackground = function () {
         if (!slide.isConnected) return;
         slide.style.setProperty("--banner-bg", "url(" + JSON.stringify(backdrop) + ")");
+        slide.dataset.bannerLayout = image.naturalWidth < image.naturalHeight ? "poster" : "backdrop";
         slide.dataset.bannerBgReady = "true";
         slide.classList.remove("has-missing-background");
       };

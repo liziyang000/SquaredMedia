@@ -868,6 +868,7 @@ assert.match(hotLabelPage, /include file="public\/paging"/);
 assert.match(hotLabelPage, /\{include file="public\/foot" \/\}/);
 
 const videosLabelPage = readThemeFile("html/label/videos.html");
+assert.match(videosLabelPage, /class="wrap page-title page-heading-compact"/);
 assert.match(videosLabelPage, /seo_title="影片库"/);
 assert.match(videosLabelPage, new RegExp(`\\{maccms:vod num="24" paging="yes" pageurl="label/videos" type="${nonAdultVodTypeScope}" order="desc" by="time" id="vo"\\}`));
 assert.doesNotMatch(videosLabelPage, /\{maccms:vod[^}]*type="all"[^}]*by="time"/);
@@ -1039,6 +1040,7 @@ assert.doesNotMatch(index, /data-gradient-strips?/);
 assert.match(index, /hero-slide/);
 assert.match(index, /banner-content/);
 assert.match(index, /data-banner-bg="\{if condition="\$vo\.vod_pic_slide neq ''"\}\{\$vo\.vod_pic_slide\|mac_url_img\}\{else\/\}\{\$vo\.vod_pic\|mac_url_img\}\{\/if\}"/);
+assert.match(index, /data-banner-layout="\{if condition="\$vo\.vod_pic_slide neq ''"\}backdrop\{else\/\}poster\{\/if\}"/);
 assert.match(index, /\{if condition="\$key eq 1"\}\s*\{if condition="\$vo\.vod_pic_slide neq ''"\}\s*<img class="banner-priority-image" src="\{\$vo\.vod_pic_slide\|mac_url_img\}"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image>\s*\{else\/\}\s*<img class="banner-priority-image" src="\{\$vo\.vod_pic\|mac_url_img\}"[^>]*loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image>\s*\{\/if\}\s*\{\/if\}/);
 assert.doesNotMatch(index, /style="--banner-bg:/);
 assert.match(index, /class="primary-btn" href="\{:mac_url_vod_play\(\$vo\)\}">立即播放<\/a>/);
@@ -1288,6 +1290,11 @@ for (const rssAlias of ["rss/rss.html", "rss/baidu.html", "rss/google.html"]) {
 }
 
 const vodFilterCommonPartial = readThemeFile("html/public/vod_filter_common.html");
+assert.match(vodFilterCommonPartial, /<details class="filter-advanced"\{if condition="\$param\['lang'\] neq '' \|\| \$param\['letter'\] neq ''"\} open\{\/if\}>\s*<summary>更多筛选<\/summary>/);
+const advancedVodFilters = vodFilterCommonPartial.match(/<details class="filter-advanced"[\s\S]*?<\/details>/)?.[0] || "";
+assert.match(advancedVodFilters, /<strong>语言<\/strong>/);
+assert.match(advancedVodFilters, /<strong>字母<\/strong>/);
+assert.doesNotMatch(advancedVodFilters, /<strong>(?:地区|年份|排序)<\/strong>/);
 const vodGridResultsPartial = readThemeFile("html/public/vod_grid_results.html");
 function expandVodGridResults(pageurl, vodType) {
   return vodGridResultsPartial.replaceAll("[pageurl]", pageurl).replaceAll("[vod_type]", vodType);
@@ -1303,7 +1310,7 @@ assert.match(typePage, /\{maccms:vod num="24" paging="yes"/);
 assert.match(typePage, /pageurl="vod\/type"/);
 assert.doesNotMatch(typePage, /\$param\['by'\]/);
 assert.match(typePage, /filter-panel category-filter/);
-assert.match(typePageSource, /class="wrap page-title filter-page-title"/);
+assert.match(typePageSource, /class="wrap page-title filter-page-title page-heading-compact"/);
 assert.match(typePageSource, /data-filter-drawer/);
 assert.match(typePage, /data-dynamic-vod-filters/);
 assert.match(typePage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
@@ -1390,7 +1397,7 @@ assert.match(showPageSource, new RegExp(`\\{include file="public/vod_grid_result
 assert.match(vodGridResultsPartial, /pageurl="\[pageurl\]"/);
 assert.match(vodGridResultsPartial, /type="\[vod_type\]"/);
 assert.match(showPage, /data-dynamic-vod-filters/);
-assert.match(showPageSource, /class="wrap page-title filter-page-title"/);
+assert.match(showPageSource, /class="wrap page-title filter-page-title page-heading-compact"/);
 assert.match(showPageSource, /data-filter-drawer/);
 assert.match(showPage, /data-filter-endpoint="\{:url\('pingfangdevice\/filters'\)\}"/);
 assert.match(showPage, /data-filter-type-id="\{\$obj\.type_id\}"/);
@@ -3977,6 +3984,34 @@ assert.match(appJs, /function ensureCarouselDots\(carousel, slides\)/);
 assert.match(appJs, /document\.createElement\("button"\)/);
 assert.match(appJs, /function ensureHeroSlideBackground\(slide, priority\)/);
 assert.match(appJs, /data-banner-bg/);
+const heroBackgroundStart = appJs.indexOf("  function ensureHeroSlideBackground");
+const heroBackgroundEnd = appJs.indexOf("  function scheduleHeroBackgroundPreload", heroBackgroundStart);
+assert.ok(heroBackgroundStart >= 0 && heroBackgroundEnd > heroBackgroundStart);
+let loadedHeroImage;
+const ensureHeroBackground = new Function(
+  "window",
+  `${appJs.slice(heroBackgroundStart, heroBackgroundEnd)}\nreturn ensureHeroSlideBackground;`
+)({ Image: function () { loadedHeroImage = this; } });
+for (const [width, height, expectedLayout] of [[600, 900, "poster"], [1600, 900, "backdrop"]]) {
+  for (const priority of [true, false]) {
+    const slide = {
+      dataset: {},
+      isConnected: true,
+      getAttribute: () => "hero-image.jpg",
+      querySelector: () => priority ? { complete: true, naturalWidth: width, naturalHeight: height } : null,
+      classList: { add() {}, remove() {} },
+      style: { setProperty() {} }
+    };
+    ensureHeroBackground(slide, "high");
+    if (!priority) {
+      loadedHeroImage.naturalWidth = width;
+      loadedHeroImage.naturalHeight = height;
+      loadedHeroImage.onload();
+    }
+    assert.equal(slide.dataset.bannerLayout, expectedLayout, `${priority ? "first" : "deferred"} hero image should respect its aspect ratio`);
+    assert.equal(slide.dataset.bannerBgReady, "true");
+  }
+}
 assert.match(appJs, /new window\.Image\(\)/);
 assert.match(appJs, /image\s*\.decode\(\)/);
 assert.match(appJs, /function scheduleHeroBackgroundPreload/);
@@ -4017,6 +4052,27 @@ echo render_page($data, (string)($_GET["route"] ?? "home"), $_GET);
   return execFileSync("php", ["-r", code], { encoding: "utf8" });
 }
 
+const heroFallbackCases = JSON.parse(execFileSync("php", ["-r", `
+require "server/lib/data.php";
+require "server/lib/render.php";
+$data = load_data();
+$video = $data["videos"][0];
+$results = [];
+foreach (["", null, $video["backdrop"]] as $backdrop) {
+    if ($backdrop === null) unset($video["backdrop"]);
+    else $video["backdrop"] = $backdrop;
+    $results[] = ["html" => render_hero_carousel($data, [$video]), "image" => $backdrop ?: $video["poster"]];
+}
+echo json_encode($results, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+`], { encoding: "utf8" }));
+for (const [index, { html, image }] of heroFallbackCases.entries()) {
+  assert.match(html, new RegExp(`data-banner-layout="${index < 2 ? "poster" : "backdrop"}"`));
+  assert.ok(html.includes(`data-banner-bg="${image}"`));
+  const firstImage = html.match(/<img class="banner-priority-image"[^>]+>/)?.[0] || "";
+  assert.ok(firstImage.includes(`src="${image}"`));
+  assert.match(firstImage, /loading="eager"[^>]*fetchpriority="high"[^>]*data-banner-priority-image/);
+}
+
 const videosPreview = renderPreview("route=videos");
 const videosPreviewMain = videosPreview.match(/<main>[\s\S]*<\/main>/)?.[0] || "";
 assert.match(videosPreview, /<title>影片库 - 平方影视<\/title>/);
@@ -4025,8 +4081,9 @@ assert.match(videosPreview, /\/index\.php\?route=videos[^"]*sort=hot/);
 assert.doesNotMatch(videosPreview, /<title>全部影片 - 平方影视<\/title>/);
 assert.doesNotMatch(videosPreview, /<h1>全部影片<\/h1>/);
 assert.doesNotMatch(videosPreviewMain, /\/index\.php\?route=category(?:&amp;|")/);
-assert.match(videosPreview, /class="wrap page-title filter-page-title"/);
+assert.match(videosPreview, /class="wrap page-title filter-page-title page-heading-compact"/);
 assert.match(videosPreview, /data-filter-drawer/);
+assert.match(videosPreview, /<details class="filter-advanced"><summary>更多筛选<\/summary>/);
 
 const categoryIndexPreview = renderPreview("route=category");
 assert.match(categoryIndexPreview, /<title>影片库 - 平方影视<\/title>/);
@@ -4049,8 +4106,10 @@ assert.doesNotMatch(classFiltered, /远山计划/);
 const langFiltered = renderPreview("route=category&lang=粤语");
 assert.match(langFiltered, /午夜档案/);
 assert.doesNotMatch(langFiltered, /云端回声/);
+assert.match(langFiltered, /<details class="filter-advanced" open><summary>更多筛选<\/summary>/);
 
 const letterFiltered = renderPreview("route=category&letter=Y");
+assert.match(letterFiltered, /<details class="filter-advanced" open><summary>更多筛选<\/summary>/);
 assert.match(letterFiltered, /云端回声/);
 assert.match(letterFiltered, /远山计划/);
 assert.doesNotMatch(letterFiltered, /暮色航线/);

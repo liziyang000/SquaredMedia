@@ -373,7 +373,7 @@ function bannerSlide(video, index) {
     ? `<img class="banner-priority-image" src="${escapeHtml(backdrop)}" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>`
     : "";
   return `
-    <article class="hero-slide${active}${index === 0 ? " has-priority-image" : ""}" data-carousel-slide data-banner-bg="${escapeHtml(backdrop)}">
+    <article class="hero-slide${active}${index === 0 ? " has-priority-image" : ""}" data-carousel-slide data-banner-layout="${video.backdrop ? "backdrop" : "poster"}" data-banner-bg="${escapeHtml(backdrop)}">
       <span class="banner-bg">${priorityImage}</span>
       <span class="banner-content">
         <span class="banner-copy">
@@ -1014,7 +1014,7 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
   if (!pageParams.letter) delete pageParams.letter;
   if (!pageParams.sort || pageParams.sort === "latest") delete pageParams.sort;
   app.innerHTML = `
-    <section class="wrap page-title">
+    <section class="wrap page-title filter-page-title page-heading-compact">
       <span class="eyebrow">筛选</span>
       <h1>${escapeHtml(name || "影片库")}</h1>
       <p>按分类、地区、年份和排序方式查找内容。</p>
@@ -1036,32 +1036,18 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
           ${store.categories.map((category) => `<a class="${category === name ? "is-active" : ""}" href="${filterUrl({ name: category })}">${escapeHtml(category)}</a>`).join("")}
         </div>
       </div>
-      <div class="filter-row">
+      <div class="filter-row" data-filter-kind="area">
         <strong>地区</strong>
         <div class="filter-options">
           <a class="${area ? "" : "is-active"}" href="${filterUrl({ area: "" })}">全部</a>
           ${areas.map((item) => `<a class="${item === area ? "is-active" : ""}" href="${filterUrl({ area: item })}">${escapeHtml(item)}</a>`).join("")}
         </div>
       </div>
-      <div class="filter-row">
+      <div class="filter-row" data-filter-kind="year">
         <strong>年份</strong>
         <div class="filter-options">
           <a class="${year ? "" : "is-active"}" href="${filterUrl({ year: "" })}">全部</a>
           ${years.map((item) => `<a class="${item === year ? "is-active" : ""}" href="${filterUrl({ year: item })}">${escapeHtml(item)}</a>`).join("")}
-        </div>
-      </div>
-      <div class="filter-row">
-        <strong>语言</strong>
-        <div class="filter-options">
-          <a class="${lang ? "" : "is-active"}" href="${filterUrl({ lang: "" })}">全部</a>
-          ${langs.map((item) => `<a class="${item === lang ? "is-active" : ""}" href="${filterUrl({ lang: item })}">${escapeHtml(item)}</a>`).join("")}
-        </div>
-      </div>
-      <div class="filter-row">
-        <strong>字母</strong>
-        <div class="filter-options letter-options">
-          <a class="${letter ? "" : "is-active"}" href="${filterUrl({ letter: "" })}">全部</a>
-          ${letters.map((item) => `<a class="${item === letter ? "is-active" : ""}" href="${filterUrl({ letter: item })}">${escapeHtml(item)}</a>`).join("")}
         </div>
       </div>
       <div class="filter-row">
@@ -1070,6 +1056,23 @@ function renderCategory(name, sort = "latest", area = "", year = "", genre = "",
           ${sorts.map(([value, label]) => `<a class="${value === currentSort ? "is-active" : ""}" href="${filterUrl({ sort: value })}">${escapeHtml(label)}</a>`).join("")}
         </div>
       </div>
+      <details class="filter-advanced"${lang || letter ? " open" : ""}>
+        <summary>更多筛选</summary>
+        <div class="filter-row">
+          <strong>语言</strong>
+          <div class="filter-options">
+            <a class="${lang ? "" : "is-active"}" href="${filterUrl({ lang: "" })}">全部</a>
+            ${langs.map((item) => `<a class="${item === lang ? "is-active" : ""}" href="${filterUrl({ lang: item })}">${escapeHtml(item)}</a>`).join("")}
+          </div>
+        </div>
+        <div class="filter-row">
+          <strong>字母</strong>
+          <div class="filter-options letter-options">
+            <a class="${letter ? "" : "is-active"}" href="${filterUrl({ letter: "" })}">全部</a>
+            ${letters.map((item) => `<a class="${item === letter ? "is-active" : ""}" href="${filterUrl({ letter: item })}">${escapeHtml(item)}</a>`).join("")}
+          </div>
+        </div>
+      </details>
       <div class="filter-actions">
         <a class="filter-reset" href="${url(routeName, name ? { name } : {})}">重置筛选</a>
       </div>

@@ -2,7 +2,7 @@
 {assign name="pingfang_seo_keywords" value="$obj.type_key|default=''" /}
 {assign name="pingfang_seo_description" value="$obj.type_des|default=''" /}
 {include file="public/head" seo_title="" seo_keywords="" seo_description="" /}
-<section class="wrap page-title filter-page-title">
+<section class="wrap page-title filter-page-title page-heading-compact">
   <span class="eyebrow">分类浏览</span>
   <h1>{$obj.type_name}</h1>
   <p>{$obj.type_des|mac_filter_html|mac_default='按最新更新、热度和筛选条件快速浏览当前分类。'}</p>

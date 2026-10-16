@@ -44,38 +44,6 @@
       {/notempty}
     </div>
   </div>
-  <div class="filter-row" data-filter-kind="lang" data-filter-href-template="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'__PINGFANG_FILTER_VALUE__','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">
-    <strong>语言</strong>
-    <div class="filter-options">
-      <a {if condition="$param['lang'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
-      {notempty name="$obj.type_extend.lang"}
-      {maccms:foreach name=":explode(',',$obj.type_extend.lang)" id="vo2"}
-      <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
-      {/maccms:foreach}
-      {else/}
-      {notempty name="$obj.parent.type_extend.lang"}
-      {maccms:foreach name=":explode(',',$obj.parent.type_extend.lang)" id="vo2"}
-      <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
-      {/maccms:foreach}
-      {else/}
-      {notempty name="$maccms.vod_extend_lang"}
-      {maccms:foreach name=":explode(',',$maccms.vod_extend_lang)" id="vo2"}
-      <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
-      {/maccms:foreach}
-      {/notempty}
-      {/notempty}
-      {/notempty}
-    </div>
-  </div>
-  <div class="filter-row">
-    <strong>字母</strong>
-    <div class="filter-options letter-options">
-      <a {if condition="$param['letter'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'','class'=>$param['class']],'show')}">全部</a>
-      {maccms:foreach name=":explode(',','A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9')" id="vo2"}
-      <a {if condition="$param['letter'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$vo2,'class'=>$param['class']],'show')}">{$vo2}</a>
-      {/maccms:foreach}
-    </div>
-  </div>
   <div class="filter-row">
     <strong>排序</strong>
     <div class="filter-options">
@@ -84,6 +52,41 @@
       <a {if condition="$param.by eq 'score'"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class'],'by'=>'score'],'show')}">评分</a>
     </div>
   </div>
+  <details class="filter-advanced"{if condition="$param['lang'] neq '' || $param['letter'] neq ''"} open{/if}>
+    <summary>更多筛选</summary>
+    <div class="filter-row" data-filter-kind="lang" data-filter-href-template="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'__PINGFANG_FILTER_VALUE__','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">
+      <strong>语言</strong>
+      <div class="filter-options">
+        <a {if condition="$param['lang'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>'','year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">全部</a>
+        {notempty name="$obj.type_extend.lang"}
+        {maccms:foreach name=":explode(',',$obj.type_extend.lang)" id="vo2"}
+        <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+        {/maccms:foreach}
+        {else/}
+        {notempty name="$obj.parent.type_extend.lang"}
+        {maccms:foreach name=":explode(',',$obj.parent.type_extend.lang)" id="vo2"}
+        <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+        {/maccms:foreach}
+        {else/}
+        {notempty name="$maccms.vod_extend_lang"}
+        {maccms:foreach name=":explode(',',$maccms.vod_extend_lang)" id="vo2"}
+        <a data-filter-value="{$vo2}" {if condition="$param['lang'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$vo2,'year'=>$param['year'],'letter'=>$param['letter'],'class'=>$param['class']],'show')}">{$vo2}</a>
+        {/maccms:foreach}
+        {/notempty}
+        {/notempty}
+        {/notempty}
+      </div>
+    </div>
+    <div class="filter-row">
+      <strong>字母</strong>
+      <div class="filter-options letter-options">
+        <a {if condition="$param['letter'] eq ''"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>'','class'=>$param['class']],'show')}">全部</a>
+        {maccms:foreach name=":explode(',','A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,0~9')" id="vo2"}
+        <a {if condition="$param['letter'] eq $vo2"} class="is-active" {/if} href="{:mac_url_type($obj,['area'=>$param['area'],'lang'=>$param['lang'],'year'=>$param['year'],'letter'=>$vo2,'class'=>$param['class']],'show')}">{$vo2}</a>
+        {/maccms:foreach}
+      </div>
+    </div>
+  </details>
   <div class="filter-actions">
     <a class="filter-reset" href="{:mac_url_type($obj,[],'show')}">重置筛选</a>
   </div>

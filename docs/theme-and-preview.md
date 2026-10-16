@@ -48,6 +48,7 @@
 
 - 首页数据由 `maccms:vod` 和 `maccms:type` 在 MacCMS 运行时查询，内部字段使用 `$vo`，链接使用 `mac_url_vod_detail`、`mac_url_vod_play` 等 helper。
 - `vod/type.html` 和 `vod/show.html` 复用 `public/vod_filter_common.html`、`public/vod_grid_results.html`、`public/vod_card.html` 和 `public/paging.html`。
+- 分类与片库标题使用紧凑布局；语言、字母筛选收在原生“更多筛选”折叠区，已有对应条件时默认展开，移动端仍复用筛选抽屉。
 - 排序只走 `time`、`hits`、`score` 三个固定分支，避免把原始请求参数直接放入查询形状。
 - 主题的评分排序与展示读取 MacCMS 原生 `vod_score`；`vodops` 内的豆瓣模块把已校验的 `vod_douban_score` 镜像到该字段，未同步影片使用 `0`，本地预览不能证明线上评分已完成校准。
 - `app.js` 会向 `pingfangdevice/filters` 请求动态可用筛选项；失败时保留服务端输出的筛选，不阻断页面。
@@ -66,6 +67,8 @@
 ## 当前视觉与动效
 
 - 默认主题使用深夜蓝黑星空底色、紫蓝液态玻璃表面和高亮青色状态色；首页以全宽海报舞台和横向内容货架为主要视觉结构。
+- 默认主题的榜单、频道入口、筛选和影片资料区降低彩色玻璃与阴影强度，导航保留玻璃材质；其余六套主题保留各自表面样式。
+- 首页继续优先读取影片横图 `vod_pic_slide`，缺失时使用海报；默认主题将竖图完整放在舞台右侧。首张原生优先图片与后续背景加载后均按实际宽高修正构图，首张无 JavaScript 时仍有图片。
 - `blue-pink-purple`、`poster-magazine`、`dunhuang-caisson`、`digital-particles`、`pixel-frog` 和 `ink-wash` 通过根元素 `data-theme` 切换，选择保存在 `pingfang_theme`。
 - `poster-magazine` 只在对应主题选择器下改变首页舞台、榜单和卡片布局，登录页使用左对齐的杂志排版、硬边色块和偏移阴影；默认主题不共用这套重排。
 - 七套主题共用登录表单结构和交互，但视觉按主题适配：默认主题保留紫蓝液态玻璃，`blue-pink-purple` 使用青粉双辉光玻璃，`poster-magazine` 使用编辑设计，敦煌和像素青蛙延续各自既有样式，`digital-particles` 使用蓝色网格终端面板。

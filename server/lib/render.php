@@ -237,14 +237,15 @@ function render_hero_carousel(array $data, array $videos): string
 
     foreach ($banners as $index => $video) {
         $active = $index === 0 ? ' is-active' : '';
-        $backdrop = $video['backdrop'] ?? $video['poster'];
+        $backdrop = !empty($video['backdrop']) ? $video['backdrop'] : $video['poster'];
         $duration = $video['duration'] ?? '时长待定';
         $version = $video['version'] ?? ($video['remark'] ?? '高清');
         $priorityImage = $index === 0
             ? '<img class="banner-priority-image" src="' . e($backdrop) . '" alt="" aria-hidden="true" width="1920" height="1080" loading="eager" decoding="async" fetchpriority="high" data-banner-priority-image>'
             : '';
         $priorityClass = $index === 0 ? ' has-priority-image' : '';
-        $slides .= '<article class="hero-slide' . $active . $priorityClass . '" data-carousel-slide data-banner-bg="' . e($backdrop) . '">
+        $layout = !empty($video['backdrop']) ? 'backdrop' : 'poster';
+        $slides .= '<article class="hero-slide' . $active . $priorityClass . '" data-carousel-slide data-banner-layout="' . $layout . '" data-banner-bg="' . e($backdrop) . '">
   <span class="banner-bg">' . $priorityImage . '</span>
   <span class="banner-content">
     <span class="banner-copy">
@@ -740,17 +741,18 @@ function render_page(array $data, string $route, array $query): string
         $sortLinks .= '<a' . ($sort === 'score' ? ' class="is-active"' : '') . ' href="' . e(path_for($routeName, ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => 'score'])) . '">评分</a>';
         $filter = '<section class="wrap filter-panel category-filter" data-filter-drawer>' . $channelSearch
             . '<div class="filter-row"><strong>类型</strong><div class="filter-options">' . $typeLinks . '</div></div>'
-            . '<div class="filter-row"><strong>地区</strong><div class="filter-options">' . $areaLinks . '</div></div>'
-            . '<div class="filter-row"><strong>年份</strong><div class="filter-options">' . $yearLinks . '</div></div>'
-            . '<div class="filter-row"><strong>语言</strong><div class="filter-options">' . $langLinks . '</div></div>'
-            . '<div class="filter-row"><strong>字母</strong><div class="filter-options letter-options">' . $letterLinks . '</div></div>'
+            . '<div class="filter-row" data-filter-kind="area"><strong>地区</strong><div class="filter-options">' . $areaLinks . '</div></div>'
+            . '<div class="filter-row" data-filter-kind="year"><strong>年份</strong><div class="filter-options">' . $yearLinks . '</div></div>'
             . '<div class="filter-row"><strong>排序</strong><div class="filter-options">' . $sortLinks . '</div></div>'
+            . '<details class="filter-advanced"' . ($lang !== '' || $letter !== '' ? ' open' : '') . '><summary>更多筛选</summary>'
+            . '<div class="filter-row"><strong>语言</strong><div class="filter-options">' . $langLinks . '</div></div>'
+            . '<div class="filter-row"><strong>字母</strong><div class="filter-options letter-options">' . $letterLinks . '</div></div></details>'
             . '<div class="filter-actions"><a class="filter-reset" href="' . e(path_for($routeName, $name !== '' ? ['name' => $name] : [])) . '">重置筛选</a></div>'
             . '</section>';
         $pagination = render_pagination($routeName, ['name' => $name, 'area' => $area, 'year' => $year, 'class' => $class, 'lang' => $lang, 'letter' => $letter, 'sort' => $sort], $page, $totalPages);
         $pageTitle = $name !== '' ? $name : $defaultTitle;
         $emptyState = '<div class="content-empty-state" data-empty-state hidden role="status"><strong>暂无符合条件的影片</strong><span>试试清除筛选条件，或浏览其他频道。</span><a href="' . e(path_for($routeName, $name !== '' ? ['name' => $name] : [])) . '">重置筛选</a></div>';
-        return render_layout($data, $pageTitle, '<section class="wrap page-title filter-page-title"><span class="eyebrow">分类浏览</span><h1>' . e($pageTitle) . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . $totalCount . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid" data-empty-container data-empty-item=".vod-card">' . render_cards($pagedVideos) . $emptyState . '</div>' . $pagination . '</section>');
+        return render_layout($data, $pageTitle, '<section class="wrap page-title filter-page-title page-heading-compact"><span class="eyebrow">分类浏览</span><h1>' . e($pageTitle) . '</h1><p>按' . e(sort_label($sort)) . '排序，共 ' . $totalCount . ' 部内容。</p></section>' . $filter . '<section class="wrap content-section"><div class="vod-grid" data-empty-container data-empty-item=".vod-card">' . render_cards($pagedVideos) . $emptyState . '</div>' . $pagination . '</section>');
     }
 
     if ($route === 'search') {

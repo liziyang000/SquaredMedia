@@ -2298,7 +2298,7 @@ assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.player-shell\s*\{[\s\S]
 assert.match(style, /@media \(max-width: 1020px\)[\s\S]*\.home-shelf-rail\s*\{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
 assert.match(style, /@media \(max-width: 1020px\)[\s\S]*\.home-shelf-rail\s*\{[\s\S]*grid-auto-flow: row/);
 assert.match(style, /@media \(max-width: 1020px\)[\s\S]*\.home-shelf-rail\s*\{[\s\S]*overflow: visible/);
-assert.doesNotMatch(style, /@media \(max-width: 1020px\)[\s\S]*\.home-shelf-rail\s*\{[\s\S]*grid-template-columns: none/);
+assert.doesNotMatch(style, /@media \(max-width: 1020px\)[\s\S]*\.home-shelf-rail\s*\{[^}]*grid-template-columns: none/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.system-page\s*\{[\s\S]*min-height: auto/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.system-box\s*\{[\s\S]*padding: 20px/);
 assert.match(style, /@media \(max-width: 760px\)[\s\S]*\.device-card\s*\{[\s\S]*grid-template-columns: 1fr/);
@@ -3805,9 +3805,9 @@ assert.match(appJs, /function syncAutoplayControl\(\)/);
 assert.match(appJs, /var controlMap = \{\};/);
 assert.match(appJs, /control\.id = control\.id \|\| "latest-tab-" \+ tabIndex/);
 assert.match(appJs, /panel\.setAttribute\("aria-labelledby", control\.id\)/);
-assert.match(appJs, /userPaused \|\| !carouselInViewport/);
+assert.match(appJs, /userPaused\s*\|\|\s*!carouselInViewport/);
 assert.match(appJs, /carouselAutoplayObserver = new IntersectionObserver/);
-assert.match(appJs, /document\.hidden \|\| prefersReducedMotion\(\) \|\| carouselHasFocus \|\| userPaused \|\| !carouselInViewport/);
+assert.match(appJs, /document\.hidden\s*\|\|\s*prefersReducedMotion\(\)\s*\|\|\s*carouselHasFocus\s*\|\|\s*carouselHovered\s*\|\|\s*touchStartX !== null\s*\|\|\s*userPaused\s*\|\|\s*!carouselInViewport/);
 assert.match(appJs, /activate\(nextIndex, false\)/);
 assert.match(appJs, /setThemeSwitcherOpen\(switcher, false, true\)/);
 assert.match(style, /\.mobile-drawer\.is-animating\s*\{[\s\S]*?will-change: transform/);
@@ -3905,7 +3905,7 @@ assert.match(appJs, /function filterOptionIsActive/);
 assert.match(appJs, /option\.query/);
 assert.match(appJs, /option\.label/);
 assert.match(appJs, /__PINGFANG_FILTER_VALUE__/);
-assert.match(appJs, /limit: "1000"/);
+assert.match(appJs, /url\.searchParams\.set\("limit", "1000"\)/);
 assert.match(appJs, /function initFilterDrawers/);
 assert.match(appJs, /data-filter-drawer-toggle/);
 assert.match(appJs, /data-filter-drawer-sheet/);
@@ -3999,36 +3999,455 @@ assert.match(appJs, /data-banner-bg/);
 const heroBackgroundStart = appJs.indexOf("  function ensureHeroSlideBackground");
 const heroBackgroundEnd = appJs.indexOf("  function scheduleHeroBackgroundPreload", heroBackgroundStart);
 assert.ok(heroBackgroundStart >= 0 && heroBackgroundEnd > heroBackgroundStart);
+
+function motionDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((onResolve, onReject) => { resolve = onResolve; reject = onReject; });
+  return { promise, resolve, reject };
+}
+
+function motionNode(attributes = {}) {
+  const attrs = new Map(Object.entries(attributes));
+  const classes = new Set(String(attributes.class || "").split(/\s+/).filter(Boolean));
+  const listeners = new Map();
+  const node = {
+    dataset: {}, hidden: false, inert: false, isConnected: true,
+    style: { setProperty(name, value) { this[name] = value; }, removeProperty(name) { delete this[name]; } },
+    classList: {
+      add: (...values) => values.forEach((value) => classes.add(value)),
+      remove: (...values) => values.forEach((value) => classes.delete(value)),
+      contains: (value) => classes.has(value),
+      toggle(value, enabled = !classes.has(value)) { if (enabled) classes.add(value); else classes.delete(value); return enabled; },
+    },
+    getAttribute: (name) => attrs.get(name) ?? null,
+    hasAttribute: (name) => attrs.has(name),
+    setAttribute(name, value) {
+      attrs.set(name, String(value));
+      if (name.startsWith("data-")) node.dataset[name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = String(value);
+    },
+    removeAttribute(name) { attrs.delete(name); },
+    toggleAttribute(name, enabled) { if (enabled) this.setAttribute(name, ""); else this.removeAttribute(name); },
+    addEventListener(type, listener) { listeners.set(type, [...(listeners.get(type) || []), listener]); },
+    removeEventListener(type, listener) { listeners.set(type, (listeners.get(type) || []).filter((candidate) => candidate !== listener)); },
+    dispatch(type, event = {}) { (listeners.get(type) || []).slice().forEach((listener) => listener({ target: node, preventDefault() {}, ...event })); },
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    closest: () => node,
+    contains: (other) => other === node,
+    getBoundingClientRect: () => ({ top: 0, left: 0, width: 300, height: 200, right: 300, bottom: 200 }),
+    focus() { node.focused = true; },
+  };
+  Object.entries(attributes).forEach(([name, value]) => node.setAttribute(name, value));
+  return node;
+}
+
+function motionTimers() {
+  let sequence = 0;
+  let now = 0;
+  const pending = new Map();
+  const runningIntervals = new Set();
+  return {
+    setTimeout(callback, delay = 0) { pending.set(++sequence, { callback, at: now + delay }); return sequence; },
+    clearTimeout(id) { pending.delete(id); },
+    runningIntervals,
+    setInterval() { runningIntervals.add(++sequence); return sequence; },
+    clearInterval(id) { runningIntervals.delete(id); },
+    requestIdleCallback() {},
+    advance(milliseconds) { now += milliseconds; [...pending].filter(([, timer]) => timer.at <= now).forEach(([id, timer]) => { pending.delete(id); timer.callback(); }); },
+    finish() { const timers = [...pending.values()]; pending.clear(); timers.forEach((timer) => timer.callback()); },
+  };
+}
+
+const settleMotionTasks = () => new Promise((resolve) => setImmediate(resolve));
 let loadedHeroImage;
+const heroTimers = motionTimers();
 const ensureHeroBackground = new Function(
   "window",
   `${appJs.slice(heroBackgroundStart, heroBackgroundEnd)}\nreturn ensureHeroSlideBackground;`
-)({ Image: function () { loadedHeroImage = this; } });
+)({ ...heroTimers, Image: function () { loadedHeroImage = motionNode(); return loadedHeroImage; } });
 for (const [width, height, expectedLayout] of [[600, 900, "poster"], [1600, 900, "backdrop"]]) {
   for (const priority of [true, false]) {
-    const slide = {
-      dataset: {},
-      isConnected: true,
-      getAttribute: () => "hero-image.jpg",
-      querySelector: () => priority ? { complete: true, naturalWidth: width, naturalHeight: height } : null,
-      classList: { add() {}, remove() {} },
-      style: { setProperty() {} }
-    };
-    ensureHeroBackground(slide, "high");
+    const priorityImage = Object.assign(motionNode(), { complete: true, naturalWidth: width, naturalHeight: height });
+    const slide = motionNode({ "data-banner-bg": "hero-image.jpg" });
+    slide.querySelector = () => priority ? priorityImage : null;
+    const ready = ensureHeroBackground(slide, "high");
+    assert.equal(ensureHeroBackground(slide, "low"), ready, "repeated background requests must share readiness");
     if (!priority) {
       loadedHeroImage.naturalWidth = width;
       loadedHeroImage.naturalHeight = height;
-      loadedHeroImage.onload();
+      loadedHeroImage.dispatch("load");
     }
+    await ready;
     assert.equal(slide.dataset.bannerLayout, expectedLayout, `${priority ? "first" : "deferred"} hero image should respect its aspect ratio`);
     assert.equal(slide.dataset.bannerBgReady, "true");
   }
 }
+for (const failure of ["load", "decode"]) {
+  const slide = motionNode({ "data-banner-bg": "broken-image.jpg" });
+  const ready = ensureHeroBackground(slide, "high");
+  loadedHeroImage.naturalWidth = 1600;
+  if (failure === "load") loadedHeroImage.dispatch("error");
+  else if (failure === "decode") {
+    loadedHeroImage.decode = () => Promise.reject(new Error("decode failed"));
+    loadedHeroImage.dispatch("load");
+  }
+  await ready;
+  assert.equal(slide.dataset.bannerBgReady, "missing", `${failure} must settle to a usable fallback`);
+  assert.ok(slide.classList.contains("has-missing-background"));
+  loadedHeroImage.dispatch("load");
+  await settleMotionTasks();
+  assert.equal(slide.dataset.bannerBgReady, "missing", "late image events must not overwrite a settled fallback");
+}
+for (const priority of [false, true]) {
+  const priorityImage = Object.assign(motionNode(), { complete: false, naturalWidth: 1600, naturalHeight: 900 });
+  const slide = motionNode({ "data-banner-bg": "slow-image.jpg" });
+  slide.querySelector = () => priority ? priorityImage : null;
+  const ready = ensureHeroBackground(slide, "high");
+  const image = priority ? priorityImage : loadedHeroImage;
+  const decoded = motionDeferred();
+  image.naturalWidth = 1600;
+  image.naturalHeight = 900;
+  image.decode = () => decoded.promise;
+  if (!priority) {
+    image.dispatch("load");
+    await settleMotionTasks();
+  }
+  heroTimers.advance(7999);
+  assert.equal(slide.dataset.bannerBgReady, "loading", "slow images must get the full readiness window");
+  heroTimers.advance(1);
+  await ready;
+  assert.equal(slide.dataset.bannerBgReady, "missing", "eight seconds must release the wait with a fallback");
+  if (priority) {
+    assert.equal(image.hidden, true);
+    image.dispatch("load");
+  }
+  decoded.resolve();
+  await settleMotionTasks();
+  assert.equal(slide.dataset.bannerBgReady, "true", "an image that finishes after timeout must recover");
+  assert.equal(slide.classList.contains("has-missing-background"), false);
+  if (priority) assert.equal(image.hidden, false, "the recovered priority image must become visible again");
+  else assert.ok(slide.style["--banner-bg"].includes("slow-image.jpg"));
+}
+
+const heroSlides = [0, 1, 2, 3, 4].map((index) => motionNode({ "data-banner-bg": `slide-${index}.jpg`, class: index === 0 ? "is-active" : "" }));
+const heroDots = heroSlides.map(() => motionNode());
+const heroNext = motionNode();
+const heroCarousel = motionNode();
+heroCarousel.querySelectorAll = (selector) => selector === "[data-carousel-slide]" ? heroSlides : heroDots;
+heroCarousel.querySelector = (selector) => selector === "[data-carousel-next]" ? heroNext : null;
+heroSlides[0].querySelector = () => Object.assign(motionNode(), { complete: true, naturalWidth: 1600, naturalHeight: 900 });
+const deferredHeroImages = new Map();
+const carouselRuntime = {
+  document: motionNode(),
+  window: {
+    ...motionTimers(),
+    Image: function () {
+      const image = Object.assign(motionNode(), { naturalWidth: 1600, naturalHeight: 900, decoded: motionDeferred() });
+      image.decode = () => image.decoded.promise;
+      Object.defineProperty(image, "src", { set(value) { deferredHeroImages.set(value, image); } });
+      return image;
+    },
+  },
+  prefersReducedMotion: () => false,
+  ensureCarouselDots() {}, enableGsapCarousel() {}, disableGsapCarousel() {}, animateHeroSlide() {},
+};
+new Script(appJs.slice(heroBackgroundStart, appJs.indexOf("  window.PingFangVideo =", heroBackgroundStart))).runInNewContext(carouselRuntime);
+carouselRuntime.initHeroCarousel({ querySelectorAll: () => [heroCarousel] });
+await settleMotionTasks();
+assert.equal(carouselRuntime.window.runningIntervals.size, 1);
+heroNext.dispatch("click");
+assert.equal(carouselRuntime.window.runningIntervals.size, 0, "autoplay must pause while the next slide is pending");
+const secondHeroImage = deferredHeroImages.get("slide-1.jpg");
+secondHeroImage.dispatch("load");
+await settleMotionTasks();
+assert.ok(heroSlides[0].classList.contains("is-active"), "the current slide must remain visible while its successor decodes");
+heroNext.dispatch("click");
+heroCarousel.dispatch("touchstart", { touches: [{ clientX: 100, clientY: 100 }] });
+const thirdHeroImage = deferredHeroImages.get("slide-2.jpg");
+thirdHeroImage.dispatch("load");
+thirdHeroImage.decoded.resolve();
+await settleMotionTasks();
+assert.equal(carouselRuntime.window.runningIntervals.size, 0, "finishing a decode must not restart autoplay during touch");
+heroCarousel.dispatch("touchcancel");
+assert.equal(carouselRuntime.window.runningIntervals.size, 1);
+secondHeroImage.decoded.resolve();
+await settleMotionTasks();
+assert.deepEqual(heroSlides.map((slide) => slide.classList.contains("is-active")), [false, false, true, false, false], "a stale decode must not replace the latest requested slide");
+assert.deepEqual(heroDots.map((dot) => dot.getAttribute("aria-selected")), ["false", "false", "true", "false", "false"]);
+assert.deepEqual(heroSlides.map((slide) => slide.inert), [true, true, false, true, true]);
+heroCarousel.dispatch("mouseenter");
+heroDots[0].dispatch("click");
+await settleMotionTasks();
+assert.ok(heroSlides[0].classList.contains("is-active"), "carousel controls must remain usable after pending requests settle");
+assert.equal(carouselRuntime.window.runningIntervals.size, 0, "a completed request must respect hover pause");
+heroCarousel.dispatch("mouseleave");
+assert.equal(carouselRuntime.window.runningIntervals.size, 1);
+heroDots[3].dispatch("click");
+deferredHeroImages.get("slide-3.jpg").dispatch("error");
+await settleMotionTasks();
+assert.ok(heroSlides[3].classList.contains("is-active"));
+assert.ok(heroSlides[3].classList.contains("has-missing-background"));
+heroDots[0].dispatch("click");
+await settleMotionTasks();
+assert.ok(heroSlides[0].classList.contains("is-active"), "a failed image must not leave the carousel controls blocked");
+heroDots[4].dispatch("click");
+carouselRuntime.window.advance(8000);
+await settleMotionTasks();
+assert.ok(heroSlides[4].classList.contains("is-active"));
+assert.ok(heroSlides[4].classList.contains("has-missing-background"));
+heroDots[0].dispatch("click");
+await settleMotionTasks();
+const slowHeroImage = deferredHeroImages.get("slide-4.jpg");
+slowHeroImage.dispatch("load");
+slowHeroImage.decoded.resolve();
+await settleMotionTasks();
+assert.equal(heroSlides[4].classList.contains("has-missing-background"), false);
+assert.ok(heroSlides[0].classList.contains("is-active"), "late image recovery must preserve the user's newer selection");
+heroDots[4].dispatch("click");
+await settleMotionTasks();
+assert.ok(heroSlides[4].classList.contains("is-active"), "a recovered slide must remain selectable after timeout");
+
+const tabKeys = ["all", "film", "series", "empty"];
+const tabControls = tabKeys.map((key, index) => motionNode({ "data-home-tab": key, class: index === 0 ? "is-active" : "" }));
+const tabPanels = tabKeys.map((key, index) => {
+  const panel = motionNode({ "data-home-tab": key });
+  panel.hidden = index !== 0;
+  panel.querySelector = () => key === "empty" ? null : motionNode();
+  return panel;
+});
+const tabNav = motionNode();
+tabNav.querySelectorAll = () => tabControls;
+tabNav.querySelector = () => tabControls.find((control) => control.classList.contains("is-active"));
+tabNav.contains = (control) => tabControls.includes(control);
+const tabShelf = motionNode();
+tabShelf.querySelector = () => tabNav;
+tabShelf.querySelectorAll = () => tabPanels;
+tabShelf.getBoundingClientRect = () => ({ height: [100, 180, 120, 100][tabPanels.findIndex((panel) => !panel.hidden)] });
+const tabAnimations = [];
+for (const node of [tabShelf, ...tabPanels]) node.animate = () => {
+  const deferred = motionDeferred();
+  const animation = { finished: deferred.promise, finish: deferred.resolve, cancel() { this.cancelled = true; deferred.reject(new Error("cancelled")); } };
+  tabAnimations.push(animation);
+  return animation;
+};
+const tabWindow = Object.assign(motionNode(), { location: { href: "https://example.test/?keep=1#shelf" } });
+const tabHistory = [];
+tabWindow.history = Object.fromEntries(["pushState", "replaceState"].map((method) => [method, (_state, _title, location) => {
+  tabWindow.location.href = new URL(location, tabWindow.location.href).href;
+  tabHistory.push(method);
+}]));
+let tabReducedMotion = false;
+const tabRuntime = { URL, window: tabWindow, document: { querySelector: () => tabShelf }, prefersReducedMotion: () => tabReducedMotion, initHomeEmptyStates() {} };
+new Script(appJs.slice(appJs.indexOf("  function initHomeLatestTabs("), appJs.indexOf("  var autoNextNavigating"))).runInNewContext(tabRuntime);
+tabRuntime.initHomeLatestTabs();
+assert.equal(tabControls[3].hidden, true, "an empty category must not become a keyboard stop");
+tabNav.dispatch("click", { target: tabControls[1], detail: 1 });
+assert.equal(tabShelf.style.height, "180px");
+tabNav.dispatch("click", { target: tabControls[2], detail: 1 });
+assert.ok(tabAnimations.slice(0, 2).every((animation) => animation.cancelled), "a newer category must cancel the previous motion");
+await settleMotionTasks();
+assert.equal(tabShelf.style.height, "120px", "old animation cleanup must not clear a newer height animation");
+tabAnimations.slice(2).forEach((animation) => animation.finish());
+await settleMotionTasks();
+assert.equal(tabShelf.style.height, undefined);
+assert.equal(tabShelf.style.overflow, undefined);
+assert.deepEqual(tabPanels.map((panel) => !panel.hidden), [false, false, true, false]);
+assert.equal(new URL(tabWindow.location.href).searchParams.get("latest"), "series");
+tabNav.dispatch("keydown", { target: tabControls[2], key: "ArrowRight" });
+assert.equal(tabControls[0].focused, true);
+assert.equal(tabControls[0].getAttribute("aria-selected"), "true");
+assert.equal(new URL(tabWindow.location.href).searchParams.has("latest"), false);
+assert.equal(new URL(tabWindow.location.href).searchParams.get("keep"), "1");
+assert.equal(new URL(tabWindow.location.href).hash, "#shelf");
+assert.equal(tabHistory.at(-1), "replaceState");
+tabReducedMotion = true;
+const animationCount = tabAnimations.length;
+tabNav.dispatch("click", { target: tabControls[1], detail: 1 });
+assert.equal(tabAnimations.length, animationCount, "reduced motion must switch categories directly");
+tabReducedMotion = false;
+delete tabShelf.animate;
+tabNav.dispatch("click", { target: tabControls[2], detail: 1 });
+assert.equal(tabAnimations.length, animationCount, "browsers without animations must still switch categories");
+tabWindow.location.href = "https://example.test/?keep=1&latest=film#shelf";
+tabWindow.dispatch("popstate");
+assert.equal(tabControls[1].getAttribute("aria-selected"), "true", "back navigation must restore the category without animation");
+
+const themeOptions = ["blue-pink-purple", "poster-magazine"].map((theme) => {
+  const option = motionNode({ "data-theme-option": theme });
+  option.closest = () => null;
+  return option;
+});
+const themeDocument = Object.assign(motionNode(), { documentElement: motionNode() });
+themeDocument.querySelectorAll = (selector) => selector === "[data-theme-option]" ? themeOptions : [];
+const themeStyles = new Map(themeOptions.map((option) => [option.getAttribute("data-theme-option"), motionDeferred()]));
+const nativeThemeTransitions = [];
+themeDocument.startViewTransition = (update) => {
+  const updateDone = motionDeferred();
+  const finished = motionDeferred();
+  const transition = {
+    ready: Promise.resolve(), updateCallbackDone: updateDone.promise, finished: finished.promise,
+    update() { update(); updateDone.resolve(); },
+    finish: finished.resolve,
+    skipTransition() { this.skipped = true; finished.resolve(); },
+  };
+  nativeThemeTransitions.push(transition);
+  return transition;
+};
+const persistedTheme = new Map();
+let themeReducedMotion = false;
+const themeRuntime = {
+  document: themeDocument,
+  window: { ...motionTimers(), requestAnimationFrame: (callback) => callback(), localStorage: { setItem: (key, value) => persistedTheme.set(key, value), removeItem: (key) => persistedTheme.delete(key) } },
+  themeSelectionSequence: 0, themeApplySequence: 0, activeThemeTransition: null, themeTransitionTimer: null, themeSwitcherDocumentReady: false, themeStorageKey: "pingfang_theme",
+  normalizeTheme: (theme) => theme || "",
+  themeFromOption: (option) => option.getAttribute("data-theme-option"),
+  getStoredTheme: () => "",
+  ensureThemeStyles: (theme) => themeStyles.get(theme)?.promise || Promise.resolve(),
+  prefersReducedMotion: () => themeReducedMotion,
+  resetPixelThemeParticles() {}, launchPixelThemeParticles() {}, closeThemeSwitchers() {},
+};
+new Script(
+  appJs.slice(appJs.indexOf("  function syncThemeControls("), appJs.indexOf("  function resetPixelThemeParticles("))
+  + appJs.slice(appJs.indexOf("  function applyTheme("), appJs.indexOf("  function setThemeSwitcherOpen("))
+  + appJs.slice(appJs.indexOf("  function initThemeSwitchers("), appJs.indexOf("\n  if (toggle && drawer)", appJs.indexOf("  function initThemeSwitchers("))),
+).runInNewContext(themeRuntime);
+themeRuntime.initThemeSwitchers(themeDocument);
+themeOptions[0].dispatch("click");
+themeOptions[1].dispatch("click");
+themeStyles.get("poster-magazine").resolve();
+await settleMotionTasks();
+themeStyles.get("blue-pink-purple").resolve();
+await settleMotionTasks();
+assert.equal(nativeThemeTransitions.length, 1, "a stale stylesheet load must not initiate a theme transition");
+themeOptions[0].dispatch("click");
+await settleMotionTasks();
+assert.equal(nativeThemeTransitions[0].skipped, true);
+nativeThemeTransitions[0].update();
+assert.equal(themeDocument.documentElement.getAttribute("data-theme"), null, "a skipped transition must not commit an old theme intent");
+nativeThemeTransitions[1].update();
+nativeThemeTransitions[1].finish();
+await settleMotionTasks();
+assert.equal(themeDocument.documentElement.getAttribute("data-theme"), "blue-pink-purple");
+assert.equal(persistedTheme.get("pingfang_theme"), "blue-pink-purple");
+assert.equal(themeOptions[0].getAttribute("aria-pressed"), "true");
+themeReducedMotion = true;
+themeOptions[1].dispatch("click");
+await settleMotionTasks();
+assert.equal(nativeThemeTransitions.length, 2, "reduced motion must not start a native view transition");
+assert.equal(themeDocument.documentElement.getAttribute("data-theme"), "poster-magazine");
+assert.equal(themeDocument.documentElement.classList.contains("theme-transitioning"), false);
+themeReducedMotion = false;
+delete themeDocument.startViewTransition;
+themeOptions[0].dispatch("click");
+await settleMotionTasks();
+assert.equal(themeDocument.documentElement.getAttribute("data-theme"), "blue-pink-purple", "unsupported native transitions must still apply themes");
+themeRuntime.window.finish();
+assert.equal(themeDocument.documentElement.classList.contains("theme-transitioning"), false, "fallback theme motion must clean up after completion");
+
+let filterNow = 0;
+let filterStorageDisabled = false;
+const filterCache = new Map();
+const filterRequests = [];
+const filterResponses = [];
+const filterPayload = { code: 1, data: { filters_scope: "global", filters: { area: [{ value: "美国", query: "美国,USA" }, { value: "英国" }] }, params: { type_id: "47", area: "USA" } } };
+const filterFetch = (url) => {
+  filterRequests.push(url);
+  return filterResponses.shift() || Promise.resolve({ ok: true, json: async () => filterPayload });
+};
+const filterRuntime = {
+  URL, Date: { now: () => filterNow }, fetch: filterFetch, document: { createElement: () => motionNode() },
+  window: { URL, fetch: filterFetch, location: { origin: "https://example.test" }, sessionStorage: {
+    getItem(key) { if (filterStorageDisabled) throw new Error("storage disabled"); return filterCache.get(key) || null; },
+    setItem(key, value) { if (filterStorageDisabled) throw new Error("storage disabled"); filterCache.set(key, value); },
+  } },
+};
+new Script(appJs.slice(appJs.indexOf("  var dynamicVodFilterRequests = {};"), appJs.indexOf("  function responsiveDialogFocusableElements("))).runInNewContext(filterRuntime);
+function filterPanel(type, year, area, endpoint = "/filters?site=one#ignored") {
+  const panel = motionNode({ "data-filter-endpoint": endpoint, "data-filter-type-id": type, "data-current-year": year, "data-current-area": area });
+  const row = motionNode({ "data-filter-kind": "area", "data-filter-href-template": `/show?type=${type}&year=${year}&area=__PINGFANG_FILTER_VALUE__` });
+  panel.links = [];
+  row.querySelector = () => ({ appendChild(link) { if (!panel.links.includes(link)) panel.links.push(link); } });
+  row.querySelectorAll = () => panel.links;
+  panel.querySelectorAll = () => [row];
+  return panel;
+}
+const firstFilterPanel = filterPanel("47", "2026", "USA");
+const duplicateFilterPanel = filterPanel("47", "2026", "USA");
+const nextFilterPanel = filterPanel("42", "2025", "英国");
+for (const panel of [firstFilterPanel, duplicateFilterPanel]) {
+  for (const [kind, value] of Object.entries({ lang: "英语", class: "悬疑", letter: "Y" })) panel.setAttribute(`data-current-${kind}`, value);
+}
+const filterUrl = filterRuntime.dynamicFilterRequestUrl(firstFilterPanel);
+const globalFilterUrl = filterRuntime.dynamicFilterRequestUrl(firstFilterPanel, true);
+assert.deepEqual(Object.fromEntries(new URL(filterUrl).searchParams), { site: "one", limit: "1000", type_id: "47", area: "USA", year: "2026", lang: "英语", class: "悬疑", letter: "Y" }, "requests must preserve all current parameters for older services");
+assert.notEqual(filterUrl, filterRuntime.dynamicFilterRequestUrl(nextFilterPanel));
+assert.equal(globalFilterUrl, filterRuntime.dynamicFilterRequestUrl(nextFilterPanel, true), "only an explicitly global response may share a key across categories");
+assert.equal(globalFilterUrl, "https://example.test/filters?site=one&limit=1000");
+const pendingFilters = motionDeferred();
+filterResponses.push(pendingFilters.promise);
+for (const panel of [firstFilterPanel, duplicateFilterPanel]) filterRuntime.initDynamicVodFilters({ querySelectorAll: () => [panel] });
+assert.equal(filterRequests.length, 1, "concurrent filter panels must share the pending request");
+pendingFilters.resolve({ ok: true, json: async () => filterPayload });
+await settleMotionTasks();
+const cachedFilterPanel = filterPanel("42", "2025", "英国");
+filterRuntime.initDynamicVodFilters({ querySelectorAll: () => [cachedFilterPanel] });
+await settleMotionTasks();
+assert.equal(filterRequests.length, 1, "an explicitly global response must avoid a fetch on the next category");
+assert.deepEqual(firstFilterPanel.links.map((link) => link.classList.contains("is-active")), [true, false]);
+assert.deepEqual(cachedFilterPanel.links.map((link) => link.classList.contains("is-active")), [false, true]);
+assert.ok(cachedFilterPanel.links.every((link) => link.getAttribute("href").startsWith("/show?type=42&year=2025&area=")), "cached options must use the current page's links");
+const storedFilters = JSON.parse([...filterCache.values()][0]);
+assert.deepEqual(storedFilters, { expires: 120000, filters: filterPayload.data.filters }, "only reusable options may be cached, never the originating params");
+filterNow = 119999;
+await filterRuntime.loadDynamicVodFilterOptions(filterUrl, globalFilterUrl);
+assert.equal(filterRequests.length, 1);
+filterNow = 120000;
+await filterRuntime.loadDynamicVodFilterOptions(filterUrl, globalFilterUrl);
+assert.equal(filterRequests.length, 2, "expired options must be fetched again at 120 seconds");
+const legacyEmptyPanel = filterPanel("", "", "", "/legacy-filters");
+filterResponses.push(Promise.resolve({ ok: true, json: async () => ({ code: 1, data: { filters: { area: ["日本"] } } }) }));
+filterRuntime.initDynamicVodFilters({ querySelectorAll: () => [legacyEmptyPanel] });
+await settleMotionTasks();
+const legacyPanels = [filterPanel("47", "2026", "USA", "/legacy-filters"), filterPanel("42", "2025", "英国", "/legacy-filters")];
+const beforeLegacyRequests = filterRequests.length;
+for (const [index, panel] of legacyPanels.entries()) {
+  filterResponses.push(Promise.resolve({ ok: true, json: async () => ({ code: 1, data: { filters: { area: [index === 0 ? "美国" : "英国"] } } }) }));
+  filterRuntime.initDynamicVodFilters({ querySelectorAll: () => [panel] });
+}
+assert.equal(filterRequests.length, beforeLegacyRequests + 2, "legacy requests with different parameters must not merge while pending");
+await settleMotionTasks();
+assert.deepEqual(legacyPanels.map((panel) => panel.links.map((link) => link.getAttribute("data-filter-value"))), [["美国"], ["英国"]], "legacy category-specific options must not leak into another category");
+await filterRuntime.loadDynamicVodFilterOptions(filterRuntime.dynamicFilterRequestUrl(legacyPanels[0]), filterRuntime.dynamicFilterRequestUrl(legacyPanels[0], true));
+assert.equal(filterRequests.length, beforeLegacyRequests + 2, "legacy responses may cache the exact request parameters");
+assert.equal(filterCache.has(`pingfang_vod_filters_v2:global:${filterRuntime.dynamicFilterRequestUrl(legacyEmptyPanel, true)}`), false, "even an empty-category legacy response must stay out of the global cache");
+for (const [index, failedResponse] of [() => Promise.reject(new Error("offline")), () => Promise.resolve({ ok: false })].entries()) {
+  const endpoint = `${filterUrl}&failure=${index}`;
+  const before = filterRequests.length;
+  const previousCacheSize = filterCache.size;
+  filterResponses.push(failedResponse());
+  assert.equal(await filterRuntime.loadDynamicVodFilterOptions(endpoint), null);
+  assert.equal(filterCache.size, previousCacheSize, "failed requests must not poison either cache namespace");
+  assert.ok(await filterRuntime.loadDynamicVodFilterOptions(endpoint));
+  assert.equal(filterRequests.length, before + 2, "failed pending requests must be retryable");
+}
+const otherFilterUrl = "https://example.test/other-filters?limit=1000";
+const beforeOtherEndpoint = filterRequests.length;
+await filterRuntime.loadDynamicVodFilterOptions(otherFilterUrl);
+assert.equal(filterRequests.length, beforeOtherEndpoint + 1, "different endpoints must keep independent caches");
+filterCache.set(`pingfang_vod_filters_v2:global:${otherFilterUrl}`, "{broken");
+assert.ok(await filterRuntime.loadDynamicVodFilterOptions(otherFilterUrl), "corrupt session data must fall back to fetch");
+assert.equal(filterRequests.length, beforeOtherEndpoint + 2);
+filterStorageDisabled = true;
+const beforeDisabledStorage = filterRequests.length;
+assert.ok(await filterRuntime.loadDynamicVodFilterOptions(otherFilterUrl));
+assert.ok(await filterRuntime.loadDynamicVodFilterOptions(otherFilterUrl));
+assert.equal(filterRequests.length, beforeDisabledStorage + 2, "disabled storage must leave normal fetch and retry available");
 assert.match(appJs, /new window\.Image\(\)/);
 assert.match(appJs, /image\s*\.decode\(\)/);
 assert.match(appJs, /function scheduleHeroBackgroundPreload/);
 assert.match(appJs, /requestIdleCallback/);
-assert.match(appJs, /image\.onerror/);
+assert.match(appJs, /image\.addEventListener\("error", failed/);
 assert.match(appJs, /has-missing-background/);
 assert.match(appJs, /function initMediaFallbacks\(root\)/);
 assert.match(appJs, /image\.hidden = true/);
@@ -4037,7 +4456,7 @@ assert.match(appJs, /mediaFallbackReady/);
 assert.match(style, /\.is-image-missing > img\s*\{[\s\S]*?display: none !important/);
 assert.match(preview, /PingFangVideo\?\.initMediaFallbacks\?\.\(app\)/);
 assert.match(appJs, /var carouselHasFocus = false/);
-assert.match(appJs, /prefersReducedMotion\(\) \|\| carouselHasFocus/);
+assert.match(appJs, /prefersReducedMotion\(\)\s*\|\|\s*carouselHasFocus/);
 assert.match(appJs, /carousel\.addEventListener\("focusin", function \(\) \{[\s\S]*carouselHasFocus = true;[\s\S]*stop\(\)/);
 assert.match(appJs, /carousel\.addEventListener\("focusout", function \(event\) \{[\s\S]*carouselHasFocus = false;[\s\S]*start\(\)/);
 assert.match(appJs, /carousel\.addEventListener\(\s*"touchstart"/);

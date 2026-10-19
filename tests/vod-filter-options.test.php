@@ -239,6 +239,7 @@ namespace {
     ];
 
     $result = VodFilterOptions::filters(['type_id' => 47, 'limit' => 200]);
+    $assertSame('global', $result['data']['filters_scope'], 'The response must declare that filter options can be shared across video types and current selections.');
     $areaOptions = $result['data']['filters']['area'];
     $languageOptions = $result['data']['filters']['lang'];
     $assertSet(['大陆', '香港', '美国', '英国', '德国', '日本', '澳大利亚', '希腊'], $values($areaOptions), 'Areas must be derived from meaningful values stored on the server, across all video types.');

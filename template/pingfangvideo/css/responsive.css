@@ -1,3 +1,190 @@
+/* Home composition keeps the first shelf close to the main visual. */
+:where(html:not([data-theme])) .hero-grid {
+  gap: 12px;
+  padding: 14px 0 10px;
+}
+
+:where(html:not([data-theme])) .genre-dock {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  scrollbar-width: none;
+}
+
+:where(html:not([data-theme])) .genre-chip {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 6px 12px;
+}
+
+:where(html:not([data-theme])) .genre-chip::before,
+:where(html:not([data-theme])) .genre-chip small {
+  display: none;
+}
+
+:where(html:not([data-theme])) .genre-chip span {
+  align-self: center;
+  font-size: 13px;
+}
+
+@media (min-width: 1100px) {
+  :where(html:not([data-theme])) .hero-grid {
+    grid-template-columns: minmax(0, 1fr) 292px;
+    gap: 16px;
+  }
+
+  :where(html:not([data-theme])) .hero-carousel,
+  :where(html:not([data-theme])) .hero-slide {
+    min-height: 420px;
+  }
+
+  :where(html:not([data-theme])) .hero-slide {
+    padding: 36px 32px 88px;
+  }
+
+  :where(html:not([data-theme])) .banner-copy strong {
+    font-size: clamp(40px, 4.2vw, 62px);
+  }
+
+  html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-content {
+    max-width: 58%;
+  }
+
+  :where(html:not([data-theme])) .hero-rank {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 0;
+    padding: 14px;
+  }
+
+  :where(html:not([data-theme])) .hero-rank .section-head {
+    padding: 0;
+  }
+
+  :where(html:not([data-theme])) .rank-heading h2 {
+    font-size: 16px;
+  }
+
+  :where(html:not([data-theme])) .rank-list {
+    flex: 1;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  :where(html:not([data-theme])) .rank-item {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 0;
+    padding: 6px;
+  }
+
+  :where(html:not([data-theme])) .rank-thumb {
+    width: 46px;
+    height: 48px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1099px) {
+  :where(html:not([data-theme])) .hero-carousel,
+  :where(html:not([data-theme])) .hero-slide {
+    min-height: 420px;
+  }
+
+  :where(html:not([data-theme])) .hero-slide {
+    padding: 36px 28px 88px;
+  }
+
+  :where(html:not([data-theme])) .banner-copy strong {
+    font-size: clamp(40px, 6vw, 56px);
+  }
+}
+
+@media (max-width: 1099px) {
+  :where(html:not([data-theme])) .hero-rank {
+    margin-top: 0;
+    padding: 10px;
+  }
+
+  :where(html:not([data-theme])) .hero-rank .section-head.compact {
+    margin-bottom: 6px;
+    padding: 0;
+  }
+
+  :where(html:not([data-theme])) .rank-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  :where(html:not([data-theme])) .rank-heading h2 {
+    font-size: 14px;
+  }
+
+  :where(html:not([data-theme])) .rank-list {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 32%);
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 0;
+    scrollbar-width: none;
+  }
+
+  :where(html:not([data-theme])) .rank-item {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 60px;
+    padding: 6px;
+  }
+
+  :where(html:not([data-theme])) .hero-rank .rank-item:first-of-type {
+    padding-top: 6px;
+  }
+
+  :where(html:not([data-theme])) .rank-thumb {
+    width: 44px;
+    height: 44px;
+  }
+
+  :where(html:not([data-theme])) .rank-body strong {
+    -webkit-line-clamp: 1;
+  }
+
+  :where(html:not([data-theme])) .rank-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 760px) {
+  :where(html:not([data-theme])) .genre-chip {
+    flex: 0 0 auto;
+  }
+
+  :where(html:not([data-theme])) .home-shelf-latest .shelf-title small {
+    display: none;
+  }
+
+  :where(html:not([data-theme])) .home-shelf-latest .home-shelf-head {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  :where(html:not([data-theme])) .home-shelf-latest .home-shelf-tabs {
+    padding-bottom: 0;
+    scrollbar-width: none;
+  }
+}
+
 /* Core mobile experience: compact first screens and progressive drawers. */
 .page-title.page-heading-compact {
   padding: 20px 0 14px;
@@ -801,6 +988,11 @@ body.episode-drawer-open {
 
   .hero .banner-priority-image {
     object-position: center top;
+  }
+
+  :where(html:not([data-theme])) .hero .hero-carousel,
+  :where(html:not([data-theme])) .hero .hero-slide {
+    min-height: clamp(340px, 44svh, 380px);
   }
 }
 

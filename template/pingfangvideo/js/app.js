@@ -25,6 +25,8 @@
   };
   var themeSwitcherDocumentReady = false;
   var themeTransitionTimer = null;
+  var activeThemeTransition = null;
+  var themeApplySequence = 0;
   var themeSelectionSequence = 0;
   var pixelConfettiSource = appScriptElement ? appScriptElement.getAttribute("data-pixel-confetti-src") || "" : "";
   var pixelConfettiLoadPromise = null;
@@ -405,7 +407,7 @@
     clearThemeTransition();
     document.documentElement.offsetWidth;
     document.documentElement.classList.add("theme-transitioning");
-    themeTransitionTimer = window.setTimeout(clearThemeTransition, 560);
+    themeTransitionTimer = window.setTimeout(clearThemeTransition, 240);
   }
 
   function resetPixelThemeParticles() {
@@ -514,36 +516,73 @@
 
   function applyTheme(theme, shouldPersist) {
     theme = normalizeTheme(theme);
+    var applySequence = ++themeApplySequence;
+    var selectionSequence = themeSelectionSequence;
+    var currentTheme = document.documentElement.getAttribute("data-theme") || "";
+    if (activeThemeTransition) {
+      activeThemeTransition.skipTransition();
+      activeThemeTransition = null;
+    }
+    clearThemeTransition();
     if (shouldPersist) {
-      scheduleThemeTransition();
       resetPixelThemeParticles();
     }
 
-    if (theme) {
-      document.documentElement.setAttribute("data-theme", theme);
-    } else {
-      document.documentElement.removeAttribute("data-theme");
+    function updateTheme() {
+      if (applySequence !== themeApplySequence || selectionSequence !== themeSelectionSequence) return;
+      if (theme) {
+        document.documentElement.setAttribute("data-theme", theme);
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+
+      if (shouldPersist) {
+        try {
+          if (theme) {
+            window.localStorage.setItem(themeStorageKey, theme);
+          } else {
+            window.localStorage.removeItem(themeStorageKey);
+          }
+        } catch (error) {}
+      }
+
+      syncThemeControls(theme);
+
+      if (shouldPersist && theme === "pixel-frog" && !prefersReducedMotion()) {
+        window.requestAnimationFrame(function () {
+          if (
+            applySequence === themeApplySequence &&
+            selectionSequence === themeSelectionSequence &&
+            document.documentElement.getAttribute("data-theme") === "pixel-frog"
+          ) {
+            launchPixelThemeParticles();
+          }
+        });
+      }
     }
 
-    if (shouldPersist) {
+    if (!shouldPersist || prefersReducedMotion() || currentTheme === theme) {
+      updateTheme();
+      return;
+    }
+
+    if (typeof document.startViewTransition === "function") {
       try {
-        if (theme) {
-          window.localStorage.setItem(themeStorageKey, theme);
-        } else {
-          window.localStorage.removeItem(themeStorageKey);
-        }
+        var transition = document.startViewTransition(updateTheme);
+        activeThemeTransition = transition;
+        transition.ready.catch(function () {});
+        transition.updateCallbackDone.catch(function () {});
+        transition.finished
+          .catch(function () {})
+          .then(function () {
+            if (activeThemeTransition === transition) activeThemeTransition = null;
+          });
+        return;
       } catch (error) {}
     }
 
-    syncThemeControls(theme);
-
-    if (shouldPersist && theme === "pixel-frog" && !prefersReducedMotion()) {
-      window.requestAnimationFrame(function () {
-        if (document.documentElement.getAttribute("data-theme") === "pixel-frog") {
-          launchPixelThemeParticles();
-        }
-      });
-    }
+    scheduleThemeTransition();
+    updateTheme();
   }
 
   function setThemeSwitcherOpen(switcher, isOpen, shouldRestoreFocus) {
@@ -1245,6 +1284,8 @@
     var valid = {};
     var panelMap = {};
     var controlMap = {};
+    var tabAnimations = [];
+    var tabMotionSequence = 0;
 
     panels.forEach(function (panel) {
       var key = panel.getAttribute("data-home-tab");
@@ -1305,9 +1346,31 @@
       } catch (error) {}
     }
 
-    function applyTab(tabKey, writeUrl, replaceUrl) {
+    function clearTabMotion() {
+      tabMotionSequence += 1;
+      tabAnimations.forEach(function (animation) {
+        animation.cancel();
+      });
+      tabAnimations = [];
+      shelf.style.removeProperty("height");
+      shelf.style.removeProperty("overflow");
+    }
+
+    function applyTab(tabKey, writeUrl, replaceUrl, shouldAnimate) {
       var target = valid[tabKey] ? tabKey : tabControls[0] ? tabControls[0].getAttribute("data-home-tab") : "";
       if (!target) return;
+      var previousPanel = panels.find(function (panel) {
+        return !panel.hidden;
+      });
+      var activePanel = panelMap[target];
+      var animate =
+        shouldAnimate &&
+        previousPanel !== activePanel &&
+        !prefersReducedMotion() &&
+        typeof activePanel.animate === "function" &&
+        typeof shelf.animate === "function";
+      var previousHeight = animate ? shelf.getBoundingClientRect().height : 0;
+      clearTabMotion();
 
       tabControls.forEach(function (control) {
         var isActive = control.getAttribute("data-home-tab") === target;
@@ -1323,6 +1386,36 @@
         panel.setAttribute("aria-hidden", isActive ? "false" : "true");
       });
       if (writeUrl) updateTabUrl(target, replaceUrl);
+
+      if (animate) {
+        var nextHeight = shelf.getBoundingClientRect().height;
+        var motionSequence = tabMotionSequence;
+        var timing = { duration: 180, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" };
+        tabAnimations.push(
+          activePanel.animate(
+            [
+              { opacity: 0, transform: "translateY(4px)" },
+              { opacity: 1, transform: "translateY(0)" }
+            ],
+            timing
+          )
+        );
+        if (Math.abs(previousHeight - nextHeight) > 1) {
+          shelf.style.height = nextHeight + "px";
+          shelf.style.overflow = "clip";
+          tabAnimations.push(shelf.animate([{ height: previousHeight + "px" }, { height: nextHeight + "px" }], timing));
+        }
+        Promise.all(
+          tabAnimations.map(function (animation) {
+            return animation.finished.catch(function () {});
+          })
+        ).then(function () {
+          if (motionSequence !== tabMotionSequence) return;
+          tabAnimations = [];
+          shelf.style.removeProperty("height");
+          shelf.style.removeProperty("overflow");
+        });
+      }
     }
 
     shelf._pingfangApplyHomeTab = function (tabKey) {
@@ -1333,7 +1426,7 @@
     tabNav.addEventListener("click", function (event) {
       var control = event.target.closest("button[data-home-tab]");
       if (!control || !tabNav.contains(control)) return;
-      applyTab(control.getAttribute("data-home-tab") || "", true, false);
+      applyTab(control.getAttribute("data-home-tab") || "", true, false, event.detail > 0);
     });
 
     tabNav.addEventListener("keydown", function (event) {
@@ -2025,30 +2118,74 @@
     }
   }
 
-  function dynamicFilterRequestUrl(panel) {
+  var dynamicVodFilterRequests = {};
+
+  function dynamicFilterRequestUrl(panel, globalScope) {
     var endpoint = panel.getAttribute("data-filter-endpoint");
     if (!endpoint || !window.URL) return "";
 
     try {
       var url = new URL(endpoint, window.location.origin);
-      var params = {
-        type_id: panel.getAttribute("data-filter-type-id") || "",
-        area: panel.getAttribute("data-current-area") || "",
-        year: panel.getAttribute("data-current-year") || "",
-        lang: panel.getAttribute("data-current-lang") || "",
-        class: panel.getAttribute("data-current-class") || "",
-        letter: panel.getAttribute("data-current-letter") || "",
-        limit: "1000"
-      };
-      Object.keys(params).forEach(function (key) {
-        if (params[key] !== "") {
-          url.searchParams.set(key, params[key]);
-        }
-      });
+      if (!globalScope) {
+        var params = {
+          type_id: panel.getAttribute("data-filter-type-id") || "",
+          area: panel.getAttribute("data-current-area") || "",
+          year: panel.getAttribute("data-current-year") || "",
+          lang: panel.getAttribute("data-current-lang") || "",
+          class: panel.getAttribute("data-current-class") || "",
+          letter: panel.getAttribute("data-current-letter") || ""
+        };
+        Object.keys(params).forEach(function (key) {
+          if (params[key] !== "") url.searchParams.set(key, params[key]);
+        });
+      }
+      url.searchParams.set("limit", "1000");
+      url.hash = "";
       return url.toString();
     } catch (error) {
       return "";
     }
+  }
+
+  function loadDynamicVodFilterOptions(requestUrl, globalRequestUrl) {
+    var cacheKeys = ["pingfang_vod_filters_v2:global:" + (globalRequestUrl || requestUrl), "pingfang_vod_filters_v2:request:" + requestUrl];
+    for (var index = 0; index < cacheKeys.length; index += 1) {
+      try {
+        var cached = JSON.parse(window.sessionStorage.getItem(cacheKeys[index]) || "null");
+        if (cached && cached.expires > Date.now() && cached.filters && typeof cached.filters === "object" && !Array.isArray(cached.filters)) {
+          return Promise.resolve(cached.filters);
+        }
+      } catch (error) {}
+    }
+
+    if (dynamicVodFilterRequests[requestUrl]) return dynamicVodFilterRequests[requestUrl];
+    dynamicVodFilterRequests[requestUrl] = fetch(requestUrl, {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    })
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (data) {
+        var filters = data && String(data.code) === "1" && data.data && data.data.filters;
+        if (!filters || typeof filters !== "object" || Array.isArray(filters)) return null;
+        try {
+          var cacheKey = cacheKeys[data.data.filters_scope === "global" ? 0 : 1];
+          window.sessionStorage.setItem(cacheKey, JSON.stringify({ expires: Date.now() + 120000, filters: filters }));
+        } catch (error) {}
+        return filters;
+      })
+      .catch(function () {
+        return null;
+      })
+      .then(function (filters) {
+        delete dynamicVodFilterRequests[requestUrl];
+        return filters;
+      });
+    return dynamicVodFilterRequests[requestUrl];
   }
 
   function normalizeFilterOptions(list) {
@@ -2163,23 +2300,9 @@
       var requestUrl = dynamicFilterRequestUrl(panel);
       if (!requestUrl) return;
 
-      fetch(requestUrl, {
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "X-Requested-With": "XMLHttpRequest"
-        }
-      })
-        .then(function (response) {
-          if (!response.ok) return null;
-          return response.json();
-        })
-        .then(function (data) {
-          if (!data || String(data.code) !== "1") return;
-          var payload = data.data || {};
-          applyDynamicVodFilters(panel, payload.filters || {});
-        })
-        .catch(function () {});
+      loadDynamicVodFilterOptions(requestUrl, dynamicFilterRequestUrl(panel, true)).then(function (filters) {
+        if (filters && panel.isConnected) applyDynamicVodFilters(panel, filters);
+      });
     });
   }
 
@@ -2963,11 +3086,12 @@
     var copyTargets = scopedElements(activeSlide, ".eyebrow, .banner-copy strong, .banner-copy small, .banner-meta, .banner-actions");
     var poster = activeSlide.querySelector(".banner-poster");
     var contentTargets = copyTargets.slice();
-    var offset = direction < 0 ? -18 : 18;
+    var offset = direction < 0 ? -8 : 8;
 
     if (poster) {
       contentTargets.push(poster);
     }
+    clearMotionStyles(gsap, scopedElements(carousel, ".eyebrow, .banner-copy strong, .banner-copy small, .banner-meta, .banner-actions, .banner-poster"));
     gsap.killTweensOf(slides.concat(contentTargets));
 
     slides.forEach(function (slide) {
@@ -2982,7 +3106,7 @@
       gsap.to(previousSlide, {
         x: -offset,
         autoAlpha: 0,
-        duration: 0.3,
+        duration: 0.28,
         ease: "power2.out",
         overwrite: true,
         clearProps: "transform,opacity,visibility,zIndex"
@@ -2990,7 +3114,7 @@
       gsap.to(activeSlide, {
         x: 0,
         autoAlpha: 1,
-        duration: 0.34,
+        duration: 0.28,
         ease: "power3.out",
         overwrite: true,
         clearProps: "transform,opacity,visibility,zIndex",
@@ -3006,13 +3130,13 @@
     gsap.fromTo(
       copyTargets,
       {
-        y: 12
+        y: 4
       },
       {
         y: 0,
-        duration: 0.34,
+        duration: 0.28,
         ease: "power3.out",
-        stagger: 0.025,
+        stagger: 0.012,
         overwrite: "auto",
         clearProps: "transform"
       }
@@ -3023,12 +3147,12 @@
         poster,
         {
           x: offset * 0.55,
-          scale: 0.985
+          scale: 1
         },
         {
           x: 0,
           scale: 1,
-          duration: 0.4,
+          duration: 0.28,
           ease: "power3.out",
           overwrite: "auto",
           clearProps: "transform"
@@ -3545,66 +3669,87 @@
   }
 
   function ensureHeroSlideBackground(slide, priority) {
-    if (!slide || slide.dataset.bannerBgReady) return;
+    if (!slide) return Promise.resolve();
+    if (slide._pingfangBannerBgPromise) return slide._pingfangBannerBgPromise;
+    if (slide.dataset.bannerBgReady === "true" || slide.dataset.bannerBgReady === "missing") return Promise.resolve();
 
     var backdrop = slide.getAttribute("data-banner-bg");
     if (!backdrop) {
       slide.dataset.bannerBgReady = "missing";
       slide.classList.add("has-missing-background");
-      return;
+      return Promise.resolve();
     }
 
     var priorityImage = slide.querySelector("[data-banner-priority-image]");
-    if (priorityImage) {
-      var markPriorityReady = function () {
-        if (!slide.isConnected) return;
-        if (priorityImage.naturalWidth > 0) {
-          slide.dataset.bannerLayout = priorityImage.naturalWidth < priorityImage.naturalHeight ? "poster" : "backdrop";
-          slide.dataset.bannerBgReady = "true";
-          slide.classList.remove("has-missing-background");
+    slide.dataset.bannerBgReady = "loading";
+    slide._pingfangBannerBgPromise = new Promise(function (resolve) {
+      var image = priorityImage || new window.Image();
+      var settled = false;
+      var timeout;
+
+      function finish(ready, keepLoading) {
+        if (settled) return;
+        window.clearTimeout(timeout);
+        if (!keepLoading) {
+          settled = true;
+          image.removeEventListener("load", loaded);
+          image.removeEventListener("error", failed);
+        }
+        if (slide.isConnected) {
+          if (ready) {
+            if (priorityImage) {
+              priorityImage.hidden = false;
+            } else {
+              slide.style.setProperty("--banner-bg", "url(" + JSON.stringify(backdrop) + ")");
+            }
+            slide.dataset.bannerLayout = image.naturalWidth < image.naturalHeight ? "poster" : "backdrop";
+            slide.dataset.bannerBgReady = "true";
+            slide.classList.remove("has-missing-background");
+          } else {
+            if (priorityImage) priorityImage.hidden = true;
+            slide.style.removeProperty("--banner-bg");
+            slide.dataset.bannerBgReady = "missing";
+            slide.classList.add("has-missing-background");
+          }
+        }
+        resolve();
+      }
+
+      function failed() {
+        finish(false);
+      }
+
+      function loaded() {
+        if (image.naturalWidth === 0) {
+          failed();
           return;
         }
-        priorityImage.hidden = true;
-        slide.dataset.bannerBgReady = "missing";
-        slide.classList.add("has-missing-background");
-      };
-      slide.dataset.bannerBgReady = "loading";
-      if (priorityImage.complete) {
-        markPriorityReady();
-      } else {
-        priorityImage.addEventListener("load", markPriorityReady, { once: true });
-        priorityImage.addEventListener("error", markPriorityReady, { once: true });
+        if (typeof image.decode === "function") {
+          Promise.resolve()
+            .then(function () {
+              return image.decode();
+            })
+            .then(function () {
+              finish(true);
+            }, failed);
+        } else {
+          finish(true);
+        }
       }
-      return;
-    }
 
-    var image = new window.Image();
-    slide.dataset.bannerBgReady = "loading";
-    image.fetchPriority = priority === "high" ? "high" : "low";
-    image.onload = function () {
-      var applyBackground = function () {
-        if (!slide.isConnected) return;
-        slide.style.setProperty("--banner-bg", "url(" + JSON.stringify(backdrop) + ")");
-        slide.dataset.bannerLayout = image.naturalWidth < image.naturalHeight ? "poster" : "backdrop";
-        slide.dataset.bannerBgReady = "true";
-        slide.classList.remove("has-missing-background");
-      };
-      if (typeof image.decode === "function") {
-        image
-          .decode()
-          .catch(function () {})
-          .then(applyBackground);
-        return;
+      timeout = window.setTimeout(function () {
+        finish(false, true);
+      }, 8000);
+      image.addEventListener("load", loaded, { once: true });
+      image.addEventListener("error", failed, { once: true });
+      if (priorityImage) {
+        if (image.complete) loaded();
+      } else {
+        image.fetchPriority = priority === "high" ? "high" : "low";
+        image.src = backdrop;
       }
-      applyBackground();
-    };
-    image.onerror = function () {
-      if (!slide.isConnected) return;
-      slide.style.removeProperty("--banner-bg");
-      slide.dataset.bannerBgReady = "missing";
-      slide.classList.add("has-missing-background");
-    };
-    image.src = backdrop;
+    });
+    return slide._pingfangBannerBgPromise;
   }
 
   function scheduleHeroBackgroundPreload(slide) {
@@ -3636,8 +3781,12 @@
       var next = carousel.querySelector("[data-carousel-next]");
       var autoplayToggle = carousel.querySelector("[data-carousel-autoplay-toggle]");
       var index = 0;
+      var requestedIndex = 0;
+      var activationSequence = 0;
+      var activationPending = false;
       var timer = null;
       var carouselHasFocus = false;
+      var carouselHovered = false;
       var carouselInViewport = !("IntersectionObserver" in window);
       var userPaused = prefersReducedMotion();
       var touchStartX = null;
@@ -3645,7 +3794,10 @@
 
       carousel.dataset.carouselReady = "true";
       ensureHeroSlideBackground(slides[0], "high");
-      if (slides.length > 1) scheduleHeroBackgroundPreload(slides[1]);
+      if (slides.length > 1) {
+        scheduleHeroBackgroundPreload(slides[1]);
+        scheduleHeroBackgroundPreload(slides[slides.length - 1]);
+      }
       if (window.gsap && !prefersReducedMotion()) {
         enableGsapCarousel(carousel);
       } else {
@@ -3653,32 +3805,48 @@
       }
 
       function activate(nextIndex, shouldAnimate) {
-        var previousIndex = index;
-        var normalizedIndex = (nextIndex + slides.length) % slides.length;
-        var previousSlide = slides[previousIndex];
+        var normalizedIndex = ((nextIndex % slides.length) + slides.length) % slides.length;
         var activeSlide = slides[normalizedIndex];
-        var direction = nextIndex >= previousIndex ? 1 : -1;
+        var direction = nextIndex >= requestedIndex ? 1 : -1;
+        var sequence = ++activationSequence;
+        requestedIndex = normalizedIndex;
+        activationPending = true;
+        stop();
 
-        index = normalizedIndex;
-        ensureHeroSlideBackground(activeSlide, "high");
-        if (slides.length > 1) scheduleHeroBackgroundPreload(slides[(normalizedIndex + 1) % slides.length]);
-        slides.forEach(function (slide, itemIndex) {
-          var isActive = itemIndex === index;
-          slide.classList.toggle("is-active", isActive);
-          slide.setAttribute("aria-hidden", isActive ? "false" : "true");
-          slide.inert = !isActive;
+        ensureHeroSlideBackground(activeSlide, "high").then(function () {
+          if (sequence !== activationSequence || !carousel.isConnected) return;
+          var previousSlide = slides[index];
+          index = normalizedIndex;
+          activationPending = false;
+          if (slides.length > 1) {
+            scheduleHeroBackgroundPreload(slides[(index + 1) % slides.length]);
+            scheduleHeroBackgroundPreload(slides[(index - 1 + slides.length) % slides.length]);
+          }
+          slides.forEach(function (slide, itemIndex) {
+            var isActive = itemIndex === index;
+            slide.classList.toggle("is-active", isActive);
+            slide.setAttribute("aria-hidden", isActive ? "false" : "true");
+            slide.inert = !isActive;
+          });
+          dots.forEach(function (dot, itemIndex) {
+            var isActive = itemIndex === index;
+            dot.classList.toggle("is-active", isActive);
+            dot.setAttribute("aria-selected", isActive ? "true" : "false");
+            dot.tabIndex = isActive ? 0 : -1;
+          });
+          if (shouldAnimate === false || prefersReducedMotion()) {
+            if (window.gsap) {
+              clearMotionStyles(window.gsap, slides);
+              clearMotionStyles(
+                window.gsap,
+                scopedElements(carousel, ".eyebrow, .banner-copy strong, .banner-copy small, .banner-meta, .banner-actions, .banner-poster")
+              );
+            }
+          } else if (previousSlide !== activeSlide) {
+            animateHeroSlide(carousel, previousSlide, activeSlide, direction);
+          }
+          start();
         });
-        dots.forEach(function (dot, itemIndex) {
-          var isActive = itemIndex === index;
-          dot.classList.toggle("is-active", isActive);
-          dot.setAttribute("aria-selected", isActive ? "true" : "false");
-          dot.tabIndex = isActive ? 0 : -1;
-        });
-        if (shouldAnimate === false) {
-          if (window.gsap) clearMotionStyles(window.gsap, slides);
-        } else if (previousSlide !== activeSlide) {
-          animateHeroSlide(carousel, previousSlide, activeSlide, direction);
-        }
       }
 
       function syncAutoplayControl() {
@@ -3696,9 +3864,21 @@
       }
 
       function start() {
-        if (slides.length < 2 || timer || document.hidden || prefersReducedMotion() || carouselHasFocus || userPaused || !carouselInViewport) return;
+        if (
+          slides.length < 2 ||
+          timer ||
+          activationPending ||
+          document.hidden ||
+          prefersReducedMotion() ||
+          carouselHasFocus ||
+          carouselHovered ||
+          touchStartX !== null ||
+          userPaused ||
+          !carouselInViewport
+        )
+          return;
         timer = window.setInterval(function () {
-          activate(index + 1);
+          activate(requestedIndex + 1);
         }, 5200);
       }
 
@@ -3741,7 +3921,7 @@
       if (prev) {
         prev.addEventListener("click", function () {
           stop();
-          activate(index - 1);
+          activate(requestedIndex - 1);
           start();
         });
       }
@@ -3749,7 +3929,7 @@
       if (next) {
         next.addEventListener("click", function () {
           stop();
-          activate(index + 1);
+          activate(requestedIndex + 1);
           start();
         });
       }
@@ -3782,8 +3962,14 @@
         });
       });
 
-      carousel.addEventListener("mouseenter", stop);
-      carousel.addEventListener("mouseleave", start);
+      carousel.addEventListener("mouseenter", function () {
+        carouselHovered = true;
+        stop();
+      });
+      carousel.addEventListener("mouseleave", function () {
+        carouselHovered = false;
+        start();
+      });
       carousel.addEventListener("focusin", function () {
         carouselHasFocus = true;
         stop();
@@ -3813,7 +3999,7 @@
             var deltaX = touch.clientX - touchStartX;
             var deltaY = touch.clientY - touchStartY;
             if (Math.abs(deltaX) > 44 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
-              activate(deltaX < 0 ? index + 1 : index - 1);
+              activate(deltaX < 0 ? requestedIndex + 1 : requestedIndex - 1);
             }
           }
           touchStartX = null;

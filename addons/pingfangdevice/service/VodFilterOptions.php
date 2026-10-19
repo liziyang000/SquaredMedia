@@ -49,6 +49,7 @@ class VodFilterOptions
             'code' => 1,
             'msg' => 'ok',
             'data' => [
+                'filters_scope' => 'global',
                 'filters' => $filters,
                 'params' => self::responseParams($params),
             ],

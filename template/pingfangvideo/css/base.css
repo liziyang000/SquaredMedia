@@ -66,30 +66,40 @@ html.theme-transitioning::before {
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: linear-gradient(115deg, rgba(5, 6, 19, 0.02) 0%, rgba(56, 189, 248, 0.38) 28%, rgba(255, 79, 216, 0.42) 52%, rgba(139, 92, 246, 0.34) 72%, rgba(5, 6, 19, 0.02) 100%);
+  background: var(--bg);
   content: "";
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-18%) scaleX(1.12);
-  transform-origin: center;
-  animation: theme-flare 0.56s ease both;
-  filter: blur(16px) saturate(1.45);
+  animation: theme-fade 0.22s ease-out both;
 }
 
-@keyframes theme-flare {
-  0% {
-    opacity: 0;
-    transform: translateX(-18%) scaleX(1.12);
-  }
-
-  42% {
-    opacity: 0.92;
-  }
-
+@keyframes theme-fade {
+  0%,
   100% {
     opacity: 0;
-    transform: translateX(18%) scaleX(1);
   }
+
+  35% {
+    opacity: 0.12;
+  }
+}
+
+:root {
+  view-transition-name: none;
+}
+
+body > main {
+  view-transition-name: theme-content;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(theme-content),
+::view-transition-new(theme-content) {
+  animation-duration: 0.22s;
+  animation-timing-function: ease-out;
 }
 
 a {
@@ -908,6 +918,10 @@ textarea:focus-visible,
   filter: brightness(0.8);
 }
 
+.banner-priority-image[hidden] {
+  display: none;
+}
+
 .hero-slide {
   position: absolute;
   inset: 0;
@@ -938,24 +952,16 @@ textarea:focus-visible,
   }
 
   html.theme-transitioning::before {
-    animation: theme-flare-reduced 0.16s ease both;
-    filter: none;
-    transform: none;
+    display: none;
+  }
+
+  ::view-transition-old(theme-content),
+  ::view-transition-new(theme-content) {
+    animation: none;
   }
 
   [data-gsap-carousel="true"] .hero-slide {
     transition: none;
-  }
-
-  @keyframes theme-flare-reduced {
-    0%,
-    100% {
-      opacity: 0;
-    }
-
-    50% {
-      opacity: 0.36;
-    }
   }
 }
 
@@ -2362,7 +2368,7 @@ textarea:focus-visible,
   line-height: 1;
   min-height: 44px;
   padding: 11px 13px;
-  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  transition: border-color 0.18s ease-out, background 0.18s ease-out, color 0.18s ease-out, box-shadow 0.18s ease-out;
 }
 
 .home-shelf-tabs button:hover,

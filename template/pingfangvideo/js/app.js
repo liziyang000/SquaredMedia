@@ -3650,7 +3650,10 @@
 
   function initMediaFallbacks(root) {
     var scope = root && root.querySelectorAll ? root : document;
-    var images = scopedElements(scope, ".rank-thumb img, .home-shelf-poster img, .poster img, .detail-poster img, .detail-backdrop img, .list-item > img");
+    var images = scopedElements(
+      scope,
+      ".rank-thumb img, .home-shelf-poster img, .home-continue-poster img, .poster img, .detail-poster img, .detail-backdrop img, .list-item > img"
+    );
 
     images.forEach(function (image) {
       if (image.dataset.mediaFallbackReady === "true") return;

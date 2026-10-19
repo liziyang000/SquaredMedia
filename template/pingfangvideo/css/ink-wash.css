@@ -507,7 +507,7 @@ html[data-theme="ink-wash"] :is(.poster, .home-shelf-poster) .score-badge {
   background: var(--panel);
 }
 
-html[data-theme="ink-wash"] :is(.rank-thumb.is-image-missing, .home-shelf-poster.is-image-missing, .poster.is-image-missing, .detail-poster.is-image-missing, .list-item.is-image-missing) {
+html[data-theme="ink-wash"] :is(.rank-thumb.is-image-missing, .home-shelf-poster.is-image-missing, .home-continue-poster.is-image-missing, .poster.is-image-missing, .detail-poster.is-image-missing, .list-item.is-image-missing) {
   background: var(--panel-soft) url("../images/ink-wash/rice-paper.svg") repeat;
 }
 

@@ -4453,6 +4453,60 @@ assert.match(appJs, /function initMediaFallbacks\(root\)/);
 assert.match(appJs, /image\.hidden = true/);
 assert.match(appJs, /PingFangVideo\.initMediaFallbacks/);
 assert.match(appJs, /mediaFallbackReady/);
+const mediaFallbackRuntime = {};
+new Script(
+  appJs.slice(appJs.indexOf("  function scopedElements("), appJs.indexOf("  function clampNumber("))
+  + appJs.slice(appJs.indexOf("  function markMissingImage("), appJs.indexOf("  function ensureHeroSlideBackground(")),
+).runInNewContext(mediaFallbackRuntime);
+const continuePosterImages = [[false, 0], [true, 0], [true, 96]].map(([complete, naturalWidth]) => {
+  const image = motionNode();
+  image.complete = complete;
+  image.naturalWidth = naturalWidth;
+  image.parentElement = motionNode({ class: "home-continue-poster" });
+  image.listenerCount = 0;
+  const addEventListener = image.addEventListener;
+  image.addEventListener = (...args) => { image.listenerCount += 1; addEventListener(...args); };
+  return image;
+});
+const continuePosterScope = {
+  querySelectorAll(selector) {
+    return selector.split(",").some((part) => part.trim() === ".home-continue-poster img") ? continuePosterImages : [];
+  },
+};
+mediaFallbackRuntime.initMediaFallbacks(continuePosterScope);
+assert.equal(continuePosterImages[0].hidden, false, "a pending poster must stay visible until it fails");
+assert.equal(continuePosterImages[1].hidden, true, "a poster that failed before initialization must be hidden");
+continuePosterImages[0].dispatch("error");
+for (const image of continuePosterImages.slice(0, 2)) {
+  assert.equal(image.hidden, true, "failed continue-watching posters must not show a broken-image icon");
+  assert.equal(image.dataset.mediaFallbackState, "missing");
+  assert.equal(image.parentElement.classList.contains("is-image-missing"), true);
+}
+assert.equal(continuePosterImages[2].hidden, false, "healthy posters must remain visible");
+assert.equal(continuePosterImages[2].parentElement.classList.contains("is-image-missing"), false);
+mediaFallbackRuntime.initMediaFallbacks(continuePosterScope);
+assert.deepEqual(continuePosterImages.map((image) => image.listenerCount), [1, 1, 1], "reinitialization must not duplicate error listeners");
+const continueRenderRuntime = { URL, window: { location: { href: "https://example.test/" } }, initMediaFallbacks: (section) => { section.fallbackInitialized = true; } };
+new Script(
+  appJs.slice(appJs.indexOf("  function safeContinueResource("), appJs.indexOf("  function initHomeContinueWatching("))
+  + appJs.slice(appJs.indexOf("  function escapeHtml("), appJs.indexOf('  var timeline = document.querySelector(".history-timeline')),
+).runInNewContext(continueRenderRuntime);
+const continueRenderList = { innerHTML: "" };
+const continueRenderSection = { hidden: true, querySelector: () => continueRenderList };
+continueRenderRuntime.renderHomeContinueRecords(continueRenderSection, [
+  { id: 1, name: '失效海报 <终章> & "特别版"', pic: "/missing.jpg", url: "/play/1", progress: "第 12 集" },
+  { id: 2, name: "正常海报", pic: "/poster.jpg", url: "/play/2" },
+  { id: 3, name: "没有海报", pic: "", url: "/play/3" },
+]);
+assert.equal(continueRenderSection.hidden, false);
+assert.equal(continueRenderSection.fallbackInitialized, true, "newly rendered history must receive media fallbacks");
+assert.deepEqual([...continueRenderList.innerHTML.matchAll(/href="([^"]+)"/g)].map((match) => match[1]), ["https://example.test/play/1", "https://example.test/play/2", "https://example.test/play/3"]);
+assert.match(continueRenderList.innerHTML, /aria-label="继续观看 失效海报 &lt;终章&gt; &amp; &quot;特别版&quot;"/);
+assert.match(continueRenderList.innerHTML, /<small>第 12 集<\/small>/);
+assert.match(continueRenderList.innerHTML, /<span class="home-continue-poster is-image-missing" aria-hidden="true"><\/span>/);
+assert.equal((continueRenderList.innerHTML.match(/<img /g) || []).length, 2, "an empty poster must use the existing placeholder without an image request");
+assert.match(style, /\.home-continue-poster\.is-image-missing,[\s\S]*?background:\s*radial-gradient/);
+assert.match(readThemeFile("css/ink-wash.css"), /\.home-continue-poster\.is-image-missing[^\{]*\{\s*background: var\(--panel-soft\) url\("\.\.\/images\/ink-wash\/rice-paper\.svg"\) repeat/);
 assert.match(style, /\.is-image-missing > img\s*\{[\s\S]*?display: none !important/);
 assert.match(preview, /PingFangVideo\?\.initMediaFallbacks\?\.\(app\)/);
 assert.match(appJs, /var carouselHasFocus = false/);

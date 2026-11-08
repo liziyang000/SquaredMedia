@@ -11,7 +11,12 @@ const dist = path.join(root, "dist");
 const packageRoot = path.join(dist, themeName);
 const archive = path.join(dist, `${themeName}.tar.gz`);
 const assetVersionInputs = {
+  __PINGFANG_BASE_STYLE_VERSION__: "css/base.css",
   __PINGFANG_STYLE_VERSION__: "css/style.css",
+  __PINGFANG_THEME_FOUNDATION_VERSION__: "css/themes-foundation.css",
+  __PINGFANG_THEMES_VERSION__: "css/themes.css",
+  __PINGFANG_GAMES_STYLE_VERSION__: "css/games.css",
+  __PINGFANG_RESPONSIVE_STYLE_VERSION__: "css/responsive.css",
   __PINGFANG_APP_VERSION__: "js/app.js",
   __PINGFANG_PROMPT_VERSION__: "player/prompt.css",
   __PINGFANG_GAME_VERSION__: "games/init.js",

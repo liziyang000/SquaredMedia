@@ -2,13 +2,13 @@
 {assign name="pingfang_seo_keywords" value="$obj.type_key|default=''" /}
 {assign name="pingfang_seo_description" value="$obj.type_des|default=''" /}
 {include file="public/head" seo_title="" seo_keywords="" seo_description="" /}
-<section class="wrap page-title">
+<section class="wrap page-title filter-page-title">
   <span class="eyebrow">分类浏览</span>
   <h1>{$obj.type_name}</h1>
   <p>{$obj.type_des|mac_filter_html|mac_default='按最新更新、热度和筛选条件快速浏览当前分类。'}</p>
 </section>
 
-<section class="wrap filter-panel category-filter" data-dynamic-vod-filters data-filter-endpoint="{:url('pingfangdevice/filters')}" data-filter-type-id="{$obj.type_id}" data-current-area="{$param.area}" data-current-year="{$param.year}" data-current-lang="{$param.lang}" data-current-class="{$param.class}" data-current-letter="{$param.letter}">
+<section class="wrap filter-panel category-filter" data-filter-drawer data-dynamic-vod-filters data-filter-endpoint="{:url('pingfangdevice/filters')}" data-filter-type-id="{$obj.type_id}" data-current-area="{$param.area}" data-current-year="{$param.year}" data-current-lang="{$param.lang}" data-current-class="{$param.class}" data-current-letter="{$param.letter}">
   <div class="filter-row filter-search-row">
     <strong>搜索</strong>
     <form class="channel-search" method="get" action="{:mac_url('vod/search')}">

@@ -1,4 +1,6 @@
-import { z } from "zod";
+import * as z from "zod";
+
+import { defaultAccountRequirements } from "./accountRequirements";
 
 import { ApiError, requestJson } from "./http";
 import type { ApiEnvelopeResult } from "./schemas";
@@ -29,18 +31,7 @@ const accountRequirementsSchema = z.object({
 });
 
 export type AccountRequirements = z.infer<typeof accountRequirementsSchema>;
-export const defaultAccountRequirements: AccountRequirements = {
-  loginCaptcha: false,
-  feedbackLogin: false,
-  feedbackEnabled: true,
-  feedbackAudit: false,
-  feedbackCaptcha: false,
-  commentLogin: false,
-  commentEnabled: true,
-  commentAudit: false,
-  commentCaptcha: false,
-  captchaUrl: null
-};
+export { defaultAccountRequirements } from "./accountRequirements";
 
 const sessionSchema = z
   .object({
@@ -254,7 +245,7 @@ export type ReactionInput = z.input<typeof reactionInputSchema>;
 
 type CsrfTokenSource = string | (() => string | null | undefined);
 
-type AccountApiOptions = {
+export type AccountApiOptions = {
   endpoint?: string;
   csrfToken?: CsrfTokenSource;
   fetchImpl?: typeof fetch;

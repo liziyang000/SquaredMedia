@@ -1,11 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ImgHTMLAttributes, ReactNode } from "react";
 import { Link, useNavigate } from "../app/routing";
+import fallbackArtwork from "../assets/lazyload.webp";
 
 type ArtworkProps = ImgHTMLAttributes<HTMLImageElement> & {
   children?: ReactNode;
   containerClassName: string;
 };
+
+export function artworkSource(src: string | undefined) {
+  return src === "/template/pingfangvideo/images/brand/lazyload.png" ? fallbackArtwork.src : src;
+}
 
 export type VodCardItem = {
   id: string;
@@ -19,14 +24,18 @@ export type VodCardItem = {
 };
 
 export function Artwork({ children, containerClassName, src, ...imageProps }: ArtworkProps) {
-  const [failed, setFailed] = useState(false);
-  const missing = failed || typeof src !== "string" || src.trim() === "";
+  const image = useRef<HTMLImageElement>(null);
+  const [state, setState] = useState<"loading" | "loaded" | "missing">("loading");
+  const missing = state === "missing" || typeof src !== "string" || src.trim() === "";
 
-  useEffect(() => setFailed(false), [src]);
+  useEffect(() => {
+    const element = image.current;
+    setState(!element?.complete ? "loading" : element.naturalWidth > 0 ? "loaded" : "missing");
+  }, [src]);
 
   return (
-    <span className={`${containerClassName}${missing ? " is-image-missing" : ""}`} data-artwork>
-      {!missing && <img {...imageProps} src={src} onError={() => setFailed(true)} />}
+    <span className={`${containerClassName}${missing ? " is-image-missing" : state === "loading" ? " is-image-loading" : ""}`} data-artwork>
+      {!missing && <img {...imageProps} ref={image} src={artworkSource(src)} onLoad={() => setState("loaded")} onError={() => setState("missing")} />}
       {children}
     </span>
   );
@@ -48,7 +57,8 @@ export function PageStatus({
   error,
   loading = false,
   ready = false,
-  onRetry
+  onRetry,
+  children
 }: {
   title: string;
   description: string;
@@ -56,6 +66,7 @@ export function PageStatus({
   loading?: boolean;
   ready?: boolean;
   onRetry?: () => void;
+  children?: ReactNode;
 }) {
   return (
     <main className={`home-status-shell${loading ? " loading-status-shell" : ""}`} aria-busy={loading && !ready} aria-live="polite">
@@ -92,6 +103,7 @@ export function PageStatus({
             重新加载
           </button>
         )}
+        {children && <div className="detail-actions">{children}</div>}
       </section>
     </main>
   );
@@ -117,6 +129,17 @@ export function EmptyState({
   );
 }
 
+export function ScoreBadge({ score, className = "score-badge" }: { score: number; className?: string }) {
+  if (!(score > 0 && score <= 10)) return null;
+  const display = score.toFixed(1);
+  if (display === "0.0") return null;
+  return (
+    <span className={className} aria-label={`评分 ${display} 分`}>
+      {display}
+    </span>
+  );
+}
+
 export function VodCard({ video }: { video: VodCardItem }) {
   return (
     <Link className="vod-card" to={`/vod/${video.id}`}>
@@ -130,8 +153,8 @@ export function VodCard({ video }: { video: VodCardItem }) {
         height={450}
         sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px"
       >
-        <em className="quality-badge">{video.remark || "高清"}</em>
-        <span className="score-badge">{video.score.toFixed(1)}</span>
+        {video.remark.trim() && <em className="quality-badge">{video.remark}</em>}
+        <ScoreBadge score={video.score} />
       </Artwork>
       <strong>{video.title}</strong>
       <span className="card-meta">

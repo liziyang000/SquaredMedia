@@ -381,11 +381,6 @@
     left: 12px;
   }
 
-  .home-shelf-card.is-featured .home-shelf-score {
-    right: 12px;
-    bottom: 15px;
-  }
-
   .rank-item {
     grid-template-columns: 62px minmax(0, 1fr) auto;
     gap: 10px;
@@ -408,7 +403,8 @@
     padding: 6px;
   }
 
-  .poster .score-badge {
+  .poster .score-badge,
+  .home-shelf-poster .score-badge {
     top: 8px;
     left: 8px;
     min-width: 30px;
@@ -418,6 +414,7 @@
 
   .poster em,
   .poster .quality-badge,
+  .home-shelf-poster em,
   .detail-poster span {
     right: 8px;
     bottom: 8px;
@@ -1386,6 +1383,8 @@ body::before {
 
 .rank-thumb.is-image-missing,
 .home-shelf-poster.is-image-missing,
+.home-shelf-poster.is-image-loading,
+.home-continue-poster.is-image-missing,
 .poster.is-image-missing,
 .detail-poster.is-image-missing,
 .detail-backdrop.is-image-missing,
@@ -1398,6 +1397,21 @@ body::before {
 
 .is-image-missing > img {
   display: none !important;
+}
+
+.home-shelf-poster.is-image-loading::before {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: var(--muted);
+  content: "海报加载中";
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
 }
 
 .rank-index,
@@ -1428,7 +1442,8 @@ body::before {
 .rank-body strong,
 .hero-rank .rank-item:first-of-type strong {
   font-size: 14px;
-  line-height: 1.25;
+  font-weight: 650;
+  line-height: 1.45;
 }
 
 .rank-meta {
@@ -1443,6 +1458,7 @@ body::before {
   color: var(--accent-2);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .rank-refresh,
@@ -1705,8 +1721,8 @@ body::before {
 .home-shelf-tabs button {
   min-height: 44px;
   border-radius: 11px;
-  color: rgba(214, 220, 239, 0.56);
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 14px;
   padding: 8px 13px;
 }
 
@@ -1723,7 +1739,8 @@ body::before {
 }
 
 .home-shelf-card {
-  grid-template-rows: auto minmax(38px, auto) auto;
+  grid-template-rows: auto auto auto;
+  row-gap: 0;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -1767,34 +1784,23 @@ body::before {
   border: 1px solid rgba(222, 228, 255, 0.16);
   background: rgba(8, 11, 22, 0.5);
   color: rgba(239, 242, 255, 0.88);
-  font-size: 10px;
+  font-size: 12px;
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
 
 .home-shelf-body strong {
-  min-height: auto;
   color: rgba(246, 248, 255, 0.94);
   font-size: 15px;
-  padding: 12px 2px 0;
+  margin-top: 10px;
+  padding: 0 2px;
 }
 
 .home-shelf-body small {
   color: rgba(202, 210, 234, 0.66);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  padding: 3px 2px 0;
-}
-
-.home-shelf-score {
-  align-self: center;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--accent-2);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  padding: 3px 2px 0;
+  line-height: 1.5;
+  padding: 6px 2px 0;
 }
 
 .vod-grid,
@@ -1833,12 +1839,13 @@ body::before {
 }
 
 .vod-card > strong {
-  min-height: auto;
-  padding: 12px 2px 0;
+  padding: 0;
 }
 
 .vod-card .card-meta {
-  padding: 5px 2px 0;
+  gap: 0;
+  margin-top: 6px;
+  padding: 0;
 }
 
 .vod-card .card-meta span {
@@ -1852,6 +1859,35 @@ body::before {
   margin: 0 7px 0 3px;
   color: rgba(203, 210, 232, 0.28);
   content: "·";
+}
+
+:is(.home-shelf-card, .vod-card, .genre-chip, .rank-item, .home-shelf-tabs button):focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: -2px;
+}
+
+html:not([data-theme]) :is(.home-shelf-body strong, .vod-card > strong) {
+  font-size: 16px;
+  transition: color 0.18s ease;
+}
+
+html:not([data-theme]) :is(.home-shelf-body small, .vod-card .card-meta) {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html:not([data-theme]) :is(.home-shelf-body small, .vod-card .card-meta span) {
+  color: var(--muted);
+}
+
+html:not([data-theme]) :is(.poster, .home-shelf-poster) .quality-badge {
+  line-height: 2;
+  padding-block: 0;
+}
+
+html:not([data-theme]) .home-shelf-card:is(:hover, :focus-visible) .home-shelf-body strong,
+html:not([data-theme]) .vod-card:is(:hover, :focus-visible) > strong {
+  color: var(--accent-2);
 }
 
 .page-title {
@@ -1871,6 +1907,15 @@ body::before {
   max-width: 980px;
   font-size: clamp(48px, 7vw, 86px);
   line-height: 1;
+}
+
+:where(html:not([data-theme])) :is(.banner-copy strong, .page-title h1, .detail-main h1, .player-head h1, .section-head h2, .home-shelf-head h2) {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .page-title .eyebrow,
@@ -1932,6 +1977,68 @@ body::before {
   border-color: rgba(139, 124, 255, 0.34);
   background: rgba(139, 124, 255, 0.14);
   color: #fff;
+}
+
+/* Keep the default cinema's supporting surfaces quieter than its artwork. */
+:where(html:not([data-theme])) :is(.hero-rank, .filter-panel, .detail-panel, .episode-box) {
+  border-color: var(--line-soft);
+  background: rgba(15, 19, 34, 0.76);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html:not([data-theme]) .hero-rank::before {
+  opacity: 0;
+}
+
+html:not([data-theme]) :is(.rank-item, .genre-chip, .home-shelf-tabs) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html:not([data-theme]) :is(.rank-item:hover, .genre-chip:hover, .genre-chip:focus-visible) {
+  border-color: var(--line-soft);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+html:not([data-theme]) .filter-options a:not(.is-active) {
+  background: transparent;
+}
+
+html:not([data-theme]) .banner-bg {
+  filter: saturate(1.02) contrast(1.02);
+  transform: none;
+}
+
+html:not([data-theme]) .banner-bg::after {
+  background:
+    linear-gradient(90deg, rgba(5, 7, 13, 0.96), rgba(5, 7, 13, 0.7) 30%, rgba(5, 7, 13, 0.08) 70%),
+    linear-gradient(180deg, transparent 45%, rgba(5, 7, 13, 0.8));
+}
+
+html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-bg {
+  background-image: linear-gradient(90deg, #0b1020, transparent 75%), var(--banner-bg);
+  background-position: center, 88% center;
+  background-size: cover, auto 84%;
+  background-repeat: no-repeat;
+}
+
+html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-priority-image {
+  inset: 8% 6% 8% auto;
+  width: 35%;
+  height: 84%;
+  object-fit: contain;
+  object-position: center;
+  filter: none;
+}
+
+html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-content {
+  max-width: min(560px, 100%);
 }
 
 .detail-hero,
@@ -2080,6 +2187,8 @@ body::before {
     grid-auto-flow: column;
     grid-auto-columns: minmax(218px, 1fr);
     overflow-x: auto;
+    margin-top: -4px;
+    padding-top: 4px;
     padding-bottom: 8px;
     scrollbar-color: rgba(139, 124, 255, 0.46) transparent;
     scrollbar-width: thin;

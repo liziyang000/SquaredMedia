@@ -267,7 +267,7 @@ JSON 字段会被拒绝，而不是被静默忽略。
 | `session`    | 否   | 无                                  | 登录状态、CSRF、白名单用户资料和表单要求           |
 | `comments`   | 否   | `content_id`，可选 `mid`            | 已审核评论列表                                     |
 | `favorites`  | 是   | 无                                  | 当前用户最多 100 条收藏                            |
-| `history`    | 是   | 可选 `limit`                        | 当前用户最多 100 条播放进度                        |
+| `history`    | 是   | `limit`、分页或定向 `vod_id`         | 当前用户播放进度或单片续看记录                     |
 | `devices`    | 是   | 无                                  | 当前用户的登录设备会话                             |
 
 “无需登录”只表示 action 可匿名调用。具体影片仍会经过当前用户组的分类、详情或
@@ -366,6 +366,8 @@ curl -sS 'https://react.example.com/index.php/pingfangapi/index?action=home'
 返回 503；站点、地区或分类访问策略也可能先返回 403/503。
 
 ### 6.2 `home_v2`：当前首页
+
+2026-09-15 新增可选 `view=cinema`，必须同时 `compact=1`。此视图只返回 `siteName/categories/hero/latest`，推荐最多 1 条、新片最多 4 条，跳过年度榜、频道区块和当日汇总。它保留默认分类及年度新片规则，单独隔离响应和原生列表缓存，并沿用访问权限上下文；不带 view 的既有客户端响应不变。未知 view 返回 422。私人影院 Next 1.4.2 依赖此兼容更新，应先更新 API 再更新 Next。
 
 当前 React 使用 `compact=1` 请求有界首页区块：
 
@@ -522,7 +524,8 @@ GET /index.php/pingfangapi/index?action=content&compact=1&type_id=42&year=2026&s
 | `class`                   | 最多 40 字符             | 使用 MacCMS 类别匹配；无原生函数时退化为包含匹配      |
 | `lang`                    | 最多 40 字符             | 精确匹配 `vod_lang`                                   |
 | `letter`                  | 最多 40 字符             | 精确首字母；`0~9` 展开为数字集合                      |
-| `keyword`                 | 最多 100 字符，可为空    | 对片名、演员、导演做前缀匹配；空值明确返回空结果      |
+| `keyword`                 | 最多 100 字符，可为空    | 默认对片名、演员、导演做前缀匹配；空值明确返回空结果 |
+| `search_mode`             | `prefix` 或 `contains`，需同时传 `keyword` | 默认 `prefix`；`contains` 在关键词不少于两个字符时匹配片名与别名片段 |
 | `scope`                   | `library` 或 `yearly`    | 始终限定到首页五个业务频道及其全部子类                |
 | `sort`                    | `latest`、`hot`、`score` | 默认 `latest`                                         |
 | `page`                    | 1～100000                | 默认 1                                                |
@@ -531,8 +534,17 @@ GET /index.php/pingfangapi/index?action=content&compact=1&type_id=42&year=2026&s
 | `include_category_totals` | `0` 或 `1`               | 设为 `1` 时必须同时 `compact=1`；分类索引页才打开     |
 | `include_facets`          | `0` 或 `1`               | 设为 `1` 时必须同时 `compact=1`；需要剧情筛选时才打开 |
 
-关键词中的 `%`、`_` 和反斜杠会被转义为普通字符。搜索形式是 `keyword%`，不是
-`%keyword%`；这有利于索引，但不会命中标题中部的任意片段。
+关键词中的 `%`、`_` 和反斜杠会被转义为普通字符。旧客户端默认使用 `keyword%` 前缀搜索，语义不变。
+
+新客户端可显式传 `search_mode=contains`。当关键词不少于两个 Unicode 字符时，
+`vod_name` 与 `vod_sub` 使用 `%keyword%`，例如“日记”可命中《海边日记》；演员、
+导演仍按前缀，单字也保持前缀。分类、年份、地区、可见性、分页和限流继续生效，
+计数与筛选缓存区分模式。无关键词时传模式或模式非法返回 422。包含匹配在生产
+数据量下的查询耗时需要单独验证；本地 SQLite 语义测试不代表 MySQL 性能验收。
+
+生产大库的 `contains` 搜索可使用两个覆盖索引：`idx_pfapi_search_name (vod_name, vod_id)`、`idx_pfapi_search_sub (vod_sub, vod_id)`。API 先校验索引完整、可见且为 BTREE，再用绑定参数合并片名、别名、演员及导演匹配的影片 ID；同一请求内总数、分页和各筛选维度复用候选 ID，原有上架、回收、分类权限及筛选条件继续生效。索引缺失或是前缀索引时保留原查询，接口不会因未迁移而报错；大库上线应先补索引再验收包含搜索。
+
+MyISAM 普通文本索引不包含主键，覆盖索引须显式加入 `vod_id`。上线前备份表结构并检查磁盘和锁等待，创建过程中写入可能等待；只新增这两个非唯一索引，不更改影片内容。需要回退时先回退客户端/API，再按实际新增项删除索引。执行计划和提示语义参见 [MySQL 8.0 索引提示](https://dev.mysql.com/doc/refman/8.0/en/index-hints.html)。
 
 `area/year/class/lang/letter` 若出现，trim 后不能为空；这些文本参数和 `keyword`
 都拒绝回车、换行或 Tab。显式 `keyword=` 是合法请求，但会明确返回空搜索结果，
@@ -1368,6 +1380,15 @@ GET /index.php/pingfangapi/index?action=favorites&page=1&page_size=24
 | 登录       | 必须登录                                          |
 | 旧列表参数 | `limit` 可选整数，1～100，默认 100                 |
 | 分页参数   | `page` 与 `page_size` 必须同时提供                 |
+| 单片参数   | `vod_id` 为正整数，不能与 `limit/page/page_size` 共用 |
+
+详情页可直接读取目标影片的续看记录：
+
+```text
+GET /index.php/pingfangapi/index?action=history&vod_id=371745
+```
+
+查询先按当前用户及 `ulog_rid` 限定影片，再取最近有效剧集，返回原有 `{items}` 格式、最多一条。不会因为这部影片不在最近记录页而从第一集开始；不存在有效记录时返回空数组，登录、可见性和剧集有效性校验仍生效。旧列表和分页参数保持不变。
 
 `history` 读取当前用户的播放进度记录：
 
@@ -2502,6 +2523,7 @@ Web；若 API 故障且新 React 依赖新契约，则先回滚 Web，再按上�
 | `tests/pingfang-api.test.php`            | 生产 action 的核心契约、字段白名单、分页、DTO、同源/CSRF、播放器边界、Ulog 条件 | 不连接真实 MacCMS 数据库，也不保证每个原生模型分支都被执行 |
 | `tests/pingfang-api-controller.test.php` | 站点关闭、地区策略、JSON 控制器响应                                             | 不验证真实 GeoIP 数据库                                    |
 | `tests/pingfang-api-account-history.test.php` | 1 万条同时间记录、跨批次无效剧集、精确分页和大型播放字段释放 | 使用查询替身，不证明真实数据库耗时 |
+| `tests/pingfang-api-search.test.php` | 默认前缀、标题/别名片段、单字、字面通配符、筛选和隐藏影片 | 使用 SQLite 夹具，不证明真实 MySQL 查询性能 |
 | `tests/pingfang-api-facets.test.php` | 配置与数据交集、交叉条件、权限、组合值和缓存更新 | 不执行真实 MySQL 查询计划 |
 | `tests/pingfang-api-deployment-check.test.php` | 只读字段诊断、受支持的迁移分类、目录与凭证脱敏；由部署命令测试调用 | 不连接真实服务器和数据库 |
 | `tests/react-api.test.php`               | 本地模拟适配器和 React 约定                                                     | 不能证明生产插件可用                                       |

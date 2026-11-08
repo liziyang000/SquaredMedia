@@ -11,6 +11,8 @@ Environment=NODE_ENV=production
 Environment=HOSTNAME=127.0.0.1
 Environment=PORT=3100
 Environment=NEXT_TELEMETRY_DISABLED=1
+Environment=MACCMS_INTERNAL_ORIGIN=http://127.0.0.1:3102
+Environment=NODE_OPTIONS=--max-old-space-size=192
 EnvironmentFile=-/www/wwwroot/squaredMediaOnline/current/release.env
 ExecStart=/usr/bin/node apps/web/server.js
 Restart=on-failure
@@ -23,6 +25,7 @@ PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
 ReadWritePaths=/www/wwwroot/squaredMediaOnline/current/apps/web/.next/cache
+MemoryMax=384M
 
 [Install]
 WantedBy=multi-user.target

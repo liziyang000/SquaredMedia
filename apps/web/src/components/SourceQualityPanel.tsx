@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ContentEpisode } from "../api/content";
-import { sourceQualityApi } from "../api/sourceQuality";
+import { sourceQualityApi } from "../api/deferred";
 import type { SourceQualityApi, SourceQualityData, SourceQualitySource } from "../api/sourceQuality";
 import { storeSourceQualityPreference } from "../sourceQualityPreference";
 import type { SourceQualityPreference } from "../sourceQualityPreference";
@@ -68,6 +68,20 @@ export function sourceQualityText(source: SourceQualitySource) {
   return `${source.recommended ? "推荐 · " : ""}${labels[source.status]}${details.length > 0 ? ` · ${details.join(" · ")}` : ""}`;
 }
 
+export function SourceQualityHeading({ sourceId, description, view }: { sourceId: string; description: string; view: SourceQualityView }) {
+  const result = view.data?.sources.find((source) => String(source.sid) === sourceId);
+  const status = view.status === "loading" ? "loading" : view.status === "error" ? "failed" : (result?.status ?? "unsupported");
+  const label = view.status === "loading" ? "检测中…" : view.status === "error" ? "检测失败" : result ? sourceQualityText(result) : "超出单次检测上限";
+  return (
+    <span className="source-quality-heading-meta">
+      <span>{description}</span>
+      <span className={`source-quality-result is-${status}${result?.recommended ? " is-recommended" : ""}`} aria-live="polite">
+        {label}
+      </span>
+    </span>
+  );
+}
+
 function episodeOptions(groups: SourceQualityGroup[]) {
   const firstPopulatedGroup = groups.find((group) => group.episodes.length > 0);
   if (!firstPopulatedGroup) return [];
@@ -90,13 +104,27 @@ export function SourceQualityPanel({
   onViewChange: (view: SourceQualityView) => void;
   onRecommendation: (preference: SourceQualityPreference | null, episodeNo: number) => void;
 }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setVisible(false);
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(panel.current!);
+    return () => observer.disconnect();
+  }, [vodId]);
+
   const options = useMemo(() => episodeOptions(groups), [groups]);
   const [episodeNo, setEpisodeNo] = useState(options[0]?.no ?? 0);
   const validVodId = /^[1-9][0-9]*$/.test(vodId);
   const query = useQuery({
     queryKey: ["source-quality", vodId, episodeNo],
     queryFn: () => api.inspect(vodId, episodeNo),
-    enabled: validVodId && episodeNo > 0,
+    enabled: visible && validVodId && episodeNo > 0,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     staleTime: 60_000
@@ -127,7 +155,7 @@ export function SourceQualityPanel({
 
   if (options.length === 0 || !validVodId) {
     return (
-      <div className="source-quality-panel">
+      <div className="source-quality-panel" ref={panel}>
         <div className="source-quality-copy">
           <strong>播放线路测速</strong>
           <span>当前视频没有可检测的集数。</span>
@@ -150,10 +178,10 @@ export function SourceQualityPanel({
         : "即将自动检测；结果代表站点服务器到播放源的当前连接状况。";
 
   return (
-    <div className="source-quality-panel">
+    <div className="source-quality-panel" ref={panel}>
       <div className="source-quality-copy">
         <strong>播放线路测速</strong>
-        <span>页面会自动检测所选集数，并推荐当前可用且测速更优的播放线路。</span>
+        <span>进入此区域后会自动检测所选集数，并推荐当前可用且测速更优的播放线路。</span>
       </div>
       <div className="source-quality-controls">
         <label htmlFor="reactSourceQualityEpisode">测速集数</label>

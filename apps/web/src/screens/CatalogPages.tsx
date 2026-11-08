@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Link, useParams, useSearchParams } from "../app/routing";
 
 import type { ContentData, ContentQuery, ContentSort } from "../api/content";
+import { catalogQuery, pageParam, stringParam } from "../api/catalogQuery";
 import { ContentBoundary } from "../components/ContentBoundary";
 import { Artwork, EmptyState, PageHeader, Pagination, VodCard } from "../components/PagePrimitives";
 
@@ -16,36 +17,6 @@ const sortOptions: Array<{ value: ContentSort; label: string }> = [
 
 function documentTitle(title: string, siteName: string) {
   return `${title} · ${siteName}`;
-}
-
-function stringParam(params: URLSearchParams, name: string) {
-  return params.get(name)?.trim() ?? "";
-}
-
-function sortParam(params: URLSearchParams): ContentSort {
-  const value = stringParam(params, "sort");
-  return value === "hot" || value === "score" ? value : "latest";
-}
-
-function pageParam(params: URLSearchParams) {
-  return Math.max(Number.parseInt(stringParam(params, "page"), 10) || 1, 1);
-}
-
-function catalogQuery(typeId: string | undefined, params: URLSearchParams): ContentQuery {
-  const requestedTypeId = typeId ?? stringParam(params, "typeId");
-  return {
-    ...(requestedTypeId && /^\d+$/.test(requestedTypeId) ? { typeId: requestedTypeId } : {}),
-    ...(typeId === undefined ? { scope: "library" } : {}),
-    area: stringParam(params, "area"),
-    year: stringParam(params, "year"),
-    class: stringParam(params, "class"),
-    lang: stringParam(params, "lang"),
-    letter: stringParam(params, "letter"),
-    sort: sortParam(params),
-    page: pageParam(params),
-    pageSize: 24,
-    includeFacets: true
-  };
 }
 
 function hrefWithParams(pathname: string, current: URLSearchParams, changes: Record<string, string | number | undefined>) {

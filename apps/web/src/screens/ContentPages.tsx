@@ -1,33 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "../app/routing";
 
-import { contentApi } from "../api/content";
-import type {
-  ContentAccessData,
-  ContentApi,
-  ContentDetailData,
-  ContentEpisode,
-  ContentVideo,
-  DownloadsData,
-  PlaybackDescriptor,
-  PlotData
-} from "../api/content";
-import { sourceQualityApi } from "../api/sourceQuality";
-import type { SourceQualityApi } from "../api/sourceQuality";
+import { contentApi } from "../api/deferred";
+import type { ContentAccessData, ContentApi, ContentEpisode, DownloadsData, PlaybackDescriptor, PlotData } from "../api/content";
 import { ApiError } from "../api/http";
 import { useAccount } from "../app/AccountContext";
-import { DetailBoundary } from "../components/ContentBoundary";
-import { MacCmsPlayer } from "../components/MacCmsPlayer";
-import { Artwork, EmptyState, PageHeader, PageStatus, VodCard } from "../components/PagePrimitives";
-import { SourceQualityPanel, sourceQualityText } from "../components/SourceQualityPanel";
-import type { SourceQualityView } from "../components/SourceQualityPanel";
+import { EmptyState, PageHeader, PageStatus } from "../components/PagePrimitives";
 import { upsertLocalHistory } from "../localHistory";
 import { consumeAlternatePlaybackResume, selectAutomaticFallback, storeAlternatePlaybackResume } from "../sourceQualityPreference";
-import type { SourceQualityPreference } from "../sourceQualityPreference";
-import { VodFavoriteButton, VodInteractions } from "./InteractionPages";
+import { EpisodeSections, MissingContentPage, useDocumentTitle, watchHref } from "./ContentSections";
+import type { EpisodeGroup } from "./ContentSections";
+
+const MacCmsPlayer = dynamic(() => import("../components/MacCmsPlayer").then((module) => module.MacCmsPlayer));
 
 type ContentPageProps = {
   api?: ContentApi;
@@ -35,285 +23,13 @@ type ContentPageProps = {
 
 export type ContentChallengeKind = "confirm" | "detail" | "download" | "playback";
 
-type EpisodeGroup = {
-  sourceId: string;
-  name: string;
-  tip: string;
-  episodes: ContentEpisode[];
-};
-
-function pageTitle(title: string, siteName: string) {
-  return `${title} · ${siteName}`;
-}
-
-function useDocumentTitle(title: string, siteName: string) {
-  useEffect(() => {
-    document.title = pageTitle(title, siteName);
-  }, [siteName, title]);
-}
-
-function groupEpisodes(video: ContentVideo): EpisodeGroup[] {
-  if (video.playSources.length > 0) {
-    return video.playSources.map((source) => ({
-      sourceId: source.id,
-      name: source.name,
-      tip: source.tip,
-      episodes: [...source.episodes].sort((left, right) => left.no - right.no)
-    }));
-  }
-  const groups = new Map<string, ContentEpisode[]>();
-
-  video.episodes.forEach((episode) => {
-    const episodes = groups.get(episode.sourceId) ?? [];
-    episodes.push(episode);
-    groups.set(episode.sourceId, episodes);
-  });
-
-  return Array.from(groups, ([sourceId, episodes]) => ({
-    sourceId,
-    name: `播放线路 ${sourceId}`,
-    tip: "",
-    episodes: [...episodes].sort((left, right) => left.no - right.no)
-  }));
-}
-
-function watchHref(vodId: string, episode: ContentEpisode) {
-  return `/watch/${encodeURIComponent(vodId)}/${encodeURIComponent(episode.sourceId)}/${encodeURIComponent(episode.id)}`;
+function nativePlayerHref(vodId: string, sourceId = "1", episodeId = "1") {
+  return `/index.php/pingfangapi/player/id/${encodeURIComponent(vodId)}/sid/${encodeURIComponent(sourceId)}/nid/${encodeURIComponent(episodeId)}.html`;
 }
 
 function playbackHref(vodId: string, episode: ContentEpisode, trial: boolean) {
   const href = watchHref(vodId, episode);
   return trial ? href.replace(/^\/watch\//, "/trial/") : href;
-}
-
-function MissingContentPage({ siteName, kind, value }: { siteName: string; kind: "影片" | "剧集"; value?: string }) {
-  useDocumentTitle(`${kind}不存在`, siteName);
-
-  return (
-    <main id="mainContent" tabIndex={-1}>
-      <section className="wrap system-page">
-        <div className="system-box" role="alert">
-          <span className="eyebrow">404</span>
-          <h1>{kind}不存在</h1>
-          <p>{value ? `没有找到编号为 ${value} 的${kind}。` : `当前地址没有提供有效的${kind}编号。`}</p>
-          <div className="detail-actions">
-            <Link className="primary-btn" to="/videos">
-              浏览影片库
-            </Link>
-            <Link className="ghost-btn" to="/">
-              返回首页
-            </Link>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function EpisodeSections({
-  vodId,
-  groups,
-  activeSourceId,
-  activeEpisodeId,
-  qualityView
-}: {
-  vodId: string;
-  groups: EpisodeGroup[];
-  activeSourceId?: string;
-  activeEpisodeId?: string;
-  qualityView?: SourceQualityView | null;
-}) {
-  if (groups.length === 0) {
-    return <EmptyState title="暂无可用剧集" description="站点尚未发布可播放的线路和剧集。" actionHref={`/vod/${vodId}`} actionLabel="返回详情" />;
-  }
-
-  return (
-    <>
-      {groups.map((group, groupIndex) => (
-        <section
-          className={`episode-box${
-            qualityView?.data?.recommended_sid && String(qualityView.data.recommended_sid) === group.sourceId ? " is-source-recommended" : ""
-          }`}
-          key={group.sourceId}
-          aria-labelledby={`source-${groupIndex}`}
-        >
-          <div className="section-head compact">
-            <h2 id={`source-${groupIndex}`}>{group.name}</h2>
-            {qualityView ? (
-              <span className="source-quality-heading-meta">
-                <span>{group.tip || `${group.episodes.length} 集`}</span>
-                {(() => {
-                  const result = qualityView.data?.sources.find((source) => String(source.sid) === group.sourceId);
-                  const status = qualityView.status === "loading" ? "loading" : qualityView.status === "error" ? "failed" : (result?.status ?? "unsupported");
-                  const label =
-                    qualityView.status === "loading"
-                      ? "检测中…"
-                      : qualityView.status === "error"
-                        ? "检测失败"
-                        : result
-                          ? sourceQualityText(result)
-                          : "超出单次检测上限";
-                  return (
-                    <span className={`source-quality-result is-${status}${result?.recommended ? " is-recommended" : ""}`} aria-live="polite">
-                      {label}
-                    </span>
-                  );
-                })()}
-              </span>
-            ) : (
-              <span>{group.tip || `${group.episodes.length} 集`}</span>
-            )}
-          </div>
-          <div className="episode-grid">
-            {group.episodes.map((episode) => {
-              const active = episode.id === activeEpisodeId && episode.sourceId === activeSourceId;
-              const recommended =
-                qualityView?.episodeNo === episode.no &&
-                qualityView.data?.recommended_sid !== null &&
-                String(qualityView?.data?.recommended_sid) === group.sourceId;
-
-              return (
-                <Link
-                  className={[active ? "is-active" : "", recommended ? "is-source-recommended" : ""].filter(Boolean).join(" ") || undefined}
-                  aria-current={active ? "page" : undefined}
-                  key={episode.id}
-                  to={watchHref(vodId, episode)}
-                >
-                  {episode.name}
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-    </>
-  );
-}
-
-function VodDetailContent({ content, qualityApi }: { content: ContentDetailData; qualityApi: SourceQualityApi }) {
-  const video = content.video;
-  const groups = useMemo(() => groupEpisodes(video), [video]);
-  const [qualityView, setQualityView] = useState<SourceQualityView | null>(null);
-  const [recommendation, setRecommendation] = useState<{ sourceId: string; episodeNo: number } | null>(null);
-  const onRecommendation = useCallback((preference: SourceQualityPreference | null, episodeNo: number) => {
-    setRecommendation(preference ? { sourceId: preference.recommendedSourceId, episodeNo } : null);
-  }, []);
-  const recommendedEpisode = recommendation
-    ? groups.find((group) => group.sourceId === recommendation.sourceId)?.episodes.find((episode) => episode.no === recommendation.episodeNo)
-    : undefined;
-  const firstEpisode = recommendedEpisode ?? groups[0]?.episodes[0];
-  const related = content.related;
-
-  useDocumentTitle(video.title, content.siteName);
-
-  return (
-    <main id="mainContent" tabIndex={-1}>
-      <section className="detail-hero">
-        <Artwork containerClassName="detail-backdrop" src={video.backdrop || video.poster || undefined} alt="" aria-hidden="true" />
-        <div className="wrap detail-grid">
-          <Artwork
-            containerClassName="detail-poster"
-            src={video.poster || undefined}
-            alt={video.title}
-            width={380}
-            height={570}
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-            sizes="(max-width: 760px) 44vw, 250px"
-          >
-            <span>{video.remark || "高清"}</span>
-          </Artwork>
-          <div className="detail-main detail-panel">
-            <span className="eyebrow">{video.typeName}</span>
-            <div className="detail-title-row">
-              <h1>{video.title}</h1>
-            </div>
-            <p className="meta">
-              {video.year || "年份未知"} / {video.area || "地区未知"} / {video.class || "类型待更新"}
-            </p>
-            <p className="summary">{video.summary || "内容简介待更新。"}</p>
-            <div className="detail-actions" aria-label="影片操作">
-              {firstEpisode && (
-                <Link className="primary-btn" to={watchHref(video.id, firstEpisode)}>
-                  立即播放
-                </Link>
-              )}
-              <VodFavoriteButton vodId={video.id} />
-              <Link className="ghost-btn" to={`/vod/${video.id}/plot`}>
-                分集剧情
-              </Link>
-              <Link className="ghost-btn" to={`/report?vodId=${encodeURIComponent(video.id)}`}>
-                片源报错
-              </Link>
-            </div>
-            <VodInteractions vodId={video.id} score={video.score} scoreCount={video.scoreCount} likes={video.likes} dislikes={video.dislikes} />
-            <dl className="detail-data">
-              <div>
-                <dt>导演</dt>
-                <dd>{video.director || "待更新"}</dd>
-              </div>
-              <div>
-                <dt>主演</dt>
-                <dd>{video.actor || "待更新"}</dd>
-              </div>
-              <div>
-                <dt>热度</dt>
-                <dd>{video.hits} 次</dd>
-              </div>
-              <div>
-                <dt>更新</dt>
-                <dd>{video.updated}</dd>
-              </div>
-              <div>
-                <dt>语言</dt>
-                <dd>{video.lang || "待更新"}</dd>
-              </div>
-              <div>
-                <dt>片长</dt>
-                <dd>{video.duration || "待更新"}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </section>
-
-      <section className="wrap content-section" aria-label="播放选集">
-        <SourceQualityPanel vodId={video.id} groups={groups} api={qualityApi} onViewChange={setQualityView} onRecommendation={onRecommendation} />
-        <EpisodeSections vodId={video.id} groups={groups} qualityView={qualityView} />
-      </section>
-
-      <section className="wrap content-section" aria-labelledby="related-videos-title">
-        <div className="section-head">
-          <h2 id="related-videos-title">猜你喜欢</h2>
-        </div>
-        {related.length > 0 ? (
-          <div className="vod-grid compact-grid">
-            {related.map((item) => (
-              <VodCard key={item.id} video={item} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="暂无同类推荐" description="可以继续浏览影片库发现更多内容。" />
-        )}
-      </section>
-    </main>
-  );
-}
-
-export function VodDetailPage({ api = contentApi, qualityApi = sourceQualityApi }: ContentPageProps & { qualityApi?: SourceQualityApi }) {
-  const { vodId } = useParams();
-
-  return (
-    <DetailBoundary
-      api={api}
-      vodId={vodId}
-      notFound={<MissingContentPage siteName="平方影视" kind="影片" value={vodId} />}
-      denied={<AccessGatePage api={api} vodId={vodId} kind="detail" />}
-    >
-      {(content) => <VodDetailContent content={content} qualityApi={qualityApi} />}
-    </DetailBoundary>
-  );
 }
 
 function DownloadsContent({ content }: { content: DownloadsData }) {
@@ -658,7 +374,13 @@ export function PlayerPage({ trial = false, api = contentApi }: ContentPageProps
     if (query.error instanceof ApiError && query.error.status === 403) {
       return <AccessGatePage api={api} vodId={normalizedVodId} kind="playback" sourceId={normalizedSourceId} episodeId={normalizedEpisodeId} />;
     }
-    return <PageStatus title="播放信息加载失败" description={query.error.message} error onRetry={() => void query.refetch()} />;
+    return (
+      <PageStatus title="播放信息加载失败" description={query.error.message} error onRetry={() => void query.refetch()}>
+        <a className="primary-btn" href={nativePlayerHref(normalizedVodId, normalizedSourceId, normalizedEpisodeId)}>
+          使用原站授权播放器
+        </a>
+      </PageStatus>
+    );
   }
 
   const playback = query.data;
@@ -748,9 +470,9 @@ function ChallengeContent({
             <p>{content.message || `当前内容可能需要积分、权限或会员身份。确认后继续访问 ${video.title}。`}</p>
             {content.points > 0 && <p>所需积分：{content.points}</p>}
             <div className="detail-actions">
-              <Link className="primary-btn" to={`/vod/${video.id}`}>
+              <a className="primary-btn" href={nativePlayerHref(video.id, sourceId, episodeId)}>
                 确认继续
-              </Link>
+              </a>
               <Link className="ghost-btn" to="/videos">
                 返回影片库
               </Link>
@@ -770,10 +492,16 @@ function ChallengeContent({
             <h1>{video.title}</h1>
             <p>{content.message}</p>
             <div className="detail-actions">
-              {content.authorized && (
-                <Link className="primary-btn" to={returnHref}>
-                  继续访问
-                </Link>
+              {content.authorized && content.state === "trial" && kind === "playback" ? (
+                <a className="primary-btn" href={nativePlayerHref(video.id, sourceId, episodeId)}>
+                  使用原站授权播放器
+                </a>
+              ) : (
+                content.authorized && (
+                  <Link className="primary-btn" to={returnHref}>
+                    继续访问
+                  </Link>
+                )
               )}
               {!content.authorized && content.state === "permission" && (
                 <Link className="primary-btn" to={`/login?from=${encodeURIComponent(returnHref)}`}>
@@ -839,7 +567,7 @@ function ChallengeContent({
   );
 }
 
-function AccessGatePage({
+export function AccessGatePage({
   api,
   vodId,
   kind,

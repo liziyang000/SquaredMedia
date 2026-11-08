@@ -1,11 +1,41 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TestRoutingProvider } from "../app/routing";
-import { Artwork, VodCard } from "./PagePrimitives";
+import { Artwork, ScoreBadge, VodCard } from "./PagePrimitives";
 
 describe("Artwork", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("clears the loading state on load, failure, and source replacement", () => {
+    const { container, rerender } = render(<Artwork containerClassName="home-shelf-poster" src="/first.jpg" alt="海报" />);
+    expect(container.firstElementChild).toHaveClass("is-image-loading");
+    fireEvent.load(screen.getByRole("img", { name: "海报" }));
+    expect(container.firstElementChild).not.toHaveClass("is-image-loading");
+    rerender(<Artwork containerClassName="home-shelf-poster" src="/second.jpg" alt="海报" />);
+    expect(container.firstElementChild).toHaveClass("is-image-loading");
+    fireEvent.error(screen.getByRole("img", { name: "海报" }));
+    expect(container.firstElementChild).toHaveClass("is-image-missing");
+    expect(container.firstElementChild).not.toHaveClass("is-image-loading");
+  });
+
+  it("does not keep a loading overlay on an image already loaded before hydration", () => {
+    vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(300);
+    const { container } = render(<Artwork containerClassName="home-shelf-poster" src="/cached.jpg" alt="海报" />);
+    expect(container.firstElementChild).not.toHaveClass("is-image-loading", "is-image-missing");
+  });
+
+  it("shows the missing state when an image failed before hydration", () => {
+    vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+    vi.spyOn(HTMLImageElement.prototype, "naturalWidth", "get").mockReturnValue(0);
+    const { container } = render(<Artwork containerClassName="home-shelf-poster" src="/broken.jpg" alt="海报" />);
+    expect(container.firstElementChild).toHaveClass("is-image-missing");
+    expect(container.firstElementChild).not.toHaveClass("is-image-loading");
+  });
 
   it("renders a placeholder when the source is empty", () => {
     const { container } = render(<Artwork containerClassName="poster" src="" alt="空海报" />);
@@ -59,5 +89,17 @@ describe("VodCard", () => {
     expect(poster).toHaveClass("is-image-missing");
     expect(poster?.querySelector(".quality-badge")).toHaveTextContent("更新至第9集");
     expect(poster?.querySelector(".score-badge")).toHaveTextContent("8.6");
+  });
+});
+
+describe("ScoreBadge", () => {
+  afterEach(cleanup);
+  it.each([0, 0.01, 10.1, Number.NaN, Number.POSITIVE_INFINITY])("hides invalid or absent score %s", (score) => {
+    const { container } = render(<ScoreBadge score={score} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+  it("uses one decimal and a readable score label", () => {
+    render(<ScoreBadge score={8.86} />);
+    expect(screen.getByLabelText("评分 8.9 分")).toHaveTextContent("8.9");
   });
 });

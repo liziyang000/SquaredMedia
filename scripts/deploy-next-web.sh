@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+build_only=0
+if [[ "${1:-}" == "--build-only" && "$#" == "1" ]]; then
+  build_only=1
+elif [[ "$#" != "0" ]]; then
+  echo "Usage: deploy-next-web.sh [--build-only]" >&2
+  exit 1
+fi
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
@@ -15,6 +23,7 @@ NEXT_CANDIDATE_PORT="3101"
 NEXT_SERVICE="squaredmedia-next.service"
 NEXT_NGINX_EXTENSION="/www/server/panel/vhost/nginx/extension/www.ping2.my/react-spa.conf"
 NEXT_UNIT_PATH="/etc/systemd/system/$NEXT_SERVICE"
+NEXT_NGINX_SITE="/www/server/panel/vhost/nginx/www.ping2.my.conf"
 NEXT_DEPLOY_CACHE_ROOT="$repo_root/.cache/next-deploy/v1"
 NEXT_DEPLOY_LOCK_DIR="$NEXT_DEPLOY_CACHE_ROOT/.deploy.lock"
 NEXT_DEPLOY_FORCE_REBUILD="${NEXT_DEPLOY_FORCE_REBUILD:-0}"
@@ -136,6 +145,8 @@ fi
 
 echo "Running the local release gate before staging deployment..."
 npm ci --no-audit --no-fund
+npm audit --omit=dev
+(cd apps/web/deploy && npm audit --omit=dev --package-lock-only --workspaces=false)
 
 node <<'NODE'
 const fs = require("node:fs");
@@ -179,8 +190,11 @@ validate_artifact_root() {
   local artifact_root="$1"
   local native_count native_file native_info
   if [[ ! -f "$artifact_root/apps/web/server.js" ||
+    ! -f "$artifact_root/.deploy/fastcgi.conf" ||
     ! -d "$artifact_root/apps/web/.next/static" ||
-    ! -f "$artifact_root/apps/web/public/react-runtime/multiplayer-games.js" ]]; then
+    ! -f "$artifact_root/apps/web/public/react-runtime/multiplayer-games.js" ||
+    ! -f "$artifact_root/apps/web/public/react-theme/css/themes.css" ||
+    ! -f "$artifact_root/apps/web/public/react-theme/js/two.min.js" ]]; then
     echo "Next.js standalone artifact is incomplete." >&2
     return 1
   fi
@@ -300,9 +314,14 @@ if [[ "$cache_hit" != "1" ]]; then
   )
 
   artifact_root="$local_tmp/artifact"
-  mkdir -p "$artifact_root/apps/web/.next"
+  mkdir -p "$artifact_root/apps/web/.next" "$artifact_root/.deploy"
+  cp ops/nginx/www.ping2.my.fastcgi.conf "$artifact_root/.deploy/fastcgi.conf"
   cp -a apps/web/.next/standalone/. "$artifact_root/"
   cp -a apps/web/.next/static "$artifact_root/apps/web/.next/static"
+  mkdir -p "$artifact_root/apps/web/public/react-theme"
+  for asset_directory in css images js games; do
+    cp -a "template/pingfangvideo/$asset_directory" "$artifact_root/apps/web/public/react-theme/"
+  done
   mkdir -p "$artifact_root/apps/web/public/react-runtime"
   cp "$NEXT_MULTIPLAYER_RUNTIME_SOURCE" "$artifact_root/apps/web/public/react-runtime/multiplayer-games.js"
   for native_dir in "$artifact_root/node_modules/@img"/sharp-*; do
@@ -341,6 +360,11 @@ if [[ "$cache_hit" != "1" ]]; then
   echo "Cached verified Next.js Linux artifact $build_input_hash"
 fi
 
+if [[ "$build_only" == "1" ]]; then
+  echo "Verified Linux candidate: $NEXT_DEPLOY_CACHE_ROOT/$build_input_hash/artifact.tar.gz"
+  exit 0
+fi
+
 upload_build_input_hash="$(node scripts/release-input-fingerprint.mjs next)"
 if [[ "$upload_build_input_hash" != "$build_input_hash" ]]; then
   echo "Next.js build inputs changed after artifact verification; refusing to upload." >&2
@@ -356,6 +380,7 @@ fi
 remote_artifact="/tmp/squaredmedia-next.${release_id}.artifact.tar.gz"
 remote_nginx="/tmp/squaredmedia-next.${release_id}.nginx.conf"
 remote_unit="/tmp/squaredmedia-next.${release_id}.service"
+remote_site="/tmp/squaredmedia-next.${release_id}.site.conf"
 
 remote_env=(
   "RELEASE_ID=$(printf '%q' "$release_id")"
@@ -363,6 +388,8 @@ remote_env=(
   "REMOTE_ARTIFACT=$(printf '%q' "$remote_artifact")"
   "REMOTE_NGINX=$(printf '%q' "$remote_nginx")"
   "REMOTE_UNIT=$(printf '%q' "$remote_unit")"
+  "REMOTE_SITE=$(printf '%q' "$remote_site")"
+  "NEXT_NGINX_SITE=$(printf '%q' "$NEXT_NGINX_SITE")"
   "NEXT_ROOT=$(printf '%q' "$NEXT_ROOT")"
   "NEXT_SITE_HOST=$(printf '%q' "$NEXT_SITE_HOST")"
   "NEXT_PORT=$(printf '%q' "$NEXT_PORT")"
@@ -376,7 +403,7 @@ remote_env=(
 
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_PREFLIGHT'
 set -euo pipefail
-for target in "$REMOTE_ARTIFACT" "$REMOTE_NGINX" "$REMOTE_UNIT"; do
+for target in "$REMOTE_ARTIFACT" "$REMOTE_NGINX" "$REMOTE_UNIT" "$REMOTE_SITE"; do
   if [[ -e "$target" || -L "$target" ]]; then
     echo "Remote upload target already exists: $target" >&2
     exit 1
@@ -387,6 +414,7 @@ REMOTE_PREFLIGHT
 "${scp_command[@]}" "$artifact_archive" "${REMOTE}:${remote_artifact}"
 "${scp_command[@]}" ops/nginx/www.ping2.my.conf "${REMOTE}:${remote_nginx}"
 "${scp_command[@]}" ops/systemd/squaredmedia-next.service "${REMOTE}:${remote_unit}"
+"${scp_command[@]}" ops/nginx/www.ping2.my.server.conf "${REMOTE}:${remote_site}"
 
 "${ssh_command[@]}" "$REMOTE" "${remote_env[*]} bash -s" <<'REMOTE_DEPLOY'
 set -euo pipefail
@@ -403,6 +431,7 @@ if [[ "$NEXT_ROOT" != "$expected_root" ||
   "$NEXT_SERVICE" != "$expected_service" ||
   "$NEXT_NGINX_EXTENSION" != "$expected_nginx" ||
   "$NEXT_UNIT_PATH" != "$expected_unit" ||
+  "$NEXT_NGINX_SITE" != "/www/server/panel/vhost/nginx/www.ping2.my.conf" ||
   "$NEXT_MULTIPLAYER_RUNTIME_PATH" != "$expected_multiplayer_runtime_path" ]]; then
   echo "Next.js staging target does not match the locked deployment boundary." >&2
   exit 1
@@ -413,8 +442,8 @@ if [[ ! "$RELEASE_ID" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ||
   echo "Invalid release metadata." >&2
   exit 1
 fi
-for upload in "$REMOTE_ARTIFACT" "$REMOTE_NGINX" "$REMOTE_UNIT"; do
-  if [[ ! "$upload" =~ ^/tmp/squaredmedia-next\.[A-Za-z0-9.-]+\.(artifact\.tar\.gz|nginx\.conf|service)$ || ! -f "$upload" || -L "$upload" ]]; then
+for upload in "$REMOTE_ARTIFACT" "$REMOTE_NGINX" "$REMOTE_UNIT" "$REMOTE_SITE"; do
+  if [[ ! "$upload" =~ ^/tmp/squaredmedia-next\.[A-Za-z0-9.-]+\.(artifact\.tar\.gz|nginx\.conf|site\.conf|service)$ || ! -f "$upload" || -L "$upload" ]]; then
     echo "Invalid remote upload: $upload" >&2
     exit 1
   fi
@@ -466,7 +495,20 @@ old_current=""
 old_service_exists=0
 old_service_active=0
 old_service_enabled=0
+legacy_check_unit=""
 old_nginx_exists=0
+old_site_exists=0
+parked_site="/www/server/panel/vhost/nginx/ping2.my.conf"
+if [[ -f "$NEXT_NGINX_SITE" ]]; then
+  old_site_exists=1
+  cp -a "$NEXT_NGINX_SITE" "$backup_dir/site.conf"
+elif [[ -f "$parked_site" ]] && grep -Fq 'server_name ping2.my www.ping2.my;' "$parked_site" && grep -Eq '^[[:space:]]*root[[:space:]]+(/www/server/stop|/www/wwwroot/squaredMediaOnline);[[:space:]]*$' "$parked_site"; then
+  cp -a "$parked_site" "$backup_dir/parked-site.conf"
+else
+  echo "Target www.ping2.my virtual host is not the expected paired site." >&2
+  exit 1
+fi
+mkdir -p "$(dirname "$NEXT_NGINX_EXTENSION")"
 
 reload_nginx() {
   nginx -t
@@ -496,13 +538,15 @@ harden_release() {
   local target="$1"
   chown -R root:root "$target"
   chmod -R u=rwX,go=rX "$target"
-  install -d -o www -g www -m 0750 "$target/apps/web/.next/cache"
-  chown -R www:www "$target/apps/web/.next/cache"
-  chmod -R u=rwX,g=rX,o= "$target/apps/web/.next/cache"
+  local cache_directory="$target/apps/web/.next/cache"
+  if [[ -f "$target/node_modules/next/dist/bin/next" ]]; then cache_directory="$target/.next/cache"; fi
+  install -d -o www -g www -m 0750 "$cache_directory"
+  chown -R www:www "$cache_directory"
+  chmod -R u=rwX,g=rX,o= "$cache_directory"
 }
 
 cleanup_remote() {
-  rm -f -- "$REMOTE_ARTIFACT" "$REMOTE_NGINX" "$REMOTE_UNIT"
+  rm -f -- "$REMOTE_ARTIFACT" "$REMOTE_NGINX" "$REMOTE_UNIT" "$REMOTE_SITE"
   if [[ -d "$build_root" && ! -L "$build_root" ]]; then
     rm -rf -- "$build_root"
   fi
@@ -515,6 +559,9 @@ restore_failed_release() {
   local status=$?
   trap - EXIT
   set +e
+  if [[ -n "$legacy_check_unit" ]]; then
+    systemctl stop "$legacy_check_unit" 2>/dev/null || true
+  fi
   if [[ -n "$candidate_pid" ]]; then
     kill "$candidate_pid" 2>/dev/null || true
     wait "$candidate_pid" 2>/dev/null || true
@@ -526,6 +573,14 @@ restore_failed_release() {
       mv -Tf "$NEXT_ROOT/.current.rollback.$RELEASE_ID" "$NEXT_ROOT/current"
     elif [[ "$(readlink -f "$NEXT_ROOT/current" 2>/dev/null || true)" == "$release_dir" ]]; then
       rm -f -- "$NEXT_ROOT/current"
+    fi
+    if [[ "$old_site_exists" == "1" ]]; then
+      install -m 0644 "$backup_dir/site.conf" "$NEXT_NGINX_SITE"
+    else
+      rm -f -- "$NEXT_NGINX_SITE"
+    fi
+    if [[ -f "$backup_dir/parked-site.conf" ]]; then
+      install -m 0644 "$backup_dir/parked-site.conf" "$parked_site"
     fi
     if [[ -f "$backup_dir/react-spa.conf" ]]; then
       install -m 0644 "$backup_dir/react-spa.conf" "$NEXT_NGINX_EXTENSION"
@@ -614,6 +669,7 @@ candidate_log="$logs_dir/candidate-$RELEASE_ID.log"
     PORT="$NEXT_CANDIDATE_PORT" \
     NEXT_TELEMETRY_DISABLED=1 \
     SQUAREDMEDIA_RELEASE_ID="$RELEASE_ID" \
+    MACCMS_INTERNAL_ORIGIN=http://127.0.0.1:3102 \
     /usr/bin/node apps/web/server.js
 ) >"$candidate_log" 2>&1 &
 candidate_pid=$!
@@ -631,7 +687,23 @@ if [[ "$candidate_ready" != "1" ]]; then
   tail -n 80 "$candidate_log" >&2 || true
   exit 1
 fi
-for route in / /status /vod/371745 /games; do
+candidate_html="$(mktemp /tmp/squaredmedia-next-ssr.XXXXXX.html)"
+curl -fsS --max-time 20 -H "Host: $NEXT_SITE_HOST" -H 'X-Real-IP: 1.2.4.8' -H 'X-Forwarded-Proto: https' \
+  "http://127.0.0.1:$NEXT_CANDIDATE_PORT/" > "$candidate_html"
+content_probe_vod_id="$(SSR_HTML_FILE="$candidate_html" php -r '
+  $html = preg_replace("#<script\\b[^>]*>[\\s\\S]*?</script>#i", "", file_get_contents(getenv("SSR_HTML_FILE")));
+  if (strpos($html, "hero-carousel") === false || strpos($html, "正在确认登录状态") !== false) {
+    fwrite(STDERR, "Candidate did not render permission-scoped home content before JavaScript.\n");
+    exit(1);
+  }
+  if (!preg_match("#href=\"/watch/([1-9][0-9]*)/[1-9][0-9]*/[1-9][0-9]*\"#", $html, $match)) {
+    fwrite(STDERR, "Candidate home did not provide a playable video for release checks.\n");
+    exit(1);
+  }
+  echo $match[1];
+')"
+rm -f -- "$candidate_html"
+for route in / /status "/vod/$content_probe_vod_id" /games; do
   status="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$NEXT_CANDIDATE_PORT$route")"
   if [[ "$status" != "200" ]]; then
     echo "Candidate route $route returned HTTP $status." >&2
@@ -681,15 +753,49 @@ if [[ -n "$old_current" && "$old_current" != "$NEXT_ROOT"/releases/* ]]; then
   echo "Current staging target is outside the releases directory: $old_current" >&2
   exit 1
 fi
-if [[ -n "$old_current" && -d "$old_current" ]]; then
-  mkdir -p "$old_current/.deploy"
+old_release_backup="$old_current"
+if [[ -f "$old_current/node_modules/next/dist/bin/next" && -f "$old_current/.next/BUILD_ID" ]]; then
+  old_release_backup="$NEXT_ROOT/releases/${RELEASE_ID}-legacy"
+  mkdir "$old_release_backup"
+  cp -aL "$old_current/." "$old_release_backup/"
+  sed "s/^CINEMA_RELEASE_ID=.*/CINEMA_RELEASE_ID=${old_release_backup##*/}/" "$old_current/release.env" > "$old_release_backup/release.env"
+fi
+if [[ -n "$old_release_backup" && -d "$old_release_backup" ]]; then
+  mkdir -p "$old_release_backup/.deploy"
+  install -m 0644 "$release_dir/.deploy/fastcgi.conf" "$old_release_backup/.deploy/fastcgi.conf"
   if [[ -f "$NEXT_NGINX_EXTENSION" ]]; then
-    install -m 0644 "$NEXT_NGINX_EXTENSION" "$old_current/.deploy/nginx.conf"
+    install -m 0644 "$NEXT_NGINX_EXTENSION" "$old_release_backup/.deploy/nginx.conf"
   else
-    install -m 0644 "$REMOTE_NGINX" "$old_current/.deploy/nginx.conf"
+    sed '/^location \^~ \/template\/pingfangvideo\/ {/,/^}/d' "$REMOTE_NGINX" > "$old_release_backup/.deploy/nginx.conf"
   fi
-  install -m 0644 "$REMOTE_UNIT" "$old_current/.deploy/$NEXT_SERVICE"
-  harden_release "$old_current"
+  if [[ -f "$NEXT_UNIT_PATH" ]]; then
+    install -m 0644 "$NEXT_UNIT_PATH" "$old_release_backup/.deploy/$NEXT_SERVICE"
+  else
+    install -m 0644 "$REMOTE_UNIT" "$old_release_backup/.deploy/$NEXT_SERVICE"
+  fi
+  harden_release "$old_release_backup"
+  if [[ -f "$old_release_backup/node_modules/next/dist/bin/next" ]]; then
+    legacy_check_unit="squaredmedia-rollback-check-$RELEASE_ID"
+    systemd-run --quiet --unit="$legacy_check_unit" --uid=www --gid=www \
+      --property="WorkingDirectory=$old_release_backup" \
+      --property="EnvironmentFile=$old_release_backup/release.env" \
+      --setenv=NODE_OPTIONS=--max-old-space-size=192 \
+      /usr/bin/node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$NEXT_CANDIDATE_PORT"
+    legacy_ready=0
+    for _ in $(seq 1 45); do
+      if healthz_matches_release "${old_release_backup##*/}" -fsS --max-time 3 "http://127.0.0.1:$NEXT_CANDIDATE_PORT/healthz"; then
+        legacy_ready=1
+        break
+      fi
+      sleep 1
+    done
+    systemctl stop "$legacy_check_unit"
+    legacy_check_unit=""
+    if [[ "$legacy_ready" != "1" ]]; then
+      echo "Legacy rollback snapshot did not become healthy; refusing to switch." >&2
+      exit 1
+    fi
+  fi
 fi
 if [[ -f "$NEXT_NGINX_EXTENSION" ]]; then
   old_nginx_exists=1
@@ -709,8 +815,17 @@ if systemctl is-enabled --quiet "$NEXT_SERVICE"; then
   old_service_enabled=1
 fi
 
+if [[ -f "$backup_dir/parked-site.conf" ]] && ! cmp -s "$parked_site" "$backup_dir/parked-site.conf"; then
+  echo "Parent virtual host changed during candidate checks; refusing to overwrite it." >&2
+  exit 1
+fi
+
 switch_started=1
 install -m 0644 "$REMOTE_NGINX" "$NEXT_NGINX_EXTENSION"
+install -m 0644 "$REMOTE_SITE" "$NEXT_NGINX_SITE"
+if [[ -f "$backup_dir/parked-site.conf" ]]; then
+  sed 's/server_name ping2.my www.ping2.my;/server_name ping2.my;/' "$backup_dir/parked-site.conf" > "$parked_site"
+fi
 install -m 0644 "$REMOTE_UNIT" "$NEXT_UNIT_PATH"
 ln -s "$release_dir" "$NEXT_ROOT/.current.$RELEASE_ID"
 mv -Tf "$NEXT_ROOT/.current.$RELEASE_ID" "$NEXT_ROOT/current"
@@ -796,7 +911,7 @@ wait_for_websocket_status() {
 }
 wait_for_websocket_status "https://invalid.example" 403
 wait_for_websocket_status "https://www.ping2.my" 401
-for route in / /status /vod/371745 /games /qixi /favicon.ico "$asset_path"; do
+for route in / /status "/vod/$content_probe_vod_id" /games /qixi /favicon.ico "$asset_path"; do
   wait_for_http_status GET "$route" 200
 done
 for shared_asset in \
@@ -865,7 +980,7 @@ for legacy_play_route in "/index.php/vod/play/id/1/sid/2/nid/3.html" "/vodplay/1
     fi
   done
 done
-for legacy_play_route in "/index.php/vod/play/id/371745/sid/1/nid/1.html" "/vodplay/371745-1-1.html"; do
+for legacy_play_route in "/index.php/vod/play/id/$content_probe_vod_id/sid/1/nid/1.html" "/vodplay/${content_probe_vod_id}-1-1.html"; do
   legacy_post_result="$(curl -ksS --max-time 20 "${resolve_args[@]}" -X POST -o /dev/null -w '%{http_code}|%{content_type}|%{redirect_url}' "$base_url$legacy_play_route")"
   IFS='|' read -r legacy_post_status legacy_post_type legacy_post_location <<<"$legacy_post_result"
   if [[ "$legacy_post_status" != "200" || "$legacy_post_type" != text/html* || -n "$legacy_post_location" ]]; then
@@ -933,13 +1048,13 @@ if source_quality_status="$(
     -H 'Accept: application/json' \
     -H 'X-Requested-With: XMLHttpRequest' \
     -X POST \
-    --data-urlencode 'vod_id=371745' \
+    --data-urlencode "vod_id=$content_probe_vod_id" \
     --data-urlencode 'nid=1' \
     -o "$source_quality_file" \
     -w '%{http_code}' \
     "$base_url/index.php/pingfangdevice/sourceQuality"
 )" &&
-  SOURCE_QUALITY_RESPONSE_FILE="$source_quality_file" SOURCE_QUALITY_HTTP_STATUS="$source_quality_status" php -r '
+  SOURCE_QUALITY_RESPONSE_FILE="$source_quality_file" SOURCE_QUALITY_HTTP_STATUS="$source_quality_status" SOURCE_QUALITY_VOD_ID="$content_probe_vod_id" php -r '
     $payload = json_decode(file_get_contents(getenv("SOURCE_QUALITY_RESPONSE_FILE")), true);
     $data = is_array($payload) && is_array($payload["data"] ?? null) ? $payload["data"] : [];
     $sources = is_array($data["sources"] ?? null) ? $data["sources"] : [];
@@ -947,7 +1062,7 @@ if source_quality_status="$(
     $valid = getenv("SOURCE_QUALITY_HTTP_STATUS") === "200"
         && is_array($payload)
         && (string)($payload["code"] ?? "") === "1"
-        && (int)($data["vod_id"] ?? 0) === 371745
+        && (int)($data["vod_id"] ?? 0) === (int)getenv("SOURCE_QUALITY_VOD_ID")
         && (int)($data["nid"] ?? 0) === 1
         && count($sources) > 0
         && count($sources) <= 12;
@@ -1004,7 +1119,7 @@ for retired_action in register registration.code recover; do
 done
 
 if [[ -n "$old_current" && -d "$old_current" ]]; then
-  ln -s "$old_current" "$NEXT_ROOT/.previous.$RELEASE_ID"
+  ln -s "$old_release_backup" "$NEXT_ROOT/.previous.$RELEASE_ID"
   mv -Tf "$NEXT_ROOT/.previous.$RELEASE_ID" "$NEXT_ROOT/previous"
 fi
 
@@ -1012,9 +1127,9 @@ release_committed=1
 cleanup_remote
 trap - EXIT
 echo "Deployed Next.js release $RELEASE_ID to https://$NEXT_SITE_HOST/"
-echo "Previous release: ${old_current:-none}"
-previous_release="${old_current##*/}"
-if [[ "$previous_release" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ]]; then
+echo "Previous release: ${old_release_backup:-none}"
+previous_release="${old_release_backup##*/}"
+if [[ "$previous_release" =~ ^[0-9]{8}T[0-9]{6}Z-[A-Za-z0-9_-]{1,64}$ ]]; then
   echo "Rollback command: NEXT_ROLLBACK_RELEASE=$previous_release npm run rollback:web"
 else
   echo "Rollback command: npm run rollback:web"

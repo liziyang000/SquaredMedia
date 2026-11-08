@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountPage, FavoritesPage, HistoryPage, LoginPage } from "../screens/AccountPages";
 import { CatalogPage, CategoriesPage, RankingsPage, SearchPage } from "../screens/CatalogPages";
-import { ContentChallengePage, DownloadsPage, PlayerPage, PlotPage, VodDetailPage } from "../screens/ContentPages";
+import { ContentChallengePage, DownloadsPage, PlayerPage, PlotPage } from "../screens/ContentPages";
+import { VodDetailPage } from "../screens/VodDetailPage";
 import { HomePage } from "../screens/HomePage";
 import { FeedbackPage, ReportPage } from "../screens/InteractionPages";
 import { LocalHistoryPage } from "../screens/LocalHistoryPage";
@@ -216,6 +217,8 @@ function routeForTest(path: string) {
   if (plot) return { element: <PlotPage />, params: { vodId: plot[1] } };
   const unlock = pathname.match(/^\/vod\/([^/]+)\/unlock$/);
   if (unlock) return { element: <ContentChallengePage kind="detail" />, params: { vodId: unlock[1] } };
+  const confirm = pathname.match(/^\/vod\/([^/]+)\/confirm$/);
+  if (confirm) return { element: <ContentChallengePage kind="confirm" />, params: { vodId: confirm[1] } };
   const watch = pathname.match(/^\/watch\/([^/]+)\/([^/]+)\/([^/]+)$/);
   if (watch) {
     return {
@@ -272,11 +275,13 @@ describe("React migration routes", () => {
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/categories"]')).toHaveTextContent("视频");
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/games"]')).toHaveTextContent("游戏");
     expect(screen.getByRole("navigation", { name: "主导航" }).querySelector('a[href="/qixi"]')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "打开站内搜索" }));
     expect(container.querySelector('.mobile-drawer-links a[href="/categories"]')).toHaveTextContent("视频");
     expect(container.querySelector('.mobile-drawer-links a[href="/games"]')).toHaveTextContent("游戏");
     expect(container.querySelector('.mobile-drawer-links a[href="/qixi"]')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "关闭菜单" }));
     expect((container.querySelector(".react-app") as HTMLElement).style.getPropertyValue("--react-lazyload-image")).toBe(
-      'url("/template/pingfangvideo/images/brand/lazyload.png")'
+      'url("/_next/static/media/lazyload.webp")'
     );
     const actions = vi.mocked(fetch).mock.calls.map(([input]) => requestAction(input));
     expect(actions.filter((action) => action === "home_v2")).toHaveLength(1);
@@ -775,6 +780,35 @@ describe("React migration routes", () => {
     expect(await screen.findByRole("button", { name: "点赞 10" })).toBeInTheDocument();
   });
 
+  it("keeps detail and episode links ready while the speed test waits until nearby", async () => {
+    let approach!: (visible: boolean) => void;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(private callback: IntersectionObserverCallback) {}
+        observe(target: Element) {
+          const notify = (isIntersecting: boolean) =>
+            this.callback([{ target, isIntersecting } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+          if (target.getAttribute("aria-label") === "播放选集") approach = notify;
+          else notify(true);
+        }
+        disconnect() {}
+      }
+    );
+    renderRoutes("/vod/1");
+
+    expect(await screen.findByRole("heading", { level: 1, name: "云端回声" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "正片" })).toHaveAttribute("href", "/watch/1/1/101");
+    expect(screen.getByLabelText("测速集数")).toBeDisabled();
+    const speedRequests = () => vi.mocked(fetch).mock.calls.filter(([input]) => String(input).includes("/sourceQuality"));
+    await act(async () => approach(false));
+    expect(speedRequests()).toHaveLength(0);
+
+    await act(async () => approach(true));
+    await waitFor(() => expect(screen.getByLabelText("测速集数")).toBeEnabled());
+    await waitFor(() => expect(speedRequests()).toHaveLength(1));
+  });
+
   it("loads only the current video's favorite status on an authenticated detail page", async () => {
     vi.mocked(fetch).mockImplementation(async (input) => {
       const action = requestAction(input);
@@ -966,12 +1000,49 @@ describe("React migration routes", () => {
     expect(screen.getByRole("link", { name: "下一页" })).toHaveAttribute("href", "/rankings/yearly?page=3");
   });
 
+  it("keeps parser failures behind the original permission-scoped player", async () => {
+    vi.mocked(fetch).mockImplementation(async (input) =>
+      requestAction(input) === "playback" ? jsonResponse({ code: 503, msg: "当前线路依赖第三方解析", data: null }, { ok: false, status: 503 }) : apiFetch(input)
+    );
+    renderRoutes("/watch/1/1/101");
+    expect(await screen.findByRole("heading", { name: "播放信息加载失败" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "使用原站授权播放器" })).toHaveAttribute("href", "/index.php/pingfangapi/player/id/1/sid/1/nid/101.html");
+    expect(document.querySelector("iframe")).toBeNull();
+  });
+
+  it.each([
+    ["trial", "/watch/1/1/101", "使用原站授权播放器"],
+    ["confirm", "/vod/1/confirm?sourceId=1&episodeId=101", "确认继续"]
+  ])("keeps %s authorization in native MacCMS", async (state, path, label) => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (requestAction(input) === "playback") return jsonResponse({ code: 403, msg: "需要授权", data: null }, { ok: false, status: 403 });
+      if (requestAction(input) === "access")
+        return jsonResponse({
+          code: 1,
+          data: {
+            siteName: "平方影视",
+            video: { id: "1", title: "云端回声" },
+            scope: "playback",
+            state,
+            authorized: state === "trial",
+            passwordRequired: false,
+            message: "原站授权",
+            points: state === "confirm" ? 8 : 0,
+            tryseeMinutes: state === "trial" ? 5 : 0
+          }
+        });
+      return apiFetch(input);
+    });
+    renderRoutes(path);
+    expect(await screen.findByRole("link", { name: label })).toHaveAttribute("href", "/index.php/pingfangapi/player/id/1/sid/1/nid/101.html");
+  });
+
   it("loads an authorized player for the clean watch route", async () => {
     const { container } = renderRoutes("/watch/1/1/101");
 
     expect(await screen.findByRole("heading", { level: 1, name: "云端回声 - 正片" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "云端回声 正片 视频播放器" })).toBeInTheDocument();
-    expect(container.querySelector("[data-maccms-player]")).toBeInTheDocument();
+    await waitFor(() => expect(container.querySelector("[data-maccms-player]")).toBeInTheDocument());
     expect(container.querySelector("iframe")).toBeNull();
     expect(container.querySelector(".pf-player")).toBeNull();
     expectMigratedPage(container);

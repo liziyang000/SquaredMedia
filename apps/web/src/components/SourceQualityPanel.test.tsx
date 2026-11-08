@@ -91,6 +91,34 @@ afterEach(() => {
 });
 
 describe("SourceQualityPanel", () => {
+  it("waits until the panel enters the viewport before checking lines", async () => {
+    let intersect!: IntersectionObserverCallback;
+    const disconnect = vi.fn();
+    const original = globalThis.IntersectionObserver;
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          intersect = callback;
+        }
+        observe() {}
+        disconnect = disconnect;
+      }
+    );
+    const inspect = vi.fn(async () => qualityData);
+    try {
+      renderPanel({ inspect });
+      expect(inspect).not.toHaveBeenCalled();
+      await act(async () => intersect([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver));
+      expect(inspect).not.toHaveBeenCalled();
+      await act(async () => intersect([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+      await waitFor(() => expect(inspect).toHaveBeenCalledWith("42", 1));
+      expect(disconnect).toHaveBeenCalled();
+    } finally {
+      vi.stubGlobal("IntersectionObserver", original);
+    }
+  });
+
   it("automatically checks the first episode, publishes its recommendation and supports a fresh recheck", async () => {
     const initial = deferred<SourceQualityData>();
     const recheck = deferred<SourceQualityData>();

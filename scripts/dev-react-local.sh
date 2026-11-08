@@ -43,4 +43,4 @@ if [[ "$backend_ready" != true ]]; then
 fi
 
 echo "Starting the Next.js frontend at http://127.0.0.1:5173/"
-npm run dev:web
+MACCMS_INTERNAL_ORIGIN=http://127.0.0.1:8084 npm run dev:web

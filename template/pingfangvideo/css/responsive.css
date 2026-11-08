@@ -1,4 +1,321 @@
+/* Home composition keeps the first shelf close to the main visual. */
+:where(html:not([data-theme])) .hero-grid {
+  gap: 12px;
+  padding: 14px 0 10px;
+}
+
+:where(html:not([data-theme])) .genre-dock {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  scrollbar-width: none;
+}
+
+:where(html:not([data-theme])) .genre-chip {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 6px 12px;
+}
+
+:where(html:not([data-theme])) .genre-chip::before,
+:where(html:not([data-theme])) .genre-chip small {
+  display: none;
+}
+
+:where(html:not([data-theme])) .genre-chip span {
+  align-self: center;
+  font-size: 13px;
+}
+
+@media (min-width: 1100px) {
+  :where(html:not([data-theme])) .hero-grid {
+    grid-template-columns: minmax(0, 1fr) 292px;
+    gap: 16px;
+  }
+
+  :where(html:not([data-theme])) .hero-carousel,
+  :where(html:not([data-theme])) .hero-slide {
+    min-height: 420px;
+  }
+
+  :where(html:not([data-theme])) .hero-slide {
+    padding: 36px 32px 88px;
+  }
+
+  :where(html:not([data-theme])) .banner-copy strong {
+    font-size: clamp(40px, 4.2vw, 62px);
+  }
+
+  html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-content {
+    max-width: 58%;
+  }
+
+  :where(html:not([data-theme])) .hero-rank {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 0;
+    padding: 14px;
+  }
+
+  :where(html:not([data-theme])) .hero-rank .section-head {
+    padding: 0;
+  }
+
+  :where(html:not([data-theme])) .rank-heading h2 {
+    font-size: 16px;
+  }
+
+  :where(html:not([data-theme])) .rank-list {
+    flex: 1;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  :where(html:not([data-theme])) .rank-item {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 0;
+    padding: 6px;
+  }
+
+  :where(html:not([data-theme])) .rank-thumb {
+    width: 46px;
+    height: 48px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1099px) {
+  :where(html:not([data-theme])) .hero-carousel,
+  :where(html:not([data-theme])) .hero-slide {
+    min-height: 420px;
+  }
+
+  :where(html:not([data-theme])) .hero-slide {
+    padding: 36px 28px 88px;
+  }
+
+  :where(html:not([data-theme])) .banner-copy strong {
+    font-size: clamp(40px, 6vw, 56px);
+  }
+}
+
+@media (max-width: 1099px) {
+  :where(html:not([data-theme])) .hero-rank {
+    margin-top: 0;
+    padding: 10px;
+  }
+
+  :where(html:not([data-theme])) .hero-rank .section-head.compact {
+    margin-bottom: 6px;
+    padding: 0;
+  }
+
+  :where(html:not([data-theme])) .rank-heading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  :where(html:not([data-theme])) .rank-heading h2 {
+    font-size: 14px;
+  }
+
+  :where(html:not([data-theme])) .rank-list {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(220px, 32%);
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 0;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+  }
+
+  :where(html:not([data-theme])) .rank-item {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 60px;
+    padding: 6px;
+    scroll-snap-align: start;
+  }
+
+  :where(html:not([data-theme])) .hero-rank .rank-item:first-of-type {
+    padding-top: 6px;
+  }
+
+  :where(html:not([data-theme])) .rank-thumb {
+    width: 44px;
+    height: 44px;
+  }
+
+  :where(html:not([data-theme])) .rank-body strong {
+    -webkit-line-clamp: 1;
+  }
+
+  :where(html:not([data-theme])) .rank-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 760px) {
+  :where(html:not([data-theme])) .genre-dock {
+    gap: 4px;
+  }
+
+  :where(html:not([data-theme])) .genre-chip {
+    flex: 1 0 auto;
+    padding-inline: 4px;
+  }
+
+  :where(html:not([data-theme])) .home-shelf-latest .shelf-title small {
+    display: none;
+  }
+
+  :where(html:not([data-theme])) .home-shelf-latest .home-shelf-head {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  :where(html:not([data-theme])) .home-shelf-latest .home-shelf-tabs {
+    padding-bottom: 0;
+    scrollbar-width: none;
+  }
+}
+
 /* Core mobile experience: compact first screens and progressive drawers. */
+.page-title.page-heading-compact {
+  padding: 20px 0 14px;
+}
+
+.page-title.page-heading-compact h1 {
+  margin: 0;
+  font-size: clamp(30px, 3.4vw, 44px);
+  line-height: 1.15;
+}
+
+.page-title.page-heading-compact p {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.page-title.page-heading-compact::after {
+  margin-top: 12px;
+}
+
+.page-heading-compact .eyebrow,
+html:not([data-theme]) .page-heading-compact::after {
+  display: none;
+}
+
+.filter-advanced {
+  min-width: 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.filter-advanced > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  list-style: none;
+}
+
+.filter-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.filter-advanced > summary::after {
+  content: "+";
+  font-size: 20px;
+}
+
+.filter-advanced[open] > summary::after {
+  content: "−";
+}
+
+.filter-advanced > summary:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.filter-advanced[open] > .filter-row {
+  padding-top: 8px;
+}
+
+@media (min-width: 761px) {
+  .category-filter {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 14px 18px;
+  }
+
+  .category-filter .filter-row {
+    grid-column: 1 / -1;
+  }
+
+  .category-filter .filter-advanced {
+    grid-column: 1;
+  }
+
+  .category-filter .filter-actions {
+    grid-column: 2;
+    align-self: start;
+  }
+
+  .category-filter .channel-search :is(input, button) {
+    min-height: 40px;
+    padding: 7px 12px;
+  }
+
+  .category-filter .filter-row + .filter-row {
+    padding-top: 6px;
+  }
+
+  .category-filter .filter-options {
+    gap: 4px;
+    padding-bottom: 0;
+  }
+
+  .category-filter .filter-options a {
+    min-height: 36px;
+    padding: 5px 10px;
+    font-size: 14px;
+  }
+
+  .category-filter strong {
+    line-height: 36px;
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .category-filter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .category-filter [data-filter-kind="area"] {
+    grid-column: 1;
+  }
+
+  .category-filter [data-filter-kind="year"] {
+    grid-column: 2;
+  }
+}
+
 .detail-primary {
   min-width: 0;
 }
@@ -28,6 +345,25 @@ body.episode-drawer-open {
 }
 
 @media (max-width: 760px) {
+  html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-bg {
+    background-position: center, 92% 10%;
+    background-size: cover, auto 72%;
+  }
+
+  html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-priority-image {
+    inset: 4% 4% auto auto;
+    width: 52%;
+    height: 72%;
+  }
+
+  html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-content {
+    max-width: 100%;
+  }
+
+  html:not([data-theme]) .banner-bg::after {
+    background: linear-gradient(180deg, rgba(5, 7, 13, 0.08) 20%, rgba(5, 7, 13, 0.72) 52%, #05070d 88%);
+  }
+
   .site-header .header-inner {
     grid-template-columns: minmax(0, 1fr) auto auto;
   }
@@ -89,7 +425,6 @@ body.episode-drawer-open {
     overflow-wrap: anywhere;
   }
 
-  .list-item > span > strong,
   .list-item > span > small,
   .list-item > span > em {
     display: block;
@@ -662,6 +997,11 @@ body.episode-drawer-open {
   .hero .banner-priority-image {
     object-position: center top;
   }
+
+  :where(html:not([data-theme])) .hero .hero-carousel,
+  :where(html:not([data-theme])) .hero .hero-slide {
+    min-height: clamp(340px, 44svh, 380px);
+  }
 }
 
 @media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
@@ -671,6 +1011,11 @@ body.episode-drawer-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :is(.home-shelf-card, .vod-card, .genre-chip, .rank-item),
+  :is(.home-shelf-poster, .poster) img {
+    transform: none !important;
+  }
+
   .filter-drawer-backdrop,
   .filter-drawer-sheet,
   .episode-drawer-backdrop,

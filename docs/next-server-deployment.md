@@ -1,6 +1,6 @@
 # Next.js 服务器部署手册
 
-最后核验：2026-08-24
+最后核验：2026-11-04（部署准备；最终结果以本次发布记录为准）
 
 本文说明如何把仓库中的 `apps/web/` 部署到当前 Next.js 测试服务器，以及如何验收、更新和回滚。操作以
 [`scripts/deploy-next-web.sh`](../scripts/deploy-next-web.sh)、
@@ -443,3 +443,14 @@ nginx -t
 - [ ] 外部 DNS/TLS/CDN 与真实浏览器流程已单独验收。
 - [ ] 游客、会员、权限播放、游戏和移动端结果已记录。
 - [ ] 若存在失败或警告，已明确当前 `current`、`previous` 和是否需要回滚。
+
+## 本次服务器适配（2026-11-04）
+
+- 生产与候选进程均使用 `MACCMS_INTERNAL_ORIGIN=http://127.0.0.1:3102`。该现有回环 PHP 服务要求 `X-Cinema-Client-IP`；Next 只从由入口 Nginx 覆盖的 `X-Real-IP` 设置它，保持地区策略不变。
+- `npm run deploy:web -- --build-only` 完成完整门禁和 Linux 归档校验，输出缓存中的候选归档，不上传或切换服务器；真实后端验收后再运行普通发布。
+- 主题 CSS、图片、脚本及游戏静态文件随 Next 版本进入 `public/react-theme/`。只有 www.ping2.my 的主题 URL 映射到该目录，不覆盖共享 MacCMS 主题。
+- 新的专用 www 虚拟主机只信任 Cloudflare 官方代理网段；PHP 请求使用明确的请求头白名单，避免继承服务器上其他站点的任意来源 IP 信任配置。PHP 会话 Cookie 统一携带 Secure、HttpOnly 和 SameSite=Lax；`/img.php` 继续由 MacCMS 的图片代理处理。
+- 发布探针从候选首页的真实播放链接选择影片，不依赖可能被删除的固定影片 ID。
+- 若现有 www 别名与 ping2.my 共用原站点，允许从停用目录或现有 Next 根目录接管。切换时保存最新配置，把 www 移入专用站点，保留 apex 原有配置；切换前再次比对配置快照，若期间发生修改则拒绝覆盖。自动失败恢复原站点、服务及 current 指针。
+- 现有旧前台为平铺 Next 项目。首次切换会复制为独立 legacy 回滚版本，实体化依赖链接并保留旧启动 unit；先在回环候选端口启动该快照、检查其精确版本健康响应，再允许切换。不修改正在运行的旧版本。回滚继续使用 www 专用入口，原停用页配置另行保存在 config-backups 中。
+- 新旧发布格式的回滚均检查精确 release ID、路径与所有权；后台、数据库及游戏服务不随 Next 回滚。

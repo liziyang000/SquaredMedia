@@ -1,16 +1,36 @@
 @import "../../../../template/pingfangvideo/css/base.css";
-@import "../../../../template/pingfangvideo/css/themes-foundation.css";
 @import "../../../../template/pingfangvideo/css/style.css";
-@import "../../../../template/pingfangvideo/css/themes.css";
-@import "../../../../template/pingfangvideo/css/games.css";
 @import "../../../../template/pingfangvideo/css/responsive.css";
-@import "../../../../template/pingfangvideo/css/ink-wash.css";
+
+.theme-option-swatch-dunhuang {
+  border-color: rgba(232, 217, 183, 0.5);
+  background: conic-gradient(from 45deg, #2f6174 0 25%, #c89b4a 25% 50%, #a33f2c 50% 75%, #4a644d 75% 100%);
+}
+
+.theme-option-swatch-digital {
+  border-color: rgba(125, 211, 252, 0.72);
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(186, 230, 253, 0.92) 0 0) 3px 3px / 4px 4px no-repeat,
+    linear-gradient(rgba(56, 189, 248, 0.9) 0 0) 11px 4px / 3px 3px no-repeat,
+    linear-gradient(rgba(37, 99, 235, 0.96) 0 0) 5px 11px / 6px 4px no-repeat,
+    #06142f;
+  box-shadow:
+    inset 0 0 8px rgba(56, 189, 248, 0.46),
+    0 0 8px rgba(37, 99, 235, 0.34);
+}
+
+.theme-option-swatch-pixel {
+  border-color: rgba(255, 240, 198, 0.72);
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, transparent 0 22%, #302b1d 22% 34%, transparent 34% 66%, #302b1d 66% 78%, transparent 78%),
+    linear-gradient(180deg, #b9e84a 0 54%, #fff0c6 54% 76%, #ef4f48 76%);
+  image-rendering: pixelated;
+}
 
 .react-app .rank-item em,
-.react-app .home-shelf-body strong,
 .react-app .home-shelf-body small,
-.react-app .rank-body strong,
-.react-app .hero-rank .rank-item:first-of-type strong,
 .react-app .home-continue-body strong,
 .react-app .vod-card .card-meta span {
   min-width: 0;
@@ -21,7 +41,7 @@
 
 .react-app .vod-card strong {
   display: -webkit-box;
-  height: 2.7em;
+  height: 2.9em;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -62,9 +82,12 @@ body {
 }
 
 .react-app [data-artwork] {
-  background-image: var(--react-lazyload-image);
   background-position: center;
   background-size: cover;
+}
+
+.react-app [data-artwork].is-image-missing {
+  background-image: var(--react-lazyload-image);
 }
 
 .react-home {

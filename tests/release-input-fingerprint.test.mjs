@@ -75,6 +75,11 @@ try {
   assert.equal(untrackedChanged, createReleaseFingerprint(root, "repository"), "ignored content must not change the repository fingerprint");
 
   const nextInitial = createReleaseFingerprint(root, "next");
+  const themeOverride = path.join(root, "template", "pingfangvideo", "css", "themes.css");
+  writeFileSync(themeOverride, "html[data-theme] { color: gold; }\n");
+  assert.notEqual(nextInitial, createReleaseFingerprint(root, "next"), "lazy theme stylesheet changes must invalidate the embedded asset version");
+  unlinkSync(themeOverride);
+  assert.equal(nextInitial, createReleaseFingerprint(root, "next"));
   writeFileSync(path.join(root, "apps", "web", "output", "generated.js"), "generated-v2\n");
   assert.equal(nextInitial, createReleaseFingerprint(root, "next"), "generated path segments must remain excluded from Next fingerprints");
   writeFileSync(path.join(root, "apps", "web", "next-env.d.ts"), 'import "./.next/dev/types/routes.d.ts";\n');
@@ -85,6 +90,15 @@ try {
   assert.equal(nextInitial, createReleaseFingerprint(root, "next"), "restoring the prerender gate must restore the Next fingerprint");
   writeFileSync(path.join(root, "template", "pingfangvideo", "css", "style.css"), "body { color: blue; }\n");
   assert.notEqual(nextInitial, createReleaseFingerprint(root, "next"), "imported theme CSS content must change the Next fingerprint");
+
+  const beforeAssets = createReleaseFingerprint(root, "next");
+  mkdirSync(path.join(root, "template/pingfangvideo/images"), { recursive: true });
+  writeFileSync(path.join(root, "template/pingfangvideo/images/test.svg"), "<svg/>\n");
+  assert.notEqual(beforeAssets, createReleaseFingerprint(root, "next"), "versioned theme assets must invalidate the Next artifact");
+  const beforeRouting = createReleaseFingerprint(root, "next");
+  mkdirSync(path.join(root, "ops/nginx"), { recursive: true });
+  writeFileSync(path.join(root, "ops/nginx/www.ping2.my.server.conf"), "server {}\n");
+  assert.notEqual(beforeRouting, createReleaseFingerprint(root, "next"), "public routing must remain frozen during deployment");
 
   symlinkSync(path.join(root, "untracked.txt"), path.join(root, "addons", "pingfangapi", "ignored-link"));
   assert.doesNotThrow(() => createReleaseFingerprint(root, "next"), "release-only entries must not affect Next fingerprints");

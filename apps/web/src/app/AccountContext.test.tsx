@@ -74,6 +74,7 @@ describe("AccountProvider session consistency", () => {
     );
 
     await waitFor(() => expect(invalidateAccountData).toBeTypeOf("function"));
+    await waitFor(() => expect(queryClient.getQueryData(["account", "session"])).toMatchObject({ authenticated: false }));
     await act(async () => invalidateAccountData!());
 
     scopedQueries.forEach((queryKey) => expect(queryClient.getQueryData(queryKey)).toBeUndefined());

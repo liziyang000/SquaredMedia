@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "next dev -H 127.0.0.1 -p 5173",
-    "build": "next build",
+    "build": "next build --webpack",
     "analyze": "npm run build && next experimental-analyze --output",
     "start": "next start -H 127.0.0.1 -p 5173",
     "lint": "oxlint",
@@ -22,11 +22,11 @@
     "@tanstack/react-query": "^5.101.3",
     "artplayer": "5.4.0",
     "hls.js": "1.6.16",
-    "next": "16.2.10",
+    "next": "16.4.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.82.0",
-    "zod": "^4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

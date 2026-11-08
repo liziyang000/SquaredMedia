@@ -56,4 +56,4 @@ if [[ "$backend_ready" != true ]]; then
 fi
 
 echo "Starting the Lighthouse production frontend at http://127.0.0.1:5173/"
-npm run start --workspace @squaredmedia/web
+MACCMS_INTERNAL_ORIGIN=http://127.0.0.1:8084 npm run start --workspace @squaredmedia/web

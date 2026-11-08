@@ -72,6 +72,26 @@ async function expectNoOverflow(page: Page) {
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
 }
 
+test("home, catalog, and detail content is visible before JavaScript", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL: "http://127.0.0.1:5173", locale: "zh-CN" });
+  try {
+    const page = await context.newPage();
+    await blockExternalResources(page);
+    for (const [path, selector] of [
+      ["/", ".hero-carousel .is-active .banner-copy strong"],
+      ["/videos", "#mainContent h1"],
+      ["/vod/1", ".detail-main h1"]
+    ]) {
+      const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+      expect(response?.status()).toBe(200);
+      await expect(page.locator(selector)).toBeVisible();
+      await expect(page.locator(selector)).toHaveText(path === "/videos" ? "影片库" : "云端回声");
+    }
+  } finally {
+    await context.close();
+  }
+});
+
 test("old public URLs redirect once and retired outputs return HTTP 410", async ({ request }) => {
   for (const path of ["/index.php/vod/play/id/1/sid/2/nid/3.html", "/vodplay/1-2-3.html"]) {
     for (const method of ["GET", "HEAD"] as const) {
@@ -194,11 +214,14 @@ test("detail poster matches the desktop panel height without manual rating contr
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/vod/1");
     await expect(page.getByRole("heading", { name: "云端回声", exact: true })).toBeVisible();
+    await page.getByRole("region", { name: "播放选集" }).scrollIntoViewIfNeeded();
     await expect(page.getByText(/检测完成：1\/1 条已检测线路可用；推荐 测试线路/)).toBeVisible();
     await expect(page.locator(".source-quality-result")).toContainText("推荐 · 可用");
     await expect(page.locator(".score-summary")).toContainText("评分8.8");
     await expect(page.locator(".detail-poster")).toHaveClass(/is-image-missing/);
-    expect(await page.locator(".detail-poster").evaluate((element) => getComputedStyle(element).backgroundImage)).toContain("lazyload.png");
+    expect(await page.locator(".detail-poster").evaluate((element) => getComputedStyle(element).backgroundImage)).toMatch(
+      /\/_next\/static\/media\/lazyload\.[^"/]+\.webp/
+    );
     await expect(page.getByText("我的评分", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "评分", exact: true })).toHaveCount(0);
 
@@ -329,6 +352,7 @@ test("account writes cover selection, deletion, comments, devices and logout", a
 
   await page.goto("/account");
   await page.getByRole("button", { name: "退出登录" }).click();
+  await expect(page).toHaveURL(/\/login$/);
   await page.goto("/account");
   await expect(page).toHaveURL(/\/login\?from=%2Faccount$/);
   expect(browserErrors).toEqual([]);

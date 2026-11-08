@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { ApiError } from "../api/http";
-import { contentApi } from "../api/content";
+import { contentApi } from "../api/deferred";
 import type { ContentApi, ContentData, ContentDetailData, ContentQuery } from "../api/content";
 import { PageStatus } from "./PagePrimitives";
 

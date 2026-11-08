@@ -18,7 +18,7 @@ ROLLBACK_RELEASE="${NEXT_ROLLBACK_RELEASE:-}"
 ROLLBACK_FAILED_EXIT_STATUS=95
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 
-if [[ -n "$ROLLBACK_RELEASE" && ! "$ROLLBACK_RELEASE" =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ]]; then
+if [[ -n "$ROLLBACK_RELEASE" && ! "$ROLLBACK_RELEASE" =~ ^[0-9]{8}T[0-9]{6}Z-[A-Za-z0-9_-]{1,64}$ ]]; then
   echo "NEXT_ROLLBACK_RELEASE must be a single release id." >&2
   exit 1
 fi
@@ -111,6 +111,21 @@ healthz_matches_release() {
   '
 }
 
+read_legacy_release_metadata() {
+  local target="$1"
+  local release
+  if [[ ! -f "$target/release.env" || -L "$target/release.env" ]]; then
+    echo "Legacy release metadata is missing or unsafe." >&2
+    return 1
+  fi
+  release="$(sed -n 's/^CINEMA_RELEASE_ID=//p' "$target/release.env")"
+  if [[ "$release" != "${target##*/}" || ! "$release" =~ ^[0-9]{8}T[0-9]{6}Z-[A-Za-z0-9_-]{1,64}$ ]]; then
+    echo "Legacy release metadata does not match its directory." >&2
+    return 1
+  fi
+  printf '%s\n' "$release"
+}
+
 validate_rollback_api_response() {
   local kind="$1"
   local response_file="$2"
@@ -201,10 +216,12 @@ fi
 target_release=""
 if [[ -f "$target/apps/web/server.js" ]]; then
   target_release="$(read_next_release_metadata "$target")"
+elif [[ -f "$target/node_modules/next/dist/bin/next" && -f "$target/.next/BUILD_ID" ]]; then
+  target_release="$(read_legacy_release_metadata "$target")"
 fi
 
 unsafe_path="$(find "$target" \
-  -path "$target/apps/web/.next/cache" -prune -o \
+  \( -path "$target/apps/web/.next/cache" -o -path "$target/.next/cache" \) -prune -o \
   \( -type l -o ! -user root -o ! -group root -o -perm /022 \) -print -quit)"
 if [[ -n "$unsafe_path" ]]; then
   echo "Rollback target contains an untrusted writable path: $unsafe_path" >&2

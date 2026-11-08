@@ -37,8 +37,9 @@ function isNextBuildInput(relativePath) {
     relativePath === "scripts/release-input-fingerprint.mjs" ||
     relativePath === "scripts/next-artifact-cache.mjs" ||
     relativePath === "scripts/verify-next-prerender.mjs" ||
-    relativePath === "template/pingfangvideo/css/style.css" ||
-    relativePath === "template/pingfangvideo/js/multiplayer-games.js" ||
+    /^template\/pingfangvideo\/(?:css|images|js|games)\//.test(relativePath) ||
+    relativePath.startsWith("ops/nginx/www.ping2.my") ||
+    relativePath === "ops/systemd/squaredmedia-next.service" ||
     relativePath.startsWith("apps/web/")
   );
 }

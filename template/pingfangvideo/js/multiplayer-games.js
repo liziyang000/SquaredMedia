@@ -195,9 +195,10 @@
   }
 
   function socketUrl(path) {
-    var url = new URL(path, window.location.origin);
-    if (url.origin !== window.location.origin) throw new Error("联机地址不是当前站点");
-    url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    var origin = root.dataset.gameParentBridge === "true" ? window.parent.location.origin : window.location.origin;
+    var url = new URL(path, origin);
+    if (url.origin !== origin) throw new Error("联机地址不是当前站点");
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     return url.href;
   }
 

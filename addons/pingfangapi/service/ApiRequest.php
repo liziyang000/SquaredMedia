@@ -236,9 +236,13 @@ class ApiRequest
             return self::success($this->content->home(), '首页加载成功');
         }
         if ($action === 'home_v2') {
-            $this->assertQueryKeys($query, ['action', 'compact']);
+            $this->assertQueryKeys($query, ['action', 'compact', 'view']);
             $compact = array_key_exists('compact', $query) ? $this->queryFlag($query['compact'], 'compact') : false;
-            return self::success($this->content->homeV2($compact), '首页加载成功');
+            $view = $this->queryString($query, 'view', false, 16);
+            if ($view !== '' && ($view !== 'cinema' || !$compact)) {
+                throw new ApiException(422, 'view=cinema 必须与 compact=1 一起使用');
+            }
+            return self::success($this->content->homeV2($compact, $view === 'cinema'), '首页加载成功');
         }
         if ($action === 'navigation') {
             $this->assertQueryKeys($query, ['action']);
@@ -319,7 +323,7 @@ class ApiRequest
         if ($action === 'favorites') {
             $this->assertQueryKeys($query, ['action', 'page', 'page_size']);
         } elseif ($action === 'history') {
-            $this->assertQueryKeys($query, ['action', 'limit', 'page', 'page_size']);
+            $this->assertQueryKeys($query, ['action', 'limit', 'page', 'page_size', 'vod_id']);
         } else {
             $this->assertQueryKeys($query, ['action']);
         }
@@ -339,6 +343,13 @@ class ApiRequest
             return self::success(['items' => $this->account->favorites($userId)], '收藏加载成功');
         }
         if ($action === 'history') {
+            if (array_key_exists('vod_id', $query)) {
+                if (array_key_exists('page', $query) || array_key_exists('page_size', $query) || array_key_exists('limit', $query)) {
+                    throw new ApiException(422, 'vod_id 不能与播放记录分页参数同时使用');
+                }
+                $vodId = $this->identifier($query['vod_id'], 'vod_id');
+                return self::success(['items' => $this->account->history($userId, 1, $vodId)], '影片续看记录加载成功');
+            }
             $hasPage = array_key_exists('page', $query);
             $hasPageSize = array_key_exists('page_size', $query);
             if (array_key_exists('limit', $query) && ($hasPage || $hasPageSize)) {
@@ -430,6 +441,7 @@ class ApiRequest
             'page',
             'page_size',
             'keyword',
+            'search_mode',
             'scope',
             'compact',
             'include_category_totals',
@@ -454,6 +466,13 @@ class ApiRequest
         }
         if (array_key_exists('keyword', $query)) {
             $out['keyword'] = $this->queryText($query['keyword'], 'keyword', 100, true);
+        }
+        if (array_key_exists('search_mode', $query)) {
+            $mode = $this->queryText($query['search_mode'], 'search_mode', 10, false);
+            if (!in_array($mode, ['prefix', 'contains'], true) || !array_key_exists('keyword', $query)) {
+                throw new ApiException(422, 'search_mode 需要关键词且只支持 prefix 或 contains');
+            }
+            $out['searchMode'] = $mode;
         }
         if (array_key_exists('scope', $query)) {
             $scope = $this->queryText($query['scope'], 'scope', 20, false);

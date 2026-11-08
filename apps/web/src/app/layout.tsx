@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import type { PropsWithChildren } from "react";
+import { headers } from "next/headers";
 
 import { AppProviders } from "./AppProviders";
 import { AppShell } from "./AppShell";
+import { loadPageBootstrap } from "../server/sessionBootstrap";
+import { themeBootstrapScript } from "../themeBootstrap";
 import "../styles/index.css";
 
 export const metadata: Metadata = {
@@ -11,16 +14,15 @@ export const metadata: Metadata = {
   icons: { icon: "/template/pingfangvideo/images/brand/favicon.ico" }
 };
 
-const themeBootstrapScript = `(function(){try{var theme=window.localStorage.getItem("pingfang_theme");if(theme==="blue-pink-purple"||theme==="poster-magazine"||theme==="dunhuang-caisson"||theme==="digital-particles"||theme==="pixel-frog"||theme==="ink-wash"){document.documentElement.setAttribute("data-theme",theme);}else{document.documentElement.removeAttribute("data-theme");}}catch(error){}})();`;
-
-export default function RootLayout({ children }: PropsWithChildren) {
+export default async function RootLayout({ children }: PropsWithChildren) {
+  const bootstrap = await loadPageBootstrap(new Headers(await headers()));
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
-        <AppProviders>
+        <AppProviders bootstrap={bootstrap}>
           <AppShell>{children}</AppShell>
         </AppProviders>
       </body>

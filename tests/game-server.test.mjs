@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import WebSocket from "ws";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 
 import { GameService } from "../services/game-server/src/game-service.mjs";
 import { createGameServer } from "../services/game-server/src/server.mjs";
@@ -7,6 +9,21 @@ import { issueTicket, verifyTicket } from "../services/game-server/src/ticket.mj
 
 const secret = "test-secret-that-is-long-enough-for-hmac";
 const fixedNow = 1_700_000_000_000;
+
+const gameRuntime = readFileSync(new URL("../template/pingfangvideo/js/multiplayer-games.js", import.meta.url), "utf8");
+const socketUrlSource = gameRuntime.match(/  function socketUrl\(path\) \{[\s\S]*?\n  \}/)[0];
+function resolveSocketUrl(origin, bridge = false, path = "/game-socket") {
+  return runInNewContext(`${socketUrlSource}; socketUrl(path)`, {
+    URL,
+    path,
+    root: { dataset: { gameParentBridge: String(bridge) } },
+    window: { location: { origin: bridge ? "null" : origin }, parent: { location: { origin } } }
+  });
+}
+assert.equal(resolveSocketUrl("https://www.ping2.my", true), "wss://www.ping2.my/game-socket");
+assert.equal(resolveSocketUrl("https://www.ping2.my"), "wss://www.ping2.my/game-socket");
+assert.equal(resolveSocketUrl("http://localhost:8080"), "ws://localhost:8080/game-socket");
+assert.throws(() => resolveSocketUrl("https://www.ping2.my", true, "https://external.example/game-socket"), /联机地址不是当前站点/);
 
 function nextSocketEvent(socket, predicate, timeoutMs = 2000) {
   return new Promise((resolve, reject) => {

@@ -294,6 +294,8 @@ $assertSame(true, $items[1]['completed'], 'History at the native 95% threshold m
 $assertSame(42, $items[2]['positionSeconds'], 'Legacy history must retain a known position when duration is unavailable.');
 $assertSame(null, $items[2]['durationSeconds'], 'Legacy zero durations must be exposed as unknown rather than a zero-length video.');
 $assertSame(false, $items[2]['completed'], 'History with an unknown duration must not be marked complete.');
+$targeted = (new AccountService(['user_id' => 42, 'user_name' => 'alice']))->history(42, 1, 9);
+$assertSame(['9'], array_column($targeted, 'vodId'), 'Targeted resume must find the requested film behind newer records.');
 
 $GLOBALS['pingfangApiAccountHistoryRows'] = [
     'ulog' => [

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 import { ApiError, requestJson } from "./http";
 import { identifierSchema, requireApiEndpoint, withApiParams } from "./schemas";

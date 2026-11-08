@@ -317,17 +317,17 @@ class AccountService
         return ['removed' => intval($removed)];
     }
 
-    public function history($userId, $limit = self::PRIVATE_LIST_LIMIT)
+    public function history($userId, $limit = self::PRIVATE_LIST_LIMIT, $onlyVodId = 0)
     {
         $limit = max(1, min(self::PRIVATE_LIST_LIMIT, intval($limit)));
         $queryLimit = min(self::PRIVATE_LIST_LIMIT, max(20, $limit * 5));
+        $where = ['user_id' => intval($userId), 'ulog_mid' => 1, 'ulog_type' => 4];
+        if (intval($onlyVodId) > 0) {
+            $where['ulog_rid'] = intval($onlyVodId);
+        }
         $rows = Db::name('Ulog')
             ->field('ulog_id,ulog_rid,ulog_sid,ulog_nid,ulog_point,ulog_duration,ulog_time')
-            ->where([
-                'user_id' => intval($userId),
-                'ulog_mid' => 1,
-                'ulog_type' => 4,
-            ])
+            ->where($where)
             ->where('ulog_sid', 'gt', 0)
             ->where('ulog_nid', 'gt', 0)
             ->order('ulog_time desc,ulog_id desc')

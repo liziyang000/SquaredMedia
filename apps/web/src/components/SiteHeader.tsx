@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "../app/routing";
 
 import type { HomeCategory } from "../api";
+import type {} from "../themeBootstrap";
 
 const themes = [
   { id: "default", label: "液态影院", swatch: "theme-option-swatch-default" },
@@ -134,9 +135,14 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
   const themeMenuId = useId();
   const drawerRef = useRef<HTMLElement>(null);
   const drawerToggleRef = useRef<HTMLButtonElement>(null);
+  const searchToggleRef = useRef<HTMLButtonElement>(null);
+  const drawerReturnRef = useRef<HTMLButtonElement | null>(null);
+  const focusSearchRef = useRef(false);
+  const drawerWasOpenRef = useRef(false);
   const drawerCloseRef = useRef<HTMLButtonElement>(null);
   const themeSwitcherRef = useRef<HTMLDivElement>(null);
   const themeTriggerRef = useRef<HTMLButtonElement>(null);
+  const themeMenuRef = useRef<HTMLDivElement>(null);
   const themeTransitionTimerRef = useRef<number | null>(null);
   const pixelParticleFrameRef = useRef<number | null>(null);
   const pixelParticleRevisionRef = useRef(0);
@@ -149,8 +155,14 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
   const gamesAreCurrent = location.pathname === "/games" || location.pathname.startsWith("/games/");
 
   useEffect(() => {
-    setTheme(readStoredTheme());
-    setThemeHydrated(true);
+    const stored = readStoredTheme();
+    void window.pingfangLoadThemeStyles(stored).then(
+      () => {
+        setTheme(stored);
+        setThemeHydrated(true);
+      },
+      () => setThemeHydrated(true)
+    );
   }, []);
 
   useEffect(() => {
@@ -175,15 +187,46 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
 
   useEffect(() => {
     document.body.classList.toggle("mobile-nav-open", drawerOpen);
-    if (drawerOpen) drawerCloseRef.current?.focus();
-
-    return () => document.body.classList.remove("mobile-nav-open");
+    if (!drawerOpen && drawerWasOpenRef.current) drawerReturnRef.current?.focus();
+    drawerWasOpenRef.current = drawerOpen;
+    const context = drawerOpen
+      ? (Array.from(drawerRef.current!.parentElement!.children).filter(
+          (element) => element !== drawerRef.current && !element.classList.contains("mobile-drawer-backdrop")
+        ) as HTMLElement[])
+      : [];
+    const prior = context.map((element) => element.inert);
+    context.forEach((element) => {
+      element.inert = true;
+    });
+    if (drawerOpen) {
+      if (focusSearchRef.current) document.getElementById("reactMobileSearch")?.focus();
+      else drawerCloseRef.current?.focus();
+    }
+    return () => {
+      document.body.classList.remove("mobile-nav-open");
+      context.forEach((element, index) => {
+        element.inert = prior[index];
+      });
+    };
   }, [drawerOpen]);
 
   useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 1181px)");
+    const sync = () => {
+      if (desktop.matches) setDrawerOpen(false);
+    };
+    desktop.addEventListener("change", sync);
+    return () => desktop.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (themeMenuOpen) themeMenuRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+  }, [themeMenuOpen]);
+
+  useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Tab" && drawerOpen) {
-        const focusable = drawerRef.current?.querySelectorAll<HTMLElement>(
+      if (event.key === "Tab" && (drawerOpen || themeMenuOpen)) {
+        const focusable = (drawerOpen ? drawerRef : themeMenuRef).current?.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
         const first = focusable?.[0];
@@ -203,10 +246,10 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
       if (themeMenuOpen) {
         setThemeMenuOpen(false);
         themeTriggerRef.current?.focus();
+        return;
       }
       if (drawerOpen) {
         setDrawerOpen(false);
-        drawerToggleRef.current?.focus();
       }
     };
 
@@ -227,7 +270,6 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
 
   const closeDrawer = () => {
     setDrawerOpen(false);
-    drawerToggleRef.current?.focus();
   };
   const clearThemeTransition = () => {
     if (themeTransitionTimerRef.current !== null) {
@@ -306,14 +348,21 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
       });
     });
   };
-  const chooseTheme = (nextTheme: ThemeId) => {
+  const chooseTheme = async (nextTheme: ThemeId) => {
     const particleRevision = ++pixelParticleRevisionRef.current;
+    try {
+      await window.pingfangLoadThemeStyles(nextTheme);
+    } catch {
+      return;
+    }
+    if (particleRevision !== pixelParticleRevisionRef.current) return;
     scheduleThemeTransition();
     resetPixelThemeParticles();
     applyThemeToDocument(nextTheme);
     persistTheme(nextTheme);
     setTheme(nextTheme);
     setThemeMenuOpen(false);
+    if (!drawerOpen) themeTriggerRef.current?.focus();
     if (nextTheme === "pixel-frog" && !prefersReducedMotion() && document.visibilityState !== "hidden") {
       const launch = () => {
         pixelParticleFrameRef.current = null;
@@ -354,13 +403,35 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
             </span>
           </Link>
           <button
+            className="mobile-search-toggle"
+            ref={searchToggleRef}
+            type="button"
+            aria-label="打开站内搜索"
+            aria-expanded={drawerOpen}
+            aria-controls="reactMobileDrawer"
+            onClick={() => {
+              drawerReturnRef.current = searchToggleRef.current;
+              focusSearchRef.current = true;
+              setDrawerOpen(true);
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4.5 4.5" />
+            </svg>
+          </button>
+          <button
             className="nav-toggle"
             ref={drawerToggleRef}
             type="button"
             aria-label="展开导航"
             aria-expanded={drawerOpen}
             aria-controls="reactMobileDrawer"
-            onClick={() => setDrawerOpen(true)}
+            onClick={() => {
+              drawerReturnRef.current = drawerToggleRef.current;
+              focusSearchRef.current = false;
+              setDrawerOpen(true);
+            }}
           >
             <span />
             <span />
@@ -397,8 +468,8 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
             >
               主题
             </button>
-            <div className="theme-switcher-menu" id={themeMenuId} hidden={!themeMenuOpen}>
-              <ThemeOptions theme={theme} onChange={chooseTheme} />
+            <div className="theme-switcher-menu" ref={themeMenuRef} id={themeMenuId} hidden={!themeMenuOpen}>
+              {themeMenuOpen && <ThemeOptions theme={theme} onChange={chooseTheme} />}
             </div>
           </div>
           <div className="user-menu">
@@ -431,54 +502,58 @@ export function SiteHeader({ siteName, categories, userName }: { siteName: strin
         inert={!drawerOpen}
         hidden={!drawerOpen}
       >
-        <div className="mobile-drawer-head">
-          <strong id="reactMobileDrawerTitle">分类导航</strong>
-          <button className="mobile-drawer-close" ref={drawerCloseRef} type="button" aria-label="关闭菜单" onClick={closeDrawer}>
-            ×
-          </button>
-        </div>
-        <form className="mobile-drawer-search" action="/search" method="get" role="search">
-          <label className="sr-only" htmlFor="reactMobileSearch">
-            站内搜索
-          </label>
-          <input id="reactMobileSearch" type="search" name="wd" placeholder="搜索影片、演员或导演…" autoComplete="off" required />
-          <button type="submit">搜索</button>
-        </form>
-        <nav className="mobile-drawer-links" aria-label="移动端快捷导航">
-          <Link to="/" aria-current={homeIsCurrent ? "page" : undefined} onClick={closeDrawer}>
-            首页
-          </Link>
-          <Link to="/categories" aria-current={videosAreCurrent ? "page" : undefined} onClick={closeDrawer}>
-            视频
-          </Link>
-          <Link to="/games" aria-current={gamesAreCurrent ? "page" : undefined} onClick={closeDrawer}>
-            游戏
-          </Link>
-        </nav>
-        <div className="mobile-drawer-section mobile-drawer-account">
-          <span>账号</span>
-          <div className="mobile-drawer-user">
-            <Link className="mobile-drawer-login" to={userName ? "/account" : "/login"} onClick={closeDrawer}>
-              {userName || "登录"}
-            </Link>
-          </div>
-        </div>
-        <div className="mobile-drawer-section mobile-theme-section">
-          <span>主题</span>
-          <div className="theme-option-grid">
-            <ThemeOptions theme={theme} onChange={chooseTheme} />
-          </div>
-        </div>
-        <div className="mobile-drawer-section">
-          <span>影片分类</span>
-          <div className="mobile-drawer-cats">
-            {categories.map((category) => (
-              <Link key={category.id} to={`/category/${category.id}`} onClick={closeDrawer}>
-                {category.name}
+        {drawerOpen && (
+          <>
+            <div className="mobile-drawer-head">
+              <strong id="reactMobileDrawerTitle">分类导航</strong>
+              <button className="mobile-drawer-close" ref={drawerCloseRef} type="button" aria-label="关闭菜单" onClick={closeDrawer}>
+                ×
+              </button>
+            </div>
+            <form className="mobile-drawer-search" action="/search" method="get" role="search">
+              <label className="sr-only" htmlFor="reactMobileSearch">
+                站内搜索
+              </label>
+              <input id="reactMobileSearch" type="search" name="wd" placeholder="搜索影片、演员或导演…" autoComplete="off" required />
+              <button type="submit">搜索</button>
+            </form>
+            <nav className="mobile-drawer-links" aria-label="移动端快捷导航">
+              <Link to="/" aria-current={homeIsCurrent ? "page" : undefined} onClick={closeDrawer}>
+                首页
               </Link>
-            ))}
-          </div>
-        </div>
+              <Link to="/categories" aria-current={videosAreCurrent ? "page" : undefined} onClick={closeDrawer}>
+                视频
+              </Link>
+              <Link to="/games" aria-current={gamesAreCurrent ? "page" : undefined} onClick={closeDrawer}>
+                游戏
+              </Link>
+            </nav>
+            <div className="mobile-drawer-section mobile-drawer-account">
+              <span>账号</span>
+              <div className="mobile-drawer-user">
+                <Link className="mobile-drawer-login" to={userName ? "/account" : "/login"} onClick={closeDrawer}>
+                  {userName || "登录"}
+                </Link>
+              </div>
+            </div>
+            <div className="mobile-drawer-section mobile-theme-section">
+              <span>主题</span>
+              <div className="theme-option-grid">
+                <ThemeOptions theme={theme} onChange={chooseTheme} />
+              </div>
+            </div>
+            <div className="mobile-drawer-section">
+              <span>影片分类</span>
+              <div className="mobile-drawer-cats">
+                {categories.map((category) => (
+                  <Link key={category.id} to={`/category/${category.id}`} onClick={closeDrawer}>
+                    {category.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </aside>
     </>
   );

@@ -110,7 +110,7 @@ function useRoutingContext() {
 export function Link({ to, ...props }: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & { to: string }) {
   const context = useRoutingContext();
   if (context.test) return <a {...props} href={to} />;
-  return <NextLink {...props} href={to} />;
+  return <NextLink {...props} href={to} prefetch={false} />;
 }
 
 export function useNavigate() {

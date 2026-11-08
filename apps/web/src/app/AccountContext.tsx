@@ -5,7 +5,8 @@ import { createContext, useContext, useMemo } from "react";
 import type { PropsWithChildren } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 
-import { createAccountApi, defaultAccountRequirements } from "../api/account";
+import { createDeferredAccountApi } from "../api/deferred";
+import { defaultAccountRequirements } from "../api/accountRequirements";
 import type { AccountApi, AccountSession } from "../api/account";
 import { ApiError } from "../api/http";
 
@@ -77,7 +78,7 @@ export function AccountProvider({ children }: PropsWithChildren) {
   const queryClient = useQueryClient();
   const baseApi = useMemo(
     () =>
-      createAccountApi({
+      createDeferredAccountApi({
         endpoint: accountEndpoint,
         csrfToken: () => queryClient.getQueryData<AccountSession>(sessionQueryKey)?.csrfToken
       }),
@@ -85,7 +86,14 @@ export function AccountProvider({ children }: PropsWithChildren) {
   );
   const api = useMemo<AccountApi>(
     () => ({
-      ...baseApi,
+      getSession: baseApi.getSession,
+      login: baseApi.login,
+      verifyContentPassword: baseApi.verifyContentPassword,
+      submitFeedback: baseApi.submitFeedback,
+      submitReport: baseApi.submitReport,
+      getComments: baseApi.getComments,
+      submitComment: baseApi.submitComment,
+      setReaction: baseApi.setReaction,
       logout: recoverUnauthorized(baseApi.logout, queryClient),
       getFavorites: recoverUnauthorized(baseApi.getFavorites, queryClient),
       getFavoritesPage: recoverUnauthorized(baseApi.getFavoritesPage, queryClient),

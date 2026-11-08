@@ -198,7 +198,7 @@ final class PingfangApiFakeContent extends ContentService
         ];
     }
 
-    public function homeV2($compact = false)
+    public function homeV2($compact = false, $cinema = false)
     {
         $video = $this->video();
         $card = [
@@ -235,6 +235,9 @@ final class PingfangApiFakeContent extends ContentService
         }
         if ($compact) {
             $home['hero'][0]['episodes'] = [['id' => '1', 'sourceId' => '1']];
+        }
+        if ($cinema) {
+            $home = array_intersect_key($home, array_flip(['siteName', 'categories', 'hero', 'latest']));
         }
         return $home;
     }
@@ -493,6 +496,7 @@ final class PingfangApiFakeAccount extends AccountService
     public array $favoritePageInput = [];
     public array $historyInput = [];
     public array $historyLimits = [];
+    public array $historyVideoInputs = [];
     public array $historyPageInput = [];
     public ?int $resumePosition = null;
     public array $resumeInputs = [];
@@ -581,9 +585,10 @@ final class PingfangApiFakeAccount extends AccountService
         return ['removed' => $all ? 2 : count($recordIds)];
     }
 
-    public function history($userId, $limit = 100)
+    public function history($userId, $limit = 100, $onlyVodId = 0)
     {
         $this->historyLimits[] = (int) $limit;
+        $this->historyVideoInputs[] = [(int) $userId, (int) $onlyVodId];
         return [];
     }
 
@@ -817,6 +822,9 @@ $assertSame([
 ], $content->contentQueries[1], 'Compact content flags must be normalized before reaching the service.');
 
 $compactSearch = $assertEnvelope($request('GET', 'content', [], ['compact' => '1', 'keyword' => '测试']), 200, 'Compact search');
+$assertEnvelope($request('GET', 'content', [], ['keyword' => '日记', 'search_mode' => 'contains']), 200, 'Contains search');
+$assertEnvelope($request('GET', 'content', [], ['keyword' => '日记', 'search_mode' => 'invalid']), 422, 'Unknown search mode');
+$assertEnvelope($request('GET', 'content', [], ['search_mode' => 'contains']), 422, 'Search mode without a keyword');
 $assertSame(
     ['id', 'title', 'remark', 'year', 'class', 'score', 'poster', 'typeName', 'actor', 'summary'],
     array_keys($compactSearch['videos'][0]),
@@ -824,6 +832,10 @@ $assertSame(
 );
 $assertEnvelope($request('GET', 'content', [], ['include_facets' => '1']), 422, 'Compact-only content option without compact mode');
 $assertEnvelope($request('GET', 'home_v2', [], ['compact' => 'yes']), 422, 'Invalid compact flag');
+$cinemaHome = $assertEnvelope($request('GET', 'home_v2', [], ['compact' => '1', 'view' => 'cinema']), 200, 'Cinema home');
+$assertSame(['siteName', 'categories', 'hero', 'latest'], array_keys($cinemaHome), 'Cinema home must only return the displayed shelves.');
+$assertEnvelope($request('GET', 'home_v2', [], ['view' => 'cinema']), 422, 'Cinema home requires compact mode');
+$assertEnvelope($request('GET', 'home_v2', [], ['compact' => '1', 'view' => 'unknown']), 422, 'Unknown home view');
 
 $detailResponse = $request('GET', 'detail', [], ['vod_id' => '7']);
 $detail = $assertEnvelope($detailResponse, 200, 'Detail');
@@ -1025,6 +1037,10 @@ $assertSame(['items'], array_keys($legacyHistory), 'Legacy history must keep the
 $assertEnvelope($request('GET', 'history', [], ['limit' => '4']), 200, 'Bounded history');
 $assertSame([100, 4], $account->historyLimits, 'History must preserve its default and pass validated legacy response limits.');
 $assertEnvelope($request('GET', 'history', [], ['limit' => '101']), 422, 'Oversized history limit');
+$assertEnvelope($request('GET', 'history', [], ['vod_id' => '7']), 200, 'Targeted resume history');
+$assertSame([42, 7], end($account->historyVideoInputs), 'Targeted resume uses the current account and selected video.');
+$assertEnvelope($request('GET', 'history', [], ['vod_id' => '7', 'limit' => '1']), 422, 'Conflicting targeted history');
+$assertEnvelope($request('GET', 'history', [], ['vod_id' => '-1']), 422, 'Invalid targeted history ID');
 $historyPage = $assertEnvelope($request('GET', 'history', [], ['page' => '3', 'page_size' => '3']), 200, 'Paginated history');
 $assertSame(['items', 'page', 'pageSize', 'total', 'totalPages'], array_keys($historyPage), 'Paginated history must return the private-list page envelope.');
 $assertSame([[42, 3, 3]], $account->historyPageInput, 'Paginated history must use validated bounds and the current user.');
@@ -1446,6 +1462,18 @@ foreach ($nativeVodModel->calls as $index => $call) {
     }
 }
 $assertSame(4, count($pageUrls), 'Each native home shelf must have a distinct cache namespace.');
+$nativeVodModel->calls = [];
+$nativeCinema = (new ContentService(static function () {
+    return ['code' => 1, 'msg' => 'ok'];
+}))->homeV2(true, true);
+$assertSame(['siteName', 'categories', 'hero', 'latest'], array_keys($nativeCinema), 'Cinema projection must omit unused home sections.');
+$assertSame(2, count($nativeVodModel->calls), 'Cinema home must query only hero and latest shelves.');
+foreach ($nativeVodModel->calls as $call) {
+    $assert(!isset($pageUrls[$call['params']['pageurl']]), 'Cinema queries must not reuse the default shelf cache.');
+}
+$assertSame([1, 4], array_map(static function ($call) {
+    return intval($call['params']['num']);
+}, $nativeVodModel->calls), 'Cinema home must query one hero and four recent films.');
 unset($GLOBALS['pingfangApiModels']);
 
 $accessConfig = $GLOBALS['config'] ?? [];

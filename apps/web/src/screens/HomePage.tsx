@@ -5,10 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Link } from "../app/routing";
 
-import { homeApi } from "../api";
+import { homeApi } from "../api/deferred";
 import type { AccountHistoryEntry, HomeApi, HomeCardVideo, HomeCategory, HomeData, HomeHeroVideo } from "../api";
 import { useAccount } from "../app/AccountContext";
-import { Artwork } from "../components/PagePrimitives";
+import { Artwork, artworkSource, ScoreBadge } from "../components/PagePrimitives";
+import { DunhuangCaisson } from "../components/DunhuangCaisson";
 import { readLocalHistory } from "../localHistory";
 import type { LocalHistoryEntry } from "../localHistory";
 
@@ -91,18 +92,32 @@ function HeroCarousel({ todayUpdated, videos }: { todayUpdated: number; videos: 
         {videos.map((video, index) => {
           const firstEpisode = video.episodes[0];
           const bannerStyle: BannerStyle = {
-            "--banner-bg": `url("${video.backdrop}"), radial-gradient(circle at 74% 24%, rgba(139, 124, 255, 0.42), transparent 30%), linear-gradient(135deg, #161a32, #07131c)`
+            "--banner-bg": `${index === activeIndex && index !== 0 ? `url(${JSON.stringify(artworkSource(video.backdrop))}), ` : ""}radial-gradient(circle at 74% 24%, rgba(139, 124, 255, 0.42), transparent 30%), linear-gradient(135deg, #161a32, #07131c)`
           };
 
           return (
             <article
-              className={`hero-slide${index === activeIndex ? " is-active" : ""}`}
+              className={`hero-slide${index === activeIndex ? " is-active" : ""}${index === 0 ? " has-priority-image" : ""}`}
               key={video.id}
               style={bannerStyle}
               aria-hidden={index !== activeIndex}
               inert={index !== activeIndex}
             >
-              <span className="banner-bg" />
+              <span className="banner-bg">
+                {index === 0 && (
+                  <img
+                    className="banner-priority-image"
+                    src={artworkSource(video.backdrop)}
+                    alt=""
+                    aria-hidden="true"
+                    width={1920}
+                    height={1080}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                  />
+                )}
+              </span>
               <span className="banner-content">
                 <span className="banner-copy">
                   <em className="eyebrow">热播推荐 · 今日更新 {todayUpdated} 部</em>
@@ -128,6 +143,7 @@ function HeroCarousel({ todayUpdated, videos }: { todayUpdated: number; videos: 
           );
         })}
       </div>
+      <DunhuangCaisson />
       <div className="banner-controls">
         <button
           className={`banner-autoplay-toggle${paused ? " is-paused" : ""}`}
@@ -180,7 +196,7 @@ function RankList({ videos }: { videos: HomeCardVideo[] }) {
                 {video.year} · {video.class}
               </em>
             </span>
-            <span className="rank-score">{video.score.toFixed(1)}</span>
+            <ScoreBadge className="rank-score" score={video.score} />
           </Link>
         ))}
         {videos.length === 0 && (
@@ -339,7 +355,8 @@ function ShelfCard({ video }: { video: HomeCardVideo }) {
         height={450}
         sizes="(max-width: 760px) 50vw, (max-width: 1020px) 33vw, 180px"
       >
-        <em>{video.remark}</em>
+        {video.remark.trim() && <em className="quality-badge">{video.remark}</em>}
+        <ScoreBadge className="home-shelf-score score-badge" score={video.score} />
       </Artwork>
       <span className="home-shelf-body">
         <strong>{video.title}</strong>
@@ -347,7 +364,6 @@ function ShelfCard({ video }: { video: HomeCardVideo }) {
           {video.year} · {video.class}
         </small>
       </span>
-      <span className="home-shelf-score">{video.score.toFixed(1)}</span>
     </Link>
   );
 }

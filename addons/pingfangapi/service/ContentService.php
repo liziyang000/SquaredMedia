@@ -24,6 +24,8 @@ class ContentService
     private $blockedTypeIdsLoaded = false;
     private $blockedTypeIdsValue = [];
     private $catalogIndexAvailable;
+    private $searchIndexesAvailable;
+    private $searchIds = [];
     private $fallbackImageValue;
 
     public function __construct(callable $accessChecker)
@@ -79,14 +81,17 @@ class ContentService
         ];
     }
 
-    public function homeV2($compact = false)
+    public function homeV2($compact = false, $cinema = false)
     {
         $compact = (bool) $compact;
         $cacheSeconds = $this->configInteger('cache_seconds', self::DEFAULT_CACHE_SECONDS, 0, 300);
         $cacheKey = 'pingfangapi_home_v2_' . self::CONTENT_CACHE_VERSION . '_' . ($compact ? 'compact' : 'legacy') . '_' . substr(hash('sha256', $this->fallbackImage()), 0, 12) . '_' . $this->accessCacheKey();
+        if ($cinema) {
+            $cacheKey .= '_cinema';
+        }
         if ($cacheSeconds > 0 && function_exists('cache')) {
             $cached = cache($cacheKey);
-            if (is_array($cached) && isset($cached['hero'], $cached['ranking'], $cached['latest'], $cached['latestByCategory'])) {
+            if (is_array($cached) && isset($cached['hero'], $cached['latest']) && ($cinema || isset($cached['ranking'], $cached['latestByCategory']))) {
                 return $cached;
             }
         }
@@ -105,33 +110,35 @@ class ContentService
         if ($typeIds !== '') {
             $hero = $this->homeHeroRows($this->nativeVodRows(
                 $typeIds,
-                5,
+                $cinema ? 1 : 5,
                 'hits',
                 '',
                 $cacheSeconds,
                 $this->homeHeroFields(),
-                'hero'
+                $cinema ? 'cinema-hero' : 'hero'
             ), $compact);
-            $ranking = $this->homeCardRows($this->nativeVodRows(
-                $typeIds,
-                5,
-                'hits',
-                $year,
-                $cacheSeconds,
-                $this->homeCardFields(),
-                'ranking'
-            ));
+            if (!$cinema) {
+                $ranking = $this->homeCardRows($this->nativeVodRows(
+                    $typeIds,
+                    5,
+                    'hits',
+                    $year,
+                    $cacheSeconds,
+                    $this->homeCardFields(),
+                    'ranking'
+                ));
+            }
             $latest = $this->homeCardRows($this->nativeVodRows(
                 $typeIds,
-                6,
+                $cinema ? 4 : 6,
                 'time',
                 $year,
                 $cacheSeconds,
                 $this->homeCardFields(),
-                'latest'
+                $cinema ? 'cinema-latest' : 'latest'
             ));
         }
-        foreach ($categories as $category) {
+        foreach ($cinema ? [] : $categories as $category) {
             $latestByCategory[] = [
                 'categoryId' => (string) $category['id'],
                 'videos' => $this->homeCardRows($this->nativeVodRows(
@@ -146,7 +153,12 @@ class ContentService
             ];
         }
 
-        $home = [
+        $home = $cinema ? [
+            'siteName' => $this->siteName(),
+            'categories' => $categories,
+            'hero' => $hero,
+            'latest' => $latest,
+        ] : [
             'siteName' => $this->siteName(),
             'todayUpdated' => $this->todayUpdated([]),
             'categories' => $categories,
@@ -815,15 +827,66 @@ class ContentService
                 $builder = $builder->where('vod_id', 0);
             } else {
                 $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $keyword) . '%';
-                $builder = $builder->where(function ($search) use ($like) {
-                    $search->where('vod_name', 'like', $like)
+                $length = function_exists('mb_strlen') ? mb_strlen($keyword, 'UTF-8') : preg_match_all('/./us', $keyword);
+                $contains = isset($query['searchMode']) && $query['searchMode'] === 'contains' && $length >= 2;
+                if ($contains) {
+                    $ids = $this->titleFragmentIds($like);
+                    if ($ids !== null) {
+                        return empty($ids) ? $builder->where('vod_id', 0) : $builder->where('vod_id', 'in', $ids);
+                    }
+                }
+                $titleLike = $contains ? '%' . $like : $like;
+                $builder = $builder->where(function ($search) use ($like, $titleLike, $contains) {
+                    $search->where('vod_name', 'like', $titleLike)
                         ->whereOr('vod_actor', 'like', $like)
                         ->whereOr('vod_director', 'like', $like);
+                    if ($contains) {
+                        $search->whereOr('vod_sub', 'like', $titleLike);
+                    }
                 });
             }
         }
 
         return $builder;
+    }
+
+    private function titleFragmentIds($like)
+    {
+        if (isset($this->searchIds[$like])) {
+            return $this->searchIds[$like];
+        }
+        $table = Db::name('Vod')->getTable();
+        if (!is_string($table) || !preg_match('/^[A-Za-z0-9_]+$/D', $table)) {
+            return null;
+        }
+        if ($this->searchIndexesAvailable === null) {
+            $columns = [];
+            foreach (Db::query('SHOW INDEX FROM `' . $table . '` WHERE Key_name IN (:name, :sub)', ['name' => 'idx_pfapi_search_name', 'sub' => 'idx_pfapi_search_sub']) as $index) {
+                if (isset($index['Sub_part']) || (isset($index['Visible']) && $index['Visible'] !== 'YES') || $index['Index_type'] !== 'BTREE') {
+                    continue;
+                }
+                $columns[$index['Key_name']][intval($index['Seq_in_index'])] = $index['Column_name'];
+            }
+            foreach ($columns as &$indexColumns) { ksort($indexColumns); }
+            unset($indexColumns);
+            $this->searchIndexesAvailable = isset($columns['idx_pfapi_search_name'], $columns['idx_pfapi_search_sub'])
+                && $columns['idx_pfapi_search_name'] === [1 => 'vod_name', 2 => 'vod_id']
+                && $columns['idx_pfapi_search_sub'] === [1 => 'vod_sub', 2 => 'vod_id'];
+        }
+        if (!$this->searchIndexesAvailable) {
+            return null;
+        }
+        // Covering indexes keep MyISAM text matching off the wide content rows.
+        // Visibility, filters, counts and ordering still run through baseVodQuery.
+        $rows = Db::query(
+            'SELECT vod_id FROM `' . $table . '` FORCE INDEX (idx_pfapi_search_name) WHERE vod_name LIKE :name'
+            . ' UNION SELECT vod_id FROM `' . $table . '` FORCE INDEX (idx_pfapi_search_sub) WHERE vod_sub LIKE :sub'
+            . ' UNION SELECT vod_id FROM `' . $table . '` WHERE vod_actor LIKE :actor'
+            . ' UNION SELECT vod_id FROM `' . $table . '` WHERE vod_director LIKE :director',
+            ['name' => '%' . $like, 'sub' => '%' . $like, 'actor' => $like, 'director' => $like]
+        );
+        $this->searchIds[$like] = array_map(function ($row) { return intval($row['vod_id']); }, $rows);
+        return $this->searchIds[$like];
     }
 
     private function summaryVodQuery(array $query, array $typeList)
@@ -1869,7 +1932,7 @@ class ContentService
 
     protected function categoryTotalForQuery(array $query, array $categories)
     {
-        foreach (['area', 'year', 'class', 'lang', 'letter', 'keyword', 'playableOnly', 'scope'] as $name) {
+        foreach (['area', 'year', 'class', 'lang', 'letter', 'keyword', 'searchMode', 'playableOnly', 'scope'] as $name) {
             if (array_key_exists($name, $query)) {
                 return null;
             }
@@ -1899,7 +1962,7 @@ class ContentService
             self::MAX_SUMMARY_CACHE_SECONDS
         );
         $filters = [];
-        foreach (['typeId', 'area', 'year', 'class', 'lang', 'letter', 'keyword', 'playableOnly', 'scope'] as $name) {
+        foreach (['typeId', 'area', 'year', 'class', 'lang', 'letter', 'keyword', 'searchMode', 'playableOnly', 'scope'] as $name) {
             if (array_key_exists($name, $query)) {
                 $filters[$name] = $query[$name];
             }
@@ -2044,7 +2107,7 @@ class ContentService
     protected function facetQuery(array $query, $withoutDimension)
     {
         $filters = [];
-        foreach (['typeId', 'area', 'year', 'class', 'lang', 'letter', 'keyword', 'playableOnly', 'scope'] as $name) {
+        foreach (['typeId', 'area', 'year', 'class', 'lang', 'letter', 'keyword', 'searchMode', 'playableOnly', 'scope'] as $name) {
             if ($name !== (string) $withoutDimension && array_key_exists($name, $query)) {
                 $filters[$name] = $query[$name];
             }

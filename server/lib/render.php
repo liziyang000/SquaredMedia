@@ -29,6 +29,7 @@ function path_for(string $route, array $params = []): string
 
 function render_layout(array $data, string $title, string $content, bool $loadGameStyles = false): string
 {
+    $themeOptions = file_get_contents(dirname(__DIR__, 2) . '/template/pingfangvideo/html/public/theme_options.html');
     $nav = '<a href="' . e(path_for('home')) . '" data-nav-section="home">首页</a>';
     $nav .= '<a href="' . e(path_for('categories')) . '" data-nav-section="videos">视频</a>';
     $nav .= '<a href="' . e(path_for('games')) . '" data-nav-section="games">游戏</a>';
@@ -94,34 +95,7 @@ function render_layout(array $data, string $title, string $content, bool $loadGa
     <div class="theme-switcher" data-theme-switcher>
       <button class="theme-switcher-trigger" type="button" data-theme-switcher-trigger aria-expanded="false" aria-controls="themeSwitcherMenu">主题</button>
       <div class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden>
-        <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
-          <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
-          <span>液态影院</span>
-        </button>
-        <button class="theme-option" type="button" data-theme-option="blue-pink-purple" aria-pressed="false">
-          <span class="theme-option-swatch theme-option-swatch-aurora" aria-hidden="true"></span>
-          <span>极光夜幕</span>
-        </button>
-        <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
-          <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
-          <span>海报画廊</span>
-        </button>
-        <button class="theme-option" type="button" data-theme-option="dunhuang-caisson" aria-pressed="false">
-          <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
-          <span>敦煌流光</span>
-        </button>
-        <button class="theme-option" type="button" data-theme-option="digital-particles" aria-pressed="false">
-          <span class="theme-option-swatch theme-option-swatch-digital" aria-hidden="true"></span>
-          <span>数码粒子</span>
-        </button>
-        <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
-          <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
-          <span>像素蛙</span>
-        </button>
-        <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
-          <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
-          <span>水墨映画</span>
-        </button>
+        ' . $themeOptions . '
       </div>
     </div>
     <a class="history-link" href="' . e(path_for('history')) . '">观看记录</a>
@@ -145,40 +119,13 @@ function render_layout(array $data, string $title, string $content, bool $loadGa
   <div class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile>
     <span>主题</span>
     <div class="theme-option-grid">
-      <button class="theme-option is-active" type="button" data-theme-option="default" aria-pressed="true">
-        <span class="theme-option-swatch theme-option-swatch-default" aria-hidden="true"></span>
-        <span>液态影院</span>
-      </button>
-      <button class="theme-option" type="button" data-theme-option="blue-pink-purple" aria-pressed="false">
-        <span class="theme-option-swatch theme-option-swatch-aurora" aria-hidden="true"></span>
-        <span>极光夜幕</span>
-      </button>
-      <button class="theme-option" type="button" data-theme-option="poster-magazine" aria-pressed="false">
-        <span class="theme-option-swatch theme-option-swatch-poster" aria-hidden="true"></span>
-        <span>海报画廊</span>
-      </button>
-      <button class="theme-option" type="button" data-theme-option="dunhuang-caisson" aria-pressed="false">
-        <span class="theme-option-swatch theme-option-swatch-dunhuang" aria-hidden="true"></span>
-        <span>敦煌流光</span>
-      </button>
-      <button class="theme-option" type="button" data-theme-option="digital-particles" aria-pressed="false">
-        <span class="theme-option-swatch theme-option-swatch-digital" aria-hidden="true"></span>
-        <span>数码粒子</span>
-      </button>
-      <button class="theme-option" type="button" data-theme-option="pixel-frog" aria-pressed="false">
-        <span class="theme-option-swatch theme-option-swatch-pixel" aria-hidden="true"></span>
-        <span>像素蛙</span>
-      </button>
-      <button class="theme-option" type="button" data-theme-option="ink-wash" aria-pressed="false">
-        <span class="theme-option-swatch theme-option-swatch-ink" aria-hidden="true"></span>
-        <span>水墨映画</span>
-      </button>
+      ' . $themeOptions . '
     </div>
   </div>
   <div class="mobile-drawer-section"><span>影片分类</span><div class="mobile-drawer-cats">' . $drawerCategories . '</div></div>
 </aside>
 <main id="mainContent" tabindex="-1">' . $content . '</main>
-<script src="/template/pingfangvideo/js/app.js" data-pixel-confetti-src="/template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
+<script defer src="/template/pingfangvideo/js/app.js" data-pixel-confetti-src="/template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4" data-dunhuang-two-src="/template/pingfangvideo/js/two.min.js?v=0.8.24"></script>
 </body>
 </html>';
 }

@@ -28,6 +28,11 @@ read-only.
 
 ## Local validation
 
+`code.js` is generated from `code.template.js`, the three prototype source
+files, `baseline-plan.json`, and the referenced image assets. It is ignored by
+Git. Run the build below after a fresh checkout and before importing the plugin
+manifest, validating the plan, or running the smoke check.
+
 ```bash
 node scripts/figma-product-baseline/build.mjs
 node scripts/figma-product-baseline/validate-plan.mjs

@@ -1,0 +1,120 @@
+--- a/application/common/model/VodSearch.php
++++ b/application/common/model/VodSearch.php
+@@ -47,42 +47,57 @@
+         }
+         $where = ['search_key' => $search_key];
+         $search_row = $this->where($where)->field("search_result_ids, search_hit_count")->find();
+-        if (empty($search_row)) {
+-            $where_vod = [];
+-            $where_vod[$search_field] = ['LIKE', '%' . $search_word . '%'];
+-            // 仅已发布；回收站过滤在 listData 中由 Vod 模型处理，此处不重复 merge 以免依赖 protected API
+-            try {
+-                $id_list = Db::name('Vod')
+-                    ->where('vod_status', 1)
+-                    ->where('vod_recycle_time', 0)
+-                    ->where($where_vod)
+-                    ->order('vod_id ASC')
+-                    ->column('vod_id');
+-            } catch (\Throwable $e) {
+-                $id_list = Db::name('Vod')
+-                    ->where('vod_status', 1)
+-                    ->where($where_vod)
+-                    ->order('vod_id ASC')
+-                    ->column('vod_id');
+-            }
+-            $id_list = is_array($id_list) ? $id_list : [];
+-            $this->insert([
+-                'search_key'           => $search_key,
+-                'search_word'          => mb_substr($search_word, 0, 128),
+-                'search_field'         => mb_substr($search_field, 0, 64),
+-                'search_hit_count'     => 1,
+-                'search_last_hit_time' => time(),
+-                'search_update_time'   => time(),
+-                'search_result_count'  => count($id_list),
+-                'search_result_ids'    => join(',', $id_list),
+-            ]);
+-        } else {
+-            $id_list = explode(',', (string)$search_row['search_result_ids']);
+-            $id_list = array_filter($id_list);
+-            $this->where($where)->update([
+-                'search_hit_count'     => $search_row['search_hit_count'] + 1,
+-                'search_last_hit_time' => time(),
+-            ]);
++        $search_lock = null;
++        try {
++            if (empty($search_row)) {
++                // Keep 256 lock stripes; retained files avoid splitting an active lock.
++                $search_lock = fopen(RUNTIME_PATH . 'vod_search_' . substr($search_key, 0, 2) . '.lock', 'c');
++                if ($search_lock === false || !flock($search_lock, LOCK_EX)) {
++                    throw new \RuntimeException('Unable to lock search result cache');
++                }
++                $search_row = $this->where($where)->field("search_result_ids, search_hit_count")->find();
++            }
++            if (empty($search_row)) {
++                $where_vod = [];
++                $where_vod[$search_field] = ['LIKE', '%' . $search_word . '%'];
++                // 仅已发布；回收站过滤在 listData 中由 Vod 模型处理，此处不重复 merge 以免依赖 protected API
++                try {
++                    $id_list = Db::name('Vod')
++                        ->where('vod_status', 1)
++                        ->where('vod_recycle_time', 0)
++                        ->where($where_vod)
++                        ->order('vod_id ASC')
++                        ->column('vod_id');
++                } catch (\Throwable $e) {
++                    $id_list = Db::name('Vod')
++                        ->where('vod_status', 1)
++                        ->where($where_vod)
++                        ->order('vod_id ASC')
++                        ->column('vod_id');
++                }
++                $id_list = is_array($id_list) ? $id_list : [];
++                $this->insert([
++                    'search_key'           => $search_key,
++                    'search_word'          => mb_substr($search_word, 0, 128),
++                    'search_field'         => mb_substr($search_field, 0, 64),
++                    'search_hit_count'     => 1,
++                    'search_last_hit_time' => time(),
++                    'search_update_time'   => time(),
++                    'search_result_count'  => count($id_list),
++                    'search_result_ids'    => join(',', $id_list),
++                ]);
++            } else {
++                $id_list = explode(',', (string)$search_row['search_result_ids']);
++                $id_list = array_filter($id_list);
++                $this->where($where)->update([
++                    'search_hit_count'     => $search_row['search_hit_count'] + 1,
++                    'search_last_hit_time' => time(),
++                ]);
++            }
++        } finally {
++            if (is_resource($search_lock)) {
++                fclose($search_lock);
++            }
+         }
+         $id_list = array_map('intval', $id_list);
+         $id_list = empty($id_list) ? [0] : $id_list;
+--- a/application/common/model/Vod.php
++++ b/application/common/model/Vod.php
+@@ -181,6 +181,10 @@
+         $typenot = $lp['typenot'];
+         $name = $lp['name'];
+ 
++        if ($pageurl === 'vod/search' && $field === '*') {
++            $field = 'vod_id,type_id,type_id_1,group_id,vod_name,vod_en,vod_pic,vod_actor,vod_content,vod_time';
++        }
++
+         $page = 1;
+         $where=[];
+         $totalshow = 0;
+@@ -616,7 +620,9 @@
+         }
+         $order_cache_key = ($meili !== null) ? 'meilisearch_relevance' : (is_array($order) ? 'sql_rand' : $order);
+ 
+-        $cach_name = $GLOBALS['config']['app']['cache_flag']. '_' .md5('vod_listcache_'.http_build_query($where_cache).'_'.$order_cache_key.'_'.$page.'_'.$num.'_'.$start.'_'.$pageurl);
++        $field_cache_key = $field === '*' ? '' : '_' . (is_array($field) ? implode(',', $field) : $field);
++
++        $cach_name = $GLOBALS['config']['app']['cache_flag']. '_' .md5('vod_listcache_'.http_build_query($where_cache).'_'.$order_cache_key.'_'.$page.'_'.$num.'_'.$start.'_'.$pageurl.$field_cache_key);
+         $cache_enabled = ((int)$GLOBALS['config']['app']['cache_core'] === 1 && !$use_rand);
+         $res = $cache_enabled ? Cache::get($cach_name) : null;
+         $cache_lock = null;

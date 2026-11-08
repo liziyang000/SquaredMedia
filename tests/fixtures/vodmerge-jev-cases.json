@@ -1,0 +1,260 @@
+[
+  {
+    "id": "same_work_complete_metadata",
+    "incoming": {
+      "vod_name": "北岚灯塔档案",
+      "vod_sub": "",
+      "vod_en": "The North Lantern Archive",
+      "vod_year": "2026",
+      "vod_actor": "林栖禾、顾柏舟",
+      "vod_director": "沈墨川",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000101,
+      "type_id": 1,
+      "vod_content": "虚构电影：两名档案员在北岚灯塔寻找遗失的航海记录。"
+    },
+    "target": {
+      "vod_id": 8101,
+      "vod_name": "北岚灯塔档案",
+      "vod_sub": "",
+      "vod_en": "The North Lantern Archive",
+      "vod_year": "2026",
+      "vod_actor": "林栖禾、顾柏舟",
+      "vod_director": "沈墨川",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000101,
+      "type_id": 1,
+      "vod_content": "虚构电影：两名档案员在北岚灯塔寻找遗失的航海记录。"
+    },
+    "expected_choice": "same",
+    "allow_automatic": true
+  },
+  {
+    "id": "same_season_alternative_notation",
+    "incoming": {
+      "vod_name": "星湾巡航 第二季",
+      "vod_sub": "",
+      "vod_en": "Star Bay Patrol Season 2",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000102,
+      "type_id": 2,
+      "vod_content": "虚构剧集第二季：巡航队在星湾北部调查失踪的观测船。"
+    },
+    "target": {
+      "vod_id": 8102,
+      "vod_name": "星湾巡航 S02",
+      "vod_sub": "",
+      "vod_en": "Star Bay Patrol Season 2",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000102,
+      "type_id": 2,
+      "vod_content": "虚构剧集第二季：巡航队在星湾北部调查失踪的观测船。"
+    },
+    "expected_choice": "same",
+    "allow_automatic": true
+  },
+  {
+    "id": "same_work_shared_alias",
+    "incoming": {
+      "vod_name": "潮图之钥",
+      "vod_sub": "潮汐密钥/蓝湾寻图",
+      "vod_en": "The Tidal Map Key",
+      "vod_year": "2025",
+      "vod_actor": "苏澄宁、陆映桥",
+      "vod_director": "白知岸",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000103,
+      "type_id": 1,
+      "vod_content": "虚构电影：制图师苏澄宁寻找能打开蓝湾旧地图的钥匙。"
+    },
+    "target": {
+      "vod_id": 8103,
+      "vod_name": "潮汐密钥",
+      "vod_sub": "蓝湾寻图|潮图之钥",
+      "vod_en": "The Tidal Map Key",
+      "vod_year": "2025",
+      "vod_actor": "苏澄宁、陆映桥",
+      "vod_director": "白知岸",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000103,
+      "type_id": 1,
+      "vod_content": "虚构电影：制图师苏澄宁寻找能打开蓝湾旧地图的钥匙。"
+    },
+    "expected_choice": "same",
+    "allow_automatic": true
+  },
+  {
+    "id": "different_season_same_external_id",
+    "incoming": {
+      "vod_name": "星湾巡航 第三季",
+      "vod_sub": "Star Bay Patrol Season 3",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000104,
+      "type_id": 2,
+      "vod_content": "虚构剧集第三季：巡航队前往南部新港。"
+    },
+    "target": {
+      "vod_id": 8104,
+      "vod_name": "星湾巡航 第二季",
+      "vod_sub": "Star Bay Patrol Season 2",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000104,
+      "type_id": 2,
+      "vod_content": "虚构剧集第二季：巡航队在星湾北部调查失踪的观测船。"
+    },
+    "expected_choice": "different",
+    "allow_automatic": false
+  },
+  {
+    "id": "contradictory_season_in_alias",
+    "incoming": {
+      "vod_name": "星湾巡航 第二季",
+      "vod_sub": "星湾巡航 第三季",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000105,
+      "type_id": 2,
+      "vod_content": "虚构剧集：巡航队调查星湾的观测船。"
+    },
+    "target": {
+      "vod_id": 8105,
+      "vod_name": "星湾巡航 第二季",
+      "vod_sub": "Star Bay Patrol Season 2",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000105,
+      "type_id": 2,
+      "vod_content": "虚构剧集第二季：巡航队在星湾北部调查失踪的观测船。"
+    },
+    "expected_choice": "uncertain",
+    "allow_automatic": false
+  },
+  {
+    "id": "remake_different_release_year",
+    "incoming": {
+      "vod_name": "雨港时钟",
+      "vod_sub": "",
+      "vod_year": "2026",
+      "vod_actor": "余澜舟、孟清栖",
+      "vod_director": "何渡青",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000106,
+      "type_id": 1,
+      "vod_content": "虚构电影的2026年重拍版，由新演员演绎雨港钟表匠的故事。"
+    },
+    "target": {
+      "vod_id": 8106,
+      "vod_name": "雨港时钟",
+      "vod_sub": "",
+      "vod_year": "1996",
+      "vod_actor": "程柏远、杜知晴",
+      "vod_director": "江怀舟",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000106,
+      "type_id": 1,
+      "vod_content": "虚构电影的1996年原版，讲述雨港钟表匠修复旧城时钟的故事。"
+    },
+    "expected_choice": "different",
+    "allow_automatic": false
+  },
+  {
+    "id": "season_missing_on_one_side",
+    "incoming": {
+      "vod_name": "星湾巡航",
+      "vod_sub": "",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000107,
+      "type_id": 2,
+      "vod_content": "虚构剧集：巡航队调查星湾的观测船，资料未标明季数。"
+    },
+    "target": {
+      "vod_id": 8107,
+      "vod_name": "星湾巡航 第二季",
+      "vod_sub": "Star Bay Patrol Season 2",
+      "vod_year": "2026",
+      "vod_actor": "齐岚、韩柚",
+      "vod_director": "顾景",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000107,
+      "type_id": 2,
+      "vod_content": "虚构剧集第二季：巡航队在星湾北部调查失踪的观测船。"
+    },
+    "expected_choice": "uncertain",
+    "allow_automatic": false
+  },
+  {
+    "id": "special_cut_versus_standard_edition",
+    "incoming": {
+      "vod_name": "北岚灯塔档案 导演特别版",
+      "vod_sub": "北岚灯塔档案 导演剪辑版",
+      "vod_year": "2026",
+      "vod_actor": "林栖禾、顾柏舟",
+      "vod_director": "沈墨川",
+      "vod_version": "导演剪辑版",
+      "vod_douban_id": 990000108,
+      "type_id": 1,
+      "vod_content": "虚构电影的导演剪辑版，包含不同剪辑顺序和额外结局。"
+    },
+    "target": {
+      "vod_id": 8108,
+      "vod_name": "北岚灯塔档案",
+      "vod_sub": "",
+      "vod_year": "2026",
+      "vod_actor": "林栖禾、顾柏舟",
+      "vod_director": "沈墨川",
+      "vod_version": "标准版",
+      "vod_douban_id": 990000108,
+      "type_id": 1,
+      "vod_content": "虚构电影的标准公映版本：两名档案员寻找遗失的航海记录。"
+    },
+    "expected_choice": "different",
+    "allow_automatic": false
+  },
+  {
+    "id": "insufficient_identity_metadata",
+    "incoming": {
+      "vod_name": "远雾来信",
+      "vod_sub": "",
+      "vod_year": "",
+      "vod_actor": "",
+      "vod_director": "",
+      "vod_version": "",
+      "vod_douban_id": 0,
+      "type_id": 0,
+      "vod_content": ""
+    },
+    "target": {
+      "vod_id": 8109,
+      "vod_name": "远雾来信",
+      "vod_sub": "",
+      "vod_year": "",
+      "vod_actor": "",
+      "vod_director": "",
+      "vod_version": "",
+      "vod_douban_id": 0,
+      "type_id": 0,
+      "vod_content": ""
+    },
+    "expected_choice": "uncertain",
+    "allow_automatic": false
+  }
+]

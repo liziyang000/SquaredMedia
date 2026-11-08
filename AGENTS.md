@@ -25,6 +25,8 @@ npm run verify:preview
 
 ## 仓库上下文索引
 
+- [文档导航](docs/README.md)与[工程脚本导航](scripts/README.md)：现行文档、操作手册、历史资料与脚本分类。
+
 - [项目总览](docs/overview.md)：项目定位、顶层目录、模块边界、核心工作流与当前已知限制。
 - [主题与本地预览](docs/theme-and-preview.md)：`template/pingfangvideo`、`preview`、`server` 与 `docker` 的职责、渲染关系和开发约束。
 - [MacCMS 插件](docs/addons.md)：`pingfangdevice` 的入口、数据、安装链路、安全边界与测试定位。

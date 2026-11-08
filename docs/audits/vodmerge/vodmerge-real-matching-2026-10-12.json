@@ -1,0 +1,1237 @@
+{
+  "date": "2026-10-12",
+  "production_vod_count": 334875,
+  "scope": "CLI production MySQL SELECT only; 8 purposefully selected real-data recall cases, 3 rounds per version, version1.1 before1.3; metadata-pair labels independently fixed, not human-validated or representative of full catalogue",
+  "recall": [
+    {
+      "case_id": "douban_exact",
+      "input_name": "肖申克的救赎",
+      "reason": "原始库记录：保留豆瓣ID与片名",
+      "expected_ids": [
+        220629,
+        230538
+      ],
+      "1.1.0": {
+        "median_ms": 6617.200019,
+        "min_ms": 6257.750658,
+        "max_ms": 10494.166012,
+        "runs": [
+          {
+            "ms": 10494.166012,
+            "candidate_ids": [
+              220629,
+              230538,
+              329760
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 9850,
+            "returned_columns": 87,
+            "query_count": 4
+          },
+          {
+            "ms": 6617.200019,
+            "candidate_ids": [
+              220629,
+              230538,
+              329760
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 9850,
+            "returned_columns": 87,
+            "query_count": 4
+          },
+          {
+            "ms": 6257.750658,
+            "candidate_ids": [
+              220629,
+              230538,
+              329760
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 9850,
+            "returned_columns": 87,
+            "query_count": 4
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 5671.418581,
+        "min_ms": 5559.790463,
+        "max_ms": 6487.432201,
+        "runs": [
+          {
+            "ms": 6487.432201,
+            "candidate_ids": [
+              220629,
+              230538,
+              329760
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 4700,
+            "returned_columns": 14,
+            "query_count": 4
+          },
+          {
+            "ms": 5559.790463,
+            "candidate_ids": [
+              220629,
+              230538,
+              329760
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 4700,
+            "returned_columns": 14,
+            "query_count": 4
+          },
+          {
+            "ms": 5671.418581,
+            "candidate_ids": [
+              220629,
+              230538,
+              329760
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 4700,
+            "returned_columns": 14,
+            "query_count": 4
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "title_without_id",
+      "input_name": "流浪地球2",
+      "reason": "真实片名：清除豆瓣ID以测试名称召回",
+      "expected_ids": [
+        209979
+      ],
+      "1.1.0": {
+        "median_ms": 3130.813937,
+        "min_ms": 2875.16272,
+        "max_ms": 3174.559312,
+        "runs": [
+          {
+            "ms": 3130.813937,
+            "candidate_ids": [
+              209979,
+              187928,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 9365,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 3174.559312,
+            "candidate_ids": [
+              209979,
+              187928,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 9365,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2875.16272,
+            "candidate_ids": [
+              209979,
+              187928,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 9365,
+            "returned_columns": 87,
+            "query_count": 3
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 2807.584382,
+        "min_ms": 2805.745064,
+        "max_ms": 2832.1506,
+        "runs": [
+          {
+            "ms": 2807.584382,
+            "candidate_ids": [
+              209979,
+              187928,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 3511,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2805.745064,
+            "candidate_ids": [
+              209979,
+              187928,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 3511,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2832.1506,
+            "candidate_ids": [
+              209979,
+              187928,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 3511,
+            "returned_columns": 14,
+            "query_count": 3
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "english_alias",
+      "input_name": "The Wandering Earth",
+      "reason": "库内已有英文别名：清除ID与其他标题",
+      "expected_ids": [
+        205486,
+        541351
+      ],
+      "1.1.0": {
+        "median_ms": 2972.684115,
+        "min_ms": 2818.441616,
+        "max_ms": 3017.919965,
+        "runs": [
+          {
+            "ms": 2972.684115,
+            "candidate_ids": [
+              205486,
+              541351,
+              209979,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 13502,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2818.441616,
+            "candidate_ids": [
+              205486,
+              541351,
+              209979,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 13502,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 3017.919965,
+            "candidate_ids": [
+              205486,
+              541351,
+              209979,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 13502,
+            "returned_columns": 87,
+            "query_count": 3
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 2565.672758,
+        "min_ms": 2467.675573,
+        "max_ms": 2736.040956,
+        "runs": [
+          {
+            "ms": 2736.040956,
+            "candidate_ids": [
+              205486,
+              541351,
+              209979,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 5515,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2467.675573,
+            "candidate_ids": [
+              205486,
+              541351,
+              209979,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 5515,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2565.672758,
+            "candidate_ids": [
+              205486,
+              541351,
+              209979,
+              529713
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 5515,
+            "returned_columns": 14,
+            "query_count": 3
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "chinese_alias",
+      "input_name": "火线追缉令",
+      "reason": "库内已有中文别名：清除ID与其他标题",
+      "expected_ids": [
+        172780,
+        277196
+      ],
+      "1.1.0": {
+        "median_ms": 2998.085394,
+        "min_ms": 2840.626113,
+        "max_ms": 3266.253891,
+        "runs": [
+          {
+            "ms": 3266.253891,
+            "candidate_ids": [
+              172780,
+              277196
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6316,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2998.085394,
+            "candidate_ids": [
+              172780,
+              277196
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6316,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2840.626113,
+            "candidate_ids": [
+              172780,
+              277196
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6316,
+            "returned_columns": 87,
+            "query_count": 3
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 2616.589094,
+        "min_ms": 2614.684706,
+        "max_ms": 2725.442133,
+        "runs": [
+          {
+            "ms": 2616.589094,
+            "candidate_ids": [
+              172780,
+              277196
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 2622,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2725.442133,
+            "candidate_ids": [
+              172780,
+              277196
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 2622,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2614.684706,
+            "candidate_ids": [
+              172780,
+              277196
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 2622,
+            "returned_columns": 14,
+            "query_count": 3
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "english_animation",
+      "input_name": "Spirited Away",
+      "reason": "库内已有英文别名：清除ID与其他标题",
+      "expected_ids": [
+        190022,
+        376017
+      ],
+      "1.1.0": {
+        "median_ms": 2654.940818,
+        "min_ms": 2649.05058,
+        "max_ms": 2680.309563,
+        "runs": [
+          {
+            "ms": 2649.05058,
+            "candidate_ids": [
+              190022,
+              376017
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6595,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2654.940818,
+            "candidate_ids": [
+              190022,
+              376017
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6595,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2680.309563,
+            "candidate_ids": [
+              190022,
+              376017
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6595,
+            "returned_columns": 87,
+            "query_count": 3
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 2614.877595,
+        "min_ms": 2588.694178,
+        "max_ms": 2704.156265,
+        "runs": [
+          {
+            "ms": 2614.877595,
+            "candidate_ids": [
+              190022,
+              376017
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 2563,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2704.156265,
+            "candidate_ids": [
+              190022,
+              376017
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 2563,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2588.694178,
+            "candidate_ids": [
+              190022,
+              376017
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 2563,
+            "returned_columns": 14,
+            "query_count": 3
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "season_notation",
+      "input_name": "庆余年 Season 2",
+      "reason": "真实剧名的等价季数写法控制变换，清除ID与其他标题",
+      "expected_ids": [
+        169515,
+        268460
+      ],
+      "1.1.0": {
+        "median_ms": 2702.50326,
+        "min_ms": 2526.9372,
+        "max_ms": 3312.135756,
+        "runs": [
+          {
+            "ms": 3312.135756,
+            "candidate_ids": [
+              169515,
+              268460,
+              303791,
+              346772,
+              414509,
+              422943,
+              423680,
+              427119,
+              522794,
+              524723,
+              525105
+            ],
+            "truncated": true,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 77961,
+            "returned_columns": 87,
+            "query_count": 4
+          },
+          {
+            "ms": 2702.50326,
+            "candidate_ids": [
+              169515,
+              268460,
+              303791,
+              346772,
+              414509,
+              422943,
+              423680,
+              427119,
+              522794,
+              524723,
+              525105
+            ],
+            "truncated": true,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 77961,
+            "returned_columns": 87,
+            "query_count": 4
+          },
+          {
+            "ms": 2526.9372,
+            "candidate_ids": [
+              169515,
+              268460,
+              303791,
+              346772,
+              414509,
+              422943,
+              423680,
+              427119,
+              522794,
+              524723,
+              525105
+            ],
+            "truncated": true,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 77961,
+            "returned_columns": 87,
+            "query_count": 4
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 2595.632278,
+        "min_ms": 2554.811296,
+        "max_ms": 2609.294284,
+        "runs": [
+          {
+            "ms": 2609.294284,
+            "candidate_ids": [
+              169515,
+              268460,
+              303791,
+              346772,
+              414509,
+              422943,
+              423680,
+              427119,
+              522794,
+              524723,
+              525105
+            ],
+            "truncated": true,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6859,
+            "returned_columns": 14,
+            "query_count": 4
+          },
+          {
+            "ms": 2554.811296,
+            "candidate_ids": [
+              169515,
+              268460,
+              303791,
+              346772,
+              414509,
+              422943,
+              423680,
+              427119,
+              522794,
+              524723,
+              525105
+            ],
+            "truncated": true,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6859,
+            "returned_columns": 14,
+            "query_count": 4
+          },
+          {
+            "ms": 2595.632278,
+            "candidate_ids": [
+              169515,
+              268460,
+              303791,
+              346772,
+              414509,
+              422943,
+              423680,
+              427119,
+              522794,
+              524723,
+              525105
+            ],
+            "truncated": true,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 6859,
+            "returned_columns": 14,
+            "query_count": 4
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "single_character",
+      "input_name": "家",
+      "reason": "库内真实单字片名：清除ID与其他标题",
+      "expected_ids": [
+        167060
+      ],
+      "1.1.0": {
+        "median_ms": 0.033556,
+        "min_ms": 0.011527,
+        "max_ms": 0.048513,
+        "runs": [
+          {
+            "ms": 0.048513,
+            "candidate_ids": [],
+            "truncated": false,
+            "target_recalled": false,
+            "target_eligible": false,
+            "serialized_row_bytes": 2,
+            "returned_columns": 0,
+            "query_count": 0
+          },
+          {
+            "ms": 0.033556,
+            "candidate_ids": [],
+            "truncated": false,
+            "target_recalled": false,
+            "target_eligible": false,
+            "serialized_row_bytes": 2,
+            "returned_columns": 0,
+            "query_count": 0
+          },
+          {
+            "ms": 0.011527,
+            "candidate_ids": [],
+            "truncated": false,
+            "target_recalled": false,
+            "target_eligible": false,
+            "serialized_row_bytes": 2,
+            "returned_columns": 0,
+            "query_count": 0
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 1.37428,
+        "min_ms": 1.271806,
+        "max_ms": 9.802636,
+        "runs": [
+          {
+            "ms": 9.802636,
+            "candidate_ids": [
+              167060,
+              398172
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 1320,
+            "returned_columns": 14,
+            "query_count": 1
+          },
+          {
+            "ms": 1.37428,
+            "candidate_ids": [
+              167060,
+              398172
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 1320,
+            "returned_columns": 14,
+            "query_count": 1
+          },
+          {
+            "ms": 1.271806,
+            "candidate_ids": [
+              167060,
+              398172
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 1320,
+            "returned_columns": 14,
+            "query_count": 1
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "punctuation",
+      "input_name": "阿凡达:水之道",
+      "reason": "真实同作品标题标点控制变换，清除ID与其他标题",
+      "expected_ids": [
+        376021,
+        515618
+      ],
+      "1.1.0": {
+        "median_ms": 2637.230121,
+        "min_ms": 2470.616381,
+        "max_ms": 2663.252855,
+        "runs": [
+          {
+            "ms": 2663.252855,
+            "candidate_ids": [
+              376021
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 3769,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2470.616381,
+            "candidate_ids": [
+              376021
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 3769,
+            "returned_columns": 87,
+            "query_count": 3
+          },
+          {
+            "ms": 2637.230121,
+            "candidate_ids": [
+              376021
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 3769,
+            "returned_columns": 87,
+            "query_count": 3
+          }
+        ]
+      },
+      "1.3.0": {
+        "median_ms": 2689.310769,
+        "min_ms": 2685.38658,
+        "max_ms": 2841.148673,
+        "runs": [
+          {
+            "ms": 2841.148673,
+            "candidate_ids": [
+              376021
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 1586,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2689.310769,
+            "candidate_ids": [
+              376021
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 1586,
+            "returned_columns": 14,
+            "query_count": 3
+          },
+          {
+            "ms": 2685.38658,
+            "candidate_ids": [
+              376021
+            ],
+            "truncated": false,
+            "target_recalled": true,
+            "target_eligible": true,
+            "serialized_row_bytes": 1586,
+            "returned_columns": 14,
+            "query_count": 3
+          }
+        ]
+      }
+    }
+  ],
+  "pairs": [
+    {
+      "case_id": "same_01",
+      "left_id": 187928,
+      "right_id": 529713,
+      "gold": "same",
+      "reason": "同为2024年《流浪地球2：再次冒险》纪录片；同一别名、郭思文导演、郭帆等主创与幕后拍摄/科幻工业主题简介一致。左侧豆瓣ID缺失，不依赖ID作标签。",
+      "left_name": "流浪地球2：再次冒险",
+      "right_name": "流浪地球2：再次冒险",
+      "conflicts": [],
+      "automatic_issues": [
+        "vod_douban_id 必须为相同的正整数"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "same_02",
+      "left_id": 376021,
+      "right_id": 515618,
+      "gold": "same",
+      "reason": "同为2022年《阿凡达：水之道》，片名仅半角/全角冒号差异；共享阿凡达2别名、卡梅隆导演、沃辛顿/索尔达娜主演、科幻冒险类型，无显式特殊剪辑冲突。",
+      "left_name": "阿凡达:水之道",
+      "right_name": "阿凡达：水之道",
+      "conflicts": [],
+      "automatic_issues": [],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "same_03",
+      "left_id": 172780,
+      "right_id": 277196,
+      "gold": "same",
+      "reason": "《七宗罪》与《七宗罪1995》均为1995年，大卫·芬奇导演，摩根·弗里曼/布拉德·皮特主演；英文Seven及七种罪行连环杀人简介一致。年份后缀只是已知年份消歧。",
+      "left_name": "七宗罪",
+      "right_name": "七宗罪1995",
+      "conflicts": [],
+      "automatic_issues": [],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "same_04",
+      "left_id": 239520,
+      "right_id": 541715,
+      "gold": "same",
+      "reason": "两条2021年《长津湖》的完整片名、多个中英文别名、陈凯歌/徐克/林超贤导演、吴京/易烊千玺等主演及长津湖战役简介一致。电影子分类不同，不改变作品身份。",
+      "left_name": "长津湖",
+      "right_name": "长津湖",
+      "conflicts": [
+        "type_id 冲突"
+      ],
+      "automatic_issues": [
+        "type_id 冲突",
+        "type_id 必须为相同的正整数"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "same_05",
+      "left_id": 376018,
+      "right_id": 521206,
+      "gold": "same",
+      "reason": "两条2016年《釜山行》均为延尚昊导演、孔刘/马东锡等主演、韩语；港/台/英文别名与石宇携女乘釜山列车遇丧尸简介一致。分类ID不同是库分类差异，非续作证据。",
+      "left_name": "釜山行",
+      "right_name": "釜山行",
+      "conflicts": [
+        "type_id 冲突"
+      ],
+      "automatic_issues": [
+        "type_id 冲突",
+        "type_id 必须为相同的正整数"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "same_06",
+      "left_id": 236435,
+      "right_id": 521207,
+      "gold": "same",
+      "reason": "两条2020年《釜山行2：半岛》同名同英文Peninsula/Train to Busan 2、同导演及姜栋元/李贞贤等主演；简介均为四年后难民正锡返韩取美金。左侧豆瓣ID为0，仍有多项正向证据。",
+      "left_name": "釜山行2：半岛",
+      "right_name": "釜山行2：半岛",
+      "conflicts": [],
+      "automatic_issues": [
+        "vod_douban_id 必须为相同的正整数"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "same_07",
+      "left_id": 276821,
+      "right_id": 364567,
+      "gold": "same",
+      "reason": "两条2024年《唐人街探案2》均通过别名明确网剧第二季，姚文逸/王天尉导演、邱泽/尚语贤等主演；相同四个推理单元简介。左片名的2024后缀不代表另一季。",
+      "left_name": "唐人街探案2 2024",
+      "right_name": "唐人街探案2",
+      "conflicts": [],
+      "automatic_issues": [],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_01",
+      "left_id": 205486,
+      "right_id": 209979,
+      "gold": "different",
+      "reason": "《流浪地球》2019与《流浪地球2》2023是第一部与前传；虽同导演郭帆和吴京，片名序号、年份及主演/故事阶段不同。",
+      "left_name": "流浪地球",
+      "right_name": "流浪地球2",
+      "conflicts": [
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_02",
+      "left_id": 209979,
+      "right_id": 529713,
+      "gold": "different",
+      "reason": "2023年《流浪地球2》科幻正片与2024年《流浪地球2：再次冒险》幕后纪录片，标题、副标题、郭帆/郭思文导演及剧情/制作访谈目标不同。",
+      "left_name": "流浪地球2",
+      "right_name": "流浪地球2：再次冒险",
+      "conflicts": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "type_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_03",
+      "left_id": 210623,
+      "right_id": 210625,
+      "gold": "different",
+      "reason": "2021年《沙丘（国语版）》由丹尼斯·维伦纽瓦导演、柴勒梅德等主演；《沙丘1984》由大卫·林奇导演、凯尔·麦克拉克伦等主演。重拍作品，与配音差异无关。",
+      "left_name": "沙丘（国语版）",
+      "right_name": "沙丘1984",
+      "conflicts": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "type_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名",
+        "缺少相同的明确演员或导演"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_04",
+      "left_id": 169515,
+      "right_id": 318504,
+      "gold": "different",
+      "reason": "《庆余年第2季》2024与《庆余年第1季》2019，季号明确不同；第二季简介写承接上季、使团回国和春闱，第一季为范闲身世及初赴京都。共享主创不覆盖异季。",
+      "left_name": "庆余年第2季",
+      "right_name": "庆余年第1季",
+      "conflicts": [
+        "vod_douban_id 冲突",
+        "vod_year 冲突",
+        "季数冲突"
+      ],
+      "automatic_issues": [
+        "vod_douban_id 冲突",
+        "vod_year 冲突",
+        "季数冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "季数证据不对称或不一致",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_05",
+      "left_id": 540922,
+      "right_id": 364567,
+      "gold": "different",
+      "reason": "同名《唐人街探案2》分别为2018年陈思诚导演、王宝强/刘昊然主演纽约探案电影与2024年姚文逸/王天尉导演、邱泽主演第二季网剧；年份、形式、导演及故事不同。",
+      "left_name": "唐人街探案2",
+      "right_name": "唐人街探案2",
+      "conflicts": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "type_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "季数证据不对称或不一致"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_06",
+      "left_id": 203332,
+      "right_id": 209776,
+      "gold": "different",
+      "reason": "《西游记》记录标2010年、程力栋导演/费振翔主演；《西游记86版》标1986年、杨洁导演/六小龄童主演，制作年代和主创明确不同。左简介误写六小龄童，需单独登记源数据污染，不能用简介相似抹掉重拍证据。",
+      "left_name": "西游记",
+      "right_name": "西游记86版",
+      "conflicts": [
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少相同的明确演员或导演"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_07",
+      "left_id": 226365,
+      "right_id": 226368,
+      "gold": "different",
+      "reason": "《大话西游之月光宝盒》与《大话西游之大圣娶亲》虽都1995年、同导演与主要演员，但别名明确Part One/Part Two；前者月光宝盒/五百年转世，后者紫霞/至尊宝，两个不同电影篇章。",
+      "left_name": "大话西游之月光宝盒（国语版）",
+      "right_name": "大话西游之大圣娶亲（国语版）",
+      "conflicts": [
+        "vod_douban_id 冲突"
+      ],
+      "automatic_issues": [
+        "vod_douban_id 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_08",
+      "left_id": 217565,
+      "right_id": 287928,
+      "gold": "different",
+      "reason": "1972年《教父》与1974年《教父2》是原作与续集，续集别名教父II；第一部介绍维托及麦克卷入家族冲突，第二部双线描写维托童年与1958年麦克。",
+      "left_name": "教父",
+      "right_name": "教父2",
+      "conflicts": [
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "different_09",
+      "left_id": 168748,
+      "right_id": 353634,
+      "gold": "different",
+      "reason": "2009年《阿凡达》科幻正片与2010年《阿凡达：创建潘多拉世界》纪录短片；导演/主创访谈制作资料与虚构潘多拉叙事为不同作品，共享卡梅隆与演员不是同作证据。",
+      "left_name": "阿凡达",
+      "right_name": "阿凡达：创建潘多拉世界",
+      "conflicts": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_douban_id 冲突",
+        "type_id 冲突",
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "type_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "uncertain_01",
+      "left_id": 205486,
+      "right_id": 541351,
+      "gold": "uncertain",
+      "reason": "同作品/年份/主创及剧情一致，但右别名显式包含飞跃2020特别版和Beyond 2020 Special Edition，左未说明普通版或特别版；仅资料无法证明同一剪辑版本，按现有Jev契约不推断缺失版次。",
+      "left_name": "流浪地球",
+      "right_name": "流浪地球",
+      "conflicts": [],
+      "automatic_issues": [
+        "vod_douban_id 必须为相同的正整数"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "uncertain_02",
+      "left_id": 197382,
+      "right_id": 318504,
+      "gold": "uncertain",
+      "reason": "两条均2019年第一季并共享主要演员/导演和剧情，但左标题明确特别版、右未说明特别版；即使豆瓣ID相同也不能补足剪辑版本，缺少证据确定同版或已证实异版。",
+      "left_name": "庆余年第一季 特别版",
+      "right_name": "庆余年第1季",
+      "conflicts": [],
+      "automatic_issues": [],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "uncertain_03",
+      "left_id": 200317,
+      "right_id": 318402,
+      "gold": "uncertain",
+      "reason": "周年纪念版2024与真人版2023有杨磊导演、相同主要演员和三体故事，但只有前者明示周年纪念版，资料不解释是否重新剪辑或等同原版，不能判same；也没有两版具体编辑内容可直接确认different。",
+      "left_name": "三体·周年纪念版",
+      "right_name": "三体真人版",
+      "conflicts": [
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    },
+    {
+      "case_id": "uncertain_04",
+      "left_id": 210624,
+      "right_id": 210623,
+      "gold": "uncertain",
+      "reason": "左《沙丘》标2020且维伦纽瓦/奥斯卡·伊萨克等主创与2021《沙丘》接近，却夹入法国海滩Hanoch/以色列人物的无关简介，年代/地区也有差异；左记录内部污染，右明示国语版，仅现有元数据不足确定同一作品及版本。",
+      "left_name": "沙丘",
+      "right_name": "沙丘（国语版）",
+      "conflicts": [
+        "vod_year 冲突"
+      ],
+      "automatic_issues": [
+        "vod_year 冲突",
+        "vod_douban_id 必须为相同的正整数",
+        "年份必须为相同的有效四位年份",
+        "缺少一致的完整片名或别名"
+      ],
+      "model_status": "awaiting_explicit_data_export_authorization"
+    }
+  ],
+  "model_status": "not_executed_auto_approval_rejected_real_metadata_export"
+}

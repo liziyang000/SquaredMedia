@@ -1,0 +1,13 @@
+{
+  "vod_name": "示例剧 第一季",
+  "vod_sub": "示例剧 第1季",
+  "vod_year": "2026",
+  "type_id": 2,
+  "vod_douban_id": 0,
+  "vod_actor": "演员甲,演员乙",
+  "vod_director": "导演甲",
+  "vod_play_from": "examplem3u8",
+  "vod_play_url": "第01集$https://media.example.com/ep1.m3u8#第02集$https://media.example.com/ep2.m3u8",
+  "vod_play_server": "no",
+  "vod_play_note": ""
+}

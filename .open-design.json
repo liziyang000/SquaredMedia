@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "designSystem": {
+    "slug": "runwayml",
+    "path": "design-systems/runwayml"
+  },
+  "skill": {
+    "slug": "web-design-guidelines",
+    "path": "skills/web-design-guidelines",
+    "kind": "skill",
+    "mode": "design-system"
+  },
+  "boundAt": "2026-09-01T08:04:42Z"
+}

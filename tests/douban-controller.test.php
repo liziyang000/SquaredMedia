@@ -22,8 +22,56 @@ namespace app\admin\controller {
     }
 }
 
+namespace addons\vodops\service {
+    class DoubanData
+    {
+        public static $calls = [];
+        public static $failure = null;
+
+        public static function __callStatic($method, $arguments)
+        {
+            self::$calls[] = [$method, $arguments];
+            if (self::$failure !== null) {
+                throw self::$failure;
+            }
+            return ['method' => $method];
+        }
+    }
+}
+
 namespace {
     $doubanControllerTraces = [];
+
+    $doubanInput = [];
+    $doubanRequest = new class {
+        public $post = true;
+        public $ajax = true;
+        public $checks = [];
+
+        public function isPost()
+        {
+            $this->checks[] = 'post';
+            return $this->post;
+        }
+
+        public function isAjax()
+        {
+            $this->checks[] = 'ajax';
+            return $this->ajax;
+        }
+    };
+
+    function request()
+    {
+        global $doubanRequest;
+        return $doubanRequest;
+    }
+
+    function input($name = null, $default = null)
+    {
+        global $doubanInput;
+        return $name === null ? $doubanInput : ($doubanInput[preg_replace('/\/[a-z]$/i', '', $name)] ?? $default);
+    }
 
     function json($data, $status = 200)
     {
@@ -150,6 +198,56 @@ namespace {
     if (!preg_match('/^url\s*=\s*$/m', $info) || preg_match('#(?:index\.php|addons)/douban#', $info)) {
         failControllerTest('Douban info.ini must not declare a public URL');
     }
+
+    $postActions = [
+        'saveConfig' => 'saveConfig', 'enqueue' => 'enqueueDue', 'previewTargeted' => 'previewTargetedTasks',
+        'enqueueTargeted' => 'enqueueTargeted', 'run' => 'runPending', 'retryFailed' => 'retryFailed',
+        'fetchVod' => 'fetchVod', 'sync' => 'syncVod', 'previewManualSync' => 'previewManualSync',
+        'applyManualSync' => 'applyManualSync', 'rollbackPic' => 'rollbackPicture', 'calibrate' => 'calibrateScores',
+        'previewCalibration' => 'previewScoreCalibration', 'calibrateByType' => 'calibrateScoresByType',
+        'setDoubanId' => 'setDoubanId', 'lock' => 'setLock', 'ignore' => 'ignore', 'restore' => 'restoreIgnored',
+        'startAudit' => 'startAudit', 'runAuditBatch' => 'runAuditBatch', 'pauseAudit' => 'pauseAudit', 'resumeAudit' => 'resumeAudit',
+    ];
+    foreach ($postActions as $action => $operation) {
+        foreach ([[false, true, 1001], [true, false, 1004]] as [$post, $ajax, $code]) {
+            $doubanRequest->post = $post;
+            $doubanRequest->ajax = $ajax;
+            $doubanRequest->checks = [];
+            \addons\vodops\service\DoubanData::$calls = [];
+            $result = $controller->$action();
+            if ($result['status'] !== 405 || $result['data']['code'] !== $code
+                || \addons\vodops\service\DoubanData::$calls !== []
+                || $doubanRequest->checks !== ($post ? ['post', 'ajax'] : ['post'])) {
+                failControllerTest($action . ' must reject invalid requests before invoking its service');
+            }
+        }
+        $doubanRequest->post = $doubanRequest->ajax = true;
+        $doubanRequest->checks = [];
+        $doubanInput = ['confirm' => 1, 'vod_id' => 22];
+        $result = $controller->$action();
+        if ($result['status'] !== 200 || $result['data']['code'] !== 1
+            || $doubanRequest->checks !== ['post', 'ajax']
+            || \addons\vodops\service\DoubanData::$calls[0][0] !== $operation) {
+            failControllerTest($action . ' must validate once and return its successful response');
+        }
+    }
+    foreach (['enqueueTargeted', 'applyManualSync', 'rollbackPic', 'calibrate', 'calibrateByType', 'ignore', 'startAudit'] as $action) {
+        $doubanInput = ['confirm' => 0];
+        \addons\vodops\service\DoubanData::$calls = [];
+        $result = $controller->$action();
+        if ($result['data']['code'] !== 1001 || \addons\vodops\service\DoubanData::$calls !== []) {
+            failControllerTest($action . ' must require confirmation before calling its service');
+        }
+    }
+    foreach ([new \InvalidArgumentException('请检查参数'), new \RuntimeException('private database failure')] as $failure) {
+        \addons\vodops\service\DoubanData::$failure = $failure;
+        $result = $controller->saveConfig();
+        $expected = $failure instanceof \InvalidArgumentException ? 409 : 500;
+        if ($result['status'] !== $expected || str_contains($result['data']['msg'], 'private database')) {
+            failControllerTest('Action responses must preserve safe error classification');
+        }
+    }
+    \addons\vodops\service\DoubanData::$failure = null;
 
     echo "Douban controller tests passed\n";
 }

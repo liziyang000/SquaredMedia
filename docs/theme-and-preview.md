@@ -30,7 +30,7 @@
 - `html/label/`、`map/`、`rss/`：自定义入口、历史/榜单、会员游戏大厅、七夕粒子页、站点地图和订阅输出。
 - `css/ink-wash.css`：独立且按需加载的水墨映画主题，使用宣纸浅底、墨灰文字、少量朱砂选中态和轻量 SVG；页面样式限定在 `html[data-theme="ink-wash"]` 下；菜单色样位于 `base.css`。
 - `css/`：`base.css`、`style.css` 和 `responsive.css` 按原级联顺序组成全站基础样式；`themes-foundation.css` 与 `themes.css` 按原有主题按需加载，`games.css` 只在游戏路由加载。像素主题标题和控件使用本地 Fusion Pixel Font 12px 比例简体中文字形，字体及其 OFL-1.1 许可证位于 `css/fonts/`。
-- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；像素主题切换时复用本地 `canvas-confetti` 1.9.4 浏览器构建生成一次性方形边缘粒子，ISC 许可证随文件保留；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间；`js/qixi-particle-rose.js` 负责七夕 Canvas 点云花束及重播、分享和拖动交互。
+- `js/app.js`：移动导航、主题切换、登录/退出、收藏、分页跳转、首页标签页、自动下一集、动态筛选、详情页线路检测与健康线路桥接、轮播，以及 GSAP 入场和区块渐入动效；像素主题切换时复用本地 `canvas-confetti` 1.9.4 浏览器构建生成一次性方形边缘粒子，ISC 许可证随文件保留；`js/multiplayer-games.js` 负责联机房间、棋盘和画布交互，并用标签页身份区分同账号多开、通过 `?room=` 邀请链接自动加入房间；`js/qixi-particle-bouquet.js` 负责七夕 Three.js 粒子花束及重播、分享和指针交互。
 - `games/`：2048 与 Blockrain.js 的本地游戏运行时及原始许可证，以及一方实现的竹知了三阶段节奏玩法；竹知了包含指针/键盘操作、动态共鸣区、竹风与反向事件、分项评级和 Web Audio 合成声音，不提供可匿名打开的独立 `index.html`。五子棋和你画我猜也是一方实现，浏览器协议位于 `js/multiplayer-games.js`。游戏模板同时保留会员、游客与延迟脚本标记，`app.js` 读取 `user_id` Cookie 后切换可见区块并按需加载脚本；真实联机票据仍由服务端接口校验登录态后签发。
 - `images/`：站点、品牌及敦煌/像素/水墨主题 SVG；生产模板通过 `{$maccms.path_tpl}` 或主题 CSS 相对路径引用。
 - `player/`：独立的预加载/缓冲提示页及其样式，不等同于启用自定义播放器。
@@ -39,7 +39,14 @@
 
 ### 公共骨架
 
+- 普通页面按 `jquery.js → home.js → app.js` 的依赖顺序使用 `defer`，不阻塞正文解析；`maccms` 配置和主题恢复脚本保持同步。
+- 播放与试看页在公共头部前设置 `pingfang_sync_core_scripts`，保留动态播放器的同步依赖；会员收藏和播放记录初始化等待 `DOMContentLoaded`。
+- 首屏已经绘制时，晚到的 GSAP 不再重新隐藏首屏执行入场动画；其他动效和客户端路由的入场行为继续保留。
+- 播放和试看路由跳过 Redis/文件整页 HTML 缓存，避免把访客的空播放器返回给已登录用户；首页和数据查询缓存保留。收藏反馈同时识别 MacCMS 的 POST 参数及原有 URL 参数。
+- 设备插件在会话校验后，为 HTML GET 文档追加三份基础 CSS 的版本化 HTTP `Link` 预加载头；版本来自发布包的 `asset-preloads.json`，旧主题无清单时跳过。
+
 - `html/public/include.html` 在首屏绘制前读取 `localStorage` 中的 `pingfang_theme`、设置根主题并激活所需主题 CSS；游戏模板通过页面标记额外请求 `games.css`。随后加载 jQuery、MacCMS `maccms` 配置和 `home.js`。
+- `html/public/theme_options.html` 保存桌面与移动端共用的七套主题菜单；PHP 预览直接读取同一片段。
 - `html/public/head.html` 输出页面头部、搜索、用户状态、主题切换器和移动抽屉，并打开 `<main>`。
 - `html/public/foot.html` 关闭页面结构、保留隐藏计时钩子并加载共享 `app.js`；前台不再输出可见页脚。
 - 普通页面通过 `{include file="public/head" /}` 与 `{include file="public/foot" /}` 复用骨架；修改公共 include 后，生产环境需要清理 MacCMS 模板缓存。
@@ -65,6 +72,8 @@
 - 榜单使用服务端/静态 HTML 和 `app.js`；未加载、未发布的 React 榜单实验脚本已经移除。
 
 ## 当前视觉与动效
+
+- 敦煌流光首页按需加载本地 Two.js 0.8.24 浏览器构建，在轮播右上角绘制莲瓣与联珠藻井纹样；进入主题时执行约 4.2 秒的展开旋转后静止，切换主题、离开首页或标签页隐藏时停止绘制，遵循系统减少动态效果设置。MIT 许可证保存在 `js/TWO-MIT.txt`，静态与 PHP 预览共用同一运行时。
 
 - 默认主题使用深夜蓝黑星空底色、紫蓝液态玻璃表面和高亮青色状态色；首页以全宽海报舞台和横向内容货架为主要视觉结构。
 - 默认主题的榜单、频道入口、筛选和影片资料区降低彩色玻璃与阴影强度，导航保留玻璃材质；其余六套主题保留各自表面样式。

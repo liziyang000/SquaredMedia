@@ -80,9 +80,10 @@ const requiredFiles = [
   "js/gsap.min.js",
   "js/canvas-confetti.min.js",
   "js/CANVAS-CONFETTI-ISC.txt",
+  "js/two.min.js",
+  "js/TWO-MIT.txt",
   "js/app.js",
   "js/multiplayer-games.js",
-  "js/qixi-particle-rose.js",
   "js/qixi-particle-bouquet.js",
   "js/third-party/three/three.module.min.js",
   "js/third-party/three/three.core.min.js",
@@ -227,18 +228,18 @@ const requiredRootFiles = [
   "addons/vodops/view/videos/index.html",
   "preview/data.json",
   "preview/qixi.html",
-  "scripts/lint-template.mjs",
-  "scripts/deploy-ping2.env",
-  "scripts/deploy-theme.sh",
-  "scripts/rollback-theme.sh",
-  "scripts/package-player.mjs",
-  "scripts/package-game-server.mjs",
-  "scripts/package-theme.mjs",
-  "scripts/verify-compat.mjs",
-  "scripts/verify-preview.mjs",
-  "scripts/verify-player-release.mjs",
-  "scripts/verify-game-server-release.mjs",
-  "scripts/verify-release.mjs",
+  "scripts/verify/lint-template.mjs",
+  "scripts/deploy/deploy-ping2.env",
+  "scripts/deploy/deploy-theme.sh",
+  "scripts/deploy/rollback-theme.sh",
+  "scripts/build/package-player.mjs",
+  "scripts/build/package-game-server.mjs",
+  "scripts/build/package-theme.mjs",
+  "scripts/verify/verify-compat.mjs",
+  "scripts/verify/verify-preview.mjs",
+  "scripts/verify/verify-player-release.mjs",
+  "scripts/verify/verify-game-server-release.mjs",
+  "scripts/verify/verify-release.mjs",
   "server/index.php",
   "server/lib/data.php",
   "server/lib/render.php",
@@ -320,7 +321,7 @@ assert.match(readme, /npm run rollback/);
 assert.match(readme, /DEPLOY_HOST/);
 assert.match(readme, /DEPLOY_PATH/);
 assert.match(readme, /DEPLOY_CLEAR_CACHE/);
-assert.match(readme, /scripts\/deploy-ping2\.env/);
+assert.match(readme, /scripts\/deploy\/deploy-ping2\.env/);
 assert.match(readme, /ROLLBACK_BACKUP/);
 assert.match(readme, /GitHub Actions/);
 assert.match(readme, /登录设备管理/);
@@ -376,7 +377,8 @@ assert.doesNotMatch(include, /css\/style\.css\?v=20260619/);
 assert.doesNotMatch(include, /css\/style\.css\?v=20260620/);
 assert.doesNotMatch(include, /__ROOT__/);
 
-const head = readThemeFile("html/public/head.html");
+const headTemplate = readThemeFile("html/public/head.html");
+const head = headTemplate.replaceAll('{include file="public/theme_options" /}', readThemeFile("html/public/theme_options.html"));
 for (const field of ["title", "keywords", "description"]) {
   assert.ok(head.includes(`{if condition="isset($pingfang_seo_${field})"}`));
   assert.ok(head.includes(`{$pingfang_seo_${field}|htmlspecialchars=ENT_QUOTES,'UTF-8',false}`));
@@ -494,6 +496,10 @@ assert.doesNotMatch(foot, /js\/gsap\.min\.js/);
 assert.match(foot, /js\/app\.js\?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="\{\$maccms\.path_tpl\}js\/canvas-confetti\.min\.js\?v=1\.9\.4"/);
 assert.doesNotMatch(foot, /<script src="[^\"]*canvas-confetti\.min\.js/);
 assert.doesNotMatch(foot, /https?:\/\/[^"']*canvas-confetti/);
+assert.match(foot, /data-dunhuang-two-src="\{\$maccms\.path_tpl\}js\/two\.min\.js\?v=0\.8\.24"/);
+assert.doesNotMatch(foot, /<script src="[^\"]*two\.min\.js/);
+assert.match(readThemeFile("js/TWO-MIT.txt"), /MIT License/);
+assert.match(readThemeFile("js/two.min.js"), /0\.8\.24/);
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260621/);
 assert.match(foot, new RegExp(`js/app\\.js\\?v=${appVersionPlaceholder}`));
 assert.doesNotMatch(foot, /js\/app\.js\?v=20260615/);
@@ -587,43 +593,7 @@ assert.match(qixiPage, new RegExp(`href="\\{\\$maccms\\.path_tpl\\}css/qixi-bouq
 assert.doesNotMatch(qixiPage, /src="[^"]*qixi-particle-rose\.js/);
 assert.match(qixiPage, /\{include file="public\/foot" \/\}/);
 
-const legacyQixiScript = readThemeFile("js/qixi-particle-rose.js");
-assert.doesNotThrow(() => new Script(legacyQixiScript), "The Qixi script shared with Next must remain a classic script");
-assert.match(legacyQixiScript, /getContext\("2d"\)/);
-assert.match(legacyQixiScript, /createRoseDome/);
-assert.match(legacyQixiScript, /ringCounts = \[1, 7, 13, 20\]/);
-assert.match(legacyQixiScript, /createRoseBasis/);
-assert.match(legacyQixiScript, /transformRosePoint/);
-assert.match(legacyQixiScript, /addRoseCalyx/);
-assert.match(legacyQixiScript, /roseSurfacePoint/);
-assert.match(legacyQixiScript, /petalEnvelope/);
-assert.match(legacyQixiScript, /petalSurfacePoint/);
-assert.match(legacyQixiScript, /rosePetalBands/);
-assert.match(legacyQixiScript, /roseRimShare/);
-assert.match(legacyQixiScript, /openness:/);
-assert.match(legacyQixiScript, /petalWidth:/);
-assert.match(legacyQixiScript, /irregularity:/);
-assert.match(legacyQixiScript, /petalShift:/);
-assert.doesNotMatch(legacyQixiScript, /addPetalLayer|petalLayers = \[/);
-assert.match(legacyQixiScript, /addWrappingParticles/);
-assert.match(legacyQixiScript, /addWrappingCollar/);
-assert.match(legacyQixiScript, /depthBuckets/);
-assert.match(legacyQixiScript, /shadeColor/);
-assert.match(legacyQixiScript, /entryDuration = 2800/);
-assert.match(legacyQixiScript, /startEntrance/);
-assert.match(legacyQixiScript, /completeEntrance/);
-assert.match(legacyQixiScript, /entryDelay/);
-assert.match(legacyQixiScript, /is-entering/);
-assert.match(legacyQixiScript, /is-entered/);
-assert.match(legacyQixiScript, /easeOutQuint/);
-assert.doesNotMatch(legacyQixiScript, /createWrappingPanels|drawWrapping|drawRoseBases/);
-assert.doesNotMatch(legacyQixiScript, /globalCompositeOperation = "lighter"/);
-assert.match(legacyQixiScript, /requestAnimationFrame/);
-assert.match(legacyQixiScript, /pointerdown/);
-assert.match(legacyQixiScript, /IntersectionObserver/);
-assert.match(legacyQixiScript, /prefers-reduced-motion/);
-assert.match(legacyQixiScript, /navigator\.share/);
-assert.doesNotMatch(legacyQixiScript, /\bTHREE\b|from "three"|unpkg|jsdelivr/);
+assert.ok(!existsSync(path.join(themeRoot, "js/qixi-particle-rose.js")), "The replaced Qixi Canvas entry must stay out of the theme");
 
 const qixiScript = readThemeFile("js/qixi-particle-bouquet.js");
 assert.match(qixiScript, /import \* as THREE from "\.\/third-party\/three\/three\.module\.min\.js"/);
@@ -1999,7 +1969,7 @@ assert.match(sharedGlassSurfaceRule, /background: var\(--cinema-glass\)/);
 assert.match(sharedGlassSurfaceRule, /backdrop-filter: blur\(30px\) saturate\(1\.22\)/);
 assert.match(homeShelfRailRule, /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/);
 assert.match(homeShelfRailRule, /grid-auto-flow: column/);
-assert.match(homeShelfRailRule, /overflow-x: auto/);
+assert.match(homeShelfRailRule, /overflow: visible/, "home shelf cards must keep their hover lift outside the rail");
 assert.match(homeShelfRailRule, /scroll-snap-type: x proximity/);
 assert.match(homeShelfRailRule, /perspective: 900px/);
 assert.match(hiddenHomeShelfRailRule, /display: none/);
@@ -2497,12 +2467,11 @@ assert.ok(logo.length < 150_000, "site logo should stay small enough for header 
 const logoMode = statSync(path.join(themeRoot, "images/site-logo.png")).mode & 0o777;
 assert.equal(logoMode & 0o044, 0o044, "site logo must be readable by the web server after deployment");
 
-const packageScript = readFileSync(path.join(root, "scripts/package-theme.mjs"), "utf8");
+const packageScript = readFileSync(path.join(root, "scripts/build/package-theme.mjs"), "utf8");
 assert.match(packageScript, /pingfangvideo/);
 assert.match(packageScript, /pingfangdevice/);
 assert.match(packageScript, /vodops/);
 assert.match(packageScript, /dist/);
-assert.match(packageScript, /addonArchive/);
 assert.match(packageScript, /startsWith\("\."\)/);
 assert.match(packageScript, /createHash/);
 assert.match(packageScript, /assetVersionInputs/);
@@ -2536,15 +2505,15 @@ assert.equal(packageJson.scripts.lint, "npm run lint:frontend");
 assert.match(packageJson.scripts["lint:frontend"], /npm run lint:js/);
 assert.match(packageJson.scripts["lint:frontend"], /npm run lint:css/);
 assert.match(packageJson.scripts["lint:frontend"], /npm run format:check/);
-assert.equal(packageJson.scripts["lint:template"], "node scripts/lint-template.mjs");
-assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify-compat.mjs");
-assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify-preview.mjs");
-assert.equal(packageJson.scripts["package:player"], "node scripts/package-player.mjs");
-assert.equal(packageJson.scripts["package:games"], "node scripts/package-game-server.mjs");
-assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify-player-release.mjs");
-assert.equal(packageJson.scripts["verify:game-server-release"], "node scripts/verify-game-server-release.mjs");
+assert.equal(packageJson.scripts["lint:template"], "node scripts/verify/lint-template.mjs");
+assert.equal(packageJson.scripts["verify:compat"], "node scripts/verify/verify-compat.mjs");
+assert.equal(packageJson.scripts["verify:preview"], "node scripts/verify/verify-preview.mjs");
+assert.equal(packageJson.scripts["package:player"], "node scripts/build/package-player.mjs");
+assert.equal(packageJson.scripts["package:games"], "node scripts/build/package-game-server.mjs");
+assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify/verify-player-release.mjs");
+assert.equal(packageJson.scripts["verify:game-server-release"], "node scripts/verify/verify-game-server-release.mjs");
 assert.equal(packageJson.scripts["start:games"], "node services/game-server/index.mjs");
-assert.equal(packageJson.scripts["deploy:games"], "bash scripts/deploy-game-server.sh");
+assert.equal(packageJson.scripts["deploy:games"], "bash scripts/deploy/deploy-game-server.sh");
 assert.match(packageJson.scripts.package, /package-theme\.mjs/);
 assert.match(packageJson.scripts.package, /package:player/);
 assert.match(packageJson.scripts.package, /package:games/);
@@ -2554,7 +2523,7 @@ assert.match(packageJson.scripts["verify:release"], /verify:game-server-release/
 assert.equal(packageJson.dependencies.ws, "8.21.1");
 assert.match(packageJson.scripts.deploy, /deploy-theme\.sh/);
 assert.match(packageJson.scripts.deploy, /deploy-game-server\.sh/);
-assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh");
+assert.equal(packageJson.scripts["deploy:vodops"], "DEPLOY_SCOPE=vodops bash scripts/deploy/deploy-theme.sh");
 for (const testFile of [
   "douban-gateway.test.php",
   "douban-matcher.test.php",
@@ -2565,9 +2534,9 @@ for (const testFile of [
 ]) {
   assert.match(packageJson.scripts.test, new RegExp(testFile.replace(".", "\\.")));
 }
-assert.equal(packageJson.scripts.rollback, "bash scripts/rollback-theme.sh");
+assert.equal(packageJson.scripts.rollback, "bash scripts/deploy/rollback-theme.sh");
 
-const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy-ping2.env"), "utf8");
+const ping2DeployEnv = readFileSync(path.join(root, "scripts/deploy/deploy-ping2.env"), "utf8");
 assert.match(ping2DeployEnv, /export DEPLOY_HOST=144\.34\.184\.95/);
 assert.match(ping2DeployEnv, /export DEPLOY_USER=root/);
 assert.match(ping2DeployEnv, /export DEPLOY_PATH=\/www\/wwwroot\/squaredMedia\/template/);
@@ -2582,7 +2551,7 @@ assert.match(ping2DeployEnv, /export DEPLOY_SITE_SCHEME=https/);
 assert.match(ping2DeployEnv, /export DEPLOY_SITE_MARKER=\/template\/pingfangvideo\//);
 assert.doesNotMatch(ping2DeployEnv, /DEPLOY_PASSWORD/);
 
-const deployScript = readFileSync(path.join(root, "scripts/deploy-theme.sh"), "utf8");
+const deployScript = readFileSync(path.join(root, "scripts/deploy/deploy-theme.sh"), "utf8");
 assert.match(deployScript, /^#!\/usr\/bin\/env bash/);
 assert.match(deployScript, /set -euo pipefail/);
 assert.match(deployScript, /npm test/);
@@ -2745,8 +2714,8 @@ try {
   rmSync(autoRollbackFixture, { recursive: true, force: true });
 }
 
-const gameDeployScript = readFileSync(path.join(root, "scripts/deploy-game-server.sh"), "utf8");
-const gameDeployMode = statSync(path.join(root, "scripts/deploy-game-server.sh")).mode & 0o777;
+const gameDeployScript = readFileSync(path.join(root, "scripts/deploy/deploy-game-server.sh"), "utf8");
+const gameDeployMode = statSync(path.join(root, "scripts/deploy/deploy-game-server.sh")).mode & 0o777;
 assert.equal(gameDeployMode & 0o111, 0o111, "game deployment script must remain executable");
 assert.match(gameDeployScript, /^#!\/usr\/bin\/env bash/);
 assert.match(gameDeployScript, /set -euo pipefail/);
@@ -2764,7 +2733,7 @@ assert.doesNotMatch(gameDeployScript, /fwrite\(STDERR/);
 assert.doesNotMatch(gameDeployScript, /source "\$service_env"/);
 assert.doesNotMatch(gameDeployScript, /DEPLOY_PASSWORD=/);
 
-const invalidGameDeploySiteHost = spawnSync("bash", ["scripts/deploy-game-server.sh"], {
+const invalidGameDeploySiteHost = spawnSync("bash", ["scripts/deploy/deploy-game-server.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2778,7 +2747,7 @@ const invalidGameDeploySiteHost = spawnSync("bash", ["scripts/deploy-game-server
 assert.notEqual(invalidGameDeploySiteHost.status, 0);
 assert.match(invalidGameDeploySiteHost.stderr, /DEPLOY_SITE_HOST must be a hostname/);
 
-const invalidGameDeploySiteScheme = spawnSync("bash", ["scripts/deploy-game-server.sh"], {
+const invalidGameDeploySiteScheme = spawnSync("bash", ["scripts/deploy/deploy-game-server.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2793,7 +2762,7 @@ const invalidGameDeploySiteScheme = spawnSync("bash", ["scripts/deploy-game-serv
 assert.notEqual(invalidGameDeploySiteScheme.status, 0);
 assert.match(invalidGameDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
 
-const invalidGameDeployOrigin = spawnSync("bash", ["scripts/deploy-game-server.sh"], {
+const invalidGameDeployOrigin = spawnSync("bash", ["scripts/deploy/deploy-game-server.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2808,7 +2777,7 @@ const invalidGameDeployOrigin = spawnSync("bash", ["scripts/deploy-game-server.s
 assert.notEqual(invalidGameDeployOrigin.status, 0);
 assert.match(invalidGameDeployOrigin.stderr, /DEPLOY_GAME_ALLOWED_ORIGINS must contain exact HTTP origins/);
 
-const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy/deploy-theme.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2822,7 +2791,7 @@ const invalidDeploySiteHost = spawnSync("bash", ["scripts/deploy-theme.sh"], {
 assert.notEqual(invalidDeploySiteHost.status, 0);
 assert.match(invalidDeploySiteHost.stderr, /DEPLOY_SITE_HOST must be a hostname/);
 
-const invalidDeploySiteScheme = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+const invalidDeploySiteScheme = spawnSync("bash", ["scripts/deploy/deploy-theme.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2837,7 +2806,7 @@ const invalidDeploySiteScheme = spawnSync("bash", ["scripts/deploy-theme.sh"], {
 assert.notEqual(invalidDeploySiteScheme.status, 0);
 assert.match(invalidDeploySiteScheme.stderr, /DEPLOY_SITE_SCHEME must be http or https/);
 
-const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
+const invalidDeployScope = spawnSync("bash", ["scripts/deploy/deploy-theme.sh"], {
   cwd: root,
   encoding: "utf8",
   env: {
@@ -2851,7 +2820,7 @@ const invalidDeployScope = spawnSync("bash", ["scripts/deploy-theme.sh"], {
 assert.notEqual(invalidDeployScope.status, 0);
 assert.match(invalidDeployScope.stderr, /DEPLOY_SCOPE must be all, theme, or vodops/);
 
-const rollbackScript = readFileSync(path.join(root, "scripts/rollback-theme.sh"), "utf8");
+const rollbackScript = readFileSync(path.join(root, "scripts/deploy/rollback-theme.sh"), "utf8");
 assert.match(rollbackScript, /^#!\/usr\/bin\/env bash/);
 assert.match(rollbackScript, /set -euo pipefail/);
 assert.match(rollbackScript, /\$\{DEPLOY_HOST/);
@@ -3147,7 +3116,7 @@ assert.match(deviceAddonView, /\{\$max_devices\}/);
 assert.match(deviceAddonView, /device_label_display/);
 assert.match(deviceAddonView, /"X-Requested-With": "XMLHttpRequest"/);
 
-const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/sql/maccms-vod-category-maintenance.sql"), "utf8");
+const categoryMaintenanceSql = readFileSync(path.join(root, "scripts/data/maccms-vod-category-maintenance.sql"), "utf8");
 assert.match(categoryMaintenanceSql, /MacCMS V10 vod category maintenance/i);
 assert.match(categoryMaintenanceSql, /SELECT type_id, type_pid, type_name/);
 assert.match(categoryMaintenanceSql, /START TRANSACTION/);
@@ -3159,13 +3128,13 @@ assert.match(categoryMaintenanceSql, /COMMIT/);
 assert.doesNotMatch(categoryMaintenanceSql, /DROP\s+TABLE/i);
 assert.doesNotMatch(categoryMaintenanceSql, /TRUNCATE/i);
 
-const categoryMaintenanceDoc = readFileSync(path.join(root, "docs/maccms-vod-category-maintenance.md"), "utf8");
+const categoryMaintenanceDoc = readFileSync(path.join(root, "docs/runbooks/maccms-vod-category-maintenance.md"), "utf8");
 assert.match(categoryMaintenanceDoc, /mac_vod/);
 assert.match(categoryMaintenanceDoc, /type_id_1/);
 assert.match(categoryMaintenanceDoc, /mysqldump/);
-assert.match(categoryMaintenanceDoc, /scripts\/sql\/maccms-vod-category-maintenance\.sql/);
+assert.match(categoryMaintenanceDoc, /scripts\/data\/maccms-vod-category-maintenance\.sql/);
 
-const templateLinter = readFileSync(path.join(root, "scripts/lint-template.mjs"), "utf8");
+const templateLinter = readFileSync(path.join(root, "scripts/verify/lint-template.mjs"), "utf8");
 assert.match(templateLinter, /maccms:vod/);
 assert.match(templateLinter, /include file/);
 assert.match(templateLinter, /forbiddenProductionPatterns/);
@@ -3179,7 +3148,7 @@ assert.match(templateLinter, /public\/star\.html/);
 assert.match(templateLinter, /maccms\.path without a trailing slash/);
 assert.match(templateLinter, /Template lint passed/);
 
-const compatVerifier = readFileSync(path.join(root, "scripts/verify-compat.mjs"), "utf8");
+const compatVerifier = readFileSync(path.join(root, "scripts/verify/verify-compat.mjs"), "utf8");
 assert.match(compatVerifier, /requiredThemeDirs/);
 assert.match(
   compatVerifier,
@@ -3212,7 +3181,7 @@ assert.match(
   /interactionEvidenceCache\.set\(sourceFile, await readProjectSource\(sourceFile\)\)/
 );
 
-const previewVerifier = readFileSync(path.join(root, "scripts/verify-preview.mjs"), "utf8");
+const previewVerifier = readFileSync(path.join(root, "scripts/verify/verify-preview.mjs"), "utf8");
 assert.match(previewVerifier, /php/);
 assert.match(previewVerifier, /route=videos/);
 assert.match(previewVerifier, /route=comics/);
@@ -3230,7 +3199,7 @@ assert.match(previewVerifier, /完整播放/);
 assert.match(previewVerifier, /player-shell[\s\S]*player-toolbar/);
 assert.match(previewVerifier, /Preview verification passed/);
 
-const releaseVerifier = readFileSync(path.join(root, "scripts/verify-release.mjs"), "utf8");
+const releaseVerifier = readFileSync(path.join(root, "scripts/verify/verify-release.mjs"), "utf8");
 assert.match(releaseVerifier, /pingfangvideo\.tar\.gz/);
 assert.match(releaseVerifier, /pingfangdevice\.tar\.gz/);
 assert.match(releaseVerifier, /vodops\.tar\.gz/);
@@ -3542,6 +3511,7 @@ assert.match(phpEntry, /render_page/);
 assert.match(phpEntry, /PHP_VERSION_ID/);
 
 const phpRender = readFileSync(path.join(root, "server/lib/render.php"), "utf8");
+const phpLayoutMarkup = execFileSync("php", ["-r", 'require "server/lib/data.php"; require "server/lib/render.php"; echo render_layout(load_data(), "主题检查", "");'], { encoding: "utf8" });
 assert.match(phpRender, /function render_layout\(array \$data, string \$title, string \$content, bool \$loadGameStyles = false\): string/);
 assert.match(phpRender, /css\/base\.css/);
 assert.match(phpRender, /css\/themes-foundation\.css/);
@@ -3610,12 +3580,12 @@ assert.match(phpRender, /data-theme-switcher-trigger aria-expanded="false" aria-
 assert.match(phpRender, /class="theme-switcher-menu" id="themeSwitcherMenu" data-theme-switcher-menu hidden/);
 assert.doesNotMatch(phpRender, /aria-haspopup=/);
 assert.match(phpRender, /class="mobile-drawer-section mobile-theme-section" data-theme-switcher-mobile/);
-assert.equal((phpRender.match(/data-theme-option="default"/g) || []).length, 2);
-assert.equal((phpRender.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
-assert.equal((phpRender.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
-assert.equal((phpRender.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
-assert.equal((phpRender.match(/data-theme-option="digital-particles"/g) || []).length, 2);
-assert.equal((phpRender.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
+assert.equal((phpLayoutMarkup.match(/data-theme-option="default"/g) || []).length, 2);
+assert.equal((phpLayoutMarkup.match(/data-theme-option="blue-pink-purple"/g) || []).length, 2);
+assert.equal((phpLayoutMarkup.match(/data-theme-option="poster-magazine"/g) || []).length, 2);
+assert.equal((phpLayoutMarkup.match(/data-theme-option="dunhuang-caisson"/g) || []).length, 2);
+assert.equal((phpLayoutMarkup.match(/data-theme-option="digital-particles"/g) || []).length, 2);
+assert.equal((phpLayoutMarkup.match(/data-theme-option="pixel-frog"/g) || []).length, 2);
 assert.match(phpRender, /path_for\('category', \['sort' => 'hot'\]\)/);
 assert.match(phpRender, /<h1 class="sr-only">' \. e\(\$data\['siteName'\]\) \. '首页<\/h1>/);
 assert.match(phpRender, /hero-carousel/);
@@ -4042,6 +4012,38 @@ function motionNode(attributes = {}) {
   return node;
 }
 
+const focusLoopRuntime = { document: { activeElement: null } };
+new Script(
+  appJs.slice(appJs.indexOf("  function setPageInert("), appJs.indexOf("  function clearBackdropHideTimer(")) +
+  appJs.slice(appJs.indexOf("  function responsiveDialogFocusableElements("), appJs.indexOf("  function setResponsiveDialogContextInert("))
+).runInNewContext(focusLoopRuntime);
+for (const navigation of [true, false]) {
+  const first = motionNode();
+  const last = motionNode();
+  const container = motionNode();
+  container.querySelectorAll = () => [first, last];
+  container.contains = (element) => element === first || element === last;
+  container.classList.add("is-open");
+  focusLoopRuntime.drawer = container;
+  const trap = (event) => navigation ? focusLoopRuntime.trapDrawerFocus(event) : focusLoopRuntime.trapResponsiveDialogFocus(container, event);
+  for (const [active, shiftKey, target] of [[last, false, first], [first, true, last], [null, false, first], [null, true, last]]) {
+    let prevented = false;
+    first.focused = last.focused = false;
+    focusLoopRuntime.document.activeElement = active;
+    trap({ key: "Tab", shiftKey, preventDefault() { prevented = true; } });
+    assert.equal(prevented, true, "focus must remain inside an open drawer");
+    assert.equal(target.focused, true, "Tab and Shift+Tab must wrap to the correct control");
+  }
+  first.focused = last.focused = false;
+  trap({ key: "Enter" });
+  assert.equal(first.focused || last.focused, false, "other keys must not move focus");
+  focusLoopRuntime.document.activeElement = first;
+  trap({ key: "Tab", preventDefault() { assert.fail("Tab inside the drawer should use normal keyboard navigation"); } });
+  container.querySelectorAll = () => [];
+  trap({ key: "Tab", preventDefault() {} });
+  assert.equal(container.focused, true, "an empty drawer must retain focus itself");
+}
+
 function motionTimers() {
   let sequence = 0;
   let now = 0;
@@ -4273,6 +4275,223 @@ tabWindow.location.href = "https://example.test/?keep=1&latest=film#shelf";
 tabWindow.dispatch("popstate");
 assert.equal(tabControls[1].getAttribute("aria-selected"), "true", "back navigation must restore the category without animation");
 
+const dunhuangFrames = new Map();
+const dunhuangScripts = [];
+let dunhuangFrameId = 0;
+let dunhuangReducedMotion = false;
+let dunhuangHasCarousel = true;
+let dunhuangCreated = 0;
+let dunhuangUpdates = 0;
+const dunhuangCarousel = { appendChild(element) { element.parentNode = this; } };
+const dunhuangDocument = {
+  documentElement: motionNode(), visibilityState: "visible",
+  querySelector: () => dunhuangHasCarousel ? dunhuangCarousel : null,
+  createElement: () => Object.assign(motionNode(), { remove() { this.removed = true; } }),
+  body: { appendChild(script) { dunhuangScripts.push(script); } },
+};
+const dunhuangRuntime = {
+  document: dunhuangDocument,
+  window: {
+    requestAnimationFrame(callback) { dunhuangFrames.set(++dunhuangFrameId, callback); return dunhuangFrameId; },
+    cancelAnimationFrame(id) { dunhuangFrames.delete(id); },
+  },
+  dunhuangTwoSource: "/template/pingfangvideo/js/two.min.js?v=0.8.24",
+  dunhuangTwoScript: null, dunhuangCaisson: null, dunhuangFrame: null, dunhuangStartedAt: null,
+  prefersReducedMotion: () => dunhuangReducedMotion,
+  createDunhuangCaisson() {
+    dunhuangCreated += 1;
+    return { element: motionNode(), two: { update() { dunhuangUpdates += 1; } }, outer: {}, petals: {}, ornament: {} };
+  },
+};
+new Script(appJs.slice(appJs.indexOf("  function renderDunhuangCaisson("), appJs.indexOf("  function applyTheme("))).runInNewContext(dunhuangRuntime);
+dunhuangRuntime.syncDunhuangCaisson();
+assert.equal(dunhuangScripts.length, 0, "other themes must not download Two.js");
+dunhuangDocument.documentElement.setAttribute("data-theme", "dunhuang-caisson");
+dunhuangReducedMotion = true;
+dunhuangRuntime.syncDunhuangCaisson();
+assert.equal(dunhuangScripts.length, 0, "reduced motion must retain the existing static artwork without downloading Two.js");
+dunhuangReducedMotion = false;
+dunhuangHasCarousel = false;
+dunhuangRuntime.syncDunhuangCaisson();
+assert.equal(dunhuangScripts.length, 0, "pages without the hero must not download Two.js");
+dunhuangHasCarousel = true;
+dunhuangRuntime.syncDunhuangCaisson();
+dunhuangRuntime.syncDunhuangCaisson();
+assert.equal(dunhuangScripts.length, 1, "repeated theme updates must share the pending script");
+dunhuangScripts[0].dispatch("error");
+assert.equal(dunhuangScripts[0].removed, true);
+dunhuangRuntime.syncDunhuangCaisson();
+assert.equal(dunhuangScripts.length, 2, "a later theme update can retry a failed download");
+dunhuangDocument.documentElement.removeAttribute("data-theme");
+dunhuangRuntime.window.Two = {};
+dunhuangScripts[1].dispatch("load");
+assert.equal(dunhuangCreated, 0, "a late script must not start artwork after leaving the theme");
+dunhuangDocument.documentElement.setAttribute("data-theme", "dunhuang-caisson");
+dunhuangRuntime.syncDunhuangCaisson();
+dunhuangRuntime.syncDunhuangCaisson();
+assert.equal(dunhuangCreated, 1, "theme updates must reuse the ornament");
+assert.equal(dunhuangFrames.size, 1, "only one animation frame may be pending");
+for (const time of [100, 2200, 4300]) {
+  const [id, callback] = [...dunhuangFrames][0];
+  dunhuangFrames.delete(id);
+  callback(time);
+}
+assert.equal(dunhuangUpdates, 3);
+assert.equal(dunhuangFrames.size, 0, "the ornament must stop scheduling frames after 4.2 seconds");
+assert.equal(dunhuangRuntime.dunhuangCaisson.ornament.scale, 1);
+assert.equal(dunhuangRuntime.dunhuangCaisson.petals.rotation, 0);
+for (const stop of [
+  () => { dunhuangDocument.documentElement.removeAttribute("data-theme"); },
+  () => { dunhuangReducedMotion = true; },
+  () => { dunhuangDocument.visibilityState = "hidden"; },
+  () => { dunhuangHasCarousel = false; },
+]) {
+  dunhuangDocument.documentElement.setAttribute("data-theme", "dunhuang-caisson");
+  dunhuangReducedMotion = false;
+  dunhuangDocument.visibilityState = "visible";
+  dunhuangHasCarousel = true;
+  dunhuangRuntime.syncDunhuangCaisson();
+  stop();
+  dunhuangRuntime.syncDunhuangCaisson();
+  assert.equal(dunhuangFrames.size, 0, "leaving the theme, reduced motion, hidden tabs and other pages must stop drawing");
+  assert.equal(dunhuangRuntime.dunhuangCaisson.element.hidden, true);
+}
+
+const navModeFrames = [];
+const navModeQuery = Object.assign(motionNode(), { matches: false });
+const navModeToggle = motionNode();
+const navModeSearch = motionNode();
+const navModeBrand = Object.assign(motionNode(), { getClientRects: () => [{}] });
+const navModeHiddenSearch = Object.assign(motionNode(), { getClientRects: () => [], closest: () => ({}) });
+const navModeHiddenLink = Object.assign(motionNode(), { getClientRects: () => [], closest: () => null });
+let navModeMenuOpen = true;
+const navModeRuntime = {
+  toggle: navModeToggle, drawer: motionNode(), searchToggle: navModeSearch,
+  desktopNavQuery: navModeQuery, mobileHeaderQuery: { matches: true },
+  siteHeader: Object.assign(motionNode(), { querySelector: () => navModeBrand }),
+  document: Object.assign(motionNode(), { activeElement: navModeHiddenSearch }),
+  window: { requestAnimationFrame: (callback) => navModeFrames.push(callback) },
+  closeThemeSwitchers: () => { navModeMenuOpen = false; }, setNavOpen() {}, trapDrawerFocus() {},
+};
+new Script(appJs.slice(appJs.indexOf('  if (toggle && drawer) {\n    document.addEventListener("keydown"'), appJs.indexOf("  markCurrentNav();"))).runInNewContext(navModeRuntime);
+navModeQuery.dispatch("change", { matches: false });
+navModeRuntime.siteHeader.dispatch("focusout", { target: navModeHiddenSearch, relatedTarget: null });
+while (navModeFrames.length) navModeFrames.shift()();
+assert.equal(navModeSearch.focused, true, "desktop search focus must move to the mobile search trigger");
+assert.equal(navModeMenuOpen, false, "a hidden desktop theme menu must close during the compact-layout switch");
+navModeRuntime.document.activeElement = navModeHiddenLink;
+navModeQuery.dispatch("change", { matches: false });
+navModeRuntime.siteHeader.dispatch("focusout", { target: navModeHiddenLink, relatedTarget: null });
+while (navModeFrames.length) navModeFrames.shift()();
+assert.equal(navModeToggle.focused, true, "hidden desktop navigation must transfer focus to the mobile menu trigger");
+navModeToggle.focused = false;
+navModeRuntime.document.activeElement = navModeBrand;
+navModeQuery.dispatch("change", { matches: false });
+navModeRuntime.siteHeader.dispatch("focusout", { target: navModeBrand, relatedTarget: null });
+while (navModeFrames.length) navModeFrames.shift()();
+assert.equal(navModeToggle.focused, false, "a visible header control must keep focus during resize");
+navModeSearch.focused = false;
+navModeRuntime.siteHeader.dispatch("focusout", { target: navModeHiddenSearch, relatedTarget: navModeBrand });
+while (navModeFrames.length) navModeFrames.shift()();
+assert.equal(navModeSearch.focused, false, "an explicit keyboard focus move must not be overridden");
+
+const filterModePanel = motionNode();
+const filterModeSheet = motionNode();
+const filterModeToggle = motionNode();
+const filterModeControl = motionNode();
+let filterModeFocusCount = 0;
+const filterModeFrames = [];
+filterModeControl.focus = () => { filterModeFocusCount += 1; filterModeRuntime.document.activeElement = filterModeControl; };
+filterModeSheet.contains = (element) => element === filterModeControl;
+const filterModeRuntime = {
+  mobileQuery: { matches: false }, panel: filterModePanel, sheet: filterModeSheet,
+  toggleButton: filterModeToggle, backdropElement: motionNode(), contextState: [],
+  titleId: "filterModeTitle",
+  body: { querySelector: () => filterModeControl }, document: { body: motionNode() },
+  window: { requestAnimationFrame: (callback) => filterModeFrames.push(callback) },
+  setResponsiveDialogContextInert() {},
+};
+filterModeToggle.focus = () => { filterModeToggle.focused = true; filterModeRuntime.document.activeElement = filterModeToggle; };
+new Script(appJs.slice(appJs.indexOf("      function closeFilterDrawer("), appJs.indexOf('      toggleButton.addEventListener("click", openFilterDrawer)'))).runInNewContext(filterModeRuntime);
+filterModeRuntime.syncFilterDrawerMode();
+assert.equal(filterModeFocusCount, 0, "initial desktop filters must not steal focus");
+filterModePanel.classList.add("is-open");
+filterModeRuntime.document.body.classList.add("filter-drawer-open");
+filterModeRuntime.syncFilterDrawerMode();
+assert.equal(filterModeFocusCount, 0, "filter focus must wait for the desktop layout to become visible");
+while (filterModeFrames.length) filterModeFrames.shift()();
+assert.equal(filterModeFocusCount, 1, "an open filter drawer must transfer focus to its desktop controls");
+assert.equal(filterModePanel.classList.contains("is-open"), false);
+assert.equal(filterModeRuntime.document.body.classList.contains("filter-drawer-open"), false);
+assert.equal(filterModeSheet.inert, false);
+filterModeRuntime.syncFilterDrawerMode();
+assert.equal(filterModeFocusCount, 1, "a closed drawer must not move focus during resize");
+filterModeRuntime.mobileQuery.matches = true;
+filterModeRuntime.syncFilterDrawerMode();
+assert.equal(filterModeSheet.inert, true);
+assert.equal(filterModeSheet.getAttribute("role"), "dialog");
+while (filterModeFrames.length) filterModeFrames.shift()();
+assert.equal(filterModeToggle.focused, true, "desktop filter focus must return to the mobile filter trigger before the controls are hidden");
+const filterModeOpenFrames = [];
+filterModeRuntime.window = { requestAnimationFrame: (callback) => filterModeOpenFrames.push(callback) };
+filterModeRuntime.closeButton = motionNode();
+filterModeRuntime.setNavOpen = () => {};
+filterModeRuntime.openFilterDrawer();
+filterModeRuntime.mobileQuery.matches = false;
+filterModeRuntime.syncFilterDrawerMode();
+while (filterModeOpenFrames.length) filterModeOpenFrames.shift()();
+assert.notEqual(filterModeRuntime.closeButton.focused, true, "a pending open frame must not refocus the hidden close button after resize");
+filterModeOpenFrames.length = 0;
+const filterFocusBeforeMobileReturn = filterModeFocusCount;
+filterModeRuntime.mobileQuery.matches = true;
+filterModeRuntime.openFilterDrawer();
+filterModeRuntime.mobileQuery.matches = false;
+filterModeRuntime.syncFilterDrawerMode();
+filterModeRuntime.mobileQuery.matches = true;
+filterModeRuntime.syncFilterDrawerMode();
+while (filterModeOpenFrames.length) filterModeOpenFrames.shift()();
+assert.equal(filterModeFocusCount, filterFocusBeforeMobileReturn, "a stale desktop focus frame must not focus hidden controls after returning to mobile");
+
+const episodeModeDrawer = motionNode();
+const episodeModeToggle = motionNode();
+let episodeModeFocusCount = 0;
+episodeModeToggle.focus = () => { episodeModeFocusCount += 1; };
+const episodeModeRuntime = {
+  mobileQuery: { matches: false }, episodeDrawer: episodeModeDrawer, toggleButton: episodeModeToggle,
+  backdropElement: motionNode(), contextState: [], drawerTitle: { id: "episodeModeTitle" }, document: { body: motionNode() },
+  setResponsiveDialogContextInert() {},
+};
+new Script(appJs.slice(appJs.indexOf("      function closeEpisodeDrawer("), appJs.indexOf('      toggleButton.addEventListener("click", openEpisodeDrawer)'))).runInNewContext(episodeModeRuntime);
+episodeModeRuntime.syncEpisodeDrawerMode();
+assert.equal(episodeModeFocusCount, 0, "initial desktop episodes must not steal focus");
+episodeModeDrawer.classList.add("is-open");
+episodeModeRuntime.document.body.classList.add("episode-drawer-open");
+episodeModeRuntime.syncEpisodeDrawerMode();
+assert.equal(episodeModeFocusCount, 1, "an open episode drawer must return focus to its visible trigger on desktop");
+assert.equal(episodeModeDrawer.classList.contains("is-open"), false);
+assert.equal(episodeModeRuntime.document.body.classList.contains("episode-drawer-open"), false);
+assert.equal(episodeModeDrawer.inert, false);
+episodeModeRuntime.syncEpisodeDrawerMode();
+assert.equal(episodeModeFocusCount, 1, "a closed episode drawer must not steal focus during resize");
+episodeModeRuntime.mobileQuery.matches = true;
+episodeModeRuntime.syncEpisodeDrawerMode();
+assert.equal(episodeModeDrawer.inert, true);
+episodeModeRuntime.mobileQuery.matches = false;
+episodeModeRuntime.syncEpisodeDrawerMode();
+episodeModeRuntime.document.activeElement = episodeModeDrawer;
+episodeModeRuntime.mobileQuery.matches = true;
+episodeModeRuntime.syncEpisodeDrawerMode();
+assert.equal(episodeModeFocusCount, 2, "desktop episode focus must return to the mobile episode trigger");
+const episodeModeOpenFrames = [];
+episodeModeRuntime.window = { requestAnimationFrame: (callback) => episodeModeOpenFrames.push(callback) };
+episodeModeRuntime.closeButton = motionNode();
+episodeModeRuntime.setNavOpen = () => {};
+episodeModeRuntime.openEpisodeDrawer({ preventDefault() {} });
+episodeModeRuntime.mobileQuery.matches = false;
+episodeModeRuntime.syncEpisodeDrawerMode();
+episodeModeOpenFrames.forEach((callback) => callback());
+assert.notEqual(episodeModeRuntime.closeButton.focused, true, "a pending episode-open frame must not steal restored desktop focus");
+
 const themeOptions = ["blue-pink-purple", "poster-magazine"].map((theme) => {
   const option = motionNode({ "data-theme-option": theme });
   option.closest = () => null;
@@ -4305,7 +4524,7 @@ const themeRuntime = {
   getStoredTheme: () => "",
   ensureThemeStyles: (theme) => themeStyles.get(theme)?.promise || Promise.resolve(),
   prefersReducedMotion: () => themeReducedMotion,
-  resetPixelThemeParticles() {}, launchPixelThemeParticles() {}, closeThemeSwitchers() {},
+  resetPixelThemeParticles() {}, launchPixelThemeParticles() {}, syncDunhuangCaisson() {}, closeThemeSwitchers() {},
 };
 new Script(
   appJs.slice(appJs.indexOf("  function syncThemeControls("), appJs.indexOf("  function resetPixelThemeParticles("))
@@ -4486,6 +4705,39 @@ assert.equal(continuePosterImages[2].hidden, false, "healthy posters must remain
 assert.equal(continuePosterImages[2].parentElement.classList.contains("is-image-missing"), false);
 mediaFallbackRuntime.initMediaFallbacks(continuePosterScope);
 assert.deepEqual(continuePosterImages.map((image) => image.listenerCount), [1, 1, 1], "reinitialization must not duplicate error listeners");
+const shelfPosterImages = [[false, 0], [false, 0], [true, 0], [true, 270]].map(([complete, naturalWidth]) => {
+  const image = motionNode();
+  image.complete = complete;
+  image.naturalWidth = naturalWidth;
+  image.parentElement = motionNode({ class: "home-shelf-poster" });
+  return image;
+});
+const shelfPosterScope = { querySelectorAll: () => shelfPosterImages };
+mediaFallbackRuntime.initMediaFallbacks(shelfPosterScope);
+for (const image of shelfPosterImages.slice(0, 2)) {
+  assert.equal(image.parentElement.classList.contains("is-image-loading"), true, "pending latest posters must have a loading placeholder");
+  assert.equal(image.hidden, false, "a loading placeholder must not hide or cancel the pending lazy image");
+}
+assert.equal(shelfPosterImages[2].hidden, true);
+assert.equal(shelfPosterImages[2].parentElement.classList.contains("is-image-loading"), false);
+assert.equal(shelfPosterImages[3].hidden, false);
+assert.equal(shelfPosterImages[3].parentElement.classList.contains("is-image-loading"), false, "cached healthy posters must never show loading state");
+shelfPosterImages[1].dispatch("error");
+assert.equal(shelfPosterImages[1].hidden, true);
+assert.equal(shelfPosterImages[1].parentElement.classList.contains("is-image-loading"), false, "an error must end the loading state");
+assert.equal(shelfPosterImages[1].parentElement.classList.contains("is-image-missing"), true);
+for (const image of shelfPosterImages.slice(0, 3)) {
+  image.complete = true;
+  image.naturalWidth = 270;
+  image.dispatch("load");
+  assert.equal(image.hidden, false, "late successful posters must become visible");
+  assert.equal(image.parentElement.classList.contains("is-image-loading"), false);
+  assert.equal(image.parentElement.classList.contains("is-image-missing"), false);
+  assert.notEqual(image.dataset.mediaFallbackState, "missing");
+}
+assert.match(style, /\.home-shelf-poster\.is-image-loading,[\s\S]*?background:\s*radial-gradient/);
+assert.match(extractCssRule(style, ".home-shelf-poster.is-image-loading::before"), /content: "海报加载中"/);
+assert.match(extractCssRule(style, ".home-shelf-poster.is-image-loading::before"), /pointer-events: none/);
 const continueRenderRuntime = { URL, window: { location: { href: "https://example.test/" } }, initMediaFallbacks: (section) => { section.fallbackInitialized = true; } };
 new Script(
   appJs.slice(appJs.indexOf("  function safeContinueResource("), appJs.indexOf("  function initHomeContinueWatching("))
@@ -4751,7 +5003,7 @@ assert.doesNotMatch(trialPreview, /id="episodeList"/);
 for (const [surface, markup, bootstrapSource] of [
   ["production", head, include],
   ["static preview", preview, preview],
-  ["PHP preview", phpRender, phpRender],
+  ["PHP preview", phpLayoutMarkup, phpRender],
 ]) {
   assert.equal((markup.match(/data-theme-option="ink-wash"/g) || []).length, 2, `${surface} must offer ink wash on desktop and mobile`);
   const bootstrap = bootstrapSource.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];

@@ -2318,6 +2318,7 @@ textarea:focus-visible,
 
 .home-shelf {
   padding: 34px 0 18px;
+  overflow-clip-margin: 64px;
 }
 
 .home-shelf + .home-shelf {
@@ -2379,6 +2380,10 @@ textarea:focus-visible,
   box-shadow: var(--selected-compact-shadow);
 }
 
+.home-shelf-tabs button[hidden] {
+  display: none;
+}
+
 .home-shelf-more {
   grid-column: 3;
   justify-self: end;
@@ -2405,7 +2410,7 @@ textarea:focus-visible,
   grid-auto-flow: column;
   grid-auto-columns: minmax(210px, 1fr);
   gap: 16px;
-  overflow-x: auto;
+  overflow: visible;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: none;

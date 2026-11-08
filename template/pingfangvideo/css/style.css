@@ -1383,6 +1383,7 @@ body::before {
 
 .rank-thumb.is-image-missing,
 .home-shelf-poster.is-image-missing,
+.home-shelf-poster.is-image-loading,
 .home-continue-poster.is-image-missing,
 .poster.is-image-missing,
 .detail-poster.is-image-missing,
@@ -1396,6 +1397,21 @@ body::before {
 
 .is-image-missing > img {
   display: none !important;
+}
+
+.home-shelf-poster.is-image-loading::before {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: var(--muted);
+  content: "海报加载中";
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: none;
 }
 
 .rank-index,
@@ -1705,8 +1721,8 @@ body::before {
 .home-shelf-tabs button {
   min-height: 44px;
   border-radius: 11px;
-  color: rgba(214, 220, 239, 0.56);
-  font-size: 12px;
+  color: var(--muted);
+  font-size: 14px;
   padding: 8px 13px;
 }
 
@@ -1843,6 +1859,35 @@ body::before {
   margin: 0 7px 0 3px;
   color: rgba(203, 210, 232, 0.28);
   content: "·";
+}
+
+:is(.home-shelf-card, .vod-card, .genre-chip, .rank-item, .home-shelf-tabs button):focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: -2px;
+}
+
+html:not([data-theme]) :is(.home-shelf-body strong, .vod-card > strong) {
+  font-size: 16px;
+  transition: color 0.18s ease;
+}
+
+html:not([data-theme]) :is(.home-shelf-body small, .vod-card .card-meta) {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+html:not([data-theme]) :is(.home-shelf-body small, .vod-card .card-meta span) {
+  color: var(--muted);
+}
+
+html:not([data-theme]) :is(.poster, .home-shelf-poster) .quality-badge {
+  line-height: 2;
+  padding-block: 0;
+}
+
+html:not([data-theme]) .home-shelf-card:is(:hover, :focus-visible) .home-shelf-body strong,
+html:not([data-theme]) .vod-card:is(:hover, :focus-visible) > strong {
+  color: var(--accent-2);
 }
 
 .page-title {
@@ -2142,6 +2187,8 @@ html:not([data-theme]) .hero-slide[data-banner-layout="poster"] .banner-content 
     grid-auto-flow: column;
     grid-auto-columns: minmax(218px, 1fr);
     overflow-x: auto;
+    margin-top: -4px;
+    padding-top: 4px;
     padding-bottom: 8px;
     scrollbar-color: rgba(139, 124, 255, 0.46) transparent;
     scrollbar-width: thin;

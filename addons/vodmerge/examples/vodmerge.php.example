@@ -1,0 +1,7 @@
+<?php
+
+// Copy to application/extra/vodmerge.php on the server; never commit the real values.
+return [
+    'typesafe_api_key' => '',
+    'ingest_secret' => '', // Generate an independent random secret of at least 32 bytes.
+];

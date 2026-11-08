@@ -25,7 +25,9 @@
     "deploy": "bash scripts/deploy-theme.sh && DEPLOY_SKIP_GAME_VERIFY=1 bash scripts/deploy-game-server.sh",
     "deploy:vodops": "DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh",
     "deploy:games": "bash scripts/deploy-game-server.sh",
-    "rollback": "bash scripts/rollback-theme.sh"
+    "rollback": "bash scripts/rollback-theme.sh",
+    "test:vodmerge": "php tests/vodmerge.test.php && php tests/vodmerge-settings.test.php && php tests/vodmerge-audit.test.php && php tests/vodmerge-audit-controller.test.php && php tests/vodmerge-workbench.test.php",
+    "package:vodmerge": "php scripts/package-vodmerge.php"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

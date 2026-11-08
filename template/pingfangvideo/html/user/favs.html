@@ -53,7 +53,7 @@
 </section>
 
 <script>
-  (function () {
+  document.addEventListener("DOMContentLoaded", function () {
     function collectCheckedIds() {
       if (window.MAC && MAC.CheckBox && typeof MAC.CheckBox.Ids === "function") {
         return MAC.CheckBox.Ids("ids[]");
@@ -97,6 +97,6 @@
     $("[data-delete-ulog]").click(function () {
       delData($(this).data("delete-ulog"), 0);
     });
-  })();
+  });
 </script>
 {include file="user/foot" /}

@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const deploy = readFileSync("scripts/deploy-theme.sh", "utf8");
+const deploy = readFileSync("scripts/deploy/deploy-theme.sh", "utf8");
 const remoteScript = deploy.match(/<<'REMOTE_SCRIPT'\n([\s\S]*?)\nREMOTE_SCRIPT/)?.[1];
 assert.ok(remoteScript, "deployment must provide its remote script");
 const commandStubs = `

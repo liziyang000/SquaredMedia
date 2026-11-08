@@ -6,6 +6,17 @@ This repository contains a MacCMS V10 video website theme:
 template/pingfangvideo/
 ```
 
+## Project Layout
+
+- `template/pingfangvideo/`, `addons/`, `maccms-player/`, and `services/` contain deployable source.
+- `preview/`, `server/`, and `docker/` provide local previews.
+- `scripts/` groups [build, verification, deployment, and data tools](scripts/README.md).
+- `tests/` contains regression tests; `docs/` contains [current documentation, runbooks, and historical audits](docs/README.md).
+- `项目管理/` keeps Obsidian project records and Codex history.
+- `dist/` and `output/` contain ignored generated files.
+
+See the [project overview](docs/overview.md) for the complete directory map.
+
 ## PHP Requirement
 
 Development is targeted at PHP 8.4. The template itself is MacCMS HTML/CSS/JS, but it is intended to be parsed and rendered by a PHP 8.4 MacCMS runtime.
@@ -167,7 +178,7 @@ Deploy the verified package to a MacCMS server over SSH:
 
 For the operator-run checklist, preflight, post-deployment verification, and
 component-specific rollback boundaries, see
-[`docs/manual-theme-addon-deployment.md`](docs/manual-theme-addon-deployment.md).
+[`docs/runbooks/manual-theme-addon-deployment.md`](docs/runbooks/manual-theme-addon-deployment.md).
 
 ```bash
 DEPLOY_HOST=example.com \
@@ -178,12 +189,12 @@ npm run deploy
 ```
 
 For the production server, the non-secret deployment target is stored in
-`scripts/deploy-ping2.env`. This file uses SSH target `144.34.184.95:814`,
+`scripts/deploy/deploy-ping2.env`. This file uses SSH target `144.34.184.95:814`,
 distinguishes it from the public site host `www.ping2video.xyz`, and selects the
 dedicated local deployment identity:
 
 ```bash
-source scripts/deploy-ping2.env
+source scripts/deploy/deploy-ping2.env
 npm run deploy
 ```
 
@@ -245,7 +256,7 @@ configured category and batch size. The default interval is `0`, so deployment
 does not silently schedule new full-site scans; the Cron still continues worker
 tasks that an administrator starts explicitly.
 
-For a VodOps-only server release, load `scripts/deploy-ping2.env` and run
+For a VodOps-only server release, load `scripts/deploy/deploy-ping2.env` and run
 `npm run deploy:vodops`. This scoped command keeps the full local release gates
 but uploads and installs only the VodOps archive; it does not replace the theme,
 the device addon, the game service, or the standalone player.

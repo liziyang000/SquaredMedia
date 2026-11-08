@@ -844,7 +844,7 @@
         "name": "Shared public shell partials",
         "classification": "partial",
         "representation": "global shell/component mapping; not separate pages",
-        "sourceFiles": ["template/pingfangvideo/html/public/foot.html", "template/pingfangvideo/html/public/include.html"]
+        "sourceFiles": ["template/pingfangvideo/html/public/foot.html", "template/pingfangvideo/html/public/include.html", "template/pingfangvideo/html/public/theme_options.html"]
       },
       {
         "id": "C08",

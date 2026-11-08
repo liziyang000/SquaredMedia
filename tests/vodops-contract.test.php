@@ -480,11 +480,11 @@ if (strpos($vodopsView, 'candidate.selected') !== false) {
     vodops_contract_fail('The repair drawer must ignore any server-side candidate selection hint.');
 }
 
-$packageScript = file_get_contents($root . '/scripts/package-theme.mjs');
+$packageScript = file_get_contents($root . '/scripts/build/package-theme.mjs');
 vodops_contract_match('/vodops/', $packageScript, 'The package script must build the vodops archive.');
-$releaseVerifier = file_get_contents($root . '/scripts/verify-release.mjs');
+$releaseVerifier = file_get_contents($root . '/scripts/verify/verify-release.mjs');
 vodops_contract_match('/vodops\.tar\.gz/', $releaseVerifier, 'Release verification must inspect the vodops archive.');
-$deployScript = file_get_contents($root . '/scripts/deploy-theme.sh');
+$deployScript = file_get_contents($root . '/scripts/deploy/deploy-theme.sh');
 if (strpos($deployScript, 'str_starts_with') !== false) {
     vodops_contract_fail('Remote deployment snippets must not require PHP 8 string helpers.');
 }
@@ -526,11 +526,11 @@ vodops_contract_match('/trap remote_deploy_exit EXIT[\s\S]*?vodops_auto_rollback
 vodops_contract_match('/install_vodops_worker_cron[\s\S]*?if \[\[ "\$DEPLOY_SCOPE" != "vodops" \]\]; then[\s\S]*?vodops_auto_rollback_backup=""/', $deployScript, 'Full deployment may disarm VodOps rollback only after Cron verification succeeds.');
 vodops_contract_match('/verify_deployed_site\s+if \[\[ "\$DEPLOY_SCOPE" == "vodops" \]\]; then[\s\S]*?vodops_auto_rollback_backup=""/', $deployScript, 'Vodops-only deployment must remain rollback-protected through final site verification.');
 vodops_contract_match('/verify_deployed_site\(\)[\s\S]*?--max-time 60/', $deployScript, 'Cold-cache site verification must allow the observed MacCMS template query to finish.');
-$rollbackScript = file_get_contents($root . '/scripts/rollback-theme.sh');
+$rollbackScript = file_get_contents($root . '/scripts/deploy/rollback-theme.sh');
 vodops_contract_match('/\.vodops-deploy-state[\s\S]*?state_dir\/addons\/douban[\s\S]*?restore_optional_file/', $rollbackScript, 'Vodops rollback must understand the pre-merge two-addon snapshot.');
 vodops_contract_match('/application\/index\/controller\/Douban\.php/', $rollbackScript, 'Vodops rollback must restore the legacy public bridge only when it existed before deployment.');
 $packageJson = json_decode(file_get_contents($root . '/package.json'), true);
-if (($packageJson['scripts']['deploy:vodops'] ?? '') !== 'DEPLOY_SCOPE=vodops bash scripts/deploy-theme.sh') {
+if (($packageJson['scripts']['deploy:vodops'] ?? '') !== 'DEPLOY_SCOPE=vodops bash scripts/deploy/deploy-theme.sh') {
     vodops_contract_fail('package.json must expose a Vodops-only deployment command.');
 }
 $ci = file_get_contents($root . '/.github/workflows/ci.yml');

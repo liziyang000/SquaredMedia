@@ -136,6 +136,8 @@
     overflow-x: auto;
     padding-bottom: 0;
     scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
   }
 
   :where(html:not([data-theme])) .rank-item {
@@ -143,6 +145,7 @@
     gap: 8px;
     min-height: 60px;
     padding: 6px;
+    scroll-snap-align: start;
   }
 
   :where(html:not([data-theme])) .hero-rank .rank-item:first-of-type {
@@ -166,8 +169,13 @@
 }
 
 @media (max-width: 760px) {
+  :where(html:not([data-theme])) .genre-dock {
+    gap: 4px;
+  }
+
   :where(html:not([data-theme])) .genre-chip {
-    flex: 0 0 auto;
+    flex: 1 0 auto;
+    padding-inline: 4px;
   }
 
   :where(html:not([data-theme])) .home-shelf-latest .shelf-title small {
@@ -1003,6 +1011,11 @@ body.episode-drawer-open {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :is(.home-shelf-card, .vod-card, .genre-chip, .rank-item),
+  :is(.home-shelf-poster, .poster) img {
+    transform: none !important;
+  }
+
   .filter-drawer-backdrop,
   .filter-drawer-sheet,
   .episode-drawer-backdrop,

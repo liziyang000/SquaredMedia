@@ -243,9 +243,9 @@ npm run test:vodmerge
 npm run package:vodmerge
 ```
 
-输出 `dist/vodmerge-1.7.0.zip` 与 SHA-256 文件。此命令仅生成 VodMerge 归档，不清空其他 dist 文件。现有 `npm run deploy` 和 `npm run deploy:vodops` 不会部署本插件。
+输出 `dist/vodmerge-1.8.0.zip` 与 SHA-256 文件。此命令仅生成 VodMerge 归档，不清空其他 dist 文件。现有 `npm run deploy` 和 `npm run deploy:vodops` 不会部署本插件。
 
-仓库内 `tests/fixtures/vodmerge-jev-cases.json` 保存虚构匹配样本；`php scripts/evaluate-vodmerge-jev.php --request` 生成不含预期答案的 API 请求，`--response response.json` 校验真实返回并分别报告模型分类与规则放行结果。脚本自身不读取密钥、不发网络请求。最新验证结果见 [VALIDATION.md](VALIDATION.md)。
+验证历史和适用边界见 [VALIDATION.md](VALIDATION.md)。当前仓库的 `npm test` 包含同一套 VodMerge 回归测试。
 
 自动测试使用真实 SQLite 持久化验证队列、预览、绑定、条件更新、恢复和回滚，并覆盖播放器解析、签名和 Jev 返回协议；SQLite 测试不证明 MySQL `GET_LOCK`、线上权限或 MacCMS 路由运行正常。上线前还须验证一个签名提交、连续两次后台操作、一次首次确认、一次关闭页面后的自动补集、原视频播放及失败恢复。
 

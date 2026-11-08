@@ -2,7 +2,7 @@
 
 本文说明仓库内工程脚本的职责和操作边界。主题模板与插件本身的设计另见对应模块文档；这里以 `package.json`、`scripts/`、`.github/workflows/ci.yml` 和现有测试为事实来源。
 
-服务器重置后的现场操作、恢复顺序和验证证据统一记录在 [服务器重置后恢复记录](server-reset-recovery-runbook.md) 中。
+服务器重置后的现场操作、恢复顺序和验证证据统一记录在 [服务器重置后恢复记录](runbooks/server-reset-recovery-runbook.md) 中。
 
 ## 环境要求
 
@@ -21,11 +21,16 @@
 | `npm ci` | 按 `package-lock.json` 安装前端检查工具与播放器发布依赖 | 只写入已忽略的 `node_modules/` |
 | `npm run lint` | 依次检查一方浏览器 JavaScript、主题 CSS 和 Prettier 格式 | 否 |
 | `npm run format` | 用 Prettier 格式化一方 JavaScript 与配置文件 | 是，直接修改被覆盖的源码与配置 |
-| `npm test` | 运行模板、播放器、联机房间/WebSocket、设备会话、海报修复、VodOps 质量模块及豆瓣模块测试 | 否；WebSocket 测试只临时监听本机随机端口 |
+| `npm test` | 运行模板、播放器、联机房间/WebSocket、设备会话、海报修复、VodOps、豆瓣及 VodMerge 模块测试 | 否；WebSocket 测试只临时监听本机随机端口 |
+| `npm run test:vodmerge` | 单独运行采集合并、Token 设置、排查、审核工作台及资源恢复/回滚测试 | 仅 SQLite 与本地临时夹具 |
+| `npm run test:vodmerge-evaluation` | 验证 Jev 评估工具的请求生成、虚构响应映射及无效响应拒绝，已纳入 `npm test` | 仅本地临时响应文件，不调用 AI |
+| `npm run evaluate:vodmerge -- --request` | 输出 9 组虚构影片对的 Jev 请求；用 `--response 文件路径` 离线评估已有响应 | 只输出结果，不联网、不写影片 |
+| `npm run test:search-cache -- /path/to/patched/VodSearch.php` | 对已应用补丁的核心模型运行多进程搜索缓存回归 | 仅临时文件与模拟数据库；需要仓库外模型 |
 | `npm run lint:template` | 检查模板 include、标签平衡、资源路径和生产模板中的开发环境引用 | 否 |
 | `npm run verify:compat` | 检查 MacCMS 目录、标准路由页面和不安全链接模式 | 否 |
 | `npm run verify:preview` | 用当前 PHP CLI 渲染本地预览的主要路由并核对完整 HTML | 否 |
 | `npm run package` | 重建主题、`pingfangdevice`、`vodops`、独立播放器和联机游戏服务发布包 | 是，先重建整个 `dist/` 再加入独立产物 |
+| `npm run package:vodmerge` | 生成并逐文件校验 VodMerge 版本化 ZIP 及 SHA-256 文件 | 仅写入自身归档，保留其他 dist 产物 |
 | `npm run package:player` | 只重建独立播放器发布包，保留 `dist/` 中其他产物 | 是，仅替换播放器目录和归档 |
 | `npm run package:games` | 只重建自包含的联机游戏服务包 | 是，仅替换游戏服务目录和归档 |
 | `npm run verify:release` | 解包检查五个归档的结构、生产边界、资源版本和依赖版本 | 只读 `dist/` |
@@ -62,19 +67,19 @@ npm run verify:release
 
 - `tests/template.test.mjs` 是仓库级静态与预览契约测试，也会约束发布脚本、CI 配置和数据库维护文档中的关键入口。
 - `npm run lint` 用 ESLint 检查一方浏览器脚本、用 Stylelint 检查主题 CSS，并用 Prettier 验证 JavaScript 与配置格式；压缩第三方库不在检查范围内。
-- `scripts/lint-template.mjs` 面向源模板结构，阻止本地预览、`localhost`、死链接或错误资源路径进入生产主题。
-- `scripts/verify-compat.mjs` 面向 MacCMS 页面和目录兼容面。
-- `scripts/verify-preview.mjs` 从仓库根目录调用 PHP CLI，验证本地模拟数据能够渲染主要路由；它不连接真实 MacCMS 数据库。
-- `scripts/verify-release.mjs` 只验证已经生成的归档，不会自动执行打包。
-- `scripts/verify-player-release.mjs` 只接受播放器白名单内的静态文件，并拒绝 PHP、隐藏路径、符号链接和硬链接。
+- `scripts/verify/lint-template.mjs` 面向源模板结构，阻止本地预览、`localhost`、死链接或错误资源路径进入生产主题。
+- `scripts/verify/verify-compat.mjs` 面向 MacCMS 页面和目录兼容面。
+- `scripts/verify/verify-preview.mjs` 从仓库根目录调用 PHP CLI，验证本地模拟数据能够渲染主要路由；它不连接真实 MacCMS 数据库。
+- `scripts/verify/verify-release.mjs` 只验证已经生成的归档，不会自动执行打包。
+- `scripts/verify/verify-player-release.mjs` 只接受播放器白名单内的静态文件，并拒绝 PHP、隐藏路径、符号链接和硬链接。
 - `tests/game-server.test.mjs` 覆盖票据伪造/过期、房间人数、落子顺序与五子胜负、绘画权限、答案隔离、Origin 拒绝和真实 WebSocket 握手。
-- `scripts/verify-game-server-release.mjs` 确认服务包自带精确的 `ws` 8.21.1，且不包含环境文件或签名密钥。
+- `scripts/verify/verify-game-server-release.mjs` 确认服务包自带精确的 `ws` 8.21.1，且不包含环境文件或签名密钥。
 
 本地静态预览必须通过 HTTP 服务打开，因为 `preview/index.html` 使用绝对路径请求 `/preview/data.json`。直接以 `file://` 打开不能视为有效验证。Docker 通过 `PINGFANG_PREVIEW_DATA=/var/www/html/preview/data.json` 对齐容器挂载路径；不使用 Docker 时，`server/lib/data.php` 默认从仓库根目录读取相同样例数据。PHP 路由验证以 `npm run verify:preview` 为准。
 
 ## 打包与 `dist/`
 
-`scripts/package-theme.mjs` 每次运行都会先递归删除整个 `dist/`，再生成：
+`scripts/build/package-theme.mjs` 每次运行都会先递归删除整个 `dist/`，再生成：
 
 ```text
 dist/
@@ -97,13 +102,13 @@ dist/
 - 任意层级以 `.` 开头的文件或目录不会进入包。
 - 主题 HTML 中的样式、共享脚本、播放器提示、俄罗斯方块库及初始化器、竹知了交互、联机游戏脚本和七夕粒子脚本版本占位符会分别替换为对应文件的 12 位内容摘要，避免单个资源变化使其他资源缓存失效。
 - 包内目录权限统一为 `0755`，文件权限统一为 `0644`；tar 包禁用 macOS 扩展属性元数据。
-- `scripts/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
-- `scripts/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
+- `scripts/build/package-player.mjs` 从 `maccms-player/` 精确复制自有播放器 HTML、CSS 和 JavaScript，并从 `node_modules/` 中锁定的 ArtPlayer 5.4.0 与 hls.js 1.6.16 生成版本化文件；它不会清空 `dist/` 中先生成的主题与插件产物，也不会把 PHP、隐藏文件或链接带入播放器归档。
+- `scripts/build/package-game-server.mjs` 打包一方服务源码、systemd/Nginx 样例和锁定的 `ws` 运行依赖；归档可离线启动，不包含 `.env`。
 - 当前自动化打包主题、`pingfangdevice`、合并后的 `vodops`、独立播放器和联机游戏服务，不会自动包含其他 `addons/` 子目录；不会生成独立 `douban.tar.gz`。`npm run deploy` 会部署主题、两个插件与游戏服务，但不会安装独立播放器。`npm run rollback` 默认回滚主题，也可用 `ROLLBACK_SCOPE=vodops` 回滚合并插件代码和应用载荷；两种模式都不删除数据库数据。
 
 `dist/` 已被 `.gitignore` 忽略，是可重复生成的发布产物，不是源码。不要把人工报告、数据库备份或唯一副本放入其中，否则下次 `npm run package` 会直接删除。
 
-仓库根目录下可能出现 `output/`，但当前 `package.json`、`scripts/`、测试和 CI 都没有把它定义为正式输出目录；它也未被 `.gitignore` 忽略。应把它视为本地工具临时目录，不在文档或自动化中依赖其内容。若后续引入稳定的生成器，应同时明确所有者、清理策略和忽略规则。
+`output/` 保存本地浏览器截图、性能检查结果和临时报告，整个目录被 Git 忽略，不参与打包与部署。可重新生成的结果放在这里；需要长期保留的审计结论放入 `docs/audits/`，生产数据备份继续存放在独立的备份位置。
 
 ### 独立播放器包边界
 
@@ -125,9 +130,39 @@ dist/
 
 详细环境变量和配置样例见 `services/game-server/README.md`。密钥轮换会让尚未使用的旧票据立即失效，但不会主动关闭已经完成握手的连接；需要强制断开时应重启服务。`npm run deploy` 会在主题和插件成功后自动执行这些主机级配置；仅更新游戏服务时可使用 `npm run deploy:games`。
 
+## 首屏资源交付
+
+打包时生成 `template/pingfangvideo/asset-preloads.json` 对应的包内清单，摘要与 CSS 链接保持一致；设备插件需要与主题配套发布，才能输出 HTTP `Link` 提前加载提示。预加载提示本身不缓存 HTML，也不改变登录会话或 Cookie。设备插件会让播放/试看路由跳过整页 HTML 缓存，避免复用其他登录状态的播放器；首页与查询缓存不变。
+
+主题 CSS/JS 同时生成较小的 `.gz` 副本，原始文件和 URL 保留。源站支持 `ngx_http_gzip_static_module` 时，可在现有静态资源配置中启用 `gzip_static on;` 并核对 `Vary: Accept-Encoding`；先用 `nginx -V` 核对模块，用 `nginx -t` 校验配置。该模块未启用时继续使用现有动态 gzip 或原文件，不要直接启用 `gzip_static always`。
+
+线上启用 Redis 整页缓存时，清理 `runtime/cache` 和 `runtime/temp` 不会失效已缓存的 HTML；发布后还需按当前站点、移动端标记和 `cache_flag` 精确失效页面缓存，避免清空 Redis 或影响会话。
+
+本地夹具的慢响应测试只能验证资源发现和脚本时序；发布后仍需分别核对公网 HTML、CSS 缓存命中、首屏绘制及播放和会员操作，不能把本地数值视作线上提速结果。
+
+核心 `jquery.js`、`home.js` 的模板 URL 由模板内置 PHP 表达式按源文件内容生成 12 位版本号；更新核心脚本后需要按既有流程失效对应站点 HTML 缓存。播放页继续使用同步脚本顺序。源站长缓存仅应用于带 12 位内容版本号的公开关键 CSS/JS；无版本或旧式版本参数保留短缓存，会员与 API 的 `no-store` 不变。
+
+正式站可通过 `X-Request-ID` 对照 Nginx HTML 计时日志，`X-Origin-Connect-Seconds` 和 `X-Origin-Header-Seconds` 的单位均为秒，分别表示源站连接 FastCGI 和收到其响应头的耗时。浏览器连接、首字节与下载耗时需要另外测量，不能把 FastCGI 耗时当作整个 CDN 链路时间。计时日志仅记录带 `X-PFV-Timing-Probe: 1` 的 GET HTML 诊断请求的路由、随机请求标识、状态、字节数和耗时，不记录 Cookie、查询参数或请求体，并使用现有 logrotate 轮换限制保留量。
+
+## VodMerge 独立交付
+
+`npm run package:vodmerge` 调用 `scripts/build/package-vodmerge.php`，按插件 `info.ini` 的版本生成 ZIP，并核对包内每个文件的 SHA-256 与源文件一致。先完成 `npm run package` 再生成此归档，避免主打包重建 `dist/` 时清除它。常规五个发布单元及其部署范围保持原有约定。
+
+VodMerge 的安装、1.7 → 1.8 审核表升级和 Worker 配置由独立操作完成，见 [插件说明](../addons/vodmerge/README.md)。本地测试和打包不执行安装、升级、扫描或真实影片合并。
+
+## 旧 PWA 与核心搜索补丁
+
+`ops/nginx/pfv-retire-sw.js` 用于退役旧 `/index.php/pwa/sw.html` Service Worker：安装后立即接管客户端并注销自身，不注册 `fetch` 处理器。退役脚本不删除浏览器缓存。对应回归测试已纳入 `npm test`。
+
+部署时将脚本复制为站点的 `static/pfv-retire-sw.js`，把 `ops/nginx/pingfang-retire-pwa.conf` 加入现有站点 `server`，按实际站点目录核对 `alias`，通过 `nginx -t` 后再重载。该配置为旧 Worker URL 返回 JavaScript，设置根作用域和 `no-store`；不能只上传脚本而不配置旧 URL。此独立配置不由主题发布包或普通部署命令应用。
+
+MacCMS 核心搜索优化保存在 [搜索补丁说明](../patches/maccms/README.md)。先对照基线哈希，在核心文件副本上预演补丁并运行专项回归；真实部署、权限、查询耗时及用户操作按说明单独验收。仓库内的验证不修改线上核心或数据库。
+
+Jev 离线评估脚本位于 `scripts/verify/evaluate-vodmerge-jev.php`，仅生成请求或解析手动提供的响应，不读取密钥、不发送请求。9 组虚构案例用于检查映射和规则，不能代表真实模型准确率。站点本地 `application/extra/vodmerge.php`、锁文件及配置临时文件已加入 Git 忽略规则。
+
 ## 部署
 
-`npm run deploy` 先调用 `scripts/deploy-theme.sh`，再调用 `scripts/deploy-game-server.sh`。必须提供：
+`npm run deploy` 先调用 `scripts/deploy/deploy-theme.sh`，再调用 `scripts/deploy/deploy-game-server.sh`。必须提供：
 
 ```bash
 DEPLOY_HOST=example.com \
@@ -137,18 +172,18 @@ DEPLOY_PATH=/www/wwwroot/example.com/template \
 npm run deploy
 ```
 
-`DEPLOY_PATH` 必须是远端 MacCMS 的 `template` 目录，脚本以其父目录作为站点根目录。仓库中的 `scripts/deploy-ping2.env` 只保存当前目标的非密码连接参数、专用密钥路径和站点验证 Host；当前 SSH 目标是 `144.34.184.95:814`，`www.ping2video.xyz` 是公开站点域名。在确认目标无误且已获得发布授权后可执行：
+`DEPLOY_PATH` 必须是远端 MacCMS 的 `template` 目录，脚本以其父目录作为站点根目录。仓库中的 `scripts/deploy/deploy-ping2.env` 只保存当前目标的非密码连接参数、专用密钥路径和站点验证 Host；当前 SSH 目标是 `144.34.184.95:814`，`www.ping2video.xyz` 是公开站点域名。在确认目标无误且已获得发布授权后可执行：
 
 ```bash
-source scripts/deploy-ping2.env
+source scripts/deploy/deploy-ping2.env
 npm run deploy
 ```
 
 仅更新现有主题时，使用主题范围：
 
 ```bash
-source scripts/deploy-ping2.env
-DEPLOY_SCOPE=theme bash scripts/deploy-theme.sh
+source scripts/deploy/deploy-ping2.env
+DEPLOY_SCOPE=theme bash scripts/deploy/deploy-theme.sh
 ```
 
 该范围会执行完整本地发布校验，但只上传主题归档。服务器核对归档 SHA-256 后，在模板目录内解压候选版本，将旧主题保留为 `pingfangvideo.backup.<时间戳>.<进程号>`，再切换主题并清理 MacCMS 缓存。缓存清理或站点回环验证失败时，自动恢复备份并保留失败版本。它不安装插件、不修改数据库、Cron、独立播放器或游戏服务；发布后仍需从公网检查主题切换、桌面和手机页面，并记录备份目录。
@@ -156,7 +191,7 @@ DEPLOY_SCOPE=theme bash scripts/deploy-theme.sh
 只发布合并后的视频数据中心时使用专用范围，不要执行上面的全量命令：
 
 ```bash
-source scripts/deploy-ping2.env
+source scripts/deploy/deploy-ping2.env
 npm run deploy:vodops
 ```
 
@@ -191,7 +226,7 @@ VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`�
 
 ### 发布安全边界
 
-- 不要把 `DEPLOY_PASSWORD` 写入仓库或 `scripts/deploy-ping2.env`；优先使用 SSH 密钥。首次连接使用 `StrictHostKeyChecking=accept-new`，操作人仍应通过可信渠道核对主机指纹。
+- 不要把 `DEPLOY_PASSWORD` 写入仓库或 `scripts/deploy/deploy-ping2.env`；优先使用 SSH 密钥。首次连接使用 `StrictHostKeyChecking=accept-new`，操作人仍应通过可信渠道核对主机指纹。
 - 专用部署密钥不是默认 SSH Identity 时，通过 `DEPLOY_IDENTITY_FILE` 传入本机私钥路径；脚本会同时为 SSH 和 SCP 启用 `IdentitiesOnly`，但不会读取或复制私钥内容。
 - `DEPLOY_SITE_HOST` 只填写主机名，不带协议或路径；协议由 `DEPLOY_SITE_SCHEME` 指定。`DEPLOY_SITE_MARKER` 应选择只有正确站点页面会出现的稳定片段，当前 ping2 配置使用主题资源路径。
 - 回环请求使用 `curl -k`，只用于绕过服务器本机访问虚拟主机时的证书信任问题；它不修改证书配置，也不能代替从公网检查 TLS、DNS 和 CDN。
@@ -203,7 +238,7 @@ VodOps Cron 默认启用，远端必须提供 `crontab`、`flock` 和 CLI `php`�
 
 ## 回滚
 
-`npm run rollback` 调用 `scripts/rollback-theme.sh`。默认选择远端模板目录中名称排序最后的 `pingfangvideo.backup.*`：
+`npm run rollback` 调用 `scripts/deploy/rollback-theme.sh`。默认选择远端模板目录中名称排序最后的 `pingfangvideo.backup.*`：
 
 ```bash
 DEPLOY_HOST=example.com \
@@ -237,8 +272,8 @@ ROLLBACK_SCOPE=vodops ROLLBACK_BACKUP=vodops.backup.20260810120000 npm run rollb
 
 入口：
 
-- `scripts/sql/maccms-vod-category-maintenance.sql`
-- `docs/maccms-vod-category-maintenance.md`
+- `scripts/data/maccms-vod-category-maintenance.sql`
+- `docs/runbooks/maccms-vod-category-maintenance.md`
 
 脚本只根据 `${前缀}type` 的父子关系修正 `${前缀}vod.type_id_1`，不会猜测或重分配错误的 `type_id`。默认表名为 `mac_vod` 和 `mac_type`，自定义前缀必须先复制脚本并替换表名。
 
@@ -252,9 +287,9 @@ ROLLBACK_SCOPE=vodops ROLLBACK_BACKUP=vodops.backup.20260810120000 npm run rollb
 
 入口：
 
-- `scripts/repair-vod-posters.php`
+- `scripts/data/repair-vod-posters.php`
 - `tests/poster-repair.test.php`
-- `docs/maccms-vod-poster-repair.md`
+- `docs/runbooks/maccms-vod-poster-repair.md`
 
 工具默认是只读预演：它处理空海报，以及本地上传模式下实际文件缺失的相对路径；已经存在的本地文件、远程上传模式的相对存储键和现有 HTTP/HTTPS 海报不会被盲目覆盖。候选依次来自已验证 ID 的豆瓣数据、后台视频采集源，以及可选的 Bangumi 动画查询，并要求规范化片名和可用年份能够确定性匹配。
 
@@ -268,7 +303,7 @@ ROLLBACK_SCOPE=vodops ROLLBACK_BACKUP=vodops.backup.20260810120000 npm run rollb
 
 每次 `--apply` 会把匹配记录第一次修复前的值保存到 `${前缀}vod_pic_repair_backup`。更新语句同时比较 `vod_id` 和原始 `vod_pic`，预演后被人工修改的行会跳过；恢复出来的本地文件也会再次阻止旧报告覆盖。这个保护不能替代数据库备份，且整体 SQL 回滚可能覆盖修复后的人工改动，必须按应用报告逐条评估。
 
-`docs/vod-poster-provider-matches-20260716.md` 是基于 2026-07-16 报告与当时生产库生成的历史审计快照，不是采集源配置，也不能代表当前数据库状态。后续核验应生成新的、带日期的审计产物，不要直接改写该快照来表示最新状态。
+`docs/audits/vod-poster-provider-matches-20260716.md` 是基于 2026-07-16 报告与当时生产库生成的历史审计快照，不是采集源配置，也不能代表当前数据库状态。后续核验应生成新的、带日期的审计产物，不要直接改写该快照来表示最新状态。
 
 ## CI
 
@@ -289,7 +324,7 @@ CI 只构建和保存归档，不连接生产服务器，也不执行部署、�
 ## 修改工程脚本时的同步检查
 
 - 新增或改名 npm 命令：同步 `package.json`、CI、README 和 `tests/template.test.mjs` 中的契约。
-- 改变主题或插件发布包内容：同步 `scripts/package-theme.mjs`、`scripts/verify-release.mjs`、CI 上传路径和本文生成目录说明。
-- 改变播放器发布包内容：同步 `scripts/package-player.mjs`、`scripts/verify-player-release.mjs`、CI 上传路径和本文白名单说明。
+- 改变主题或插件发布包内容：同步 `scripts/build/package-theme.mjs`、`scripts/verify/verify-release.mjs`、CI 上传路径和本文生成目录说明。
+- 改变播放器发布包内容：同步 `scripts/build/player-manifest.mjs`、打包与验证脚本、独立的播放器发布测试、CI 上传路径和本文白名单说明。
 - 改变远端路径或安装步骤：同步部署与回滚脚本、环境示例、备份/失败恢复说明，并补充相应静态测试。
 - 改变数据维护行为：先补单元测试和预演路径，再更新对应操作文档；任何扩大写入范围的变化都需要重新审视备份与回滚策略。

@@ -9,9 +9,20 @@
 | --- | --- | --- | --- | --- |
 | `pingfangdevice` | 管理会员设备会话；为主题提供动态筛选、线路检测和联机游戏短票据 | `__PREFIX__pingfang_device_session` | `app_begin` | 已纳入打包、发布校验和 SSH 部署 |
 | `vodops` | 通用质量扫描与单条修复；豆瓣 ID 匹配、资料/评分同步、任务、校准、专项体检和日志 | 五张 `vodops_*` 表及七张兼容保留的 `douban_*` 表 | 无前台钩子；质量扫描由 CLI/Cron Worker 执行，豆瓣外部请求由管理员动作或任务 Worker 明确触发 | 已作为一个插件纳入打包、发布校验和 SSH 部署 |
+| `vodmerge` | 跨轮次影片审核、逐线路资源预览、处理历史、条件回滚及采集暂存合并 | 八张 `vodmerge_*` 插件表 | 无前台钩子；管理员动作与独立 CLI Worker | `npm run package:vodmerge` 独立打包，CLI 安装与升级 |
 
-两个插件主类的 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
-仓库部署脚本会执行对应的 `install.sql`；其他安装方式必须确认安装器已导入 SQL。卸载代码不会自动删除历史数据。
+三个插件主类的 `install()`、`uninstall()` 都只返回成功，不负责建表或删表。
+主题发布脚本会执行 `pingfangdevice`、`vodops` 的 `install.sql`；VodMerge 由独立 CLI 安装器创建或升级插件表。其他安装方式必须确认安装器已导入 SQL。卸载代码不会自动删除历史数据。
+
+## `vodmerge` 影片整理与资源审核
+
+当前版本为 1.8.0。待处理队列跨排查轮次保留候选与人工身份结论；审核后选择接收方，逐线路预览播放条目，再明确确认资源变化。处理记录保留任务、操作者与执行结果，并按快照和依赖检查提供回滚入口。双方影片记录及 ID 保留，预览和审核不自动删除影片。
+
+插件同时保留采集暂存、Jev 候选复核、严格自动首次绑定与已确认来源自动补集；两项自动化开关默认关闭。AI 复核由管理员按需触发，未配置也可以人工审核。安装、从 1.7 升级、后台入口及独立 Worker 说明见 [VodMerge 使用说明](../addons/vodmerge/README.md)。
+
+`npm test` 包含完整 VodMerge 回归入口，也可单独运行 `npm run test:vodmerge`。测试使用 SQLite 与本地替身，覆盖身份变化、权限与 CSRF、资源计划、条件写入、恢复和回滚，不代表真实 MySQL 或生产 MacCMS 验收。`npm run package:vodmerge` 只生成版本化 ZIP 与 SHA-256 文件，不安装插件、执行数据库升级或配置定时任务；主题与 VodOps 发布命令继续保持原有范围。
+
+VodMerge 1.1～1.3.1 的部署、真实库测试和界面验收原始资料统一保存在 [历史审计索引](audits/vodmerge/README.md)。这些记录用于追溯，旧版本、服务器状态与路径不作为当前部署依据。
 
 ## `pingfangdevice`
 

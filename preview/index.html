@@ -166,7 +166,7 @@
   <span data-route="detail"></span>
   <span data-route="play"></span>
 </template>
-<script src="../template/pingfangvideo/js/app.js?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="../template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4"></script>
+<script defer src="../template/pingfangvideo/js/app.js?v=__PINGFANG_APP_VERSION__" data-pixel-confetti-src="../template/pingfangvideo/js/canvas-confetti.min.js?v=1.9.4" data-dunhuang-two-src="../template/pingfangvideo/js/two.min.js?v=0.8.24"></script>
 <script type="module">
 const response = await fetch("/preview/data.json");
 const store = await response.json();
@@ -1332,6 +1332,7 @@ async function render() {
   window.PingFangVideo?.initHeroCarousel?.(app);
   window.PingFangVideo?.initMediaFallbacks?.(app);
   window.PingFangVideo?.initHomeMotion?.(app);
+  window.PingFangVideo?.syncDunhuangCaisson?.();
 }
 
 function bindSearchForms() {

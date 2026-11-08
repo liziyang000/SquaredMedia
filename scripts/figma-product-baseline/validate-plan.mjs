@@ -65,6 +65,12 @@ async function exists(relativePath) {
 }
 
 function readProjectSource(relativePath) {
+  if (relativePath === "template/pingfangvideo/html/public/head.html") {
+    return Promise.all([
+      readFile(join(projectDir, relativePath), "utf8"),
+      readFile(join(projectDir, "template/pingfangvideo/html/public/theme_options.html"), "utf8")
+    ]).then(([header, options]) => header.replaceAll('{include file="public/theme_options" /}', options));
+  }
   if (relativePath === "template/pingfangvideo/css/style.css") {
     if (!themeCssSourcePromise) {
       themeCssSourcePromise = Promise.all(

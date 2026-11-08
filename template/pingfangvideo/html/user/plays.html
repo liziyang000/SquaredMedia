@@ -46,7 +46,7 @@
 </section>
 
 <script>
-  (function () {
+  document.addEventListener("DOMContentLoaded", function () {
     function setRecordDeleteIds(item, ids) {
       var recordDeleteIds = ids.filter(Boolean).join(",");
       item.setAttribute("data-record-delete-ids", recordDeleteIds);
@@ -134,6 +134,6 @@
     $("[data-delete-ulog]").click(function () {
       delData($(this).attr("data-delete-ulog"), 0);
     });
-  })();
+  });
 </script>
 {include file="user/foot" /}

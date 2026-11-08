@@ -15,119 +15,76 @@ class DoubanController extends Base
 
     public function saveConfig()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '配置已保存',
                 'data' => DoubanData::saveConfig(input()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function enqueue()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $limit = (int) input('limit/d', 100);
             return json([
                 'code' => 1,
                 'msg' => '任务已生成',
                 'data' => DoubanData::enqueueDue($limit, $this->adminId()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function previewTargeted()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '定向任务预览完成',
                 'data' => DoubanData::previewTargetedTasks(input()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function enqueueTargeted()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请先预览并确认定向任务']);
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '定向任务已生成',
                 'data' => DoubanData::enqueueTargeted(input(), $this->adminId()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请先预览并确认定向任务');
     }
 
     public function run()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $limit = (int) input('limit/d', 20);
             return json([
                 'code' => 1,
                 'msg' => 'Worker 执行完成',
                 'data' => DoubanData::runPending($limit, $this->adminId()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function retryFailed()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $limit = (int) input('limit/d', 100);
             return json([
                 'code' => 1,
                 'msg' => '失败任务已重新入队',
                 'data' => DoubanData::retryFailed($limit, $this->adminId()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function fetchVod()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::fetchVod($vodId, $this->adminId());
             $result = $this->appendWorkspaceState($result, $vodId);
@@ -136,18 +93,12 @@ class DoubanController extends Base
                 'msg' => (string) ($result['msg'] ?? '豆瓣数据获取完成'),
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function sync()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::syncVod($vodId, $this->adminId());
             $result = $this->appendWorkspaceState($result, $vodId);
@@ -156,38 +107,23 @@ class DoubanController extends Base
                 'msg' => '同步完成',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function previewManualSync()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '字段更新预览已生成',
                 'data' => DoubanData::previewManualSync((int) input('vod_id/d', 0)),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function applyManualSync()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请确认更新所选字段']);
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::applyManualSync(
                 $vodId,
@@ -201,21 +137,12 @@ class DoubanController extends Base
                 'msg' => '所选字段已更新',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请确认更新所选字段');
     }
 
     public function rollbackPic()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请确认回退图片']);
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::rollbackPicture($vodId, $this->adminId());
             $result = $this->appendWorkspaceState($result, $vodId);
@@ -224,38 +151,23 @@ class DoubanController extends Base
                 'msg' => '图片已回退',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请确认回退图片');
     }
 
     public function calibrate()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请确认执行全量评分校准']);
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '豆瓣评分校准完成',
                 'data' => DoubanData::calibrateScores($this->adminId()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请确认执行全量评分校准');
     }
 
     public function previewCalibration()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '分类校准预览完成',
@@ -264,21 +176,12 @@ class DoubanController extends Base
                     (int) input('include_children/d', 1)
                 ),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function calibrateByType()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请先预览并确认分类校准']);
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '所选分类的评分校准任务已生成',
@@ -288,18 +191,12 @@ class DoubanController extends Base
                     $this->adminId()
                 ),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请先预览并确认分类校准');
     }
 
     public function setDoubanId()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::setDoubanId(
                 $vodId,
@@ -313,18 +210,12 @@ class DoubanController extends Base
                 'msg' => '豆瓣ID已保存',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function lock()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::setLock(
                 $vodId,
@@ -338,21 +229,12 @@ class DoubanController extends Base
                 'msg' => '锁定状态已更新',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function ignore()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请确认忽略该影片30天']);
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::ignore($vodId, (int) input('days/d', 30), $this->adminId());
             $result = $this->appendWorkspaceState($result, $vodId);
@@ -361,18 +243,12 @@ class DoubanController extends Base
                 'msg' => '已忽略',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请确认忽略该影片30天');
     }
 
     public function restore()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             $vodId = (int) input('vod_id/d', 0);
             $result = DoubanData::restoreIgnored($vodId, $this->adminId());
             $result = $this->appendWorkspaceState($result, $vodId);
@@ -381,80 +257,51 @@ class DoubanController extends Base
                 'msg' => !empty($result['created_task']) ? '已恢复处理并生成任务' : '已恢复处理，已有任务未重复生成',
                 'data' => $result,
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function startAudit()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-        if ((int) input('confirm/d', 0) !== 1) {
-            return json(['code' => 1001, 'msg' => '请确认开始全库体检']);
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '全库体检已开始',
                 'data' => DoubanData::startAudit((int) input('batch_size/d', 100), $this->adminId()),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        }, '请确认开始全库体检');
     }
 
     public function runAuditBatch()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '本批体检完成',
                 'data' => DoubanData::runAuditBatch((int) input('scan_id/d', 0)),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function pauseAudit()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '全库体检已暂停',
                 'data' => DoubanData::pauseAudit((int) input('scan_id/d', 0)),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function resumeAudit()
     {
-        if (($error = $this->guardPost()) !== null) {
-            return $error;
-        }
-
-        try {
+        return $this->postAction(function () {
             return json([
                 'code' => 1,
                 'msg' => '全库体检已恢复',
                 'data' => DoubanData::resumeAudit((int) input('scan_id/d', 0)),
             ]);
-        } catch (\Throwable $e) {
-            return $this->errorJson($e);
-        }
+        });
     }
 
     public function exportAudit()
@@ -530,7 +377,7 @@ class DoubanController extends Base
         return $result;
     }
 
-    private function guardPost()
+    private function postAction(callable $action, $confirmationMessage = null)
     {
         if (!Request()->isPost()) {
             return json(['code' => 1001, 'msg' => '请求方式错误'], 405);
@@ -538,8 +385,15 @@ class DoubanController extends Base
         if (!Request()->isAjax()) {
             return json(['code' => 1004, 'msg' => '请求来源校验失败'], 405);
         }
+        if ($confirmationMessage !== null && (int) input('confirm/d', 0) !== 1) {
+            return json(['code' => 1001, 'msg' => $confirmationMessage]);
+        }
 
-        return null;
+        try {
+            return $action();
+        } catch (\Throwable $e) {
+            return $this->errorJson($e);
+        }
     }
 
     private function errorJson(\Throwable $e)

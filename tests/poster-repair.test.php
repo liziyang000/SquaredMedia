@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../scripts/repair-vod-posters.php';
+require __DIR__ . '/../scripts/data/repair-vod-posters.php';
 
 function assert_same($expected, $actual, string $message): void
 {

@@ -5,8 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const packageScript = path.join(root, "scripts", "package-player.mjs");
-const verifyScript = path.join(root, "scripts", "verify-player-release.mjs");
+const packageScript = path.join(root, "scripts", "build", "package-player.mjs");
+const verifyScript = path.join(root, "scripts", "verify", "verify-player-release.mjs");
 const packageName = "pingfangplayer-player";
 const authoredFiles = ["static/player/artplayer.html", "static/player/artplayer/pingfang-player-1.0.0.js", "static/player/artplayer/pingfang-player-1.0.0.css"];
 const vendorFiles = [
@@ -130,10 +130,10 @@ const packageJson = JSON.parse(readFileSync(path.join(root, "package.json"), "ut
 assert.match(packageJson.scripts.test, /tests\/player-package\.test\.mjs/);
 assert.match(packageJson.scripts.package, /package-theme\.mjs/);
 assert.match(packageJson.scripts.package, /package:player/);
-assert.equal(packageJson.scripts["package:player"], "node scripts/package-player.mjs");
+assert.equal(packageJson.scripts["package:player"], "node scripts/build/package-player.mjs");
 assert.match(packageJson.scripts["verify:release"], /verify-release\.mjs/);
 assert.match(packageJson.scripts["verify:release"], /verify:player-release/);
-assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify-player-release.mjs");
+assert.equal(packageJson.scripts["verify:player-release"], "node scripts/verify/verify-player-release.mjs");
 assert.equal(packageJson.devDependencies.artplayer, "5.4.0");
 assert.equal(packageJson.devDependencies["hls.js"], "1.6.16");
 
